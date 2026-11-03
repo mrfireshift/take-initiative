@@ -234,6 +234,23 @@ ce n'è (le forme di Alterare sé stesso). `saveReminder.fixedHealing` offre una
 fissa a inizio turno (Rigenerazione); `spellCastHealingDice` aggiunge il campo «Cura»
 a un incantesimo tracciato, scritto nel comando della sua pill.
 
+Una zona può cambiare con la variante scelta al lancio. `zonePolicy.initialSaveByChoice`
+dà il TS di quella variante (`spellZoneInitialSaveForChoice`), `zonePolicy.instantChoices`
+elenca quelle risolte al lancio, che non lasciano zona (`spellZoneChoiceIsInstant`), e
+`initialHPChoices` nelle regole di lancio dice per quali c'è il danno: così Trasmutare
+Roccia e Simbolo. L'elenco degli incantesimi attivi mostra solo i promemoria della
+variante in corso.
+
+Il Simbolo è una fase preparata senza concentrazione. `prepareOnly`, `resolveLabel` e
+`preparedExpiry` in `spellCastPhaseCore.js` tracciano il glifo come pill senza scadenza
+e senza zona; `SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS` porta **Attiva** nella transazione
+ad area del pannello, con la fase `resolve`. L'esecutore cerca l'istanza preparata tra
+le pill del caster, perché non c'è concentrazione, e la zona riusa lo stesso
+`instanceId`: la pill passa a `defaultTurns` (100 round) e l'Annulla torna al glifo. Il
+comando del pannello tiene le regole della variante (`getAreaSaveAutomation`), che per
+gli altri prepared non si applicano. Gli otto effetti generano sedici promemoria da
+`SYMBOL_ZONE_EFFECTS`, con `failureAutomation: "spell-save"` e `skipConditions`.
+
 Gli avvisi di concentrazione della console ad area partono dopo il commit
 (`defaultConcentrationWarnings`), con la voce della Cronologia come causa:
 prima il gancio `onConcentrationWarnings` era vuoto e i danni del pannello non

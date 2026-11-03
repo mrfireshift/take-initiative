@@ -209,7 +209,7 @@ async function finishPlacement(status) {
   if (status === "confirmed" && current.batch) {
     const areas = current.shapes.map((shape) => ({ start: shape.origin, end: shape.end, targetIds: hitIds(current, shape.area) }));
     preview = { type, start: areas[0].start, end: areas[0].end, targetIds: [...new Set(areas.flatMap((area) => area.targetIds))], areas };
-  } else if (status === "confirmed") preview = { type, start: current.origin, end: current.end, targetIds: hitIds(current, current.area) };
+  } else if (status === "confirmed") preview = { type, start: current.origin, end: current.end, dpi: GRID, targetIds: hitIds(current, current.area) };
   if (preview && current.keep) {
     await OBR.scene.items.addItems([
       { id: current.keep.id, name: current.keep.name, type: "PATH", layer: "DRAWING", metadata: current.keep.metadata, keptArea: { cells: current.area.cells } },

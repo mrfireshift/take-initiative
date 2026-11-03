@@ -177,12 +177,12 @@ const CURATED_REVIEW = Object.freeze({
     note: "Le modalità del cubo di terra e la gestione del terreno difficile/normale hanno gestione ambientale manuale al tavolo; l'assenza di automazione non costituisce un RAW gap del tracker.",
   },
   "xanathar-muro-dacqua": {
-    gaps: ["MOVEMENT_MECHANICS_MISSING", "CONDITIONAL_TRIGGER"],
-    note: "La parete non applica terreno difficile né le interazioni contestuali con attacchi a distanza, danni da fuoco e congelamento locale da freddo.",
+    gaps: [],
+    note: "Decisione T3: la zona dà il terreno difficile; svantaggio a distanza e fuoco dimezzato sono una nota, le sezioni congelate restano al tavolo (CAP-STRUCTURE).",
   },
   "speak-with-plants": {
-    gaps: ["MOVEMENT_MECHANICS_MISSING", "CHOICE_WORKFLOW_MISSING"],
-    note: "L'aura è presente, ma manca la scelta di rendere normale o difficile il terreno vegetale e il relativo collegamento allo Speed Tracker.",
+    gaps: [],
+    note: "Decisione T6: pill e aura di 9 m; rendere normale o difficile il terreno vegetale è una decisione del momento, al tavolo.",
   },
   "shapechange": {
     gaps: ["REPEATED_ACTION", "CHOICE_WORKFLOW_MISSING"],
@@ -225,8 +225,8 @@ const CURATED_REVIEW = Object.freeze({
     note: "L'area esiste, ma i round 1-10 cambiano danni, TS, Assordato, terreno difficile e oscuramento.",
   },
   "xanathar-trasmutare-roccia": {
-    gaps: ["VARIANT_ZONE_RUNTIME", "MOVEMENT_MECHANICS_MISSING", "ZONE_TRIGGER_MISSING"],
-    note: "Le due trasformazioni richiedono varianti distinte, costo 4x nel fango, TS al lancio/ingresso/fine turno e uscita o distruzione della roccia.",
+    gaps: [],
+    note: "Decisione T4: tre varianti; solo il fango lascia la zona con costo ×4 e TS all'ingresso e a fine turno, il fango dal soffitto infligge 4d8.",
   },
 });
 

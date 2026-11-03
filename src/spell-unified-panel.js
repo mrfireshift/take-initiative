@@ -2319,6 +2319,58 @@ export function bootSpellUnifiedPanel(
     }
   };
 
+  // A prepared spell resolved in this panel (Symbol's glyph): its area, outcomes and undo are those of a cast.
+  const enterPreparedAreaResolution = (overview, choiceValue) => {
+    const context = overview.context || overview;
+    const spellId = String(context.spellId || state.contract?.spell?.id || "").trim();
+    const slotLevel = numeric(
+      context.castContext?.slotLevel
+        ?? state.session?.slotLevel
+        ?? state.contract?.presentation?.slot?.default,
+    );
+    const nextContract = buildContract(spellId, {
+      phase: "resolve",
+      variant: choiceValue,
+      slotLevel,
+    });
+    if (!nextContract) return;
+    state.contract = nextContract;
+    state.session = updateSpellPanelSession(state.session, {
+      spellId,
+      phase: "resolve",
+      activeActionId: "",
+      activeInstanceId: "",
+      activeActionState: null,
+      activeConcentration: {
+        instanceId: String(context.instanceId || overview.instanceId || "").trim(),
+        spellId,
+      },
+      casterId: firstValidCaster(state.casters, context.casterId || state.session.casterId),
+      slotLevel,
+      variant: choiceValue,
+      castContext: {
+        ...(context.castContext && typeof context.castContext === "object"
+          ? context.castContext
+          : {}),
+        phase: "resolve",
+        ...(slotLevel === null ? {} : { slotLevel }),
+      },
+      targetIds: [],
+      primaryTargetId: "",
+      outcomes: {},
+      targetContext: {},
+      placement: null,
+      commitState: { state: "idle" },
+      feedback: {
+        state: "info",
+        message: "Glifo pronto: posiziona la sfera dove si trova.",
+      },
+    });
+    updateEligibility();
+    state.revision += 1;
+    render();
+  };
+
   const executeActiveAction = async () => {
     if (!sceneAvailable() || state.committing || ["loading", "opened"].includes(
       String(state.session?.activeActionState?.state || "").trim(),
@@ -2352,47 +2404,7 @@ export function bootSpellUnifiedPanel(
       action.type === "resolve"
       && PREPARED_AREA_RESOLUTION_SPELL_IDS.has(String(context.spellId || "").trim())
     ) {
-      const spellId = String(context.spellId || state.contract?.spell?.id || "").trim();
-      const slotLevel = numeric(
-        context.castContext?.slotLevel
-          ?? state.session?.slotLevel
-          ?? state.contract?.presentation?.slot?.default,
-      );
-      const nextContract = buildContract(spellId, {
-        phase: "resolve",
-        variant: choiceValue,
-        slotLevel,
-      });
-      if (!nextContract) return;
-      state.contract = nextContract;
-      state.session = updateSpellPanelSession(state.session, {
-        spellId,
-        phase: "resolve",
-        activeActionId: "",
-        activeInstanceId: "",
-        activeActionState: null,
-        activeConcentration: {
-          instanceId: String(context.instanceId || overview.instanceId || "").trim(),
-          spellId,
-        },
-        slotLevel,
-        variant: choiceValue,
-        castContext: {
-          ...(context.castContext && typeof context.castContext === "object"
-            ? context.castContext
-            : {}),
-          phase: "resolve",
-          ...(slotLevel === null ? {} : { slotLevel }),
-        },
-        commitState: { state: "idle" },
-        feedback: {
-          state: "info",
-          message: "Risoluzione preparata pronta nel pannello unificato.",
-        },
-      });
-      updateEligibility();
-      state.revision += 1;
-      render();
+      enterPreparedAreaResolution(overview, choiceValue);
       return;
     }
     state.committing = true;
@@ -3358,6 +3370,11 @@ export function bootSpellUnifiedPanel(
         if (!overview || !actionId || !action) return;
         const context = overview.context || overview;
         const spellId = String(context.spellId || state.contract?.spell?.id || "").trim();
+        if (action.type === "resolve" && PREPARED_AREA_RESOLUTION_SPELL_IDS.has(spellId)) {
+          enterPreparedAreaResolution(overview, String(context.castContext?.choice || "").trim());
+          await clearSelection();
+          return;
+        }
         const phase = String(context.castContext?.phase || state.session.phase || "cast").trim();
         const slotLevel = numeric(context.castContext?.slotLevel);
         const nextContract = buildContract(spellId, {

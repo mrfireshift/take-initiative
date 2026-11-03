@@ -908,15 +908,16 @@ test("Sfera Acquea, Spirito Guaritore, Crescita di Spine e Muro di Ghiaccio trac
 
 test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () => {
   assert.equal(AREA_SAVE_SPELL_IDS.length, 94);
-  // 37 with Pass without Trace's aura (lotto L1); 40 with Wall of Sand, Wall of Force and Forbiddance (lotto L3).
-  assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 40);
-  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 135);
+  // 37 with Pass without Trace's aura (lotto L1); 40 with Wall of Sand, Wall of Force and Forbiddance (lotto L3); 42 with
+  // Plant Growth and Wall of Water (CAP-TERRAIN).
+  assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 42);
+  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 137);
   // 17 with the saves with damage of lotto L2; 152 in the popover with the zones of lotto L3; 21 and 156 with
   // Disintegrate, Finger of Death, Power Word Kill and Feeblemind (CAP-HP-BRANCH); 25 and 160 with Heal, Power
   // Word Heal, Lesser Restoration and Dispel Magic (CAP-CLEANSE); 26 and 161 with Magic Missile; 27 and 162 with
-  // Negative Energy Flood (CAP-TEMP); 33 and 168 with the six spells of CAP-STABILIZE.
+  // Negative Energy Flood (CAP-TEMP); 33 and 168 with the six spells of CAP-STABILIZE; 170 with the two of lotto G1 of CAP-TERRAIN.
   assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 33);
-  assert.equal(AREA_POPOVER_SPELL_IDS.length, 168);
+  assert.equal(AREA_POPOVER_SPELL_IDS.length, 170);
   assert.equal(AREA_SAVE_SPELL_IDS.includes("phb2014-fame-di-hadar"), false);
   assert.equal(
     AREA_PLACEMENT_ONLY_SPELL_IDS.includes("phb2014-fame-di-hadar"),

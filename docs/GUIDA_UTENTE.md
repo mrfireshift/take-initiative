@@ -681,6 +681,39 @@ Tre incantesimi dipendono dallo slot o proseguono dopo il lancio:
   su un morto né a PF pieni. Se a PF pieni subisce un danno durante il suo turno, il
   promemoria può comparire in ritardo: premi **Ignora**.
 
+Quattro incantesimi cambiano il terreno. Le zone senza scadenza restano finché non
+le togli tu con **Termina**:
+
+- **Crescita vegetale**: la zona di 30 m di raggio costa ×4 il movimento e non ha
+  scadenza. Per l'uso da 8 ore lancialo senza posizionare l'area: spendi lo slot e
+  non compare nessuna zona. Le aree che il testo lascia escludere restano al tavolo:
+  se una creatura ne è fuori, correggi a mano il suo movimento.
+- **Muro d'Acqua**: nella Forma scegli **Muro lineare** o **Muro circolare**. Dentro
+  il muro il terreno è difficile. Lo svantaggio agli attacchi a distanza e il fuoco dimezzato
+  sono una nota da leggere; le sezioni congelate restano al tavolo.
+- **Trasmutare Roccia**: la Modalità ha tre usi, ognuno con il suo TS scritto
+  nell'etichetta. **Roccia in fango** lascia la zona: ×4, Trattenuto a chi fallisce e
+  un promemoria quando si entra o si finisce il turno dentro. **Fango in roccia** dà
+  Trattenuto; **Fango dal soffitto** chiede il danno di 4d8, metà se superato. Questi
+  due non lasciano zona.
+- **Simbolo**: va in due tempi.
+  1. Il lancio traccia il glifo: scegli l'effetto e premi **Prepara incantesimo**.
+     Spende lo slot; compare solo la pill sul caster, senza scadenza.
+  2. Quando il glifo si innesca, premi **Attiva** nel ⚡ della pill o tra gli
+     incantesimi attivi del pannello. Posiziona la sfera di 18 m dove si trova il
+     glifo, anche lontano dal caster, e registra gli esiti: nessun altro slot. La
+     sfera dura 10 minuti e chiede il TS a chi entra o finisce il turno dentro, se non
+     ha già quell'effetto.
+
+  Solo Morte chiede il danno, 10d10 con metà se superato. Il caster dentro la sfera
+  non è tra i bersagli attivi. L'innesco e la prova per scorgere il glifo, i movimenti
+  di Follia e l'obbligo di allontanarsi di Paura restano al tavolo. I giocatori vedono
+  la pill «Simbolo» sulla card del caster, non quale effetto contiene.
+
+Parlare con i vegetali resta pill e aura: rendere il terreno normale o difficile si
+decide al tavolo. Boschetto Druidico si lancia e resta tracciato con la sua zona, ma
+quadrati liberi e alberi sono da gestire a mano.
+
 Le resistenze di Scudo di fuoco, Ombra di Moil, Interdizione primordiale,
 Vincolo di interdizione e Assorbire elementi valgono davvero nelle console.
 Interdizione primordiale ha nel ⚡ le cinque **Immunità: tipo**: la reazione

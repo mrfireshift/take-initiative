@@ -768,6 +768,7 @@ const SPELL_EXPIRY = Object.freeze({
   "legacy-tashas-mind-whip": Object.freeze({ mode: "turn-end", actor: "target", remaining: 1, anchor: "next-turn" }),
   ...SUPPLEMENT_EXPIRY,
   ...PHB2014_EXPIRY,
+  "plant-growth": Object.freeze({ mode: "manual" }),
 });
 
 const SPELL_END_CONSEQUENCES = Object.freeze({
@@ -1613,6 +1614,14 @@ const SPELL_EFFECTS = Object.freeze({
 });
 
 const SPELL_SUMMARY_DEFINITIONS = Object.freeze({
+  // CAP-TERRAIN, lotto G1 (decision T3): what the wall does to what crosses it, to read at the table.
+  "xanathar-muro-dacqua": Object.freeze({
+    id: "xanathar-muro-dacqua",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "wall-of-water-ranged", label: "A distanza: svant." }),
+      Object.freeze({ id: "wall-of-water-fire", label: "Fuoco ½" }),
+    ]),
+  }),
   "antilife-shell": Object.freeze({
     id: "antilife-shell",
     summaryParts: Object.freeze([
@@ -2229,6 +2238,10 @@ const SPELL_TRACKING_OVERRIDES = Object.freeze({
   "awaken": Object.freeze({ trackable: true, defaultTurns: 30 * 14400 }),
   // Instantaneous, but its berries keep their potency for 24 hours (CAP-RESOURCE).
   "goodberry": Object.freeze({ trackable: true, defaultTurns: 14400 }),
+  // Instantaneous, but its overgrowth stays until the GM takes it off (CAP-TERRAIN, decision T2).
+  "plant-growth": Object.freeze({ trackable: true, defaultTurns: 14400 }),
+  // The sphere of the triggered glyph lasts 10 minutes; the glyph itself has its own expiry (spellCastPhaseCore.js).
+  "symbol": Object.freeze({ trackable: true, defaultTurns: 100 }),
 });
 const ITALIAN_NAMES = italianData?.names && typeof italianData.names === "object"
   ? italianData.names

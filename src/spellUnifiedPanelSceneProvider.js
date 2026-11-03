@@ -994,8 +994,12 @@ function persistentRuleForGroup(group, spell) {
     .find((rule) => rule?.kind === "zone") || null;
 }
 
-function persistentTriggers(rule) {
+function persistentTriggers(rule, choice = "") {
   return (Array.isArray(rule?.zonePolicy?.triggers) ? rule.zonePolicy.triggers : [])
+    // A trigger of another variant of the zone is not this one's.
+    .filter((trigger) => !choice
+      || !trigger?.requiresRuleChoices?.length
+      || trigger.requiresRuleChoices.includes(choice))
     .map((trigger) => ({
       type: text(trigger?.type || trigger?.timing || trigger?.event),
       resolution: text(trigger?.resolution || trigger?.resolutionKind),
@@ -1008,6 +1012,8 @@ function persistentProjection(group, spell) {
   const rule = persistentRuleForGroup(group, spell);
   const kind = text(rule?.kind);
   if (!kind) return null;
+  // A prepared cast has no zone yet: Symbol's glyph is only traced.
+  if (kind === "zone" && text(group?.castContext?.phase) === "prepare") return null;
   const item = kind === "board-token"
     ? group?.boardToken
     : kind === "aura"
@@ -1027,7 +1033,7 @@ function persistentProjection(group, spell) {
       ? { ...group.castContext }
       : {},
     ruleId: text(rule?.id),
-    triggers: persistentTriggers(rule),
+    triggers: persistentTriggers(rule, text(group?.castContext?.choice)),
     lifecyclePresent,
     itemPresent,
     state: lifecyclePresent

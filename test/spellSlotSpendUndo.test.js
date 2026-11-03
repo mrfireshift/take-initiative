@@ -172,6 +172,7 @@ mock.module("../src/history.js", { exports: { ...history } });
 const { currentSceneEpoch, markSceneEpochReady } = await import("../src/sceneEpoch.js");
 const { buildSpellUnifiedPanelContract } = await import("../src/spellUnifiedPanelCore.js?slot-real-panel");
 const { buildSpellAreaResolutionCommand } = await import("../src/spellAreaResolutionCommandCore.js?slot-real-command");
+const { buildSpellUnifiedAreaCommand } = await import("../src/spellUnifiedAreaAdapter.js");
 const { executeSpellAreaResolution } = await import("../src/spellAreaResolutionExecutor.js?slot-real-executor");
 const { executeSpellApplication } = await import("../src/spellApplicationExecutor.js?slot-real-application");
 const { getSpellDefinition } = await import("../src/spells-srd.js");
@@ -368,8 +369,216 @@ test("a Fireball that catches nobody still spends the slot, and the Undo gives i
   assert.equal((await casterSlots())["spell-slot-3"]?.current ?? 3, 3);
 });
 
+test("Plant Growth with no zone, its 8 hours' use: the slot is spent and recorded, no pill and nothing on the map", async () => {
+  await resetScene();
+  const contract = buildSpellUnifiedPanelContract({ spellId: "plant-growth", phase: "cast", castContext: { slotLevel: 3 } });
+  const command = buildSpellAreaResolutionCommand({
+    contract,
+    spellId: "plant-growth",
+    phase: "cast",
+    casterId: CASTER_ID,
+    slotLevel: 3,
+    targetIds: [],
+    candidateTargetIds: [],
+    outcomes: {},
+    validateSpatial: false,
+  });
+  assert.equal(command.valid, true, JSON.stringify(command.errors));
+  const before = (await history.getHistoryEntries()).length;
+  const itemsBefore = sceneState.items.length;
+  const result = await executeSpellAreaResolution(command, { ...areaRuntime(), extraOperations: [slotOperation(3)] });
+  assert.equal(result.status, "applied", JSON.stringify(result.errors || result));
+  await convergeDeferredEffectsHistory();
+  assert.equal((await casterSlots())["spell-slot-3"].current, 2);
+  assert.equal((await history.getHistoryEntries()).length, before + 1);
+  const [caster] = await sdkStub.scene.items.getItems([CASTER_ID]);
+  assert.deepEqual(caster.metadata[META_KEY]["com.thebigpicture.initiative/spells"] || [], [], "no pill for the 8 hours' use");
+  assert.equal(sceneState.items.length, itemsBefore, "no zone");
+  await undoLast();
+  assert.equal((await casterSlots())["spell-slot-3"]?.current ?? 3, 3);
+});
+
 const { createClassFeatureSpellSlot, convertClassFeatureSpellSlot } = await import("../src/classFeatureRuntime.js?slot-real-runtime");
 const SORCERER = [{ classId: "stregone", level: 5 }];
+
+function transmuteRockCommand(choiceValue, extra = {}) {
+  const spellId = "xanathar-trasmutare-roccia";
+  const contract = buildSpellUnifiedPanelContract({ spellId, phase: "cast", choiceValue, castContext: { slotLevel: 5 } });
+  const ruleId = contract.presentation?.placement?.ruleId;
+  const preview = { type: "square", start: { x: 0, y: 0 }, end: { x: 900, y: 900 }, gridOrigin: { x: 0, y: 0 }, dpi: 150, targetIds: [TARGET_ID], targetLocked: true };
+  return buildSpellAreaResolutionCommand({
+    contract,
+    spellId,
+    phase: "cast",
+    choiceValue,
+    casterId: CASTER_ID,
+    slotLevel: 5,
+    targetIds: [TARGET_ID],
+    candidateTargetIds: [TARGET_ID],
+    outcomes: { [TARGET_ID]: "failed" },
+    placement: { status: "confirmed", confirmed: true, ruleId, ruleChoice: choiceValue, spellId, casterId: CASTER_ID, targetLocked: true, targetIds: [TARGET_ID], preview },
+    targetLocked: true,
+    validateSpatial: false,
+    ...extra,
+  });
+}
+
+const targetMeta = async () => (await sdkStub.scene.items.getItems([TARGET_ID]))[0].metadata[META_KEY];
+const targetHasCondition = async (name) => JSON.stringify((await targetMeta()).conditions ?? []).includes(name);
+const restrained = async () => JSON.stringify((await targetMeta()).conditions ?? []).includes("Trattenuto");
+
+test("Transmute Rock: the mud stays on the map and restrains; one Undo takes away slot, zone and condition", async () => {
+  await resetScene();
+  const itemsBefore = sceneState.items.length;
+  const command = transmuteRockCommand("rock-to-mud");
+  assert.equal(command.valid, true, JSON.stringify(command.errors));
+  assert.equal(command.outcomes.save.ability, "str");
+  const result = await executeSpellAreaResolution(command, { ...areaRuntime(), extraOperations: [slotOperation(5)] });
+  assert.equal(result.status, "applied", JSON.stringify(result.errors || result));
+  await convergeDeferredEffectsHistory();
+  assert.ok(sceneState.items.length > itemsBefore, "a zone on the map");
+  assert.equal(await restrained(), true);
+  await undoLast();
+  assert.equal(sceneState.items.length, itemsBefore);
+  assert.equal(await restrained(), false);
+});
+
+test("Transmute Rock: the rock restrains on a Dexterity save and leaves no zone", async () => {
+  await resetScene();
+  const itemsBefore = sceneState.items.length;
+  const command = transmuteRockCommand("mud-to-rock");
+  assert.equal(command.valid, true, JSON.stringify(command.errors));
+  assert.equal(command.outcomes.save.ability, "dex");
+  const result = await executeSpellAreaResolution(command, { ...areaRuntime(), extraOperations: [slotOperation(5)] });
+  assert.equal(result.status, "applied", JSON.stringify(result.errors || result));
+  await convergeDeferredEffectsHistory();
+  assert.equal(sceneState.items.length, itemsBefore, "no zone");
+  assert.equal(await restrained(), true);
+  assert.equal((await targetMeta()).hp, 60);
+  await undoLast();
+  assert.equal(await restrained(), false);
+});
+
+test("Transmute Rock: the mud from the ceiling deals its damage, halved on a success, with no zone and no condition", async () => {
+  await resetScene();
+  const itemsBefore = sceneState.items.length;
+  const command = transmuteRockCommand("falling-mud", { hp: { mode: "damage", amount: 20 }, outcomes: { [TARGET_ID]: "passed" } });
+  assert.equal(command.valid, true, JSON.stringify(command.errors));
+  assert.equal(command.outcomes.save.ability, "dex");
+  const result = await executeSpellAreaResolution(command, { ...areaRuntime(), extraOperations: [slotOperation(5)] });
+  assert.equal(result.status, "applied", JSON.stringify(result.errors || result));
+  await convergeDeferredEffectsHistory();
+  assert.equal(sceneState.items.length, itemsBefore, "no zone");
+  assert.equal((await targetMeta()).hp, 50);
+  assert.equal(await restrained(), false);
+  await undoLast();
+  assert.equal((await targetMeta()).hp, 60);
+  assert.equal((await casterSlots())["spell-slot-5"]?.current ?? 1, 1);
+});
+
+test("Transmute Rock: the mud from the ceiling asks for its damage, the other two do not", () => {
+  assert.equal(transmuteRockCommand("falling-mud").valid, false, "no damage given");
+  assert.equal(transmuteRockCommand("rock-to-mud").valid, true);
+});
+
+async function traceGlyph(choice) {
+  await executeSpellApplication({
+    spell: getSpellDefinition("symbol"),
+    casterId: CASTER_ID,
+    targetIds: [CASTER_ID],
+    turns: 100,
+    castContext: { slotLevel: 7, phase: "prepare" },
+    selectedChoice: choice,
+    extraOperations: [slotOperation(5)], // The harness's mage has no 7th level slot: any slot shows the cast spending one.
+  });
+  await convergeDeferredEffectsHistory();
+  const [caster] = await sdkStub.scene.items.getItems([CASTER_ID]);
+  return caster.metadata[META_KEY]["com.thebigpicture.initiative/spells"].find((entry) => entry.spellId === "symbol");
+}
+
+// Through the panel's own command, as Activate does.
+function activateGlyph(glyph, choiceValue, { hpValue = "", outcome = "failed" } = {}) {
+  const spellId = "symbol";
+  const contract = buildSpellUnifiedPanelContract({ spellId, phase: "resolve", choiceValue, castContext: { slotLevel: 7, phase: "resolve" } });
+  const ruleId = contract.presentation?.placement?.ruleId;
+  const preview = { type: "circle", start: { x: 200, y: 0 }, end: { x: 1400, y: 0 }, gridOrigin: { x: 0, y: 0 }, dpi: 150, targetIds: [TARGET_ID], targetLocked: true };
+  return buildSpellUnifiedAreaCommand({
+    contract,
+    session: {
+      phase: "resolve",
+      variant: choiceValue,
+      casterId: CASTER_ID,
+      slotLevel: 7,
+      activeConcentration: { instanceId: glyph.instanceId, spellId },
+      castContext: { slotLevel: 7, phase: "resolve", choice: choiceValue },
+      targetIds: [TARGET_ID],
+      outcomes: { [TARGET_ID]: outcome },
+      hpValues: { damage: hpValue },
+      placement: { status: "confirmed", confirmed: true, ruleId, ruleChoice: choiceValue, spellId, casterId: CASTER_ID, targetLocked: true, targetIds: [TARGET_ID], preview },
+    },
+    source: { sceneEpoch: currentSceneEpoch() },
+    candidateTargetIds: [TARGET_ID],
+  });
+}
+
+test("Symbol: the cast only traces the glyph and spends the slot; no zone, no save, no expiry", async () => {
+  await resetScene();
+  const itemsBefore = sceneState.items.length;
+  const glyph = await traceGlyph("fear");
+  assert.equal(sceneState.items.length, itemsBefore, "no zone yet");
+  assert.deepEqual([glyph.castContext.phase, glyph.castContext.choice, glyph.expiry.mode], ["prepare", "fear", "manual"]);
+  assert.equal((await casterSlots())["spell-slot-5"].current, 0);
+  await undoLast();
+  const [caster] = await sdkStub.scene.items.getItems([CASTER_ID]);
+  assert.deepEqual(caster.metadata[META_KEY]["com.thebigpicture.initiative/spells"] || [], []);
+});
+
+test("Symbol: Activate opens the sphere for 10 minutes, applies the variant on a failed save and spends no slot; one Undo takes back only the activation", async () => {
+  await resetScene();
+  const itemsBefore = sceneState.items.length;
+  const glyph = await traceGlyph("fear");
+  const slotsAfterTrace = (await casterSlots())["spell-slot-5"].current;
+  const command = activateGlyph(glyph, "fear");
+  assert.equal(command.valid, true, JSON.stringify(command.errors));
+  assert.equal(command.source.kind, "prepared-resolution");
+  assert.equal(command.outcomes.save.ability, "wis");
+  const result = await executeSpellAreaResolution(command, areaRuntime());
+  assert.equal(result.status, "applied", JSON.stringify(result.errors || result));
+  await convergeDeferredEffectsHistory();
+  assert.ok(sceneState.items.length > itemsBefore, "a zone on the map");
+  assert.equal(await targetHasCondition("Spaventato"), true, "the failed save frightens");
+  assert.equal((await casterSlots())["spell-slot-5"].current, slotsAfterTrace);
+  const [caster] = await sdkStub.scene.items.getItems([CASTER_ID]);
+  const spells = caster.metadata[META_KEY]["com.thebigpicture.initiative/spells"];
+  assert.equal(spells.length, 1, "the glyph became the sphere");
+  assert.equal(spells[0].instanceId, glyph.instanceId);
+  assert.equal(spells[0].turns, 100);
+  assert.notEqual(spells[0].expiry?.mode, "manual");
+  assert.notEqual(spells[0].castContext?.phase, "prepare");
+  await undoLast();
+  assert.equal(sceneState.items.length, itemsBefore);
+  assert.equal(await targetHasCondition("Spaventato"), false);
+  const [restored] = await sdkStub.scene.items.getItems([CASTER_ID]);
+  const [restoredGlyph] = restored.metadata[META_KEY]["com.thebigpicture.initiative/spells"];
+  assert.equal(restoredGlyph.castContext.phase, "prepare", "the glyph is traced again");
+  assert.equal(restoredGlyph.expiry.mode, "manual");
+});
+
+test("Symbol: the glyph of Death asks for its damage and halves it on a success; a second activation is refused", async () => {
+  await resetScene();
+  const glyph = await traceGlyph("death");
+  assert.equal(activateGlyph(glyph, "death").valid, false, "no damage given");
+  const command = activateGlyph(glyph, "death", { hpValue: 40, outcome: "passed" });
+  assert.equal(command.valid, true, JSON.stringify(command.errors));
+  assert.equal(command.outcomes.save.ability, "con");
+  const result = await executeSpellAreaResolution(command, areaRuntime());
+  assert.equal(result.status, "applied", JSON.stringify(result.errors || result));
+  await convergeDeferredEffectsHistory();
+  assert.equal((await targetMeta()).hp, 40);
+  const again = await executeSpellAreaResolution(activateGlyph(glyph, "death", { hpValue: 40 }), areaRuntime());
+  assert.notEqual(again.status, "applied", "the glyph is spent");
+  assert.equal((await targetMeta()).hp, 40);
+});
 
 async function resetSorcerer(resources = {}) {
   await resetScene();

@@ -455,6 +455,23 @@ function validateZonePolicy(policy, errors) {
       errors.push("zone-initial-save-resolution-invalid");
     }
   }
+  if (policy.initialSaveByChoice !== undefined && (
+    !policy.initialSave
+    || !policy.initialSaveByChoice
+    || typeof policy.initialSaveByChoice !== "object"
+    || Array.isArray(policy.initialSaveByChoice)
+    || Object.values(policy.initialSaveByChoice).some((save) => (
+      !SPELL_SAVE_ABILITIES.has(String(save?.ability || "").trim().toLowerCase())
+    ))
+  )) {
+    errors.push("zone-initial-save-by-choice-invalid");
+  }
+  if (policy.instantChoices !== undefined && (
+    !Array.isArray(policy.instantChoices)
+    || policy.instantChoices.some((choice) => !String(choice || "").trim())
+  )) {
+    errors.push("zone-instant-choices-invalid");
+  }
   if (
     policy.membershipPaddingSquares !== undefined
     && (
@@ -848,6 +865,7 @@ const conditionMembershipEffect = (id, condition, detail) => ({
   detail,
 });
 const ZONE_INITIAL_SAVE_SPELL_IDS = new Set([
+  "symbol",
   "antipathy-sympathy",
   "earthquake",
   "entangle",
@@ -872,7 +890,36 @@ const ZONE_INITIAL_SAVE_SPELL_IDS = new Set([
   "xanathar-pirotecnica",
   "phb2014-tsunami",
 ]);
+// Symbol: each effect of the glyph, its save and the condition that spares a new one.
+const SYMBOL_ZONE_EFFECTS = Object.freeze([
+  { choice: "death", label: "Morte", ability: "con", abilityLabel: "Costituzione", failureEffect: "10d10 necrotici, metà se superato.", damage: { dice: "10d10", type: "necrotici", onSave: "half" } },
+  { choice: "discord", label: "Discordia", ability: "con", abilityLabel: "Costituzione", failureEffect: "Svantaggio ad attacchi e prove per 1 minuto.", skip: "Discordia: svantaggio ad attacchi e prove" },
+  { choice: "despair", label: "Disperazione", ability: "cha", abilityLabel: "Carisma", failureEffect: "Non può attaccare né bersagliare con effetti dannosi per 1 minuto.", skip: "Disperazione: non può attaccare" },
+  { choice: "fear", label: "Paura", ability: "wis", abilityLabel: "Saggezza", failureEffect: "Spaventato per 1 minuto.", skip: "Spaventato" },
+  { choice: "insanity", label: "Follia", ability: "int", abilityLabel: "Intelligenza", failureEffect: "Azioni incontrollate per 1 minuto.", skip: "Follia: azioni incontrollate" },
+  { choice: "pain", label: "Dolore", ability: "con", abilityLabel: "Costituzione", failureEffect: "Incapacitato per 1 minuto.", skip: "Incapacitato" },
+  { choice: "sleep", label: "Sonno", ability: "wis", abilityLabel: "Saggezza", failureEffect: "Privo di sensi per 10 minuti.", skip: "Privo di sensi" },
+  { choice: "stunning", label: "Stordimento", ability: "wis", abilityLabel: "Saggezza", failureEffect: "Stordito per 1 minuto.", skip: "Stordito" },
+]);
+
 const CATALOG_ZONE_TRIGGERS = Object.freeze({
+  "symbol": SYMBOL_ZONE_EFFECTS.flatMap(({ choice, label, ability, abilityLabel, failureEffect, damage, skip }) => [
+    ["on-entry", "enter", `${label}: TS ${abilityLabel} entrando nella sfera`],
+    ["on-turn-end", "turn-end", `${label}: TS ${abilityLabel} a fine turno nella sfera`],
+  ].map(([when, event, triggerLabel]) => ({
+    id: `symbol-${choice}-save-${when}`,
+    group: `symbol-${choice}-save-${when}`,
+    label: triggerLabel,
+    event,
+    frequency: "once-per-turn",
+    resolution: "manual-save",
+    ability,
+    ...(event === "enter" ? { requiresOwnTurn: false, triggerOnAreaMove: false } : {}),
+    requiresRuleChoices: [choice],
+    ...(skip ? { skipConditions: [skip] } : {}),
+    ...(damage ? { damage: { ...damage } } : {}),
+    failureEffect,
+  }))),
   // Lotto L3 (2014 texts). Forbiddance: the chosen types take the damage chosen at cast, no save; the GM skips
   // the others.
   "forbiddance": [
@@ -1295,6 +1342,34 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
         type: "contundenti",
         onSave: "none",
       },
+    },
+  ],
+  "xanathar-trasmutare-roccia": [
+    {
+      id: "transmute-rock-mud-save-on-entry",
+      group: "transmute-rock-mud-save-on-entry",
+      label: "TS Forza entrando nel fango",
+      event: "enter",
+      frequency: "once-per-turn",
+      resolution: "manual-save",
+      ability: "str",
+      requiresOwnTurn: false,
+      triggerOnAreaMove: false,
+      requiresRuleChoices: ["rock-to-mud"],
+      skipConditions: ["Trattenuto"],
+      failureEffect: "Trattenuto.",
+    },
+    {
+      id: "transmute-rock-mud-save-on-turn-end",
+      group: "transmute-rock-mud-save-on-turn-end",
+      label: "TS Forza a fine turno nel fango",
+      event: "turn-end",
+      frequency: "once-per-turn",
+      resolution: "manual-save",
+      ability: "str",
+      requiresRuleChoices: ["rock-to-mud"],
+      skipConditions: ["Trattenuto"],
+      failureEffect: "Trattenuto.",
     },
   ],
   "grease": [
@@ -1974,7 +2049,24 @@ const PRISMATIC_WALL_PROXIMITY_REMINDER = Object.freeze({
   },
 });
 
+const TRANSMUTE_ROCK_MUD_SAVE = Object.freeze({
+  ability: "str",
+  failureCondition: {
+    condition: "Trattenuto",
+    options: {
+      manualRemoval: true,
+      effectDetail: "Trattenuto dal fango: con un'azione può terminare l'effetto su sé stesso.",
+    },
+  },
+});
+
 const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
+  ...Object.fromEntries(SYMBOL_ZONE_EFFECTS.flatMap(({ choice, ability }) => ["on-entry", "on-turn-end"].map((when) => [
+    `symbol-${choice}-save-${when}`,
+    { ability, failureAutomation: "spell-save" },
+  ]))),
+  "transmute-rock-mud-save-on-entry": TRANSMUTE_ROCK_MUD_SAVE,
+  "transmute-rock-mud-save-on-turn-end": TRANSMUTE_ROCK_MUD_SAVE,
   "antipathy-sympathy-antipathy-on-entry": {
     ability: "wis",
     failureCondition: {
@@ -2197,6 +2289,14 @@ const HALLOW_WARD = Object.freeze({
 });
 const hallowExtra = (id, kind, label, detail) => [HALLOW_WARD, { id: `hallow-${id}`, kind, label, detail }];
 const CATALOG_MEMBERSHIP_EFFECTS_BY_CHOICE = Object.freeze({
+  "xanathar-trasmutare-roccia": {
+    "rock-to-mud": [difficultTerrainEffect(
+      "transmute-rock-mud",
+      "Fango: terreno difficile (×4)",
+      "Ogni 30 cm di movimento costano 1,2 m, anche strisciando.",
+      4,
+    )],
+  },
   "xanathar-pirotecnica": {
     fireworks: [],
     smoke: [conditionMembershipEffect("pyrotechnics-smoke", "Accecato", "Il fumo rende l'area pesantemente oscurata per 1 minuto o finché un vento forte non lo disperde.")],
@@ -2489,6 +2589,22 @@ function catalogAreaRule(spec) {
         "Su terra smossa o pietra il terreno resta difficile finché non viene sgomberato (1 minuto per ogni porzione di 1,5 m).",
       ),
     ],
+    // CAP-TERRAIN, lotto G1 (2014): 1,2 m of movement for each 30 cm, and the wall's space difficult terrain.
+    "plant-growth": [
+      difficultTerrainEffect(
+        "plant-growth-overgrowth",
+        "Terreno difficile ×4 / Crescita vegetale",
+        "Ogni metro percorso nel groviglio costa quattro metri di movimento.",
+        4,
+      ),
+    ],
+    "xanathar-muro-dacqua": [
+      difficultTerrainEffect(
+        "wall-of-water-difficult-terrain",
+        "Terreno difficile / Muro d'Acqua",
+        "Lo spazio del muro è terreno difficile.",
+      ),
+    ],
     "xanathar-muro-di-sabbia": [
       conditionMembershipEffect(
         "wall-of-sand-blinded",
@@ -2687,6 +2803,8 @@ function catalogAreaRule(spec) {
             ? "manual-save"
             : "none",
           ...(spec.initialSave ? { initialSave: { ...spec.initialSave } } : {}),
+          ...(spec.initialSaveByChoice ? { initialSaveByChoice: { ...spec.initialSaveByChoice } } : {}),
+          ...(spec.instantChoices ? { instantChoices: [...spec.instantChoices] } : {}),
           membershipTargeting: {
             filter: [
               "guardian-of-faith",
@@ -3852,6 +3970,20 @@ export function getSpellAreaPlacementChoices(value) {
     value: choice.id,
     label: choice.label,
   }));
+}
+
+// The save of a zone's cast may change with the variant; without one, the zone's own save.
+export function spellZoneInitialSaveForChoice(rule, ruleChoice = "") {
+  const policy = rule?.zonePolicy;
+  return policy?.initialSaveByChoice?.[String(ruleChoice || "").trim()]
+    || policy?.initialSave
+    || null;
+}
+
+// A variant resolved at the cast leaves no zone on the map.
+export function spellZoneChoiceIsInstant(rule, ruleChoice = "") {
+  const choice = String(ruleChoice || "").trim();
+  return !!choice && (rule?.zonePolicy?.instantChoices || []).includes(choice);
 }
 
 export function getSpellAreaRuleForPlacement(ruleId, ruleChoice = "", castContext = null) {

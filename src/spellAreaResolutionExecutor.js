@@ -87,6 +87,7 @@ import {
   getSpellAreaRuleById,
   getSpellAreaRuleForPlacement,
   getSpellAreaRules,
+  spellZoneChoiceIsInstant,
 } from "./spellAreaRules.js";
 import {
   areaMembershipPlan,
@@ -1500,7 +1501,15 @@ async function buildPlan(command, runtime) {
         }],
       };
     }
-    if (!activeConcentration?.instanceId) {
+    // Without concentration the prepared instance is the caster's pill (Symbol's glyph).
+    const preparedInstance = spell.concentration === true
+      ? activeConcentration
+      : (Array.isArray(itemMeta(caster)[SPELLS_KEY]) ? itemMeta(caster)[SPELLS_KEY] : []).find((entry) => (
+        text(entry?.instanceId) === parentInstanceId
+        && text(entry?.spellId) === text(spell.id)
+        && text(entry?.castContext?.phase) === "prepare"
+      )) || null;
+    if (!preparedInstance?.instanceId) {
       return {
         valid: false,
         errors: [{
@@ -1509,7 +1518,7 @@ async function buildPlan(command, runtime) {
         }],
       };
     }
-    if (text(activeConcentration.instanceId) !== parentInstanceId) {
+    if (text(preparedInstance.instanceId) !== parentInstanceId) {
       return {
         valid: false,
         errors: [{
@@ -1855,6 +1864,7 @@ async function buildPlan(command, runtime) {
       : confirmedSpellAreaTargetIds(placement, allItems.map((item) => item.id))
     : [];
   const committedStaticZonePlacement = staticZonePlacement
+    && !spellZoneChoiceIsInstant(placementRule, placementRuleChoice)
     && (!targetScopedStaticZone || staticZoneTargetIds.length > 0);
   if (committedStaticZonePlacement) {
     const hasTrackedSpellInstance = effectOperations.some((operation) => (

@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 275,
-      "PARTIAL": 34,
-      "NO AUTOMATION REQUIRED": 144,
-      "MISSING": 9,
+      "COMPLETE / CURRENT": 279,
+      "PARTIAL": 30,
+      "NO AUTOMATION REQUIRED": 145,
+      "MISSING": 8,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 43,
+    "implementableBacklog": 38,
     "readiness": {
       "GREEN": {
         "count": 0,
         "percent": 0
       },
       "YELLOW": {
-        "count": 32,
-        "percent": 74.4186046511628
+        "count": 26,
+        "percent": 68.42105263157895
       },
       "RED": {
-        "count": 11,
-        "percent": 25.581395348837212
+        "count": 12,
+        "percent": 31.57894736842105
       }
     },
     "scenarios": [
@@ -29533,13 +29533,18 @@
       "id": "plant-growth",
       "spell": "Crescita vegetale",
       "level": 3,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/spells-srd.js",
+        "src/areaSaveSpellRules.js",
+        "src/spellAreaRules.js",
+        "src/spellAreaCatalog.js",
+        "src/spellStaticZone.js",
+        "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
-        "Costo movimento x4, sottoaree escluse e modalità cast differenti; estendere zone mode condiviso, niente nuova simulazione vegetale."
+        "CAP-TERRAIN: zona di 30 m di raggio entro 45 m con movimento ×4, senza scadenza: la toglie il GM. L'uso da 8 ore si lancia senza zona. Le sottoaree escluse restano al tavolo."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -29551,22 +29556,20 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-TERRAIN"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
       "targetingImplications": {
-        "mode": "discrete",
+        "mode": "geometric",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Costo movimento x4, sottoaree escluse e modalità cast differenti; estendere zone mode condiviso, niente nuova simulazione vegetale."
+        "required": "CAP-TERRAIN: zona di 30 m di raggio entro 45 m con movimento ×4, senza scadenza: la toglie il GM. L'uso da 8 ore si lancia senza zona. Le sottoaree escluse restano al tavolo."
       },
       "concentration": false,
       "durationLifecycle": {
         "canonical": "Istantanea",
-        "defaultRounds": null,
+        "defaultRounds": 14400,
         "expiry": null,
         "slotDuration": null,
         "onSpellEnd": null
@@ -29590,8 +29593,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ENVIRONMENT-MODES",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-TERRAIN",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "plant-growth",
@@ -29600,6 +29603,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellSlotSpendUndo.test.js",
+          "test/spellZonesAndRepeatedAreas.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -29619,7 +29624,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Costo movimento x4, sottoaree escluse e modalità cast differenti; estendere zone mode condiviso, niente nuova simulazione vegetale.",
+        "reason": "CAP-TERRAIN: zona di 30 m di raggio entro 45 m con movimento ×4, senza scadenza: la toglie il GM. L'uso da 8 ore si lancia senza zona. Le sottoaree escluse restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -36033,8 +36038,8 @@
       "id": "speak-with-plants",
       "spell": "Parlare con i vegetali",
       "level": 3,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "NO AUTOMATION REQUIRED",
+      "readiness": "BLUE",
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js",
@@ -36043,7 +36048,7 @@
         "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
-        "Geometria/tracking parziale; scelta modalità e profilo movement/membership contestuale da esporre come primitive condivisa."
+        "Decisione T6: pill e aura di 9 m; rendere normale o difficile il terreno vegetale è una decisione del momento, al tavolo."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -36060,17 +36065,15 @@
         "C-MEMBERSHIP",
         "C-TRIGGERS"
       ],
-      "missingCapabilities": [
-        "CAP-TERRAIN"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects + composite scene side effects; Undo restore of owned geometry/trigger required",
-      "recoveryImplications": "Derived area reconciliation; durable recovery does NOT cover every scene side effect",
+      "recoveryImplications": "Generic tracking only",
       "targetingImplications": {
         "mode": "geometric",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Geometria/tracking parziale; scelta modalità e profilo movement/membership contestuale da esporre come primitive condivisa."
+        "required": "Decisione T6: pill e aura di 9 m; rendere normale o difficile il terreno vegetale è una decisione del momento, al tavolo."
       },
       "concentration": false,
       "durationLifecycle": {
@@ -36116,8 +36119,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ENVIRONMENT-MODES",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-TERRAIN",
+      "estimatedEffort": "No scheduled implementation",
+      "recommendedBatch": "BLUE / no batch",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "speak-with-plants",
@@ -36154,7 +36157,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Geometria/tracking parziale; scelta modalità e profilo movement/membership contestuale da esporre come primitive condivisa.",
+        "reason": "Decisione T6: pill e aura di 9 m; rendere normale o difficile il terreno vegetale è una decisione del momento, al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -37643,17 +37646,23 @@
       "id": "symbol",
       "spell": "Simbolo",
       "level": 7,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js",
+        "src/spellCastPhaseCore.js",
+        "src/spellActiveActionCore.js",
+        "src/spellPillActionsCore.js",
+        "src/spellUnifiedAreaAdapter.js",
+        "src/areaSaveSpellRules.js",
+        "src/spellCastResolutionRules.js",
         "src/spellAreaRules.js",
+        "src/spellAreaCatalog.js",
         "src/spellStaticZone.js",
         "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
-        "Geometria generica presente; effetti/trigger varianti multipli richiedono modalità e sottozone selezionabili con lifecycle coerente."
+        "CAP-TERRAIN: in due tempi. Il lancio traccia il glifo con il suo effetto, senza zona né scadenza; Attiva, nel ⚡ della pill o nel pannello, apre la sfera di 18 m per 10 minuti con il TS della variante, senza altro slot; promemoria all'ingresso e a fine turno. Innesco, prova per scorgerlo, movimenti di Follia e allontanamento di Paura restano al tavolo."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -37670,9 +37679,7 @@
         "C-MEMBERSHIP",
         "C-TRIGGERS"
       ],
-      "missingCapabilities": [
-        "CAP-TERRAIN"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects + composite scene side effects; Undo restore of owned geometry/trigger required",
       "recoveryImplications": "Derived area reconciliation; durable recovery does NOT cover every scene side effect",
@@ -37680,18 +37687,99 @@
         "mode": "geometric",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Geometria generica presente; effetti/trigger varianti multipli richiedono modalità e sottozone selezionabili con lifecycle coerente."
+        "required": "CAP-TERRAIN: in due tempi. Il lancio traccia il glifo con il suo effetto, senza zona né scadenza; Attiva, nel ⚡ della pill o nel pannello, apre la sfera di 18 m per 10 minuti con il TS della variante, senza altro slot; promemoria all'ingresso e a fine turno. Innesco, prova per scorgerlo, movimenti di Follia e allontanamento di Paura restano al tavolo."
       },
       "concentration": false,
       "durationLifecycle": {
         "canonical": "Finché non viene dissolto o innescato",
-        "defaultRounds": null,
+        "defaultRounds": 100,
         "expiry": null,
         "slotDuration": null,
         "onSpellEnd": null
       },
       "reminderTurnTriggers": {
-        "zone": [],
+        "zone": [
+          {
+            "id": "symbol-death-save-on-entry",
+            "event": "enter",
+            "frequency": "once-per-turn"
+          },
+          {
+            "id": "symbol-death-save-on-turn-end",
+            "event": "turn-end",
+            "frequency": "once-per-turn"
+          },
+          {
+            "id": "symbol-discord-save-on-entry",
+            "event": "enter",
+            "frequency": "once-per-turn"
+          },
+          {
+            "id": "symbol-discord-save-on-turn-end",
+            "event": "turn-end",
+            "frequency": "once-per-turn"
+          },
+          {
+            "id": "symbol-despair-save-on-entry",
+            "event": "enter",
+            "frequency": "once-per-turn"
+          },
+          {
+            "id": "symbol-despair-save-on-turn-end",
+            "event": "turn-end",
+            "frequency": "once-per-turn"
+          },
+          {
+            "id": "symbol-fear-save-on-entry",
+            "event": "enter",
+            "frequency": "once-per-turn"
+          },
+          {
+            "id": "symbol-fear-save-on-turn-end",
+            "event": "turn-end",
+            "frequency": "once-per-turn"
+          },
+          {
+            "id": "symbol-insanity-save-on-entry",
+            "event": "enter",
+            "frequency": "once-per-turn"
+          },
+          {
+            "id": "symbol-insanity-save-on-turn-end",
+            "event": "turn-end",
+            "frequency": "once-per-turn"
+          },
+          {
+            "id": "symbol-pain-save-on-entry",
+            "event": "enter",
+            "frequency": "once-per-turn"
+          },
+          {
+            "id": "symbol-pain-save-on-turn-end",
+            "event": "turn-end",
+            "frequency": "once-per-turn"
+          },
+          {
+            "id": "symbol-sleep-save-on-entry",
+            "event": "enter",
+            "frequency": "once-per-turn"
+          },
+          {
+            "id": "symbol-sleep-save-on-turn-end",
+            "event": "turn-end",
+            "frequency": "once-per-turn"
+          },
+          {
+            "id": "symbol-stunning-save-on-entry",
+            "event": "enter",
+            "frequency": "once-per-turn"
+          },
+          {
+            "id": "symbol-stunning-save-on-turn-end",
+            "event": "turn-end",
+            "frequency": "once-per-turn"
+          }
+        ],
         "effectSaveReminder": false,
         "required": []
       },
@@ -37726,8 +37814,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ENVIRONMENT-MODES",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-TERRAIN",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "symbol",
@@ -37736,6 +37824,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellSlotSpendUndo.test.js",
+          "test/spellZonesAndRepeatedAreas.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -37767,7 +37857,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Geometria generica presente; effetti/trigger varianti multipli richiedono modalità e sottozone selezionabili con lifecycle coerente.",
+        "reason": "CAP-TERRAIN: in due tempi. Il lancio traccia il glifo con il suo effetto, senza zona né scadenza; Attiva, nel ⚡ della pill o nel pannello, apre la sfera di 18 m per 10 minuti con il TS della variante, senza altro slot; promemoria all'ingresso e a fine turno. Innesco, prova per scorgerlo, movimenti di Follia e allontanamento di Paura restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -43008,7 +43098,7 @@
       "spell": "Boschetto Druidico",
       "level": 6,
       "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "readiness": "RED",
       "currentImplementationOwner": [
         "src/supplementSpellRules.js",
         "src/spellApplicationPlanCore.js",
@@ -43017,7 +43107,7 @@
         "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
-        "Geometria generica presente; effetti/trigger varianti multipli richiedono modalità e sottozone selezionabili con lifecycle coerente."
+        "Decisione T6: quadrati liberi, quattro alberi e un incantesimo aggiuntivo richiederebbero un dominio proprio per un solo incantesimo. Resta lanciato e tracciato, con la zona di 9 m senza effetti."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -43035,7 +43125,7 @@
         "C-TRIGGERS"
       ],
       "missingCapabilities": [
-        "CAP-TERRAIN"
+        "GROVE-STATE"
       ],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects + composite scene side effects; Undo restore of owned geometry/trigger required",
@@ -43044,7 +43134,7 @@
         "mode": "geometric",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Geometria generica presente; effetti/trigger varianti multipli richiedono modalità e sottozone selezionabili con lifecycle coerente."
+        "required": "Decisione T6: quadrati liberi, quattro alberi e un incantesimo aggiuntivo richiederebbero un dominio proprio per un solo incantesimo. Resta lanciato e tracciato, con la zona di 9 m senza effetti."
       },
       "concentration": false,
       "durationLifecycle": {
@@ -43090,8 +43180,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ENVIRONMENT-MODES",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-TERRAIN",
+      "estimatedEffort": "HIGH, individual design",
+      "recommendedBatch": "RED / individual",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-boschetto-druidico",
@@ -43128,7 +43218,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Geometria generica presente; effetti/trigger varianti multipli richiedono modalità e sottozone selezionabili con lifecycle coerente.",
+        "reason": "Decisione T6: quadrati liberi, quattro alberi e un incantesimo aggiuntivo richiederebbero un dominio proprio per un solo incantesimo. Resta lanciato e tracciato, con la zona di 9 m senza effetti.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -48970,14 +49060,19 @@
       "id": "xanathar-muro-dacqua",
       "spell": "Muro d'Acqua",
       "level": 3,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/supplementSpellRules.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spells-srd.js",
+        "src/areaSaveSpellRules.js",
+        "src/spellAreaRules.js",
+        "src/spellAreaCatalog.js",
+        "src/spellStaticZone.js",
+        "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
-        "Geometria/tracking parziale; scelta modalità e profilo movement/membership contestuale da esporre come primitive condivisa."
+        "CAP-TERRAIN: muro in linea o ad anello entro 18 m con terreno difficile. Lo svantaggio a distanza e il fuoco dimezzato sono una nota; le sezioni congelate restano al tavolo (CAP-STRUCTURE)."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -48990,17 +49085,15 @@
         "C-HISTORY",
         "C-CONCENTRATION"
       ],
-      "missingCapabilities": [
-        "CAP-TERRAIN"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
       "targetingImplications": {
-        "mode": "discrete",
+        "mode": "geometric",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Geometria/tracking parziale; scelta modalità e profilo movement/membership contestuale da esporre come primitive condivisa."
+        "required": "CAP-TERRAIN: muro in linea o ad anello entro 18 m con terreno difficile. Lo svantaggio a distanza e il fuoco dimezzato sono una nota; le sezioni congelate restano al tavolo (CAP-STRUCTURE)."
       },
       "concentration": true,
       "durationLifecycle": {
@@ -49029,8 +49122,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ENVIRONMENT-MODES",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-TERRAIN",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-muro-dacqua",
@@ -49039,6 +49132,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellSlotSpendUndo.test.js",
+          "test/spellZonesAndRepeatedAreas.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -49059,7 +49154,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Geometria/tracking parziale; scelta modalità e profilo movement/membership contestuale da esporre come primitive condivisa.",
+        "reason": "CAP-TERRAIN: muro in linea o ad anello entro 18 m con terreno difficile. Lo svantaggio a distanza e il fuoco dimezzato sono una nota; le sezioni congelate restano al tavolo (CAP-STRUCTURE).",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -53733,17 +53828,19 @@
       "id": "xanathar-trasmutare-roccia",
       "spell": "Trasmutare Roccia",
       "level": 5,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/supplementSpellRules.js",
-        "src/spellApplicationPlanCore.js",
+        "src/areaSaveSpellRules.js",
+        "src/spellCastResolutionRules.js",
         "src/spellAreaRules.js",
+        "src/spellAreaCatalog.js",
         "src/spellStaticZone.js",
         "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
-        "Geometria/tracking parziale; scelta modalità e profilo movement/membership contestuale da esporre come primitive condivisa."
+        "CAP-TERRAIN: tre varianti. Roccia in fango (TS Forza, Trattenuto, ×4, promemoria all'ingresso e a fine turno, zona senza scadenza); Fango in roccia (TS Destrezza, Trattenuto, nessuna zona); Fango dal soffitto (TS Destrezza, 4d8, metà se superato, nessuna zona)."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -53760,9 +53857,7 @@
         "C-MEMBERSHIP",
         "C-TRIGGERS"
       ],
-      "missingCapabilities": [
-        "CAP-TERRAIN"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects + composite scene side effects; Undo restore of owned geometry/trigger required",
       "recoveryImplications": "Derived area reconciliation; durable recovery does NOT cover every scene side effect",
@@ -53770,18 +53865,29 @@
         "mode": "geometric",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Geometria/tracking parziale; scelta modalità e profilo movement/membership contestuale da esporre come primitive condivisa."
+        "required": "CAP-TERRAIN: tre varianti. Roccia in fango (TS Forza, Trattenuto, ×4, promemoria all'ingresso e a fine turno, zona senza scadenza); Fango in roccia (TS Destrezza, Trattenuto, nessuna zona); Fango dal soffitto (TS Destrezza, 4d8, metà se superato, nessuna zona)."
       },
       "concentration": false,
       "durationLifecycle": {
         "canonical": "Finché non viene dissolto",
-        "defaultRounds": null,
+        "defaultRounds": 14400,
         "expiry": null,
         "slotDuration": null,
         "onSpellEnd": null
       },
       "reminderTurnTriggers": {
-        "zone": [],
+        "zone": [
+          {
+            "id": "transmute-rock-mud-save-on-entry",
+            "event": "enter",
+            "frequency": "once-per-turn"
+          },
+          {
+            "id": "transmute-rock-mud-save-on-turn-end",
+            "event": "turn-end",
+            "frequency": "once-per-turn"
+          }
+        ],
         "effectSaveReminder": false,
         "required": []
       },
@@ -53816,8 +53922,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ENVIRONMENT-MODES",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-TERRAIN",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-trasmutare-roccia",
@@ -53826,6 +53932,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellSlotSpendUndo.test.js",
+          "test/spellZonesAndRepeatedAreas.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -53856,7 +53964,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Geometria/tracking parziale; scelta modalità e profilo movement/membership contestuale da esporre come primitive condivisa.",
+        "reason": "CAP-TERRAIN: tre varianti. Roccia in fango (TS Forza, Trattenuto, ×4, promemoria all'ingresso e a fine turno, zona senza scadenza); Fango in roccia (TS Destrezza, Trattenuto, nessuna zona); Fango dal soffitto (TS Destrezza, 4d8, metà se superato, nessuna zona).",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -62831,6 +62939,10 @@
     {
       "date": "2026-11-03",
       "note": "CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL: Scagliare maledizione, Alterare sé stesso e Rigenerazione completi."
+    },
+    {
+      "date": "2026-11-03",
+      "note": "CAP-TERRAIN: Crescita vegetale, Muro d'Acqua, Trasmutare Roccia e Simbolo completi; Parlare con i vegetali tra i tracciati e Boschetto Druidico tra i su misura (T6)."
     }
   ]
 }

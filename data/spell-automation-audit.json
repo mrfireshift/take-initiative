@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "7ec5ad2028859d38",
+  "fingerprint": "3d989eb7e0e64318",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -18,15 +18,15 @@
     },
     "currentAutomationLevel": {
       "FULL": 66,
-      "MANUAL": 59,
-      "PARTIAL": 236,
-      "TRACK_ONLY": 116
+      "MANUAL": 58,
+      "PARTIAL": 238,
+      "TRACK_ONLY": 115
     },
     "coverageStatus": {
       "ACCEPTED": 72,
       "CLOSED": 14,
-      "GAP": 12,
-      "UNREVIEWED": 379
+      "GAP": 9,
+      "UNREVIEWED": 382
     },
     "targetAutomationLevel": {
       "FULL": 66,
@@ -41,34 +41,34 @@
     "targetUiExposure": {
       "UNIFIED": 477
     },
-    "trackableOptions": 362,
-    "trackable": 359,
-    "withAreaRules": 139,
-    "areaRuleEntries": 144,
-    "openRows": 12,
-    "confirmed": 10,
+    "trackableOptions": 363,
+    "trackable": 360,
+    "withAreaRules": 141,
+    "areaRuleEntries": 146,
+    "openRows": 9,
+    "confirmed": 7,
     "highConfidence": 2,
     "reviewCandidates": 0,
-    "curatedP1": 10,
+    "curatedP1": 7,
     "manuallyReviewed": 95,
     "knownIntegrationGaps": 0,
-    "knownRawGaps": 12,
+    "knownRawGaps": 9,
     "byPriority": {
-      "—": 465,
-      "P1": 10,
+      "—": 468,
+      "P1": 7,
       "P2": 2
     },
     "byAssessment": {
-      "coperto": 286,
+      "coperto": 290,
       "escluso: casting time": 70,
       "escluso: decisione curata": 11,
       "escluso: evocazione": 19,
       "istantaneo: gestione manuale": 56,
       "manuale intenzionale": 3,
-      "parziale: revisione curata": 10,
+      "parziale: revisione curata": 7,
       "revisione testuale": 1,
       "revisione: testo mancante": 1,
-      "riferimento/utilità": 20
+      "riferimento/utilità": 19
     },
     "bySaveScope": {
       "—": 285,
@@ -77,22 +77,21 @@
       "singolo": 75
     },
     "byGap": {
-      "CHOICE_WORKFLOW_MISSING": 3,
-      "CONDITIONAL_TRIGGER": 3,
+      "CHOICE_WORKFLOW_MISSING": 2,
+      "CONDITIONAL_TRIGGER": 2,
       "ENTRY_EXIT_FALL": 1,
       "LINGERING_EFFECT_MISSING": 1,
-      "MOVEMENT_MECHANICS_MISSING": 4,
+      "MOVEMENT_MECHANICS_MISSING": 1,
       "POST_EXPIRY_EFFECT": 1,
       "REPEATED_ACTION": 4,
       "ROUND_STATE_MACHINE": 1,
       "STATUS_MISSING": 2,
       "TEXT_MISSING": 1,
-      "VARIANT_ZONE_RUNTIME": 1,
-      "ZONE_TRIGGER_MISSING": 2
+      "ZONE_TRIGGER_MISSING": 1
     },
     "byIntegrationStatus": {
-      "partial": 12,
-      "reachable": 465
+      "partial": 9,
+      "reachable": 468
     },
     "byIntegrationPriority": {
       "—": 477
@@ -101,18 +100,18 @@
       "CAST_NO_MUTATIONS": 3
     },
     "smokeCategories": {
-      "ACTIVE_ACTION": 50,
-      "AREA_GEOMETRY": 139,
-      "CAST": 271,
-      "CLEANUP": 116,
+      "ACTIVE_ACTION": 51,
+      "AREA_GEOMETRY": 141,
+      "CAST": 273,
+      "CLEANUP": 118,
       "CONCENTRATION": 218,
-      "PERSISTENCE": 359,
-      "TURN_TRIGGER": 99
+      "PERSISTENCE": 360,
+      "TURN_TRIGGER": 101
     },
     "unifiedCatalogExposed": 477,
     "integrationDisconnected": 0,
     "integrationFragile": 0,
-    "runtimeSmokeRequired": 414,
+    "runtimeSmokeRequired": 415,
     "releaseReady": false
   },
   "rows": [
@@ -12341,20 +12340,31 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
-      "smokeCategories": [],
+      "smokeCategories": [
+        "AREA_GEOMETRY",
+        "CAST",
+        "CLEANUP",
+        "PERSISTENCE"
+      ],
       "verificationEvidence": [
         "STRUCTURAL"
       ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
-      "coverage": [],
-      "assessment": "riferimento/utilità",
+      "coverage": [
+        "tracking",
+        "aree:zone",
+        "lifecycle",
+        "TS",
+        "movimento"
+      ],
+      "assessment": "coperto",
       "priority": "—",
       "gaps": [],
       "conditions": {
@@ -12362,17 +12372,26 @@
         "implemented": []
       },
       "runtime": {
-        "trackable": false,
-        "areaRuleIds": [],
-        "areaKinds": [],
+        "trackable": true,
+        "areaRuleIds": [
+          "plant-growth:cast"
+        ],
+        "areaKinds": [
+          "zone"
+        ],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
-        "movementMechanics": false,
-        "smokeCategories": []
+        "movementMechanics": true,
+        "smokeCategories": [
+          "AREA_GEOMETRY",
+          "CAST",
+          "CLEANUP",
+          "PERSISTENCE"
+        ]
       },
       "integration": {
         "status": "reachable",
@@ -12381,32 +12400,34 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "cast-record"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
-          "placementPolicy": "unavailable",
+          "lane": "area-transaction",
+          "targetingMode": "geometric",
+          "placementPolicy": "optional",
           "visibleInputs": [
             "caster",
             "slot",
-            "targets"
+            "targets",
+            "placement"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "spell:upsert"
-          ],
-          "mutationMode": "tracking",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
-          "required": false,
+          "required": true,
           "declared": true,
-          "ruleIds": []
+          "ruleIds": [
+            "plant-growth:cast"
+          ]
         },
         "actions": {
           "declaredActionIds": [],
@@ -12415,8 +12436,13 @@
           "unreachableActionIds": [],
           "mode": "none"
         },
-        "smokeRequired": false,
-        "smokeCategories": []
+        "smokeRequired": true,
+        "smokeCategories": [
+          "AREA_GEOMETRY",
+          "CAST",
+          "CLEANUP",
+          "PERSISTENCE"
+        ]
       },
       "evidence": {
         "area": [
@@ -32608,12 +32634,15 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "TRACK_ONLY",
-      "coverageStatus": "GAP",
+      "currentAutomationLevel": "PARTIAL",
+      "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "AREA_GEOMETRY",
+        "CAST",
+        "CLEANUP",
         "CONCENTRATION",
         "PERSISTENCE"
       ],
@@ -32627,77 +32656,77 @@
         "ingresso/attraversamento"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "aree:zone",
+        "lifecycle",
+        "TS",
+        "movimento"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "MOVEMENT_MECHANICS_MISSING",
-          "label": "meccanica di movimento assente",
-          "evidence": []
-        },
-        {
-          "code": "CONDITIONAL_TRIGGER",
-          "label": "trigger condizionale durante la durata assente",
-          "evidence": []
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
       },
       "runtime": {
         "trackable": true,
-        "areaRuleIds": [],
-        "areaKinds": [],
+        "areaRuleIds": [
+          "xanathar-muro-dacqua:cast"
+        ],
+        "areaKinds": [
+          "zone"
+        ],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
-        "movementMechanics": false,
+        "movementMechanics": true,
         "smokeCategories": [
+          "AREA_GEOMETRY",
+          "CAST",
+          "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
-          "placementPolicy": "unavailable",
+          "lane": "area-transaction",
+          "targetingMode": "geometric",
+          "placementPolicy": "required",
           "visibleInputs": [
             "caster",
             "slot",
-            "targets"
+            "targets",
+            "placement"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "concentration:register"
-          ],
-          "mutationMode": "tracking",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
           "required": true,
           "declared": true,
-          "ruleIds": []
+          "ruleIds": [
+            "xanathar-muro-dacqua:cast"
+          ]
         },
         "actions": {
           "declaredActionIds": [],
@@ -32708,6 +32737,9 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "AREA_GEOMETRY",
+          "CAST",
+          "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -32721,7 +32753,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "La parete non applica terreno difficile né le interazioni contestuali con attacchi a distanza, danni da fuoco e congelamento locale da freddo."
+      "curatedNote": "Decisione T3: la zona dà il terreno difficile; svantaggio a distanza e fuoco dimezzato sono una nota, le sezioni congelate restano al tavolo (CAP-STRUCTURE)."
     },
     {
       "id": "wall-of-force",
@@ -36442,7 +36474,7 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
+      "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
@@ -36466,26 +36498,9 @@
         "lifecycle",
         "TS"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "MOVEMENT_MECHANICS_MISSING",
-          "label": "meccanica di movimento assente",
-          "evidence": [
-            "Per la durata dell'incantesimo, l'incantatore può anche trasformare un terreno difficile a causa della crescita vegetale (come per esempio arbusti e sottobosco) in un terreno normale.",
-            "In alternativa può trasformare un terreno normale dove siano presenti dei vegetali in un terreno difficile, ordinando per esempio a rampicanti e rami di ostacolare degli inseguitori."
-          ]
-        },
-        {
-          "code": "CHOICE_WORKFLOW_MISSING",
-          "label": "varianti rilevanti non modellate",
-          "evidence": [
-            "Per la durata dell'incantesimo, l'incantatore può anche trasformare un terreno difficile a causa della crescita vegetale (come per esempio arbusti e sottobosco) in un terreno normale.",
-            "In alternativa può trasformare un terreno normale dove siano presenti dei vegetali in un terreno difficile, ordinando per esempio a rampicanti e rami di ostacolare degli inseguitori."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -36513,7 +36528,7 @@
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -36575,7 +36590,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "L'aura è presente, ma manca la scelta di rendere normale o difficile il terreno vegetale e il relativo collegamento allo Speed Tracker."
+      "curatedNote": "Decisione T6: pill e aura di 9 m; rendere normale o difficile il terreno vegetale è una decisione del momento, al tavolo."
     },
     {
       "id": "xanathar-parola-del-potere-dolore",
@@ -49881,10 +49896,12 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
         "AREA_GEOMETRY",
         "CAST",
         "CLEANUP",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -49903,6 +49920,8 @@
         "lifecycle",
         "TS",
         "movimento",
+        "turni",
+        "fasi/azioni",
         "varianti"
       ],
       "assessment": "escluso: casting time",
@@ -49926,18 +49945,39 @@
         "areaKinds": [
           "zone"
         ],
-        "triggerIds": [],
+        "triggerIds": [
+          "symbol-death-save-on-entry",
+          "symbol-death-save-on-turn-end",
+          "symbol-discord-save-on-entry",
+          "symbol-discord-save-on-turn-end",
+          "symbol-despair-save-on-entry",
+          "symbol-despair-save-on-turn-end",
+          "symbol-fear-save-on-entry",
+          "symbol-fear-save-on-turn-end",
+          "symbol-insanity-save-on-entry",
+          "symbol-insanity-save-on-turn-end",
+          "symbol-pain-save-on-entry",
+          "symbol-pain-save-on-turn-end",
+          "symbol-sleep-save-on-entry",
+          "symbol-sleep-save-on-turn-end",
+          "symbol-stunning-save-on-entry",
+          "symbol-stunning-save-on-turn-end"
+        ],
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
         "activeActionIds": [],
-        "phaseOptions": [],
+        "phaseOptions": [
+          "prepare"
+        ],
         "movementMechanics": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST",
           "CLEANUP",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
@@ -49952,23 +49992,22 @@
           ]
         },
         "contract": {
-          "lane": "area-transaction",
-          "targetingMode": "geometric",
-          "placementPolicy": "optional",
+          "lane": "spell-lifecycle",
+          "targetingMode": "none",
+          "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
-            "variant",
-            "targets",
-            "placement",
-            "automation"
+            "variant"
           ]
         },
         "cast": {
-          "adapter": "area-transaction",
+          "adapter": "spell-lifecycle",
           "valid": true,
-          "operationTypes": [],
-          "mutationMode": "executor-deferred",
+          "operationTypes": [
+            "spell:upsert"
+          ],
+          "mutationMode": "tracking",
           "errors": []
         },
         "persistence": {
@@ -49987,10 +50026,12 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST",
           "CLEANUP",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -54972,7 +55013,7 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
+      "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
@@ -54980,7 +55021,8 @@
         "AREA_GEOMETRY",
         "CAST",
         "CLEANUP",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -54999,27 +55041,13 @@
         "lifecycle",
         "TS",
         "status:Trattenuto",
-        "movimento"
+        "movimento",
+        "turni",
+        "varianti"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "VARIANT_ZONE_RUNTIME",
-          "label": "varianti della zona e relativi trigger incomplete",
-          "evidence": []
-        },
-        {
-          "code": "MOVEMENT_MECHANICS_MISSING",
-          "label": "meccanica di movimento assente",
-          "evidence": []
-        },
-        {
-          "code": "ZONE_TRIGGER_MISSING",
-          "label": "trigger spaziali o di turno assenti",
-          "evidence": []
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": [
@@ -55034,7 +55062,10 @@
         "areaKinds": [
           "zone"
         ],
-        "triggerIds": [],
+        "triggerIds": [
+          "transmute-rock-mud-save-on-entry",
+          "transmute-rock-mud-save-on-turn-end"
+        ],
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
@@ -55045,11 +55076,12 @@
           "AREA_GEOMETRY",
           "CAST",
           "CLEANUP",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -55062,15 +55094,14 @@
         "contract": {
           "lane": "area-transaction",
           "targetingMode": "geometric",
-          "placementPolicy": "optional",
+          "placementPolicy": "required",
           "visibleInputs": [
             "caster",
             "slot",
+            "variant",
             "targets",
             "placement",
             "outcomes",
-            "hp",
-            "damage",
             "automation"
           ]
         },
@@ -55100,7 +55131,8 @@
           "AREA_GEOMETRY",
           "CAST",
           "CLEANUP",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -55112,7 +55144,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Le due trasformazioni richiedono varianti distinte, costo 4x nel fango, TS al lancio/ingresso/fine turno e uscita o distruzione della roccia."
+      "curatedNote": "Decisione T4: tre varianti; solo il fango lascia la zona con costo ×4 e TS all'ingresso e a fine turno, il fango dal soffitto infligge 4d8."
     },
     {
       "id": "transport-via-plants",

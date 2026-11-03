@@ -34,6 +34,16 @@ const weaponAttack = Object.freeze({
 });
 
 const PHASED_SPELLS = Object.freeze({
+  // Symbol (2014): the cast only traces the glyph, with its effect; the zone and the saves come when it is triggered.
+  "symbol": Object.freeze({
+    prepareOnly: true,
+    resolveAction: "dismiss",
+    resolveLabel: "Attiva",
+    resolvePhaseLabel: "Attivazione del glifo",
+    preparedExpiry: Object.freeze({ mode: "manual" }),
+    prepared: () => null,
+    resolution: () => null,
+  }),
   "phb2014-colpo-intrappolante": Object.freeze({
     resolveAction: "extend",
     attack: weaponAttack,
@@ -296,7 +306,7 @@ export function getSpellCastPhaseOptions(value, requestedPhase = "") {
       return [{ value: "prepare", label: "Preparazione sul caster" }];
     }
     return [phase === "resolve"
-      ? { value: "resolve", label: "Risoluzione del colpo" }
+      ? { value: "resolve", label: rule.resolvePhaseLabel || "Risoluzione del colpo" }
       : { value: "prepare", label: "Preparazione sul caster" }];
   }
   return [
@@ -328,6 +338,15 @@ export function spellPreparedResolutionAvailable(spell) {
   return !!rule && rule.preparedResolution !== false;
 }
 
+// Resolved in the panel, with its own area (Symbol): no creatures to select first, and the pill gets its ⚡.
+export function spellPreparedResolutionInPanel(spell) {
+  return !!PHASED_SPELLS[spellId(spell)]?.resolveLabel;
+}
+
+export function spellPreparedResolutionLabel(spell) {
+  return PHASED_SPELLS[spellId(spell)]?.resolveLabel || "Risolvi";
+}
+
 export function getSpellCastPhasePlan(spell, requestedPhase = "", castContext = {}) {
   const rule = PHASED_SPELLS[spellId(spell)];
   if (!rule) {
@@ -349,9 +368,10 @@ export function getSpellCastPhasePlan(spell, requestedPhase = "", castContext = 
       subjectMode: "caster",
       useCatalogAutomation: false,
       attack: rule.attack || null,
-      effects: [rule.prepared(slotLevel(spell, castContext))],
+      effects: [rule.prepared(slotLevel(spell, castContext))].filter(Boolean),
       resolution: null,
       concentrationAction: "replace",
+      ...(rule.preparedExpiry ? { preparedExpiry: rule.preparedExpiry } : {}),
     };
   }
   return {

@@ -665,14 +665,14 @@ export function renderPlacementStage(documentRef, model, callbacks = {}) {
     const choice = createSelect(documentRef, {
       id: "spell-unified-placement-choice",
       options: [
-        { value: "", label: "Seleziona forma e lato caldo" },
+        { value: "", label: "Seleziona la forma" },
         ...placement.choices,
       ],
       value: placement.choice || "",
       invalid: model.workflow.validation.firstInvalidField === "rule-choice",
       attributes: {
         "data-field": "rule-choice",
-        "aria-label": "Forma e lato caldo della sagoma",
+        "aria-label": "Forma della sagoma",
       },
     });
     choice.addEventListener("change", (event) => callbacks.onVariantChange?.(
@@ -680,7 +680,7 @@ export function renderPlacementStage(documentRef, model, callbacks = {}) {
     ));
     details.append(createField(documentRef, {
       id: choice.id,
-      label: "Forma / lato caldo",
+      label: "Forma",
       control: choice,
       hint: "La scelta viene salvata nella zona persistente.",
       invalid: model.workflow.validation.firstInvalidField === "rule-choice",

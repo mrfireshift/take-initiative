@@ -340,12 +340,14 @@ export function buildSpellApplicationPlan({
       }),
     }]
     : [];
-  const spellExpiry = choiceTiming && Object.prototype.hasOwnProperty.call(
-    choiceTiming,
-    "spellExpiry",
-  )
-    ? choiceTiming.spellExpiry
-    : spell?.expiry ? { ...spell.expiry } : null;
+  const spellExpiry = phasePlan?.phase === "prepare" && phasePlan?.preparedExpiry
+    ? { ...phasePlan.preparedExpiry }
+    : choiceTiming && Object.prototype.hasOwnProperty.call(
+      choiceTiming,
+      "spellExpiry",
+    )
+      ? choiceTiming.spellExpiry
+      : spell?.expiry ? { ...spell.expiry } : null;
   const expiry = spellExpiry || (wantsConcentration
     ? { mode: "concentration" }
     : { mode: "rounds", remaining: turns });

@@ -643,10 +643,10 @@ da questo audit.
 - Catalogo totale: **477** definizioni su 477 record.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **477**; disconnessi: **0**; fragili: **0**.
-- Opzioni trackable del runtime: **362**; definizioni con tracking persistente verificate dall'audit: **359**; definizioni con regole d'area: **139** (144 regole).
-- Workflow che richiedono smoke test runtime: **414**.
-- Lacune RAW confermate P1: **10**; discrepanze ad alta confidenza P2: **2**.
-- Impronta deterministica: `7ec5ad2028859d38`.
+- Opzioni trackable del runtime: **363**; definizioni con tracking persistente verificate dall'audit: **360**; definizioni con regole d'area: **141** (146 regole).
+- Workflow che richiedono smoke test runtime: **415**.
+- Lacune RAW confermate P1: **7**; discrepanze ad alta confidenza P2: **2**.
+- Impronta deterministica: `3d989eb7e0e64318`.
 
 ## Decisioni di prodotto chiuse
 
@@ -659,9 +659,9 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | FULL | 66 |
-| MANUAL | 59 |
-| PARTIAL | 236 |
-| TRACK_ONLY | 116 |
+| MANUAL | 58 |
+| PARTIAL | 238 |
+| TRACK_ONLY | 115 |
 
 ### Stato di copertura (coverageStatus)
 
@@ -671,8 +671,8 @@ da questo audit.
 | --- | ---: |
 | ACCEPTED | 72 |
 | CLOSED | 14 |
-| GAP | 12 |
-| UNREVIEWED | 379 |
+| GAP | 9 |
+| UNREVIEWED | 382 |
 
 ### Livello di automazione target (targetAutomationLevel)
 
@@ -700,20 +700,20 @@ da questo audit.
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION | 50 |
-| AREA_GEOMETRY | 139 |
-| CAST | 271 |
-| CLEANUP | 116 |
+| ACTIVE_ACTION | 51 |
+| AREA_GEOMETRY | 141 |
+| CAST | 273 |
+| CLEANUP | 118 |
 | CONCENTRATION | 218 |
-| PERSISTENCE | 359 |
-| TURN_TRIGGER | 99 |
+| PERSISTENCE | 360 |
+| TURN_TRIGGER | 101 |
 
 ### Stato di integrazione console unificata
 
 | Stato | Totale |
 | --- | ---: |
-| partial | 12 |
-| reachable | 465 |
+| partial | 9 |
+| reachable | 468 |
 
 ### Problemi di integrazione
 
@@ -740,11 +740,8 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Fuorviare | SRD 5.1 | condizione o stato RAW non rappresentato; azione ripetibile della spell assente | Mancano Invisibile sul caster, l'entità illusoria mobile e le azioni successive per muoverla e alternare l'uso dei sensi. |
 | Interdizione Primordiale | Xanathar | trigger condizionale durante la durata assente; conseguenza alla fine della spell assente | Una reazione al danno trasforma tutte le resistenze nell'immunità al tipo scelto fino alla fine del turno successivo. |
 | Inversione della gravità | SRD 5.1 | ingresso, sospensione e caduta finale non risolti; trigger spaziali o di turno assenti | La geometria non basta: servono salita, collisione, sospensione e caduta coordinata quando termina la spell. |
-| Muro d'Acqua | Xanathar | meccanica di movimento assente; trigger condizionale durante la durata assente | La parete non applica terreno difficile né le interazioni contestuali con attacchi a distanza, danni da fuoco e congelamento locale da freddo. |
-| Parlare con i vegetali | SRD 5.1 | meccanica di movimento assente; varianti rilevanti non modellate | L'aura è presente, ma manca la scelta di rendere normale o difficile il terreno vegetale e il relativo collegamento allo Speed Tracker. |
 | Tempesta di vendetta | SRD 5.1 | progressione degli effetti per round assente; condizione o stato RAW non rappresentato; meccanica di movimento assente | L'area esiste, ma i round 1-10 cambiano danni, TS, Assordato, terreno difficile e oscuramento. |
 | Trasformazione | SRD 5.1 | azione ripetibile della spell assente; varianti rilevanti non modellate | Mancano la forma e i PF correnti come stato dell'istanza e l'azione che sostituisce la forma nei turni successivi rispettando i limiti RAW. |
-| Trasmutare Roccia | Xanathar | varianti della zona e relativi trigger incomplete; meccanica di movimento assente; trigger spaziali o di turno assenti | Le due trasformazioni richiedono varianti distinte, costo 4x nel fango, TS al lancio/ingresso/fine turno e uscita o distruzione della roccia. |
 
 ## P2 — discrepanze ad alta confidenza
 
@@ -861,7 +858,7 @@ Nessuna voce.
 | Creare Omuncolo | `xanathar-creare-omuncolo` | Xanathar / 6 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Creazione | `creation` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Crescita di spine | `spike-growth` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Crescita vegetale | `plant-growth` | SRD 5.1 / 3 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Crescita vegetale | `plant-growth` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Cura ferite | `cure-wounds` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Cura ferite di massa | `mass-cure-wounds` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Danza irresistibile | `irresistible-dance` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1032,7 +1029,7 @@ Nessuna voce.
 | Morte Apparente | `phb2014-morte-apparente` | PHB 2014 / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Movimenti del ragno | `spider-climb` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Muovere il terreno | `move-earth` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Muro d'Acqua | `xanathar-muro-dacqua` | Xanathar / 3 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | partial | P1 | meccanica di movimento assente; trigger condizionale durante la durata assente |
+| Muro d'Acqua | `xanathar-muro-dacqua` | Xanathar / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Muro di forza | `wall-of-force` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Muro di fuoco | `wall-of-fire` | SRD 5.1 / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Muro di ghiaccio | `wall-of-ice` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1061,7 +1058,7 @@ Nessuna voce.
 | Palla di fuoco ritardata | `delayed-blast-fireball` | SRD 5.1 / 7 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
 | Parlare con gli animali | `speak-with-animals` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Parlare con i morti | `speak-with-dead` | SRD 5.1 / 3 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Parlare con i vegetali | `speak-with-plants` | SRD 5.1 / 3 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | meccanica di movimento assente; varianti rilevanti non modellate |
+| Parlare con i vegetali | `speak-with-plants` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Parola del Potere Dolore | `xanathar-parola-del-potere-dolore` | Xanathar / 7 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Parola del Potere Guarire | `phb2014-parola-del-potere-guarire` | PHB 2014 / 9 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Parola del potere stordire | `power-word-stun` | SRD 5.1 / 8 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1215,7 +1212,7 @@ Nessuna voce.
 | Trasformazione | `shapechange` | SRD 5.1 / 9 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; varianti rilevanti non modellate |
 | Trasformazione di Tenser | `xanathar-trasformazione-di-tenser` | Xanathar / 6 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Traslazione arborea | `tree-stride` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Trasmutare Roccia | `xanathar-trasmutare-roccia` | Xanathar / 5 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | varianti della zona e relativi trigger incomplete; meccanica di movimento assente; trigger spaziali o di turno assenti |
+| Trasmutare Roccia | `xanathar-trasmutare-roccia` | Xanathar / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Trasporto vegetale | `transport-via-plants` | SRD 5.1 / 6 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Trova cavalcatura | `find-steed` | SRD 5.1 / 2 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Trova Cavalcatura Superiore | `xanathar-trova-cavalcatura-superiore` | Xanathar / 4 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

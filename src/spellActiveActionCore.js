@@ -4,6 +4,8 @@ import {
 } from "./spellEffectCore.js";
 import {
   isPreparedSpellCast,
+  spellPreparedResolutionInPanel,
+  spellPreparedResolutionLabel,
   spellPreparedResolutionAvailable,
 } from "./spellCastPhaseCore.js";
 import { buildSpellActiveResolutionResourceOperations } from "./spellActiveResolutionCore.js";
@@ -143,9 +145,10 @@ export function getSpellOverviewActions({
     actions.push({
       id: "resolve-prepared",
       type: "resolve",
-      buttonLabel: "Risolvi",
-      subjectMode: "selected",
-      requiresTargets: true,
+      buttonLabel: spellPreparedResolutionLabel(spell),
+      ...(spellPreparedResolutionInPanel(spell)
+        ? { subjectMode: "none", requiresTargets: false, completesInPanel: true }
+        : { subjectMode: "selected", requiresTargets: true }),
     });
   }
 

@@ -19,6 +19,24 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
     }),
   }),
   "grease": Object.freeze({ initialHP: false }),
+  // Only the glyph of Death hurts; half on a success (the default).
+  "symbol": Object.freeze({
+    initialHP: false,
+    initialHPChoices: Object.freeze({ death: true }),
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({ formula: "10d10", type: "necrotici" }),
+      failed: Object.freeze({ formula: "10d10", type: "necrotici" }),
+    }),
+  }),
+  // Only the mud falling from a ceiling hurts; half on a success (the default).
+  "xanathar-trasmutare-roccia": Object.freeze({
+    initialHP: false,
+    initialHPChoices: Object.freeze({ "falling-mud": true }),
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({ formula: "4d8", type: "contundenti" }),
+      failed: Object.freeze({ formula: "4d8", type: "contundenti" }),
+    }),
+  }),
   // Its initial save blinds; no damage (lotto L3).
   "xanathar-pirotecnica": Object.freeze({ initialHP: false }),
   // Its initial save frightens or attracts; no damage (lotto L3).
@@ -294,8 +312,10 @@ export function spellHasExplicitInitialHP(spellOrId) {
   return rule?.initialHP === true;
 }
 
-export function spellHasExplicitInitialHPPolicy(spellOrId) {
+export function spellHasExplicitInitialHPPolicy(spellOrId, choiceValue = "") {
   const rule = getSpellCastResolutionRule(spellOrId);
+  const byChoice = rule?.initialHPChoices?.[String(choiceValue || "").trim()];
+  if (typeof byChoice === "boolean") return byChoice;
   return rule && typeof rule.initialHP === "boolean" ? rule.initialHP : null;
 }
 

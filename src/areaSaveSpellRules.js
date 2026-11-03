@@ -202,6 +202,9 @@ export const AREA_PLACEMENT_ONLY_SPELL_IDS = Object.freeze([
   "xanathar-muro-di-sabbia",
   "wall-of-force",
   "forbiddance",
+  // CAP-TERRAIN, lotto G1 (2014 texts): the terrain and its movement cost, nothing else.
+  "plant-growth",
+  "xanathar-muro-dacqua",
 ]);
 
 export const AREA_PLACEMENT_ONLY_SPELL_ID_SET = new Set(
@@ -368,6 +371,15 @@ function debuffRule(condition, effectId, effectDetail, options = {}) {
     ...options,
     effectId,
     effectKind: "debuff",
+    effectDetail,
+  });
+}
+
+// Symbol's effects stay on a creature with no pill of the spell: without an effect kind the card shows them on their own.
+function symbolEffectRule(condition, effectId, effectDetail, options = {}) {
+  return conditionRule(condition, {
+    ...options,
+    effectId,
     effectDetail,
   });
 }
@@ -715,13 +727,6 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       },
     ),
   ], { track: false }),
-  "xanathar-trasmutare-roccia": failedAutomation([
-    conditionRule("Trattenuto", {
-      expiry: manual,
-      independent: true,
-      manualRemoval: true,
-    }),
-  ], { track: false }),
   "xanathar-trabocchetto": failedAutomation([
     conditionRule("Trattenuto", {
       expiry: manual,
@@ -749,6 +754,41 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
 // incompatibili. La Console HP deve chiedere quale sotto-effetto si sta
 // risolvendo, invece di applicare una condizione arbitraria.
 export const AREA_SAVE_RULE_CHOICES = Object.freeze({
+  // Transmute Rock (XGtE): only the mud leaves terrain behind (spellAreaRules.js); the other two are resolved at the cast.
+  "xanathar-trasmutare-roccia": Object.freeze([
+    Object.freeze({
+      id: "rock-to-mud",
+      label: "Roccia in fango (TS Forza)",
+      automation: failedAutomation([
+        conditionRule("Trattenuto", {
+          expiry: manual,
+          independent: true,
+          manualRemoval: true,
+          effectDetail: "Trattenuto dal fango: con un'azione può terminare l'effetto su sé stesso.",
+        }),
+      ], { track: false }),
+      replaceBase: true,
+    }),
+    Object.freeze({
+      id: "mud-to-rock",
+      label: "Fango in roccia (TS Destrezza)",
+      automation: failedAutomation([
+        conditionRule("Trattenuto", {
+          expiry: manual,
+          independent: true,
+          manualRemoval: true,
+          effectDetail: "Trattenuto dalla roccia: con un'azione prova di Forza CD 20, oppure danni alla roccia (CA 15, 25 PF, immune a psichici e veleno).",
+        }),
+      ], { track: false }),
+      replaceBase: true,
+    }),
+    Object.freeze({
+      id: "falling-mud",
+      label: "Fango dal soffitto (TS Destrezza)",
+      automation: noPersistentEffect,
+      replaceBase: true,
+    }),
+  ]),
   // Zone variants of lotto L3 (2014 texts): the membership and triggers of the variant (spellAreaRules.js).
   "magic-circle": Object.freeze([
     Object.freeze({ id: "ward", label: "Protegge chi è dentro", automation: noPersistentEffect }),
@@ -932,15 +972,15 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
   "symbol": Object.freeze([
     Object.freeze({
       id: "death",
-      label: "Morte: solo danno",
+      label: "Morte (TS Costituzione)",
       automation: noPersistentEffect,
       replaceBase: true,
     }),
     Object.freeze({
       id: "discord",
-      label: "Discordia",
+      label: "Discordia (TS Costituzione)",
       automation: failedAutomation([
-        debuffRule(
+        symbolEffectRule(
           "Discordia: svantaggio ad attacchi e prove",
           "symbol-discord",
           "Svantaggio ai tiri per colpire e alle prove di caratteristica.",
@@ -959,9 +999,9 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
     }),
     Object.freeze({
       id: "despair",
-      label: "Disperazione",
+      label: "Disperazione (TS Carisma)",
       automation: failedAutomation([
-        debuffRule(
+        symbolEffectRule(
           "Disperazione: non può attaccare",
           "symbol-despair",
           "Non può attaccare né bersagliare creature con capacità, incantesimi o altri effetti dannosi.",
@@ -980,7 +1020,7 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
     }),
     Object.freeze({
       id: "fear",
-      label: "Paura",
+      label: "Paura (TS Saggezza)",
       automation: failedAutomation([
         conditionRule("Spaventato", {
           expiry: rounds(10),
@@ -992,9 +1032,9 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
     }),
     Object.freeze({
       id: "insanity",
-      label: "Follia",
+      label: "Follia (TS Intelligenza)",
       automation: failedAutomation([
-        debuffRule(
+        symbolEffectRule(
           "Follia: azioni incontrollate",
           "symbol-insanity",
           "Non può effettuare azioni, comprendere parole o comunicare; il GM ne controlla il movimento.",
@@ -1014,7 +1054,7 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
     }),
     Object.freeze({
       id: "pain",
-      label: "Dolore: Incapacitato",
+      label: "Dolore (TS Costituzione)",
       automation: failedAutomation([
         conditionRule("Incapacitato", {
           expiry: rounds(10),
@@ -1026,7 +1066,7 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
     }),
     Object.freeze({
       id: "sleep",
-      label: "Sonno: Privo di sensi",
+      label: "Sonno (TS Saggezza)",
       automation: failedAutomation([
         conditionRule("Privo di sensi", {
           expiry: rounds(100),
@@ -1038,7 +1078,7 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
     }),
     Object.freeze({
       id: "stunning",
-      label: "Stordimento",
+      label: "Stordimento (TS Saggezza)",
       automation: failedAutomation([
         conditionRule("Stordito", {
           expiry: rounds(10),

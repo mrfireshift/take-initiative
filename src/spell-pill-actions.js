@@ -175,10 +175,19 @@ async function undo() {
 async function openPanel(actionId = "") {
   const context = overview?.context || {};
   const { buildSpellUnifiedPanelRouteQuery } = await import("./spellUnifiedPanelRoutingCore.js");
+  const action = (overview?.actions || []).find((entry) => String(entry?.id || "").trim() === actionId);
   const query = buildSpellUnifiedPanelRouteQuery({
     spellId: context.spellId || "",
     casterId: context.casterId || "",
-    ...(actionId ? { activeInstanceId: request.spellInstanceId, activeActionId: actionId } : {}),
+    ...(action?.completesInPanel === true
+      // Symbol's glyph: straight to its sphere, with the variant it was traced with.
+      ? {
+        phase: "resolve",
+        parentInstanceId: request.spellInstanceId,
+        variant: context.castContext?.choice || "",
+        slotLevel: context.castContext?.slotLevel ?? null,
+      }
+      : actionId ? { activeInstanceId: request.spellInstanceId, activeActionId: actionId } : {}),
   });
   try { await OBR.popover.close(SPELLS_POPOVER_ID); } catch {}
   await OBR.popover.open({

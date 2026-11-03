@@ -1,4 +1,5 @@
 import { getSpellDefinition } from "./spells-srd.js";
+import { spellPreparedResolutionInPanel } from "./spellCastPhaseCore.js";
 
 // The actions of an active spell, from its pill on the tracker card (spell-pill-actions.js): the same overview and
 // the same executor as the spell panel, one click for an action that asks nothing, its own popup for the others.
@@ -7,6 +8,7 @@ const text = (value) => String(value ?? "").trim();
 // Whether the pill gets its ⚡: the spell has active actions (Mirror Image, Hunter's Mark, Call Lightning...).
 export function spellPillHasActions(spell) {
   const definition = getSpellDefinition(text(spell?.spellId) || text(spell?.name));
+  if (text(spell?.castContext?.phase) === "prepare" && spellPreparedResolutionInPanel(definition)) return true;
   return Array.isArray(definition?.activeActions) && definition.activeActions.length > 0;
 }
 
@@ -29,7 +31,7 @@ export function spellPillActionNeedsTargets(action) {
 // make or a zone to move do not.
 const PANEL_INPUT_RESOLUTION_KINDS = new Set(["zone-movement", "zone-direction"]);
 export function spellActionRunsDirectly(action) {
-  if (!action || spellPillActionNeedsTargets(action)) return false;
+  if (!action || spellPillActionNeedsTargets(action) || action.completesInPanel === true) return false;
   if (PANEL_INPUT_RESOLUTION_KINDS.has(text(action.resolutionKind))) return false;
   if (action.choice && typeof action.choice === "object") return false;
   if (action.movement?.choice && typeof action.movement.choice === "object") return false;

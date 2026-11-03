@@ -26,6 +26,8 @@ import {
   getSpellAreaRuleForPlacement,
   getSpellAreaRules,
   spellPlacedDamageCastAllowsEmptyTargets,
+  spellZoneChoiceIsInstant,
+  spellZoneInitialSaveForChoice,
 } from "./spellAreaRules.js";
 import {
   getSpellTeleportRule,
@@ -138,7 +140,7 @@ const SPELL_PANEL_VALIDATION_MESSAGES = Object.freeze({
   duration: "Inserisci la durata",
   variant: "Scegli una variante",
   passenger: "Scegli un eventuale passeggero",
-  "rule-choice": "Scegli la forma e il lato caldo della sagoma",
+  "rule-choice": "Scegli la forma della sagoma",
   targets: "Seleziona almeno un bersaglio",
   "primary-target": "Seleziona il bersaglio primario",
   "target-context": "Completa il contesto dei bersagli",
@@ -873,10 +875,11 @@ function hasExplicitDamage({
   boardTokenRule,
   actions,
   castRules,
+  choiceValue = "",
 }) {
   const teleportRule = getSpellTeleportRule(spell);
   if (teleportRule) return false;
-  const explicitPolicy = spellHasExplicitInitialHPPolicy(spell);
+  const explicitPolicy = spellHasExplicitInitialHPPolicy(spell, phasePlan?.phase === "prepare" ? "" : choiceValue);
   if (explicitPolicy !== null) return explicitPolicy;
   if (getSpellAttackResolution(spell)) return true;
   if (AREA_HEALING_SPELL_ID_SET.has(text(spell?.id))) return true;
@@ -1296,12 +1299,12 @@ const SAVE_ABILITY_LABELS = Object.freeze({
   cha: "Carisma",
 });
 
-function initialSaveDescriptor(castRules = []) {
+function initialSaveDescriptor(castRules = [], choiceValue = "") {
   const rule = (Array.isArray(castRules) ? castRules : []).find((entry) => (
     entry?.zonePolicy?.initialResolution === "manual-save"
       && entry?.zonePolicy?.initialSave?.ability
   ));
-  const ability = text(rule?.zonePolicy?.initialSave?.ability).toLowerCase();
+  const ability = text(spellZoneInitialSaveForChoice(rule, choiceValue)?.ability).toLowerCase();
   if (!ability) return null;
   return {
     ability,
@@ -1371,6 +1374,7 @@ function controlList({
 
 function executionDescriptor({
   spell,
+  choiceValue = "",
   castContext = {},
   phasePlan,
   castRules,
@@ -1387,6 +1391,7 @@ function executionDescriptor({
     boardTokenRule,
     actions,
     castRules,
+    choiceValue,
   });
   const phaseHasHP = (phasePlan?.effects || []).some((effect) =>
     !!effect?.mechanics?.areaDamage
@@ -1412,7 +1417,9 @@ function executionDescriptor({
     || activeActionHasHP
     || tokenHasHP
     || deferredHP;
-  const hasZones = hasPersistentArea(allAreaRules);
+  const hasZones = hasPersistentArea(allAreaRules)
+    && !allAreaRules.some((rule) => spellZoneChoiceIsInstant(rule, choiceValue))
+    && !(phasePlan?.phase === "prepare" && phasePlan?.preparedExpiry);
   const hasTokens = !!boardTokenRule;
   const lanes = [SPELL_UNIFIED_PANEL_LANES.SPELL_LIFECYCLE];
   if (areaTransaction) lanes.push(SPELL_UNIFIED_PANEL_LANES.AREA_TRANSACTION);
@@ -1562,7 +1569,7 @@ export function buildSpellUnifiedPanelContract({
     workflowRule,
   });
   const saveOutcomeOptionsValue = saveOutcomeOptions({ saveOutcomes, workflowRule });
-  const initialSave = initialSaveDescriptor(presentationCastRules);
+  const initialSave = initialSaveDescriptor(presentationCastRules, choiceValue);
   const combinedAttackAndSave = spellPhaseAttackOutcomeRequired(phasePlan)
     && saveOutcomes;
   const automation = automationDescriptor({ spell, phasePlan });
@@ -1591,6 +1598,7 @@ export function buildSpellUnifiedPanelContract({
   });
   const execution = executionDescriptor({
     spell,
+    choiceValue,
     castContext,
     phasePlan,
     castRules: presentationCastRules,

@@ -7,6 +7,8 @@ import {
   SPELL_UNIFIED_TARGETING_MODES,
 } from "./spellUnifiedPanelCore.js";
 import { isTeleportSpell } from "./spellTeleportCore.js";
+import { getAreaSaveAutomation } from "./spells-srd.js";
+import { SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS } from "./spellUnifiedActiveAdapter.js";
 
 export const SPELL_UNIFIED_AREA_STATUS = Object.freeze({
   APPLIED: "applied",
@@ -309,6 +311,10 @@ export function buildSpellUnifiedAreaCommand({
     sourceKind,
     automation: preparedResolution
       ? {
+        // A prepared spell resolved here keeps the failed saves of its variant (Symbol's glyph).
+        ...(SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS.includes(text(contract?.spell?.id))
+          ? getAreaSaveAutomation(text(contract?.spell?.id), text(session?.variant))
+          : {}),
         concentrationAction: text(contract?.presentation?.phase?.plan?.concentrationAction)
           || "dismiss",
       }

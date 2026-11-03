@@ -25,6 +25,8 @@ export const SUPPLEMENT_TRACKING = Object.freeze({
   "xanathar-scossa-sinaptica": Object.freeze({ trackable: true, defaultTurns: 10 }),
   // Instantaneous, but its difficult terrain stays until cleared (lotto L3).
   "xanathar-scossa-tellurica": Object.freeze({ trackable: true, defaultTurns: 10 }),
+  // Until dispelled: the mud's zone stays until the GM takes it off (CAP-TERRAIN).
+  "xanathar-trasmutare-roccia": Object.freeze({ trackable: true, defaultTurns: 14400 }),
   "xanathar-urlo-psichico": Object.freeze({ trackable: true, defaultTurns: 1 }),
 });
 
@@ -493,6 +495,7 @@ export const SUPPLEMENT_ACTIVE_ACTIONS = Object.freeze({
 });
 
 export const SUPPLEMENT_EXPIRY = Object.freeze({
+  "xanathar-trasmutare-roccia": Object.freeze({ mode: "manual" }),
   "xanathar-morsa-del-gelo": nextTurn("turn-end", "target"),
   "xanathar-parola-del-potere-dolore": manual,
   "xanathar-urlo-psichico": manual,

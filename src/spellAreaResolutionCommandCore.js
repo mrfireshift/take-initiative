@@ -17,6 +17,7 @@ import {
 } from "./spellTargetingCapacityCore.js";
 import {
   getSpellAreaRuleForPlacement,
+  spellZoneInitialSaveForChoice,
   getSpellAreaRuleById,
   spellPlacedDamageCastAllowsEmptyTargets,
 } from "./spellAreaRules.js";
@@ -1888,7 +1889,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
       byTarget: outcomes.byTarget,
       ...(attackOutcome ? { attack: attackOutcome } : {}),
       ...(placement.rule?.zonePolicy?.initialSave
-        ? { save: serializable(placement.rule.zonePolicy.initialSave) }
+        ? { save: serializable(spellZoneInitialSaveForChoice(placement.rule, choiceValue)) }
         : {}),
     },
     hp,

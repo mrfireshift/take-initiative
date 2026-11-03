@@ -79,6 +79,8 @@ const PERSISTENT_ZONE_SPELL_IDS = new Set([
   "xanathar-maelstrom",
   "xanathar-muro-di-luce",
   "xanathar-muro-di-sabbia",
+  "xanathar-muro-dacqua",
+  "plant-growth",
   "xanathar-oscurita-della-follia",
   "xanathar-pirotecnica",
   "xanathar-scossa-tellurica",
@@ -185,6 +187,31 @@ const AREA_OVERRIDES = Object.freeze({
     heightMeters: 3,
     note: "Muro di sabbia 9 × 3 × 3 m: blocca la vista, non il movimento.",
   },
+  // CAP-TERRAIN, lotto G1 (2014): a line of 9 m or a ring of 6 m in diameter, 30 cm thick.
+  "xanathar-muro-dacqua": {
+    shape: "line",
+    sizeMeters: 9,
+    widthMeters: 0.3,
+    origin: "point",
+    rangeMeters: 18,
+    heightMeters: 3,
+    snapOrigin: "vertex",
+    widthAnchor: "edge",
+    placementOptional: false,
+    placementChoices: [
+      { id: "line", label: "Muro lineare, 9 m", shape: "line", sizeMeters: 9, widthMeters: 0.3, snapOrigin: "vertex", widthAnchor: "edge" },
+      { id: "ring", label: "Muro circolare, 6 m di diametro", shape: "circle", sizeMeters: 3, widthMeters: 0.3, ring: true, innerSizeMeters: 2.7 },
+    ],
+    note: "A distanza attraverso il muro: svantaggio. Fuoco attraverso il muro: danni dimezzati. Il freddo lo congela: sezioni di 1,5 m con CA 5 e 15 PF, al tavolo.",
+  },
+  // CAP-TERRAIN, lotto G1 (2014): the use with an action; the 8 hours' one has no zone, it is cast without placing it.
+  "plant-growth": {
+    shape: "circle",
+    sizeMeters: 30,
+    origin: "point",
+    rangeMeters: 45,
+    note: "Le aree escluse e i vegetali mancanti restano al tavolo. Per l'uso da 8 ore (terra fertile) lancia senza posizionare la zona.",
+  },
   "wall-of-force": {
     shape: "line",
     sizeMeters: 30,
@@ -202,6 +229,21 @@ const AREA_OVERRIDES = Object.freeze({
   },
   // Pyrotechnics (XGtE): the fireworks blind within 3 m of the flame (Constitution save); the smoke fills 6 m for
   // 1 minute. One zone for both: with the smoke the GM marks every outcome as passed.
+  // Transmute Rock (XGtE): a 12 m cube; only the mud stays on the map.
+  "xanathar-trasmutare-roccia": {
+    shape: "square",
+    sizeMeters: 12,
+    origin: "point",
+    rangeMeters: 36,
+    placementOptional: false,
+    initialSave: { ability: "str" },
+    initialSaveByChoice: {
+      "mud-to-rock": { ability: "dex" },
+      "falling-mud": { ability: "dex" },
+    },
+    instantChoices: ["mud-to-rock", "falling-mud"],
+    note: "Il fango resta finché non viene dissolto; il fango in roccia lavora su fango profondo al massimo 3 m.",
+  },
   "xanathar-pirotecnica": {
     shape: "circle",
     sizeMeters: 3,
@@ -336,11 +378,22 @@ const AREA_OVERRIDES = Object.freeze({
     origin: "point",
     rangeMeters: 36,
   },
+  // Symbol (2014): the sphere opens where the glyph is, wherever the caster may be by then.
   "symbol": {
     shape: "circle",
     sizeMeters: 18,
     origin: "point",
-    rangeMeters: 1.5,
+    rangeMeters: SIGHT_RANGE_METERS,
+    placementOptional: false,
+    initialSave: { ability: "con" },
+    initialSaveByChoice: {
+      despair: { ability: "cha" },
+      fear: { ability: "wis" },
+      insanity: { ability: "int" },
+      sleep: { ability: "wis" },
+      stunning: { ability: "wis" },
+    },
+    note: "Posiziona la sfera dove si trova il glifo. Cosa lo innesca e la prova per scorgerlo restano al tavolo.",
   },
   "sleep": {
     note: "Dopo la sagoma, sblocca la selezione e mantieni soltanto le creature coperte dal totale di dadi",
@@ -644,6 +697,12 @@ function catalogSpec(spell) {
       : {}),
     ...(override.initialSave && typeof override.initialSave === "object"
       ? { initialSave: { ...override.initialSave } }
+      : {}),
+    ...(override.initialSaveByChoice && typeof override.initialSaveByChoice === "object"
+      ? { initialSaveByChoice: { ...override.initialSaveByChoice } }
+      : {}),
+    ...(Array.isArray(override.instantChoices)
+      ? { instantChoices: [...override.instantChoices] }
       : {}),
     ...(Array.isArray(override.carriedEffectIds)
       ? {

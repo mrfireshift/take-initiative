@@ -34,8 +34,8 @@ test("il catalogo unificato coincide con l'unione deduplicata delle due fonti le
   });
   // The spells the plugin only records are neither tracked nor placed: a source of their own, never duplicated.
   // 75 since lotto L2; 71 since CAP-HP-BRANCH; 67 since CAP-CLEANSE; 66 with Magic Missile; 65 with Goodberry; 64 with
-  // Negative Energy Flood; 58 with the six spells of CAP-STABILIZE.
-  assert.equal(recordIds.size, 58);
+  // Negative Energy Flood; 58 with the six spells of CAP-STABILIZE; 57 with Plant Growth.
+  assert.equal(recordIds.size, 57);
   assert.equal([...recordIds].some((id) => spellsPanelIds.has(id) || areaConsoleIds.has(id)), false);
   assert.equal(entries.length, getSpellCatalog().length);
   assert.equal(entries.length, 477);
@@ -75,14 +75,14 @@ test("ogni voce esposta ha un ID stabile, contratto e executor dichiarato", () =
   }
 });
 
-test("i 58 record non automatizzati sono esposti come registrazione del lancio, nessuno resta escluso", () => {
+test("i 57 record non automatizzati sono esposti come registrazione del lancio, nessuno resta escluso", () => {
   const entries = buildSpellUnifiedCatalogEntries();
   const exclusions = buildSpellUnifiedCatalogExclusions({ currentEntries: entries });
   const audit = buildSpellUnifiedCatalogAudit({ currentEntries: entries });
   assert.equal(exclusions.length, getSpellCatalog().length - entries.length);
   assert.deepEqual(exclusions, []);
   const recorded = entries.filter((entry) => entry.status === "registrazione");
-  assert.equal(recorded.length, 58);
+  assert.equal(recorded.length, 57);
   for (const id of ["counterspell", "remove-curse", "wish", "acid-splash"]) {
     const entry = entries.find((candidate) => candidate.key === id);
     assert.ok(entry, id);

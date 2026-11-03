@@ -45,7 +45,7 @@ export const SPELL_UNIFIED_ACTIVE_ERROR_CODES = Object.freeze({
   EXECUTOR_FAILED: "active-executor-failed",
 });
 
-export const SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS = Object.freeze([]);
+export const SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS = Object.freeze(["symbol"]);
 
 const PREPARED_AREA_SPELL_IDS = new Set(SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS);
 

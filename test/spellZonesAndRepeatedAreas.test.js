@@ -23,7 +23,7 @@ const {
   AREA_FIELD_NON_POPOVER_REASONS,
   AREA_SAVE_AUTOMATION_RULES,
 } = await import("../src/areaSaveSpellRules.js");
-const { getAreaSaveAutomation, getSpellChoiceTiming, getSpellDefinition } = await import("../src/spells-srd.js");
+const { getAreaSaveAutomation, getSpellChoiceTiming, getSpellDefinition, getSpellSummaryParts, isSpellCastRecordOnly } = await import("../src/spells-srd.js");
 const { buildSpellUnifiedPanelContract } = await import("../src/spellUnifiedPanelCore.js");
 const { buildSpellAreaResolutionCommand } = await import("../src/spellAreaResolutionCommandCore.js");
 const { buildSpellAreaResolutionExecutionPlan } = await import("../src/spellAreaResolutionExecutor.js");
@@ -48,6 +48,200 @@ test("Wall of Sand: a 9 m wall that blinds and triples the movement inside", () 
   assert.equal(blinded.condition, "Accecato");
   assert.equal(terrain.mechanics.movement.costMultiplier, 3);
   assert.equal(contractOf("xanathar-muro-di-sabbia").execution.hasHP, false);
+});
+
+// CAP-TERRAIN, lotto G1 of docs/PIANO_AUTOMAZIONE_INCANTESIMI.md, on the 2014 texts.
+test("Transmute Rock: three variants; only the mud is a zone, with a Strength save on entering and at the end of the turn", () => {
+  const rule = ruleOf("xanathar-trasmutare-roccia");
+  assert.deepEqual([rule.geometry.shape, rule.geometry.size.value, rule.placement.range.value], ["square", 12, 36]);
+  assert.equal(rule.zonePolicy.placementOptional, false);
+  assert.deepEqual(getSpellDefinition("xanathar-trasmutare-roccia").expiry, { mode: "manual" }, "until dispelled");
+  const variant = (choiceValue) => buildSpellUnifiedPanelContract({ spellId: "xanathar-trasmutare-roccia", phase: "cast", choiceValue, castContext: { slotLevel: 5 } });
+  assert.deepEqual(
+    ["rock-to-mud", "mud-to-rock", "falling-mud"].map((choice) => {
+      const contract = variant(choice);
+      return [choice, contract.presentation.outcomes.save.ability, contract.execution.castHasHP, contract.execution.hasZones];
+    }),
+    [["rock-to-mud", "str", false, true], ["mud-to-rock", "dex", false, false], ["falling-mud", "dex", true, false]],
+  );
+  assert.deepEqual(
+    ["rock-to-mud", "mud-to-rock", "falling-mud"].map((choice) => (getAreaSaveAutomation(getSpellDefinition("xanathar-trasmutare-roccia"), choice).failed || []).map((rule) => rule.condition)),
+    [["Trattenuto"], ["Trattenuto"], []],
+  );
+  const [terrain] = areaMembershipEffects(rule, "rock-to-mud");
+  assert.equal(terrain.mechanics.movement.costMultiplier, 4);
+  assert.deepEqual(rule.zonePolicy.triggers.map((trigger) => [trigger.event, trigger.resolution, trigger.ability, trigger.frequency, trigger.requiresRuleChoices]), [
+    ["enter", "manual-save", "str", "once-per-turn", ["rock-to-mud"]],
+    ["turn-end", "manual-save", "str", "once-per-turn", ["rock-to-mud"]],
+  ]);
+  for (const trigger of rule.zonePolicy.triggers) {
+    assert.equal(trigger.resolutionData.failureCondition.condition, "Trattenuto");
+    assert.deepEqual(trigger.skipConditions, ["Trattenuto"], "whoever is stuck does not save again");
+  }
+});
+
+test("Transmute Rock: the mud asks for a Strength save on entering and at the end of the turn", async () => {
+  const { planStaticSpellZoneReminder } = await import("../src/spellStaticZoneReminderCore.js");
+  const { SPELL_STATIC_ZONE_META_KEY } = await import("../src/spellStaticZoneCore.js");
+  const META = "com.thebigpicture.initiative/meta";
+  const rule = ruleOf("xanathar-trasmutare-roccia");
+  const token = (id, meta = {}) => ({ id, name: id, position: { x: 0, y: 0 }, metadata: { [META]: meta } });
+  const zone = (ruleChoice) => ({
+    id: "mud",
+    name: "Trasmutare Roccia",
+    position: { x: 0, y: 0 },
+    metadata: {
+      [SPELL_STATIC_ZONE_META_KEY]: {
+        instanceId: "mud-1",
+        ruleId: rule.id,
+        spellId: rule.spellId,
+        casterId: "caster",
+        role: "root",
+        ruleChoice,
+        targetIds: [],
+      },
+    },
+  });
+  const initiativeState = (current) => ({ order: ["caster", "target"], current, round: 1 });
+  const plan = (zoneItem, target, current = 0, now = 100) => planStaticSpellZoneReminder({
+    zoneItem,
+    rule,
+    desiredTargetIds: ["target"],
+    initiativeState: initiativeState(current),
+    itemsById: new Map([
+      ["mud", zoneItem],
+      ["caster", token("caster", { initiativeCard: { spellSaveDC: 15 } })],
+      ["target", target],
+    ]),
+    now,
+  });
+
+  const entered = plan(zone("rock-to-mud"), token("target"));
+  assert.deepEqual(entered.newActivations.map((activation) => activation.event), ["enter"]);
+  assert.equal(entered.newActivations[0].resolutionData.ability, "str");
+  assert.equal(entered.newActivations[0].resolutionData.failureCondition.condition, "Trattenuto");
+
+  const zoneAfterEntry = zone("rock-to-mud");
+  zoneAfterEntry.metadata[SPELL_STATIC_ZONE_META_KEY] = {
+    ...zoneAfterEntry.metadata[SPELL_STATIC_ZONE_META_KEY],
+    targetIds: ["target"],
+    triggerRuntime: entered.runtime,
+  };
+  const turnEnded = planStaticSpellZoneReminder({
+    zoneItem: zoneAfterEntry,
+    rule,
+    desiredTargetIds: ["target"],
+    initiativeState: { order: ["caster", "target"], current: 0, round: 2 },
+    itemsById: new Map([
+      ["mud", zoneAfterEntry],
+      ["caster", token("caster", { initiativeCard: { spellSaveDC: 15 } })],
+      ["target", token("target")],
+    ]),
+    now: 200,
+  });
+  assert.ok(turnEnded.newActivations.some((activation) => activation.event === "turn-end"), JSON.stringify(turnEnded.newActivations.map((activation) => activation.event)));
+});
+
+test("Symbol: the cast traces the glyph with no zone, Activate has the sphere, the save of its variant and damage only for Death", async () => {
+  const { getSpellOverviewActions } = await import("../src/spellActiveActionCore.js");
+  const { spellPillHasActions, spellActionRunsDirectly } = await import("../src/spellPillActionsCore.js");
+  const spell = getSpellDefinition("symbol");
+  const contract = (phase, choiceValue) => buildSpellUnifiedPanelContract({ spellId: "symbol", phase, choiceValue, castContext: { slotLevel: 7 } });
+  const traced = contract("prepare", "death");
+  assert.deepEqual([traced.execution.hasZones, traced.execution.castHasHP, traced.presentation.placement.policy], [false, false, "unavailable"]);
+  assert.equal(traced.execution.lane, "spell-lifecycle");
+  assert.deepEqual(
+    ["death", "discord", "despair", "fear", "insanity", "pain", "sleep", "stunning"].map((choice) => {
+      const activated = contract("resolve", choice);
+      return [activated.presentation.outcomes.save.ability, activated.execution.castHasHP, activated.execution.hasZones];
+    }),
+    [["con", true, true], ["con", false, true], ["cha", false, true], ["wis", false, true], ["int", false, true], ["con", false, true], ["wis", false, true], ["wis", false, true]],
+  );
+  for (const choice of ["discord", "despair", "insanity"]) {
+    assert.equal(getAreaSaveAutomation(spell, choice).failed[0].effectKind, undefined, "the card would hide it");
+  }
+  const rule = ruleOf("symbol");
+  assert.deepEqual([rule.geometry.shape, rule.geometry.size.value, rule.zonePolicy.placementOptional], ["circle", 18, false]);
+  assert.ok(rule.placement.range.value > 100, "the caster may be anywhere when the glyph goes off");
+  assert.equal(spell.defaultTurns, 100, "10 minutes");
+  assert.equal(spell.expiry, null);
+
+  const castContext = { phase: "prepare", choice: "fear" };
+  const [activate] = getSpellOverviewActions({ spell, castContext, casterId: "caster", targetIds: ["caster"] });
+  assert.deepEqual([activate.id, activate.buttonLabel, activate.requiresTargets, activate.completesInPanel], ["resolve-prepared", "Attiva", false, true]);
+  assert.equal(spellActionRunsDirectly(activate), false, "it is completed in the panel");
+  assert.equal(spellPillHasActions({ spellId: "symbol", castContext }), true, "the glyph's pill has its bolt");
+  assert.equal(spellPillHasActions({ spellId: "symbol", castContext: { phase: "resolve", choice: "fear" } }), false, "the sphere's does not");
+  assert.deepEqual(getSpellOverviewActions({ spell, castContext: { choice: "fear", phase: "resolve" }, casterId: "caster", targetIds: [] }), []);
+});
+
+test("Symbol: each variant asks its own save on entering and at the end of the turn, and spares whoever already has its effect", async () => {
+  const { planStaticSpellZoneReminder } = await import("../src/spellStaticZoneReminderCore.js");
+  const { SPELL_STATIC_ZONE_META_KEY } = await import("../src/spellStaticZoneCore.js");
+  const META = "com.thebigpicture.initiative/meta";
+  const rule = ruleOf("symbol");
+  assert.equal(rule.zonePolicy.triggers.length, 16);
+  const token = (id, meta = {}) => ({ id, name: id, position: { x: 0, y: 0 }, metadata: { [META]: meta } });
+  const enter = (ruleChoice) => {
+    const zoneItem = {
+      id: "sphere",
+      name: "Simbolo",
+      position: { x: 0, y: 0 },
+      metadata: {
+        [SPELL_STATIC_ZONE_META_KEY]: { instanceId: "glyph", ruleId: rule.id, spellId: "symbol", casterId: "caster", role: "root", ruleChoice, targetIds: [] },
+      },
+    };
+    return planStaticSpellZoneReminder({
+      zoneItem,
+      rule,
+      desiredTargetIds: ["target"],
+      initiativeState: { order: ["caster", "target"], current: 0, round: 1 },
+      itemsById: new Map([
+        ["sphere", zoneItem],
+        ["caster", token("caster", { initiativeCard: { spellSaveDC: 17 } })],
+        ["target", token("target")],
+      ]),
+      now: 100,
+    });
+  };
+  const [fear] = enter("fear").newActivations;
+  assert.deepEqual([fear.event, fear.triggerId, fear.resolutionData.ability, fear.resolutionData.failureAutomation], ["enter", "symbol-fear-save-on-entry", "wis", "spell-save"]);
+  assert.deepEqual(enter("fear").newActivations.length, 1, "only its own variant");
+  const [insanity] = enter("insanity").newActivations;
+  assert.equal(insanity.resolutionData.ability, "int");
+  const death = rule.zonePolicy.triggers.find((trigger) => trigger.id === "symbol-death-save-on-entry");
+  assert.deepEqual(death.damage, { dice: "10d10", type: "necrotici", onSave: "half" });
+  assert.deepEqual(rule.zonePolicy.triggers.find((trigger) => trigger.id === "symbol-fear-save-on-turn-end").skipConditions, ["Spaventato"]);
+  assert.equal(death.skipConditions, undefined, "Death has no condition to spare a new save");
+});
+
+test("Plant Growth: 30 m of radius within 45 m, four times the movement, optional for the 8 hours' use, no expiry", () => {
+  const rule = ruleOf("plant-growth");
+  assert.equal(rule.kind, "zone");
+  assert.deepEqual([rule.geometry.shape, rule.geometry.size.value, rule.placement.range.value], ["circle", 30, 45]);
+  assert.equal(rule.zonePolicy.placementOptional, true);
+  const [terrain] = rule.zonePolicy.membershipEffects;
+  assert.equal(terrain.mechanics.movement.costMultiplier, 4);
+  assert.match(rule.placementNote, /uso da 8 ore/u);
+  assert.equal(contractOf("plant-growth").execution.hasHP, false);
+  assert.deepEqual(getSpellDefinition("plant-growth").expiry, { mode: "manual" });
+  assert.equal(isSpellCastRecordOnly("plant-growth"), false);
+});
+
+test("Wall of Water: a line of 9 m or a ring of 6 m in diameter within 18 m, difficult terrain, a note for what crosses it", () => {
+  const rule = ruleOf("xanathar-muro-dacqua");
+  assert.equal(rule.kind, "zone");
+  assert.equal(rule.placement.range.value, 18);
+  assert.equal(rule.zonePolicy.placementOptional, false);
+  assert.deepEqual(rule.placementChoices.map((choice) => [choice.id, choice.geometry.shape, choice.geometry.size.value]),
+    [["line", "line", 9], ["ring", "circle", 3]]);
+  assert.deepEqual([rule.placementChoices[1].geometry.ring, rule.placementChoices[1].geometry.innerSize.value], [true, 2.7]);
+  assert.equal(rule.placementChoices[0].geometry.width.value, 0.3);
+  const [terrain] = rule.zonePolicy.membershipEffects;
+  assert.equal(terrain.mechanics.movement.costMultiplier, 2);
+  assert.match(rule.placementNote, /svantaggio/u);
+  assert.equal(contractOf("xanathar-muro-dacqua").execution.hasHP, false);
+  assert.deepEqual(getSpellSummaryParts(getSpellDefinition("xanathar-muro-dacqua")).map((part) => part.label), ["A distanza: svant.", "Fuoco ½"]);
 });
 
 test("Wall of Force: ten panels in a line or a dome, placed on the map, nothing passes", () => {
