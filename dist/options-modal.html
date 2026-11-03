@@ -25,26 +25,27 @@
       .panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; position: relative; }
       * { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.55) transparent; }
     </style>
-    <script type="module" crossorigin src="/assets/optionsModal-CbyB0wTs.js"></script>
+    <script type="module" crossorigin src="/assets/optionsModal-DOAnfePQ.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
     <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
     <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BnDt_jrR.js">
     <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
-    <link rel="modulepreload" crossorigin href="/assets/perfProbe-rUv-A6WU.js">
-    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-D_UxuEpe.js">
-    <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-Bc4ovnpM.js">
-    <link rel="modulepreload" crossorigin href="/assets/factionRegistry-CCea0flo.js">
+    <link rel="modulepreload" crossorigin href="/assets/perfProbe-BWVaFSAj.js">
+    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-Cvf4LzlE.js">
+    <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-C36BygFT.js">
+    <link rel="modulepreload" crossorigin href="/assets/factionRegistry-CK_EEieZ.js">
     <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-92LkL4XF.js">
     <link rel="modulepreload" crossorigin href="/assets/fiveToolsArchiveCore-tLcUxIcx.js">
     <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-D27kjyro.js">
-    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-Cais6TBT.js">
-    <link rel="modulepreload" crossorigin href="/assets/trackerPopover-CZ59lBiE.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-DEjyMrMv.js">
+    <link rel="modulepreload" crossorigin href="/assets/trackerPopover-B_0cPVXa.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-DC3uIRuW.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeStyle-BBl-cwqV.js">
     <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-DmQm2ryn.js">
     <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-CbAD5AjK.js">
     <link rel="modulepreload" crossorigin href="/assets/sceneEpoch-B8A8dIDk.js">
     <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-gGdnlg7u.js">
+    <link rel="modulepreload" crossorigin href="/assets/buildInfo-rGyqu3FV.js">
   </head>
   <body>
     <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/options-modal">
@@ -167,7 +168,7 @@
 
           <article class="option-card" data-family-card="hp">
             <div class="option-card-heading">
-              <div><h3>HP dei giocatori</h3><p>Dettaglio per fazione, tracker e mappa.</p></div>
+              <div><h3>PF dei giocatori</h3><p>Dettaglio per fazione, tracker e mappa.</p></div>
               <label class="scene-mode" hidden>Scena
                 <select data-scene-mode="hp"><option value="inherit">Eredita dalla stanza</option><option value="override">Personalizza</option></select>
               </label>
@@ -274,6 +275,14 @@
             <div class="option-card-actions inline">
               <small class="maintenance-note">Usala se una scena di test è diventata molto pesante.</small>
               <button class="secondary" type="button" data-action="cleanup-runtime">Pulisci</button>
+            </div>
+          </article>
+          <article class="option-card compact-card maintenance-card">
+            <div class="option-card-heading">
+              <div>
+                <h3>Versione in uso</h3>
+                <p id="build-info-label">—</p>
+              </div>
             </div>
           </article>
         </section>

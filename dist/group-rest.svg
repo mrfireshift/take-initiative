@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <!-- Group rest: a campfire, two logs and a flame. -->
+  <g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3c2.6 2.6 4 4.6 4 7a4 4 0 0 1-8 0c0-1.4.6-2.6 1.6-3.6.2 1.2.9 2 1.9 2.3-.3-2 .2-3.9.5-5.7z"/>
+    <path d="M4 20l16-4"/>
+    <path d="M4 16l16 4"/>
+  </g>
+</svg>
