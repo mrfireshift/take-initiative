@@ -122,6 +122,7 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   // CAP-HP-BRANCH (2014 texts): one creature, the effect read from its hit points (hpBranchSpellRules.js).
   "disintegrate",
   "finger-of-death",
+  "xanathar-flusso-di-energia-negativa",
   "power-word-kill",
   "feeblemind",
   // CAP-CLEANSE (2014 texts): one creature, the pills and spells that end on it (cleanseSpellRules.js).

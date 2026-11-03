@@ -50,6 +50,7 @@ const OUTCOME_LABELS = Object.freeze({
   miss: "Mancato",
   critical: "Critico",
   immune: "Immune",
+  undead: "Non morto",
   resisted: "Resistito",
   resisted_successfully: "Resistito",
   ...DEATH_SAVE_OUTCOME_LABELS,

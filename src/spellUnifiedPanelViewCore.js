@@ -3,7 +3,7 @@ import {
   spellPanelValidationMessage,
 } from "./spellUnifiedPanelCore.js";
 import { isTeleportSpell } from "./spellTeleportCore.js";
-import { spellCastTemporaryHpHint, spellCastTemporaryHpRule } from "./spellTemporaryHpRules.js";
+import { spellCastTemporaryHpHint, spellCastTemporaryHpRule, spellUndeadTemporaryHpAmount } from "./spellTemporaryHpRules.js";
 import { ID } from "./constants.js";
 import { buildSharedHpPreview } from "./sharedHpViewCore.js";
 import { spellTargetMatchesFilters } from "./spellsPanelTargetPicker.js";
@@ -441,6 +441,14 @@ function hpPreviewFor(
       const outcome = asText(candidate.outcome?.value).toLocaleLowerCase("it");
       if (!isHealing && !outcome) {
         return { ...base, pendingOutcome: true };
+      }
+      // CAP-TEMP, lotto T3e: Negative Energy Flood on an undead, as the commit does it (spellAreaResolutionExecutor.js).
+      const undeadTempHp = isHealing ? null : spellUndeadTemporaryHpAmount(spellId, outcome, value);
+      if (undeadTempHp !== null) {
+        const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: undeadTempHp, hp: beforeHP, hpMax,
+          tempHp: candidate.tempHp });
+        return { ...base, factor: QUICK_HP_FACTORS.FULL, factorLabel: `metà come PF temporanei (${change.tempHp} → ${change.afterTempHp})`,
+          afterHP: change.afterHP, delta: change.delta, change };
       }
       const immune = !isHealing && outcome === "immune";
       const attackMiss = !isHealing && outcomeMode === "attack" && outcome === "miss";

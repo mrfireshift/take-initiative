@@ -177,6 +177,54 @@ test("Finger of Death: a humanoid it kills rises as a zombie at the start of the
   assert.equal(death(survivor, "target").afterHP, 20, "half on a success");
 });
 
+// CAP-TEMP, lotto T3e (Xanathar): Negative Energy Flood, 5d12 necrotic, half on a success; an undead makes no save and
+// takes half the roll as temporary hit points; any creature it kills rises as a zombie at the caster's next turn.
+const FLOOD = "xanathar-flusso-di-energia-negativa";
+const flood = (outcome, amount, tokens) => plan(command(FLOOD, { slotLevel: 5, outcomes: { target: outcome }, amount }), tokens);
+
+test("Negative Energy Flood: one creature within 18 m, 5d12 on a Constitution save, a third outcome for the undead", () => {
+  const contract = buildSpellUnifiedPanelContract({ spellId: FLOOD, phase: "cast", castContext: { slotLevel: 5 } });
+  assert.equal(contract.execution.lane, "area-transaction");
+  assert.equal(contract.presentation.inputs.damage?.required, true);
+  assert.equal(contract.presentation.targeting.limit.maximum, 1);
+  assert.deepEqual(contract.presentation.outcomes.options.map((option) => option.label), ["Superato", "Fallito", "Non morto"]);
+  assert.equal(getSpellSaveWorkflowRule(FLOOD).ability, "con");
+  assert.equal(spellSaveDamageFormula(FLOOD, "failed", 5), "5d12");
+  assert.equal(spellSaveDamageFactor(FLOOD, "passed"), null, "half on a success");
+});
+
+test("Negative Energy Flood: full damage on a failure, half on a success, no pill on a survivor", async () => {
+  const failed = await flood("failed", 30, [token("target", 50, { hpMax: 60 })]);
+  assert.equal(death(failed, "target").afterHP, 20);
+  const passed = await flood("passed", 31, [token("target", 50, { hpMax: 60 })]);
+  assert.equal(death(passed, "target").afterHP, 35, "half, rounded down");
+  assert.deepEqual(pills(failed, "target"), []);
+});
+
+test("Negative Energy Flood on an undead: half the roll as temporary hit points, its HP untouched, the higher ones kept", async () => {
+  const undead = await flood("immune", 31, [token("target", 20, { hpMax: 60 })]);
+  const change = death(undead, "target");
+  assert.deepEqual([change.mode, change.afterHP, change.afterTempHp], ["temp", 20, 15]);
+  assert.deepEqual(pills(undead, "target"), [], "no zombie for an undead");
+  const higher = await flood("immune", 20, [token("target", 20, { hpMax: 60, tempHp: 15 })]);
+  assert.equal(death(higher, "target"), undefined, "10 do not replace 15: nothing to write");
+});
+
+test("Negative Energy Flood: any creature it kills rises at the caster's next turn; a dying PC does not, Death Ward stops it", async () => {
+  const kill = await flood("passed", 60, [token("target", 30, { hpMax: 60 })]);
+  const zombie = kill.effectOperations.find((operation) => operation.conditionName === "Si rianima come zombi");
+  assert.deepEqual(zombie.targetIds, ["target"], "a success can kill too, and any type rises");
+  const [deferred] = [].concat(zombie.options.deferredEffects);
+  assert.deepEqual([deferred.timing, deferred.actor, deferred.anchor], ["turn-start", "source", "next-turn"]);
+  assert.match(deferred.reminder, /insegue la creatura più vicina/u);
+  const pc = await flood("failed", 40, [token("target", 30, { attitude: "pc" })]);
+  assert.deepEqual(pills(pc, "target"), [], "a PC at 0 HP is dying, not dead");
+  const warded = await flood("failed", 60, [token("target", 30, { conditions: { version: 2, instances: [{ id: "ward-1",
+    condition: "Interdizione alla morte", active: true, mechanics: { deathWard: true }, expiry: { mode: "manual" } }] } })]);
+  assert.deepEqual(pills(warded, "target"), [], "Death Ward negates the death and the zombie");
+  assert.equal(death(warded, "target").afterHP, 1);
+});
+
 test("Feeblemind: the 4d6 whatever the save, Regressione mentale on a failure", async () => {
   const failed = await plan(command("feeblemind", { slotLevel: 8, outcomes: { target: "failed" }, amount: 14 }), [token("target", 30)]);
   assert.equal(death(failed, "target").afterHP, 16);

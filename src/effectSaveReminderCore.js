@@ -12,7 +12,7 @@ import {
   REMINDER_RESOLUTIONS_FIELD,
 } from "./reminderResolutionCore.js";
 import { normalizeDeferredEffects } from "./spellLifecycleContracts.js";
-import { abilitySaveDC } from "./abilityModifiersCore.js";
+import { abilitySaveDC, spellcastingModifierFromProfile } from "./abilityModifiersCore.js";
 import { deathSaveNotice, isDyingPC } from "./deathSaveCore.js";
 
 const META_KEY = `${ID}/meta`;
@@ -81,7 +81,10 @@ export function normalizeEffectSaveReminder(value) {
     : (!ability && hasValidDamage ? "manual-damage" : "");
   const informational = mode === "consume";
   const actionableChoice = mode === "choice";
-  if ((!ability && !hasValidDamage && !informational && !actionableChoice) || !TIMINGS.has(timing)) return null;
+  // CAP-TEMP, lotto T3d: a reminder that offers temporary hit points (Heroism): "source-spell-modifier" is the amount.
+  const temporaryHp = mode === "manual-heal" && value.temporaryHp === "source-spell-modifier"
+    ? "source-spell-modifier" : "";
+  if ((!ability && !hasValidDamage && !informational && !actionableChoice && !temporaryHp) || !TIMINGS.has(timing)) return null;
   const dc = optionalDC(value.dc);
   // "source-ability": CD 8 + competenza + modificatore della card della sorgente.
   const dcAbility = value.dcSource === "source-ability" ? normalizedAbility(value.dcAbility) : null;
@@ -94,6 +97,7 @@ export function normalizeEffectSaveReminder(value) {
     timing,
     actor: value.actor === "source" ? "source" : "target",
     ...(mode ? { mode } : {}),
+    ...(temporaryHp ? { temporaryHp } : {}),
     ...(ability ? { success: value.success === "keep-effect" ? "keep-effect" : "remove-effect" } : {}),
     ...(dc !== null ? { dc } : {}),
     ...(dcSource ? { dcSource } : {}),
@@ -414,7 +418,8 @@ function reminderNotice({
   const hasDamageOnly = !ability && !!(reminder.damage?.dice && reminder.damage?.type);
   const informational = !ability && !hasDamageOnly && reminder.mode === "consume";
   const actionableChoice = !ability && !hasDamageOnly && reminder.mode === "choice";
-  if (!item?.id || !instance?.id || (!ability && !hasDamageOnly && !informational && !actionableChoice) || !activationId) return null;
+  const offersTempHp = !ability && !hasDamageOnly && !!reminder.temporaryHp;
+  if (!item?.id || !instance?.id || (!ability && !hasDamageOnly && !informational && !actionableChoice && !offersTempHp) || !activationId) return null;
   const dc = ability ? reminderDC(reminder, instance, itemsById) : null;
   const sourceName = String(
     itemsById.get(String(instance?.sourceId || "").trim())?.name
@@ -430,12 +435,23 @@ function reminderNotice({
     || ""
   ).trim().slice(0, 120);
   const spellId = String(instance.spellId || "").trim().slice(0, 120);
+  // The source's card, read now: when it does not tell the modifier the field stays empty for the GM to fill.
+  const sourceModifier = offersTempHp
+    ? spellcastingModifierFromProfile(itemsById.get(String(instance?.sourceId || "").trim())?.metadata?.[META_KEY]?.initiativeCard)
+    : null;
+  const suggestedTempHp = sourceModifier === null ? null : Math.max(0, sourceModifier);
   const saveLabel = ability
     ? `TS ${ability.label}${dc === null ? "" : ` CD ${dc}`}`
     : (reminder.damage?.dice
       ? `Danni (${reminder.damage.dice})`
+      : offersTempHp
+      ? "PF temporanei"
       : (reminder.label || "Promemoria effetto"));
-  const instruction = reminder.label || (
+  const instruction = offersTempHp
+    ? (suggestedTempHp === null
+      ? `Inserisci il modificatore da incantatore di ${sourceName || "chi l'ha lanciato"}.`
+      : `Modificatore da incantatore di ${sourceName || "chi l'ha lanciato"}: ${suggestedTempHp}.`)
+    : reminder.label || (
     ability
       ? (reminder.success === "remove-effect"
         ? "In caso di successo rimuovi l'effetto."
@@ -453,6 +469,7 @@ function reminderNotice({
     activationId,
     turnKey,
     slotLevel,
+    suggestedTempHp,
   });
   return {
     activationId,
@@ -468,7 +485,7 @@ function reminderNotice({
     ...(sourceName ? { sourceName } : {}),
     kind: ability ? "effect-save" : "effect-reminder",
     ...(ability ? {} : {
-      eyebrow: informational || actionableChoice ? "Promemoria effetto" : "Danno continuo",
+      eyebrow: informational || actionableChoice || offersTempHp ? "Promemoria effetto" : "Danno continuo",
     }),
     ...(resolution ? { resolution } : {}),
     target: {

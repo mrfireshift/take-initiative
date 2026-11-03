@@ -145,6 +145,16 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
       failed: Object.freeze({ formula: "7d8+30", type: "necrotici" }),
     }),
   }),
+  // CAP-TEMP, lotto T3e (Xanathar): half on a success; an undead takes half the roll as temporary hit points
+  // (spellTemporaryHpRules.js), the zombie is in hpBranchSpellRules.js.
+  "xanathar-flusso-di-energia-negativa": Object.freeze({
+    initialHP: true,
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({ formula: "5d12", type: "necrotici" }),
+      failed: Object.freeze({ formula: "5d12", type: "necrotici" }),
+      immune: Object.freeze({ formula: "5d12", type: "necrotici" }),
+    }),
+  }),
   // The 4d6 come before the save, whatever its result.
   "feeblemind": Object.freeze({
     initialHP: true,

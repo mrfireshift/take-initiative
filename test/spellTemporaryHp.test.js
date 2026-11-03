@@ -13,8 +13,37 @@ import {
   createSpellPanelSession,
 } from "../src/spellUnifiedPanelCore.js";
 import { buildUnifiedPanelViewModel } from "../src/spellUnifiedPanelViewCore.js";
+import { spellcastingModifierFromProfile } from "../src/abilityModifiersCore.js";
+import { normalizeEffectSaveReminder, normalizeEffectSaveReminders } from "../src/effectSaveReminderCore.js";
+import { getSpellDefinition, getSpellEffects } from "../src/spells-srd.js";
 
 const amount = (spellId, slotLevel, roll) => spellCastTemporaryHpAmount(spellCastTemporaryHpRule(spellId), { slotLevel, roll });
+
+// CAP-TEMP, lotto T3d (2014): Heroism's modifier, read from the caster's card; one more target per slot above the 1st.
+test("the spellcasting modifier a card implies: from the DC or the attack bonus, with its level", () => {
+  const build = [{ classId: "cleric", level: 5 }];
+  assert.equal(spellcastingModifierFromProfile({ spellSaveDC: 15, characterBuild: build }), 4);
+  assert.equal(spellcastingModifierFromProfile({ spellAttackBonus: 7, characterBuild: build }), 4);
+  assert.equal(spellcastingModifierFromProfile({ spellSaveDC: 15 }), null, "no level, no proficiency");
+  assert.equal(spellcastingModifierFromProfile({ characterBuild: build }), null);
+  assert.equal(spellcastingModifierFromProfile({ spellSaveDC: "", spellAttackBonus: null, characterBuild: build }), null);
+  assert.equal(spellcastingModifierFromProfile(null), null);
+});
+
+test("Heroism's reminder keeps its amount through the normalizer; a healing reminder with no amount or damage is still refused", () => {
+  const [reminder] = normalizeEffectSaveReminders(getSpellEffects(getSpellDefinition("heroism"))[0].saveReminder);
+  assert.deepEqual(reminder, { timing: "turn-start", actor: "target", mode: "manual-heal", temporaryHp: "source-spell-modifier" });
+  assert.equal(normalizeEffectSaveReminder({ mode: "manual-heal", timing: "turn-start" }), null);
+  assert.equal(normalizeEffectSaveReminder({ mode: "manual-heal", timing: "turn-start", temporaryHp: "other" }), null);
+});
+
+test("Heroism: one target per slot level, its pill immune to Spaventato", () => {
+  const maximum = (slotLevel) => buildSpellUnifiedPanelContract({ spellId: "heroism", phase: "cast", castContext: { slotLevel } }).presentation.targeting.limit.maximum;
+  assert.deepEqual([1, 2, 4].map(maximum), [1, 2, 4]);
+  const [effect] = getSpellEffects(getSpellDefinition("heroism"));
+  assert.deepEqual(effect.mechanics.conditionImmunities.names, ["Spaventato"]);
+  assert.equal(effect.endsParentOnRemoval, undefined, "taking it off one target leaves the others under the spell");
+});
 
 test("False Life: 1d4 + 4, 5 more per slot above the 1st; the roll is required and within the die", () => {
   assert.equal(amount("false-life", 1, 2), 6);

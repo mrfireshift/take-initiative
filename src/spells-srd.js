@@ -500,6 +500,12 @@ const TARGETING_OVERRIDES = Object.freeze({
     additionalPerSlotAbove: 1,
     baseSlot: 1,
   }),
+  // CAP-TEMP, lotto T3d (2014): one more creature for each slot level above the 1st.
+  "heroism": Object.freeze({
+    baseMaximum: 1,
+    additionalPerSlotAbove: 1,
+    baseSlot: 1,
+  }),
   // Mantiene la superficie targeting dichiarata per il picker; il cap 1
   // proviene dal contratto discrete di default, non da un override numerico.
   "magic-weapon": Object.freeze({}),
@@ -782,6 +788,32 @@ const SPELL_EFFECTS = Object.freeze({
       ]),
       manualRemoval: true,
       endsParentOnRemoval: true,
+    }),
+  ]),
+  // CAP-TEMP, lotto T3d (2014): immune to frightened; at the start of each of its turns the GM applies the temporary
+  // hit points, the caster's spellcasting modifier (decision E3: a reminder, not automatic). The pill is their source:
+  // when it ends, with the concentration, the ones left go with it.
+  "heroism": Object.freeze([
+    Object.freeze({
+      id: "heroism-courage",
+      kind: "buff",
+      label: "Eroismo",
+      detail: "Immune a spaventato. All'inizio di ogni suo turno ottiene PF temporanei pari al modificatore da incantatore del lanciatore; quelli rimasti spariscono al termine dell'incantesimo.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "heroism-frightened-immunity", label: "Imm. Spaventato" }),
+        Object.freeze({ id: "heroism-temporary-hit-points", label: "PF temp. a inizio turno" }),
+      ]),
+      mechanics: Object.freeze({
+        conditionImmunities: Object.freeze({
+          names: Object.freeze(["Spaventato"]),
+          label: "Eroismo: immune a spaventato",
+        }),
+      }),
+      saveReminder: Object.freeze({
+        mode: "manual-heal",
+        timing: "turn-start",
+        temporaryHp: "source-spell-modifier",
+      }),
     }),
   ]),
   "sanctuary": Object.freeze([

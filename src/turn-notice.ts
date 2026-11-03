@@ -759,6 +759,9 @@ function buildResolutionControls(line: HTMLElement, row: any) {
   const manualHeal = row.resolution?.mode === "manual-heal";
   // CAP-TEMP: the same manual roll for temporary hit points (Twilight Sanctuary).
   const manualTempHp = manualHeal && row.resolution?.activation?.resolutionData?.temporaryHp === true;
+  // The amount already known (Heroism: the caster's modifier), entered for the GM, who can still change it.
+  const suggestedTempHp = manualTempHp ? row.resolution?.activation?.resolutionData?.suggestedAmount : undefined;
+  if (Number.isInteger(suggestedTempHp) && !draft.outcome && draft.damageRoll === "") draft.damageRoll = String(suggestedTempHp);
   const manualDamage = row.resolution?.mode === "manual-damage";
   const turbine = row.resolution?.activation?.resolutionData?.turbine === true;
   const controls = document.createElement("div");
@@ -1096,7 +1099,9 @@ function parseReminderRowContent(row: any, primaryTargetName: string = "") {
       pills.push({ text: "Nullo se supera" });
     }
   } else if (resHealing?.dice) {
-    pills.push({ text: `Cura ${resHealing.dice}`, type: "healing" });
+    // CAP-TEMP: not a healing when the same popup gives temporary hit points (Twilight Sanctuary, Heroism).
+    const tempHp = row?.resolution?.activation?.resolutionData?.temporaryHp === true;
+    pills.push({ text: `${tempHp ? "PF temp." : "Cura"} ${resHealing.dice}`, type: "healing" });
   } else {
     const diceMatch = instruction.match(/(\d+d\d+)(?:\s+danni(?:\s+da)?\s+([\p{L}\p{M}\s]+?))?(?=\s*(?:automatici|se fallito|\.|$))/iu);
     if (diceMatch) {

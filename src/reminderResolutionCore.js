@@ -387,12 +387,40 @@ export function buildEffectSaveReminderResolution({
   activationId = "",
   turnKey = "",
   slotLevel = null,
+  suggestedTempHp = null,
 } = {}) {
   if (!effectSaveIsRecognized(instance, reminder)) return null;
   const targetId = text(item?.id, "", 200);
   const instanceId = text(instance?.id, "", 200);
   if (!targetId || !instanceId) return null;
   const sourceId = text(instance?.sourceId, "", 200);
+  // CAP-TEMP, lotto T3d: the popup of a manual roll for temporary hit points (Twilight Sanctuary's), the pill their
+  // source (buildReminderResolutionPlan). healing only says the popup has an amount to read: nothing is rolled.
+  if (reminder?.temporaryHp) {
+    return normalizeReminderResolution({
+      mode: "manual-heal",
+      healing: { dice: "mod. incantatore", additionalPerSlotAbove: 0, baseSlot: 0 },
+      target: { id: targetId },
+      source: { id: sourceId },
+      activation: {
+        kind: "effect-save",
+        activationId: text(activationId, "", 300),
+        turnKey: text(turnKey, "", 300),
+        resolutionData: {
+          temporaryHp: true,
+          ...(Number.isInteger(suggestedTempHp) ? { suggestedAmount: suggestedTempHp } : {}),
+        },
+      },
+      effect: {
+        kind: "condition",
+        targetId,
+        instanceId,
+        parentEffectId: text(instance?.parentEffectId, "", 200),
+        ...(instance?.spellName ? { spellName: text(instance.spellName, "", 120) } : {}),
+        ...(instance?.spellId ? { spellId: text(instance.spellId, "", 120) } : {}),
+      },
+    });
+  }
   const explicit = reminder?.resolution && typeof reminder.resolution === "object"
     ? reminder.resolution
     : {};
@@ -1973,6 +2001,8 @@ export function buildReminderResolutionPlan({
       {
         id: targetId,
         fields: metadataFields,
+        // CAP-TEMP, lotto T3d: the pill that offers them is their source, so its end takes the ones left.
+        ...(manualTempHp && activationKind === "effect-save" && effectInstanceId ? { tempHpSourceId: effectInstanceId } : {}),
         // The damage dealt, not only the HP left: at 0 HP it is a death save failure, and its leftover can kill
         // (effectsMutations.js, deathSaveCore.js).
         ...(hpChange && hasDamage

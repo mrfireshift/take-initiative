@@ -62,6 +62,16 @@ export function proficiencyBonusForLevel(level) {
   return total > 0 ? 2 + Math.floor((total - 1) / 4) : null;
 }
 
+// CAP-TEMP, lotto T3d: il modificatore da incantatore che la card implica (non è salvato a parte): la CD meno 8 e la
+// competenza, o il bonus di attacco meno la competenza. null se manca il livello o entrambi i valori.
+export function spellcastingModifierFromProfile(profile) {
+  const proficiency = proficiencyBonusForLevel(totalCharacterLevel(profile?.characterBuild));
+  if (proficiency === null) return null;
+  const known = (value) => value !== "" && value !== null && value !== undefined && Number.isFinite(Number(value));
+  if (known(profile?.spellSaveDC)) return Math.round(Number(profile.spellSaveDC)) - 8 - proficiency;
+  return known(profile?.spellAttackBonus) ? Math.round(Number(profile.spellAttackBonus)) - proficiency : null;
+}
+
 // CD 8 + competenza + modificatore: null se manca il livello o il modificatore.
 export function abilitySaveDC(profile, ability) {
   const proficiency = proficiencyBonusForLevel(totalCharacterLevel(profile?.characterBuild));

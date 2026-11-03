@@ -14,6 +14,7 @@ export const HP_BRANCH_SPELL_IDS = Object.freeze([
   "divine-word",
   "disintegrate",
   "finger-of-death",
+  "xanathar-flusso-di-energia-negativa",
 ]);
 export const HP_BRANCH_SPELL_ID_SET = new Set(HP_BRANCH_SPELL_IDS);
 
@@ -104,26 +105,32 @@ export function planHpBranchAfterDamage({
       ? { pills: [], death: { detail: "Disintegrato: cumulo di polvere grigia (tranne gli oggetti magici). Torna in vita solo con resurrezione pura o desiderio." } }
       : { pills: [], death: null };
   }
-  if (spellId !== "finger-of-death") return { pills: [], death: null };
+  // Negative Energy Flood (Xanathar): any creature it kills rises, and it is nobody's: it pursues the closest one it sees.
+  const flood = spellId === "xanathar-flusso-di-energia-negativa";
+  if (spellId !== "finger-of-death" && !flood) return { pills: [], death: null };
   // Killed: a monster at 0 HP; a PC only when the damage left over reaches its HP maximum (instant death).
   const pc = String(value?.attitude || "").trim().toLocaleLowerCase("it") === "pc";
   const hpMax = Number(change?.hpMax ?? value?.hpMax);
   const killed = !pc || Math.max(0, Number(change?.requested) - before) >= hpMax;
-  if (!killed || creatureKind(context, value) === "other") return { pills: [], death: null };
+  if (!killed || (!flood && creatureKind(context, value) === "other")) return { pills: [], death: null };
   const caster = String(casterName || "il caster").trim();
-  const reminder = `${String(item?.name || "La creatura").trim()} si rianima come zombi, permanentemente al comando di ${caster}`
-    + `${creatureKind(context, value) ? "" : " (se era un umanoide)"}.`;
+  const name = String(item?.name || "La creatura").trim();
+  const reminder = flood
+    ? `${name} si rianima come zombi: insegue la creatura più vicina che vede.`
+    : `${name} si rianima come zombi, permanentemente al comando di ${caster}`
+      + `${creatureKind(context, value) ? "" : " (se era un umanoide)"}.`;
+  const effectId = flood ? "negative-energy-flood-zombie" : "finger-of-death-zombie";
   return {
     pills: [pill("Si rianima come zombi", {
-      effectId: "finger-of-death-zombie",
+      effectId,
       detail: `${reminder} Il token dello zombi lo aggiunge il GM.`,
       deferredEffect: {
-        id: "finger-of-death-zombie",
+        id: effectId,
         timing: "turn-start",
         actor: "source",
         anchor: "next-turn",
         reminder,
-        provenance: { spellId: "finger-of-death", spellName: "Dito della morte", ...(casterId ? { casterId } : {}) },
+        provenance: { spellId, spellName: flood ? "Flusso di Energia Negativa" : "Dito della morte", ...(casterId ? { casterId } : {}) },
       },
     })],
     death: null,

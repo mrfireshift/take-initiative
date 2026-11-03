@@ -19,6 +19,13 @@ const reminderRender = turnNotice.slice(
   turnNotice.indexOf("function flushSaveReminderNotices()"),
 );
 
+test("CAP-TEMP: il popup dei PF temporanei non parla di cura e ha già l'importo noto", () => {
+  assert.match(turnNotice, /\$\{tempHp \? "PF temp\." : "Cura"\} \$\{resHealing\.dice\}/);
+  assert.match(turnNotice, /resolutionData\?\.suggestedAmount/);
+  assert.match(turnNotice, /draft\.damageRoll = String\(suggestedTempHp\)/);
+  assert.ok(turnNotice.indexOf("const draft = resolutionDraftFor(activationId);") < turnNotice.indexOf("draft.damageRoll = String(suggestedTempHp)"));
+});
+
 test("la UI integra i controlli solo nel reminder GM", () => {
   assert.match(turnNotice, /function reminderRowRequiresResponse\(row: any\)/);
   assert.match(turnNotice, /noticeRole === "GM"/);

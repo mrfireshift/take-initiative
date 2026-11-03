@@ -397,6 +397,8 @@ function formatReminderResolutionLabel({ notice, plan }) {
     failed: isSave ? "TS fallito" : "Fallito",
     immune: "Immune",
     confirmed: "Confermato",
+    apply: "Applicato",
+    ignore: "Ignorato",
     ...DEATH_SAVE_OUTCOME_LABELS,
   }[outcome] || (plan?.resolutionMode === "consume" ? "Chiuso" : outcome || "Risolto");
   return `${labelName} · ${outcomeText}`;
@@ -538,6 +540,8 @@ async function executeReminderResolution({
     failed: "Fallito",
     immune: "Immune",
     confirmed: "Confermato",
+    apply: "Applicato",
+    ignore: "Ignorato",
     ...DEATH_SAVE_OUTCOME_LABELS,
   }[plan.outcome] || (plan.resolutionMode === "consume" ? "Chiuso" : plan.outcome);
   const commandId = `reminder-resolution:${plan.activationId}:${resolutionAttemptId}`;

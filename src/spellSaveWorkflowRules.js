@@ -534,6 +534,16 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
       })],
     }),
   }),
+  // CAP-TEMP, lotto T3e (Xanathar): the third outcome is an undead's, with no save.
+  "xanathar-flusso-di-energia-negativa": workflowRule({
+    spellId: "xanathar-flusso-di-energia-negativa",
+    ability: "con",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 5,
+    spatial: { mode: "caster-range", maxMeters: 18 },
+    outcomeLabels: { immune: "Non morto" },
+  }),
   "feeblemind": workflowRule({
     spellId: "feeblemind",
     ability: "int",

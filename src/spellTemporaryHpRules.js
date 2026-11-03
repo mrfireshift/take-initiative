@@ -10,6 +10,17 @@ const SPELL_CAST_TEMPORARY_HP = Object.freeze({
   "xanathar-trasformazione-di-tenser": Object.freeze({ base: 50, effectId: "" }),
 });
 
+// CAP-TEMP, lotto T3e (Xanathar): Negative Energy Flood on an undead: no save, half the roll as temporary hit points. The
+// panel's third outcome says it ("immune" in the command, "Non morto" on its button).
+export const SPELL_UNDEAD_TEMPORARY_HP_OUTCOME = "immune";
+const SPELL_UNDEAD_TEMPORARY_HP = new Set(["xanathar-flusso-di-energia-negativa"]);
+
+// The temporary hit points of that outcome, rounded down, or null when the spell and the outcome do not give them.
+export function spellUndeadTemporaryHpAmount(spellId, outcome, roll) {
+  if (!SPELL_UNDEAD_TEMPORARY_HP.has(String(spellId || "").trim()) || outcome !== SPELL_UNDEAD_TEMPORARY_HP_OUTCOME) return null;
+  return Math.floor(Math.max(0, Math.floor(Number(roll) || 0)) / 2);
+}
+
 export function spellCastTemporaryHpRule(spellId) {
   return SPELL_CAST_TEMPORARY_HP[String(spellId || "").trim()] || null;
 }

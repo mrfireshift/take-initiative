@@ -522,3 +522,110 @@ test("T3c: the armor's retaliation, 5 cold per slot level, on a melee hit while 
   await grant(CASTER, 20);
   assert.equal(reactions({ melee: true, outcome: "hit" }).retaliations.length, 0, "other temporary hit points: not the armor's");
 });
+
+// CAP-TEMP, lotto T3d: Heroism's reminder at the start of each of the target's turns, the caster's modifier entered.
+const CLERIC_CARD = { spellSaveDC: 15, characterBuild: [{ classId: "cleric", level: 5 }] };
+const heroismScene = (card = CLERIC_CARD) => [token(CASTER, 30, 30, card ? { initiativeCard: card } : {}), token("hero", 20, 40), token("ally", 15, 15)];
+// The target's turn starts: the notice the controller would announce, as the popup gets it.
+function heroismNotice(itemId = "hero", round = 1) {
+  const state = sceneState.metadata[STATE_KEY];
+  const index = state.order.indexOf(itemId);
+  const previous = { ...state, round, current: index - 1 };
+  const notice = planEffectSaveReminderNotices({ items: sceneState.items, previousInitiativeState: previous,
+    initiativeState: { ...state, round, current: index } }).find((entry) => entry.effectName === "Eroismo" && entry.target.id === itemId);
+  return notice ? { ...notice, targets: [notice.target] } : null;
+}
+
+const { combatEventFromHistoryEntry } = await import("../src/combatLogCore.js");
+const { buildCombatLogPresentation } = await import("../src/combatLogPresentationCore.js");
+
+test("T3e: Negative Energy Flood on an undead: half the roll as temporary hit points, in the log; another pill's source goes", async () => {
+  await resetScene([token("wizard", 30, 30), token("ghoul", 10, 22, { attitude: "enemy", tempHp: 3, tempHpSource: "old",
+    ...conditions([pill("old", "Vita falsata", {})]) })]);
+  await castOn("xanathar-flusso-di-energia-negativa", 5, "ghoul", { amount: 31, outcome: "immune" });
+  assert.deepEqual([...hpOf("ghoul"), sourceOf("ghoul")], [10, 15, undefined], "wounded and not healed, the 15 are nobody's");
+  const entry = (await history.getHistoryEntries()).at(-1);
+  assert.deepEqual(entry.payload?.tempHp, [{ id: "ghoul", before: 3, after: 15, mode: "raised" }]);
+  const log = JSON.stringify(buildCombatLogPresentation({}, [combatEventFromHistoryEntry(entry, { round: 1 })]));
+  assert.match(log, /PF temporanei da 3 a 15/u);
+  assert.match(log, /Non morto/u, log);
+  assert.doesNotMatch(log, /Immune/u, log);
+  await undoLast();
+  assert.deepEqual([...hpOf("ghoul"), sourceOf("ghoul")], [10, 3, "old"]);
+});
+
+test("T3d: Heroism: its pill on each target, the modifier offered at the start of its turn, the pill their source", async () => {
+  await resetScene(heroismScene());
+  await cast("heroism", 2, { targetIds: ["hero", "ally"] });
+  const courage = pillOf("hero", "Eroismo");
+  assert.ok(courage, "the pill on the target");
+  assert.ok(pillOf("ally", "Eroismo"), "and on the second target of a 2nd-level slot");
+  assert.equal(pillOf(CASTER, "Eroismo"), undefined);
+  assert.equal(hpOf("hero")[1], undefined, "nothing at the cast: they come at the start of its turn");
+
+  const notice = heroismNotice();
+  assert.equal(notice.resolution.mode, "manual-heal");
+  assert.equal(notice.resolution.activation.resolutionData.temporaryHp, true);
+  assert.equal(notice.resolution.activation.resolutionData.suggestedAmount, 4, "DC 15 - 8 - proficiency 3");
+  assert.deepEqual([notice.saveLabel, notice.eyebrow], ["PF temporanei", "Promemoria effetto"]);
+  const applied = await resolveReminder({ notice, outcome: "apply", damageRoll: "4", sceneEpoch: currentSceneEpoch() });
+  assert.equal(applied.status, "applied", JSON.stringify(applied));
+  await convergeDeferredEffectsHistory();
+  assert.deepEqual([...hpOf("hero"), sourceOf("hero")], [20, 4, courage.id], "the wounded target is not healed");
+  assert.equal(heroismNotice(), null, "resolved: not offered again for this turn");
+  assert.deepEqual((await history.getHistoryEntries()).at(-1).payload?.tempHp, [{ id: "hero", before: 0, after: 4, mode: "granted" }]);
+
+  await hit("hero", 3);
+  const next = heroismNotice("hero", 2);
+  await resolveReminder({ notice: next, outcome: "apply", damageRoll: "4", sceneEpoch: currentSceneEpoch() });
+  await convergeDeferredEffectsHistory();
+  assert.deepEqual([...hpOf("hero"), sourceOf("hero")], [20, 4, courage.id], "back to the modifier, not added to what was left");
+  await undoLast();
+  assert.deepEqual([...hpOf("hero"), sourceOf("hero")], [20, 1, courage.id]);
+});
+
+test("T3d: Heroism's end, with the concentration, takes the ones left on every target; the Undo brings them back", async () => {
+  await resetScene(heroismScene());
+  await cast("heroism", 2, { targetIds: ["hero", "ally"] });
+  await resolveReminder({ notice: heroismNotice(), outcome: "apply", damageRoll: "4", sceneEpoch: currentSceneEpoch() });
+  await resolveReminder({ notice: heroismNotice("ally"), outcome: "apply", damageRoll: "4", sceneEpoch: currentSceneEpoch() });
+  await convergeDeferredEffectsHistory();
+  assert.deepEqual([hpOf("hero")[1], hpOf("ally")[1]], [4, 4]);
+  const result = await clientEffects.runEffectsMutation([{ type: "concentration:break", casterIds: [CASTER] }],
+    { kind: "concentration", label: "Fine", targetIds: [CASTER, "hero", "ally"], history: { kind: "concentration", label: "Fine" } });
+  clientEffects.requireAppliedEffectsMutation(result);
+  await convergeDeferredEffectsHistory();
+  assert.deepEqual([...hpOf("hero"), sourceOf("hero"), pills("hero")], [20, undefined, undefined, []]);
+  assert.deepEqual([...hpOf("ally"), sourceOf("ally"), pills("ally")], [15, undefined, undefined, []]);
+  await undoLast();
+  assert.deepEqual([hpOf("hero")[1], hpOf("ally")[1], pills("hero")], [4, 4, ["Eroismo"]]);
+});
+
+test("T3d: higher temporary hit points stay with their source; a card with no modifier leaves the field to the GM", async () => {
+  await resetScene(heroismScene(null));
+  await cast("heroism", 1, { targetIds: ["hero"] });
+  await grant("hero", 9);
+  const notice = heroismNotice();
+  assert.equal(notice.resolution.activation.resolutionData.suggestedAmount, undefined);
+  assert.match(notice.instruction, /Inserisci il modificatore da incantatore/u);
+  assert.equal((await resolveReminder({ notice, outcome: "apply", damageRoll: "", sceneEpoch: currentSceneEpoch() })).status, "invalid",
+    "no amount, nothing applied");
+  await resolveReminder({ notice, outcome: "apply", damageRoll: "3", sceneEpoch: currentSceneEpoch() });
+  await convergeDeferredEffectsHistory();
+  assert.deepEqual([...hpOf("hero"), sourceOf("hero")], [20, 9, undefined], "the 9 stay, and the pill's end will leave them");
+  await endPill("hero", pillOf("hero", "Eroismo").id);
+  assert.deepEqual(hpOf("hero"), [20, 9]);
+});
+
+test("T3d: Ignora writes no hit points; a target under Heroism cannot be frightened", async () => {
+  await resetScene(heroismScene());
+  await cast("heroism", 1, { targetIds: ["hero"] });
+  await resolveReminder({ notice: heroismNotice(), outcome: "ignore", sceneEpoch: currentSceneEpoch() });
+  await convergeDeferredEffectsHistory();
+  assert.deepEqual([...hpOf("hero"), sourceOf("hero")], [20, undefined, undefined]);
+  assert.equal(heroismNotice(), null, "answered: not offered again");
+  await clientEffects.runEffectsMutation([{ type: "condition:add", targetIds: ["hero", "ally"], conditionName: "Spaventato", options: { expiry: { mode: "manual" } } }],
+    { kind: "condition", label: "Paura", targetIds: ["hero", "ally"], history: { kind: "condition", label: "Paura" } });
+  await convergeDeferredEffectsHistory();
+  assert.deepEqual([pills("hero"), pills("ally")], [["Eroismo"], ["Spaventato"]]);
+});

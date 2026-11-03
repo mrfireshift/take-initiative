@@ -14,6 +14,8 @@ const DEFAULT_OUTCOME_OPTIONS = Object.freeze([
 function targetHPChangeLabel(target) {
   const preview = target.hpPreview;
   if (!preview || preview.available !== true || preview.afterHP === null) return "";
+  // CAP-TEMP, lotto T3e: the temporary hit points are what changes (Negative Energy Flood on an undead).
+  if (preview.change?.mode === "temp") return `${preview.change.tempHp} \u2192 ${preview.change.afterTempHp} PF temp.`;
   return `${preview.beforeHP} \u2192 ${preview.afterHP} PF`;
 }
 
@@ -435,8 +437,9 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
         }),
       ],
     });
-    const options = Array.isArray(targets.outcomeOptions) && targets.outcomeOptions.length
-      ? targets.outcomeOptions
+    // The same outcomes as the targets' own buttons (Negative Energy Flood's "Non morto").
+    const options = Array.isArray(targets.outcomes?.options) && targets.outcomes.options.length
+      ? targets.outcomes.options
       : DEFAULT_OUTCOME_OPTIONS;
     const actions = createNode(documentRef, "div", {
       className: `unified-target-bulk__actions is-count-${Math.max(1, options.length)}`,

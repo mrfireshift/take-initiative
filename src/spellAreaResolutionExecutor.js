@@ -63,6 +63,7 @@ import {
   planHpBranchAfterDamage,
   planHpBranchBeforeDamage,
 } from "./hpBranchSpellRules.js";
+import { spellUndeadTemporaryHpAmount } from "./spellTemporaryHpRules.js";
 import { spellEffectConditionOptions } from "./spellEffectCore.js";
 import {
   getSpellSaveWorkflowRule,
@@ -433,6 +434,12 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
     .map((item) => {
       const targetId = text(item.id);
       const outcome = text(outcomes[targetId]);
+      // CAP-TEMP, lotto T3e: Negative Energy Flood on an undead: half the roll as temporary hit points, no damage.
+      const undeadTempHp = spellUndeadTemporaryHpAmount(spell?.id, outcome, amount);
+      if (undeadTempHp !== null) {
+        return { item, outcome, change: calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: undeadTempHp,
+          hp: itemMeta(item).hp, hpMax: itemMeta(item).hpMax, tempHp: itemMeta(item).tempHp }) };
+      }
       const zeroDamage = hp.outcomeFactors?.[targetId] === "zero";
       const factorName = zeroDamage
         ? QUICK_HP_FACTORS.FULL
@@ -518,7 +525,7 @@ function planAreaHpBranch({ spell, command, resolution, liveItems, allItems, cas
       casterId: text(caster?.id), casterName: itemName(caster),
     });
     // CAP-REACTION, lotto 2: Death Ward negates the death (and what follows it: the zombie, the dust); it ends.
-    const warded = !!(before.death || after.death) && !!deathWardPill(item);
+    const warded = !!(before.death || after.death || after.pills.length) && !!deathWardPill(item);
     if (warded) wardedIds.add(item.id);
     for (const pill of [...before.pills, ...(warded ? [] : after.pills)]) {
       const rule = normalizeConditionRule(pill);
@@ -2269,6 +2276,9 @@ function spellAreaCausality(plan) {
     const entry = changesById.get(id);
     const change = entry?.change;
     const outcome = text(outcomeMap?.[id]);
+    // CAP-TEMP, lotto T3e: no damage and no HP for an undead under Negative Energy Flood: its temporary hit points are
+    // in the History's own record (payload.tempHp).
+    if (change?.mode === QUICK_HP_MODES.TEMP) return { id, ...(item?.name ? { name: item.name } : {}), outcome: "undead" };
     const factor = change?.factor !== undefined
       ? causalDamageFactor(change.factor)
       : hasRawDamage
