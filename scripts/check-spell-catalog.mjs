@@ -36,8 +36,9 @@ assert.deepEqual(phb2014.approvedIds, phb2014.spells.map((spell) => spell.id));
 assert.equal(fullCatalog.length, 477);
 assert.equal(fullCatalog.filter((spell) => spell.source === "phb2014").length, 41);
 // 359 with Awaken, instantaneous but charmed for 30 days (lotto L2); 361 with Ice Storm and Earth Tremor (lotto L3);
-// 362 with Goodberry, tracked for its ten berries (CAP-RESOURCE).
-assert.equal(options.length, 362);
+// 362 with Goodberry, tracked for its ten berries (CAP-RESOURCE); 363 with Speak with Plants (CAP-TERRAIN);
+// 360 without Control Flames, Shape Water and Mold Earth, which are only recorded (polish, P2).
+assert.equal(options.length, 360);
 assert.equal(SPELLS_5E_SRD.length, options.length);
 assert.equal(new Set(options.map((option) => option.id)).size, options.length);
 assert.equal(new Set(options.map((option) => option.value)).size, options.length);
