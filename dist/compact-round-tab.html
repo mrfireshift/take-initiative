@@ -130,6 +130,53 @@
         white-space: nowrap;
       }
 
+      #speed-mode-control {
+        position: relative;
+        display: none;
+        flex: 0 0 auto;
+        align-items: center;
+        height: 14px;
+        padding: 0 3px;
+        box-sizing: border-box;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, .1);
+        cursor: pointer;
+      }
+
+      #speed-mode-control[data-visible="1"] {
+        display: inline-flex;
+      }
+
+      #speed-mode-label {
+        font-size: var(--obrt-type-micro, 10px);
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+      }
+
+      #speed-mode-label::after {
+        content: " \25BE";
+        opacity: .7;
+      }
+
+      /* The native list opens beyond this small page; the select itself is the clear layer over the label. */
+      #speed-mode {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+
+      #speed-mode option {
+        color: #fff;
+        background: var(--obrt-select-bg, #0f172a);
+      }
+
       #speed-limit-control {
         display: none;
         flex: 0 0 auto;
@@ -172,10 +219,11 @@
         transition: width 80ms linear, background-color 120ms ease;
       }
     </style>
-    <script type="module" crossorigin src="/assets/compactRoundTab-DI2IMGLK.js"></script>
+    <script type="module" crossorigin src="/assets/compactRoundTab-CMWhRyTp.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
     <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
-    <link rel="modulepreload" crossorigin href="/assets/speedCheckCore-Be3ZOHlH.js">
+    <link rel="modulepreload" crossorigin href="/assets/initiativeMovementPresentation-BzSkvB2_.js">
+    <link rel="modulepreload" crossorigin href="/assets/speedCheckCore-BCfPg9NS.js">
   </head>
   <body>
     <div id="compact-round-hud">
@@ -198,6 +246,10 @@
       </div>
       <div id="compact-speed-readout" role="status" aria-live="polite" hidden>
         <div id="speed-line">
+          <label id="speed-mode-control" title="Modalità di movimento">
+            <span id="speed-mode-label"></span>
+            <select id="speed-mode" aria-label="Scegli modalità di movimento"></select>
+          </label>
           <span id="speed-summary"></span>
           <label id="speed-limit-control" title="Limita movimento">
             <input
