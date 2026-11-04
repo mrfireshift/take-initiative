@@ -33,7 +33,7 @@ test("concentrazione e velocità aprono popover transienti on demand", () => {
 });
 
 test("il warning movimento usa un broadcast ordinato e un iframe solo on-demand", () => {
-  assert.match(speedCheck, /function broadcastSpeedWarning\(payload\)/);
+  assert.match(speedCheck, /function broadcastSpeedWarning\(payload, destination = "ALL"\)/);
   assert.match(speedCheck, /speedWarningBroadcastQueue = speedWarningBroadcastQueue\.then\(send, send\)/);
   assert.match(speedCheck, /destination: "ALL"/);
   assert.match(speedCheck, /await broadcastSpeedWarning\(\{/);

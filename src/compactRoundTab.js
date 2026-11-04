@@ -90,7 +90,7 @@ speedModeSelect.addEventListener("change", () => {
     type: "set-movement-mode",
     mode: speedModeSelect.value,
   }, { destination: "LOCAL" }).catch(() => {});
-  // The keyboard goes back to the map and the tracker's shortcuts, as after any click on the tab.
+  // Out of the list, the arrow keys no longer change the mode by accident.
   speedModeSelect.blur();
 });
 
