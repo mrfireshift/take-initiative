@@ -779,7 +779,7 @@ Spell
 ├─ area/zone/aura: N/A
 ├─ save: spells-srd.js → Wisdom turn-end and damage-triggered save
 ├─ damage/healing: N/A; damage can grant the additional save condition
-├─ persistent state: Prono/Incapacitato, manual removal, parent link
+├─ persistent state: Incapacitato with manual removal and parent link; Prono independent, it stays when the spell ends
 ├─ reminders: effect-save reminder
 ├─ turn prompts: target turn-end
 ├─ active actions: N/A

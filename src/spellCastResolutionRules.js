@@ -466,6 +466,22 @@ export function spellCastHealingFormula(spellOrId, slotLevel = null) {
   return `${dice}d${match[2]} + mod`;
 }
 
+// The hit points a spell can affect, rolled at the table: there is no save, the GM goes from the creature with the fewest.
+const SPELL_CAST_HP_POOLS = Object.freeze({
+  "color-spray": castDice("6d10", 1, 2),
+  "sleep": castDice("5d8", 1, 2),
+});
+
+export function spellCastHpPoolFormula(spellOrId, slotLevel = null) {
+  const definition = SPELL_CAST_HP_POOLS[spellIdOf(spellOrId)];
+  if (!definition) return "";
+  const match = definition.formula.match(/^(\d+)d(\d+)$/iu);
+  const resolvedSlot = Number.isFinite(Number(slotLevel)) && slotLevel !== null
+    ? Math.max(definition.baseSlot, Math.floor(Number(slotLevel)))
+    : definition.baseSlot;
+  return `${Number(match[1]) + (resolvedSlot - definition.baseSlot) * definition.additionalPerSlotAbove}d${match[2]}`;
+}
+
 export function spellSaveDamageFormula(spellOrId, outcome, slotLevel = null, choiceValue = "") {
   const rule = getSpellCastResolutionRule(spellOrId);
   const outcomeKey = String(outcome || "").trim().toLocaleLowerCase("it");

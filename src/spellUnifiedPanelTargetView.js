@@ -275,6 +275,16 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
     }));
   }
 
+  // Sleep, Color Spray: no save, the pool of hit points the GM rolls.
+  const hpPool = String(targets.hpPool || "").trim();
+  if (hpPool) {
+    section.append(createNode(documentRef, "div", {
+      className: "unified-target-spatial",
+      attributes: { "data-cast-hp-pool": hpPool },
+      text: `Riserva di PF: ${hpPool}. Si parte da chi ha meno PF attuali: togli dalla lista chi resta fuori.`,
+    }));
+  }
+
   const attackOutcomeButtons = renderAttackOutcomeButtons(
     documentRef,
     targets.outcomes.attack,

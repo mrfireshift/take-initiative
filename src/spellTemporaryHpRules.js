@@ -10,6 +10,14 @@ const SPELL_CAST_TEMPORARY_HP = Object.freeze({
   "xanathar-trasformazione-di-tenser": Object.freeze({ base: 50, effectId: "" }),
 });
 
+// The temporary hit points of one variant of a spell. Enhance Ability, Bear's Endurance: 2d6, lost when the spell ends.
+// One roll for all the targets of the cast: the panel has one field.
+const SPELL_CAST_TEMPORARY_HP_BY_CHOICE = Object.freeze({
+  "enhance-ability": Object.freeze({
+    "bears-endurance": Object.freeze({ die: "2d6", base: 0, effectId: "constitution-check-advantage" }),
+  }),
+});
+
 // CAP-TEMP, lotto T3e (Xanathar): Negative Energy Flood on an undead: no save, half the roll as temporary hit points. The
 // panel's third outcome says it ("immune" in the command, "Non morto" on its button).
 export const SPELL_UNDEAD_TEMPORARY_HP_OUTCOME = "immune";
@@ -29,24 +37,36 @@ export function spellCastHealingDice(spellId) {
   return SPELL_CAST_HEALING_DICE[String(spellId || "").trim()] || "";
 }
 
-export function spellCastTemporaryHpRule(spellId) {
-  return SPELL_CAST_TEMPORARY_HP[String(spellId || "").trim()] || null;
+export function spellCastTemporaryHpRule(spellId, choiceValue = "") {
+  const id = String(spellId || "").trim();
+  return SPELL_CAST_TEMPORARY_HP_BY_CHOICE[id]?.[String(choiceValue || "").trim()]
+    || SPELL_CAST_TEMPORARY_HP[id]
+    || null;
 }
 
-export function spellCastTemporaryHpDie(spellId) {
-  return spellCastTemporaryHpRule(spellId)?.die || "";
+export function spellCastTemporaryHpDie(spellId, choiceValue = "") {
+  return spellCastTemporaryHpRule(spellId, choiceValue)?.die || "";
 }
 
-// The amount for a slot level (and the die's roll, 1 to its faces), or null when the roll is missing or outside it.
+// What a roll of that die can give: False Life's 1d4 from 1 to 4, Bear's Endurance's 2d6 from 2 to 12.
+export function spellCastTemporaryHpRollRange(die = "") {
+  const match = String(die).match(/^(\d+)d(\d+)$/u);
+  if (!match) return null;
+  const count = Number(match[1]);
+  const faces = Number(match[2]);
+  return count > 0 && faces > 0 ? { min: count, max: count * faces } : null;
+}
+
+// The amount for a slot level (and the die's roll, within what the die can give), or null when the roll is missing or outside it.
 export function spellCastTemporaryHpAmount(rule, { slotLevel = null, roll = null } = {}) {
   if (!rule) return null;
   const level = Number.isInteger(Number(slotLevel)) ? Number(slotLevel) : Number(rule.baseSlot) || 0;
   const above = Math.max(0, level - (Number(rule.baseSlot) || 0));
   const fixed = Math.max(0, Math.floor(Number(rule.base) || 0)) + above * Math.max(0, Math.floor(Number(rule.perSlotAbove) || 0));
   if (!rule.die) return fixed;
-  const faces = Number(String(rule.die).match(/^1d(\d+)$/u)?.[1]) || 0;
+  const range = spellCastTemporaryHpRollRange(rule.die);
   const value = Number(roll);
-  if (!faces || !Number.isInteger(value) || value < 1 || value > faces) return null;
+  if (!range || !Number.isInteger(value) || value < range.min || value > range.max) return null;
   return fixed + value;
 }
 
@@ -54,5 +74,7 @@ export function spellCastTemporaryHpAmount(rule, { slotLevel = null, roll = null
 export function spellCastTemporaryHpHint(rule, slotLevel = null) {
   if (!rule?.die) return "";
   const added = spellCastTemporaryHpAmount({ ...rule, die: "" }, { slotLevel });
-  return `Tira ${rule.die}: il plugin aggiunge ${added} (PF temporanei = tiro + ${added}).`;
+  return added > 0
+    ? `Tira ${rule.die}: il plugin aggiunge ${added} (PF temporanei = tiro + ${added}).`
+    : `Tira ${rule.die}: lo stesso tiro vale per ogni bersaglio.`;
 }

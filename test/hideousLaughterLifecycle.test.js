@@ -146,7 +146,9 @@ test("R1: Initial State — Risata Incontenibile applica Spells, Incapacitato e 
   assert.ok(incapacitated, "Incapacitato must be present");
   assert.ok(prone, "Prono must be present");
   assert.equal(incapacitated.parentEffectId, instanceId);
-  assert.equal(prone.parentEffectId, instanceId);
+  // Decision of 4/11 (polish): the Prone is not tied to the spell, the creature stays down until it gets up.
+  assert.ok(!prone.parentEffectId);
+  assert.deepEqual(prone.expiry, { mode: "manual" });
   assert.equal(incapacitated.type, "spell");
   assert.equal(prone.type, "spell");
 
@@ -162,7 +164,7 @@ test("R1: Initial State — Risata Incontenibile applica Spells, Incapacitato e 
   assert.deepEqual(casterState.concentrations["risata incontenibile"].targets, [targetId]);
 });
 
-test("R2: Turn-End Repeat Save Success — Rimuove Incapacitato, Prono, Spell Pill e Concentrazione", () => {
+test("R2: Turn-End Repeat Save Success — Rimuove Incapacitato, Spell Pill e Concentrazione; il Prono resta", () => {
   const { plan: castPlan, targetId, casterId } = castSpell("hideous-laughter");
   const targetCastState = state(castPlan, targetId);
   const incapacitated = targetCastState.conditions.find((c) => c.condition === "Incapacitato");
@@ -177,8 +179,8 @@ test("R2: Turn-End Repeat Save Success — Rimuove Incapacitato, Prono, Spell Pi
   const targetAfterSave = state(repeatSavePlan, targetId);
   const casterAfterSave = state(repeatSavePlan, casterId);
 
-  // Target A è completamente pulito: nessuna condizione orfana e nessuno spell record orfano
-  assert.equal(targetAfterSave.conditions.length, 0, "All spell-linked conditions (Incapacitato & Prono) must be removed");
+  // Nessuna condizione orfana e nessuno spell record orfano: resta solo il Prono, finché non si alza
+  assert.deepEqual(targetAfterSave.conditions.map((c) => c.condition), ["Prono"]);
   assert.equal(targetAfterSave.spells.length, 0, "Spell pill/record 'Risata Incontenibile' must be removed from target");
 
   // Concentrazione del caster terminata
@@ -189,7 +191,7 @@ test("R2: Turn-End Repeat Save Success — Rimuove Incapacitato, Prono, Spell Pi
   );
 });
 
-test("R3: Damage Repeat Save Success — Rimuove Incapacitato, Prono, Spell Pill e Concentrazione", () => {
+test("R3: Damage Repeat Save Success — Rimuove Incapacitato, Spell Pill e Concentrazione; il Prono resta", () => {
   const { plan: castPlan, targetId, casterId } = castSpell("hideous-laughter");
   const targetCastState = state(castPlan, targetId);
   const incapacitated = targetCastState.conditions.find((c) => c.condition === "Incapacitato");
@@ -204,7 +206,7 @@ test("R3: Damage Repeat Save Success — Rimuove Incapacitato, Prono, Spell Pill
   const targetAfterSave = state(repeatSavePlan, targetId);
   const casterAfterSave = state(repeatSavePlan, casterId);
 
-  assert.equal(targetAfterSave.conditions.length, 0);
+  assert.deepEqual(targetAfterSave.conditions.map((c) => c.condition), ["Prono"]);
   assert.equal(targetAfterSave.spells.length, 0);
   assert.equal(Object.keys(casterAfterSave.concentrations || {}).length, 0);
 });
@@ -272,7 +274,7 @@ test("R5: History / Undo — Ripristino atomico di Incapacitato, Prono, Spells e
   assert.deepEqual(casterRestored.concentrations["risata incontenibile"].targets, [targetId]);
 });
 
-test("R6: Manual Concentration Control — Interruzione manuale da Caster rimuove Spells, Incapacitato e Prono", () => {
+test("R6: Manual Concentration Control — Interruzione manuale da Caster rimuove Spells e Incapacitato, non il Prono", () => {
   const { plan: castPlan, targetId, casterId, instanceId } = castSpell("hideous-laughter");
 
   // Caster interrompe manualmente la concentrazione
@@ -286,7 +288,7 @@ test("R6: Manual Concentration Control — Interruzione manuale da Caster rimuov
   const casterAfterBreak = state(breakConcPlan, casterId);
 
   assert.equal(targetAfterBreak.spells.length, 0);
-  assert.equal(targetAfterBreak.conditions.length, 0);
+  assert.deepEqual(targetAfterBreak.conditions.map((c) => c.condition), ["Prono"]);
   assert.equal(Object.keys(casterAfterBreak.concentrations || {}).length, 0);
 });
 
@@ -320,7 +322,7 @@ test("R7: Control Spells — Hold Person e Danza Irresistibile mantengono il cle
   assert.equal(Object.keys(state(danceSavePlan, danceCaster).concentrations || {}).length, 0);
 });
 
-test("Caution: Manual removal di Incapacitato termina coerentemente anche parent effect e proneness", () => {
+test("Caution: Manual removal di Incapacitato termina coerentemente il parent effect; il Prono resta", () => {
   const { plan: castPlan, targetId, casterId } = castSpell("hideous-laughter");
   const targetCastState = state(castPlan, targetId);
   const incapacitated = targetCastState.conditions.find((c) => c.condition === "Incapacitato");
@@ -335,7 +337,7 @@ test("Caution: Manual removal di Incapacitato termina coerentemente anche parent
   const targetAfterManual = state(manualRemovePlan, targetId);
   const casterAfterManual = state(manualRemovePlan, casterId);
 
-  assert.equal(targetAfterManual.conditions.length, 0);
+  assert.deepEqual(targetAfterManual.conditions.map((c) => c.condition), ["Prono"]);
   assert.equal(targetAfterManual.spells.length, 0);
   assert.equal(Object.keys(casterAfterManual.concentrations || {}).length, 0);
 });

@@ -3,7 +3,7 @@ import {
   spellPanelValidationMessage,
 } from "./spellUnifiedPanelCore.js";
 import { isTeleportSpell } from "./spellTeleportCore.js";
-import { spellCastTemporaryHpHint, spellCastTemporaryHpRule, spellUndeadTemporaryHpAmount } from "./spellTemporaryHpRules.js";
+import { spellCastTemporaryHpHint, spellCastTemporaryHpRollRange, spellCastTemporaryHpRule, spellUndeadTemporaryHpAmount } from "./spellTemporaryHpRules.js";
 import { ID } from "./constants.js";
 import { buildSharedHpPreview } from "./sharedHpViewCore.js";
 import { spellTargetMatchesFilters } from "./spellsPanelTargetPicker.js";
@@ -48,6 +48,7 @@ import {
   spellSaveDamageFactor,
   spellCantripDamageHint,
   spellCastHealingFormula,
+  spellCastHpPoolFormula,
   spellSaveDamageFormula,
 } from "./spellCastResolutionRules.js";
 import {
@@ -702,9 +703,9 @@ function normalizeEffectFields(
       id: "temporaryHp",
       type: "number",
       label: `PF temporanei · tiro del ${die}`,
-      hint: spellCastTemporaryHpHint(spellCastTemporaryHpRule(spellId), session?.slotLevel),
-      min: 1,
-      max: Number(die.slice(2)) || undefined,
+      hint: spellCastTemporaryHpHint(spellCastTemporaryHpRule(spellId, session?.variant), session?.slotLevel),
+      min: spellCastTemporaryHpRollRange(die)?.min ?? 1,
+      max: spellCastTemporaryHpRollRange(die)?.max,
       value: hpValues.temporaryHp ?? "",
       invalid: validation.firstInvalidField === "temporaryHp",
     });
@@ -1220,6 +1221,7 @@ export function buildUnifiedPanelViewModel({
           : "Seleziona un bersaglio già incluso nella matrice.",
         value: asText(session?.primaryTargetId),
       },
+      hpPool: spellCastHpPoolFormula(contract?.spell?.id, session?.slotLevel),
       outcomes: {
         visible: inputs.outcomes?.visible === true,
         required: inputs.outcomes?.required === true,

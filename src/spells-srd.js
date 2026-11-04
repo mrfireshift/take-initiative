@@ -190,6 +190,8 @@ const AUTOMATION = Object.freeze({
     mode: "confirm",
     conditions: ["Prono", "Incapacitato"],
     conditionOptions: {
+      // It cannot stand up for the duration; once the spell ends it is still prone, until it gets up.
+      Prono: { options: { parentEffectId: "" }, expiry: { mode: "manual" } },
       Incapacitato: {
         manualRemoval: true,
         endsParentOnRemoval: true,

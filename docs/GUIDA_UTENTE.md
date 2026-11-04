@@ -171,6 +171,11 @@ quel personaggio.
 - Sonno e Trama ipnotica finiscono quando la creatura subisce danno: l'etichetta
   sparisce da sola solo su quella creatura. Per svegliarla senza danno si
   rimuove l'etichetta a mano.
+- Sonno e Spruzzo colorato non hanno TS: tra i bersagli una riga dice la riserva
+  di PF da tirare, con i dadi dello slot. Si parte da chi ha meno PF attuali, e chi
+  resta fuori si toglie dalla lista.
+- Risata incontenibile: quando finisce il bersaglio resta **Prono** finché non si
+  rialza; l'etichetta si toglie a mano.
 - Cerchio magico, Santificare, Proibizione e Pirotecnica chiedono la variante
   nel pannello prima di piazzare la zona. Con il Fumo di Pirotecnica non c'è
   TS: si segna ogni esito come superato. Bagliore solare e Drago illusorio
@@ -519,6 +524,7 @@ Per darli a mano ci sono due strade:
 Alcuni li danno da soli:
 
 - **Vita falsata**: il pannello chiede l'1d4 tirato e aggiunge il resto. I temporanei rimasti spariscono quando finisce l'incantesimo.
+- **Caratteristica potenziata, Resistenza dell'orso**: il pannello chiede i 2d6 tirati. Con più bersagli lo stesso tiro vale per tutti. I temporanei rimasti spariscono quando finisce l'incantesimo.
 - **Armatura di Agathys**: 5 per livello di slot. Finché restano, le console attacchi e Boss propongono **Applica N** dopo un colpo in mischia, per i danni da freddo all'attaccante: applicali prima di confermare il colpo. Quando i temporanei finiscono, l'etichetta sparisce.
 - **Trasformazione di Tenser**: 50, che restano anche dopo la fine dell'incantesimo.
 - **Eroismo**: immunità a Spaventato e, a inizio di ogni turno del bersaglio, un promemoria con il modificatore da incantatore già inserito (si ricava da CD e livello della scheda di chi lancia; se mancano, lo scrivi tu). Premi **Applica PF temporanei** o **Ignora**. Quelli rimasti spariscono alla fine della concentrazione. Uno Spaventato già presente al lancio lo togli a mano.

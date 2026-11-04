@@ -180,12 +180,14 @@ ha trovato quasi tutto al banco, non nei dati:
 | La pill della zona ignorava la durata per slot | Cerchio magico | `turns` in `staticSpellZoneOwnerOperation` |
 | Dati diversi dal testo | Barriera di lame (+1d10 per slot che non esiste), Fiotto acido (può prendere due creature) | Dati |
 
-**Dubbi di regola per il proprietario, oggi lasciati come sono:**
-- Riscaldare il metallo: chi tiene l'oggetto e supera il TS non ha svantaggio. Il testo italiano si può leggere così, l'inglese
-  direbbe che lo ha comunque.
-- Risata incontenibile: alla fine dell'incantesimo sparisce anche il Prono; il testo farebbe restare a terra chi deve rialzarsi.
-- Caratteristica potenziata: i 2d6 PF temporanei di Resistenza dell'orso sono solo nell'etichetta.
-- Spruzzo colorato e Sonno: la riserva di PF (6d10, 5d8 e la crescita per slot) non è proposta dal pannello.
+**Dubbi di regola, decisi dal proprietario il 4/11:**
+- Riscaldare il metallo: resta com'è. Chi tiene l'oggetto e supera il TS non ha svantaggio: il testo italiano si legge così,
+  l'inglese direbbe che lo ha comunque.
+- Risata incontenibile: alla fine dell'incantesimo il Prono resta, come per Unto e Terremoto: il bersaglio deve rialzarsi.
+- Caratteristica potenziata: Resistenza dell'orso chiede i 2d6 nel pannello, con un tiro solo per tutti i bersagli; i PF temporanei
+  rimasti spariscono con l'incantesimo (`SPELL_CAST_TEMPORARY_HP_BY_CHOICE`).
+- Spruzzo colorato e Sonno: tra i bersagli una riga dice la riserva di PF da tirare, con la crescita per slot
+  (`spellCastHpPoolFormula`). La scelta dei bersagli resta al GM.
 
 Provato al banco, con il servizio di sfondo vero e lanciando nel turno del caster: si veda `bench` nel registro. La × anche nella
 vista compatta, dal cassetto degli effetti. Non provati: lo spostamento di Bagliore lunare e di Sfera infuocata, il cambio di

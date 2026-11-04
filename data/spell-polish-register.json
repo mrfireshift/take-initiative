@@ -896,10 +896,10 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "letto",
+        "state": "corretto",
         "lot": "P3-2",
         "date": "2026-11-04",
-        "note": "Nessun TS: il GM sceglie i bersagli con la riserva di PF. La scadenza 1 round è alla fine del prossimo turno del caster."
+        "note": "Nessun TS: il GM sceglie i bersagli. Il pannello mostra la riserva di PF, 6d10 e 2d10 per slot. La scadenza 1 round è alla fine del prossimo turno del caster."
       },
       "sweep": {
         "runs": 2,
@@ -1941,10 +1941,10 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "letto",
+        "state": "corretto",
         "lot": "P3-2",
         "date": "2026-11-04",
-        "note": "Aperto: i 2d6 PF temporanei di Resistenza dell'orso restano un'etichetta."
+        "note": "Resistenza dell'orso: il campo dei 2d6 PF temporanei, che spariscono con l'incantesimo. Un tiro per tutti i bersagli."
       },
       "sweep": {
         "runs": 12,
@@ -1952,7 +1952,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Due bersagli al 3°; etichetta della variante."
+        "note": "Due bersagli al 3°: tiro fuori dai limiti rifiutato, 9 PF temporanei a entrambi, via con Termina; le altre varianti non chiedono nulla."
       }
     },
     {
@@ -3104,7 +3104,7 @@
         "state": "letto",
         "lot": "P3-2",
         "date": "2026-11-04",
-        "note": "Dubbio di regola al proprietario: chi tiene l'oggetto e supera il TS oggi non ha svantaggio."
+        "note": "Decisione del proprietario: chi tiene l'oggetto e supera il TS non ha svantaggio, come dice il testo italiano."
       },
       "sweep": {
         "runs": 2,
@@ -3181,10 +3181,10 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "D6: chiede l'esito del TS, il lancio rapido lo considera fallito."
+        "state": "corretto",
+        "lot": "P3-2",
+        "date": "2026-11-04",
+        "note": "Decisione del proprietario: alla fine dell'incantesimo il Prono resta."
       },
       "sweep": {
         "runs": 2,
@@ -3192,7 +3192,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Il danno da pannello chiede il TS; superato finisce tutto, anche il Prono (dubbio di regola)."
+        "note": "Il danno da pannello chiede il TS; superato finisce tutto tranne il Prono, in entrambe le viste."
       }
     },
     {
@@ -5372,10 +5372,10 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "letto",
+        "state": "corretto",
         "lot": "campione",
         "date": "2026-11-03",
-        "note": ""
+        "note": "Il pannello mostra la riserva di PF, 5d8 e 2d8 per slot."
       },
       "sweep": {
         "runs": 2,

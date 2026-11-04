@@ -596,8 +596,8 @@ async function buildCastHealingMutation({ spell, phase = "", targetIds = [], val
   return { metadataPatches };
 }
 
-async function buildCastTemporaryHpMutation({ spell, phase = "", targetIds = [], operations = [], slotLevel = null, roll = undefined } = {}) {
-  const rule = spellCastTemporaryHpRule(spell?.id);
+async function buildCastTemporaryHpMutation({ spell, phase = "", targetIds = [], operations = [], slotLevel = null, roll = undefined, choiceValue = "" } = {}) {
+  const rule = spellCastTemporaryHpRule(spell?.id, choiceValue);
   if (!rule || phase === "prepare") return { metadataPatches: [], targets: [] };
   const amount = spellCastTemporaryHpAmount(rule, { slotLevel, roll });
   if (amount === null) throw new Error("spell-temporary-hp-roll-required");
@@ -2318,6 +2318,7 @@ export async function executeSpellApplication({
     operations: applicationOperations,
     slotLevel: intent.persistedCastContext?.slotLevel ?? castContext?.slotLevel,
     roll: temporaryHpRoll,
+    choiceValue: selectedChoice,
   });
   const castHealing = await buildCastHealingMutation({
     spell,

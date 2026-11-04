@@ -18,7 +18,13 @@ const {
 } = await import("../src/quickActionSpellExecutionCore.js");
 const { QUICK_ACTION_VERSION, sanitizeQuickAction } = await import("../src/quickActionsCore.js");
 const { buildUnifiedPanelViewModel } = await import("../src/spellUnifiedPanelViewCore.js");
-const { spellCastHealingFormula } = await import("../src/spellCastResolutionRules.js");
+const { spellCastHealingFormula, spellCastHpPoolFormula } = await import("../src/spellCastResolutionRules.js");
+const {
+  spellCastTemporaryHpAmount,
+  spellCastTemporaryHpHint,
+  spellCastTemporaryHpRollRange,
+  spellCastTemporaryHpRule,
+} = await import("../src/spellTemporaryHpRules.js");
 const {
   getSpellAreaPlacementChoices,
   getSpellAreaRuleById,
@@ -514,4 +520,43 @@ test("Lot 2: a zone's trigger answered from its notice spends the counter of its
   const last = plan(20, 20);
   assert.match(last.zoneResourceNote, /svanisce/);
   assert.deepEqual(last.sideEffects.find((effect) => effect.type === "static-zone:remove-ended"), { type: "static-zone:remove-ended", selectors: [{ instanceId: "guardian-1" }] });
+});
+
+// The owner's decisions of 4/11 on the doubts of lot 2.
+test("Decisions of lot 2: Heat Metal stays as it is, Hideous Laughter's Prone outlives the spell", () => {
+  const laughter = getAreaSaveAutomation(getSpellDefinition("hideous-laughter")).failed;
+  const prone = laughter.find((rule) => rule.condition === "Prono");
+  assert.deepEqual([prone.options.parentEffectId, prone.expiry], ["", { mode: "manual" }]);
+  assert.equal(laughter.find((rule) => rule.condition === "Incapacitato").expiry.mode, "concentration");
+  const heat = getSpellDefinition("heat-metal").activeActions[0].postDamageEffects[0];
+  assert.deepEqual(heat.deferredEffects[0].resolution.choiceLabels, { passed: "Lascia cadere", failed: "Non può / non lascia" });
+});
+
+test("Decisions of lot 2: Bear's Endurance asks its 2d6, the other variants of Enhance Ability ask nothing", () => {
+  const contract = (choiceValue) => buildSpellUnifiedPanelContract({ spellId: "enhance-ability", phase: "cast", choiceValue, castContext: { slotLevel: 2 } });
+  assert.deepEqual(contract("bears-endurance").presentation.inputs.temporaryHp, { required: true, visible: true, die: "2d6" });
+  for (const choiceValue of ["", "fox-cunning", "bull-strength", "cats-grace", "owls-wisdom", "eagles-splendor"]) {
+    assert.equal(contract(choiceValue).presentation.inputs.temporaryHp.required, false, choiceValue);
+  }
+  const rule = spellCastTemporaryHpRule("enhance-ability", "bears-endurance");
+  assert.equal(rule.effectId, "constitution-check-advantage", "the pill whose end takes them away");
+  assert.deepEqual(spellCastTemporaryHpRollRange("2d6"), { min: 2, max: 12 });
+  assert.deepEqual([1, 2, 12, 13].map((roll) => spellCastTemporaryHpAmount(rule, { roll })), [null, 2, 12, null]);
+  assert.equal(spellCastTemporaryHpHint(rule), "Tira 2d6: lo stesso tiro vale per ogni bersaglio.");
+  // The other spells stay as they were.
+  assert.equal(spellCastTemporaryHpRule("enhance-ability"), null);
+  assert.deepEqual(spellCastTemporaryHpRollRange("1d4"), { min: 1, max: 4 });
+  assert.equal(spellCastTemporaryHpAmount(spellCastTemporaryHpRule("false-life"), { slotLevel: 1, roll: 3 }), 7);
+});
+
+test("Decisions of lot 2: the panel proposes the pool of Sleep and Color Spray, which grows by slot", () => {
+  assert.deepEqual([1, 2, 3].map((slot) => spellCastHpPoolFormula("sleep", slot)), ["5d8", "7d8", "9d8"]);
+  assert.deepEqual([1, 2, 3].map((slot) => spellCastHpPoolFormula("color-spray", slot)), ["6d10", "8d10", "10d10"]);
+  assert.equal(spellCastHpPoolFormula("fireball", 3), "");
+  const view = buildUnifiedPanelViewModel({
+    contract: castContract("sleep", 2),
+    session: createSpellPanelSession({ contract: castContract("sleep", 2), casterId: "wizard", slotLevel: 2 }),
+    targetCandidates: [],
+  });
+  assert.equal(view.targets.hpPool, "7d8");
 });

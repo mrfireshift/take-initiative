@@ -1,6 +1,6 @@
 import { normalizeMonsterActionContext } from "./monsterActionContextCore.js";
 import { spellForCastContext } from "./spellCastContextCore.js";
-import { spellCastHealingDice, spellCastTemporaryHpDie } from "./spellTemporaryHpRules.js";
+import { spellCastHealingDice, spellCastTemporaryHpDie, spellCastTemporaryHpRollRange } from "./spellTemporaryHpRules.js";
 import {
   getAreaSaveRuleChoices,
   getSpellDefinition,
@@ -1104,6 +1104,7 @@ function manualSpellEffectCapability({ spell, phasePlan, selectedAction, workflo
 
 function inputDescriptor({
   spell,
+  choiceValue = "",
   teleport,
   phasePlan,
   duration,
@@ -1155,8 +1156,9 @@ function inputDescriptor({
   const primaryDamageRequired = phasePlan?.phase === "resolve"
     && phasePlan?.attack?.primaryDamageMode === "final-applied";
   const healingRequired = hpInputVisible && healing;
-  // CAP-TEMP, lotto T3b: the die of the temporary hit points the cast gives (False Life's 1d4), rolled at the table.
-  const temporaryHpDie = phasePlan?.phase === "prepare" ? "" : spellCastTemporaryHpDie(spell?.id);
+  // CAP-TEMP, lotto T3b: the die of the temporary hit points the cast gives (False Life's 1d4, the 2d6 of a variant of
+  // Enhance Ability), rolled at the table.
+  const temporaryHpDie = phasePlan?.phase === "prepare" ? "" : spellCastTemporaryHpDie(spell?.id, choiceValue);
   // CAP-REPEAT-HEAL: the healing of the cast of a tracked spell (Regenerate's 4d8 + 15).
   const castHealingDice = phasePlan?.phase === "prepare" ? "" : spellCastHealingDice(spell?.id);
   const compositionRequired = !!composition;
@@ -1638,6 +1640,7 @@ export function buildSpellUnifiedPanelContract({
   });
   const composition = boardTokenRule?.composition || null;
   const inputs = inputDescriptor({
+    choiceValue,
     spell,
     teleport,
     phasePlan,
@@ -2463,11 +2466,11 @@ function validationFor(contract, session, placement) {
   if (inputs.healing?.required && !hasSessionValue(session.hpValues.healing)) {
     add("healing", "healing-required");
   }
-  // The die's roll, 1 to its faces (False Life: 1–4).
+  // The die's roll, within what the die can give (False Life: 1–4; Bear's Endurance: 2–12).
   if (inputs.temporaryHp?.required) {
-    const faces = Number(String(inputs.temporaryHp.die || "").match(/^1d(\d+)$/u)?.[1]) || 0;
+    const range = spellCastTemporaryHpRollRange(inputs.temporaryHp.die);
     const roll = Number(session.hpValues?.temporaryHp);
-    if (!hasSessionValue(session.hpValues?.temporaryHp) || !Number.isInteger(roll) || roll < 1 || roll > faces) {
+    if (!range || !hasSessionValue(session.hpValues?.temporaryHp) || !Number.isInteger(roll) || roll < range.min || roll > range.max) {
       add("temporaryHp", "temporary-hp-required");
     }
   }

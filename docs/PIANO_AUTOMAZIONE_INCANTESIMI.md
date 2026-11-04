@@ -502,8 +502,9 @@ temporanei e migra alla prima scrittura (`quickHPStateOf` in
   di combattimento (aggiunti, alzati, assorbiti, tolti, persi, scaduti, dal
   record `payload.tempHp` della Cronologia). I giocatori li vedono solo con i PF
   esatti.
-- Vita falsata (l'1d4 tirato, dal pannello), Armatura di Agathys (la pill termina
-  quando finiscono, ritorsione nelle console) e Trasformazione di Tenser (senza
+- Vita falsata (l'1d4 tirato, dal pannello), Resistenza dell'orso di Caratteristica
+  potenziata (i 2d6 tirati, un tiro per tutti i bersagli), Armatura di Agathys (la pill
+  termina quando finiscono, ritorsione nelle console) e Trasformazione di Tenser (senza
   fonte: restano dopo la fine) al lancio, in `src/spellTemporaryHpRules.js`.
 - Eroismo: un promemoria a inizio turno, non automatico; il valore proposto viene
   dalla scheda del caster (CD - 8 - competenza, `spellcastingModifierFromProfile`),

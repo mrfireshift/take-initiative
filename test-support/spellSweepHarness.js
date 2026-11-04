@@ -166,6 +166,7 @@ const history = await import(`${source("history.js")}?sweep-history`);
 const historyOwner = await import(`${source("historyOwner.js")}?sweep-owner`);
 mock.module(source("history.js"), { exports: { ...history } });
 const { currentSceneEpoch, markSceneEpochReady } = await import(source("sceneEpoch.js"));
+const { spellCastTemporaryHpRollRange } = await import(source("spellTemporaryHpRules.js"));
 const { buildSpellUnifiedPanelContract, createSpellPanelSession, buildSpellPanelViewModel } = await import(source("spellUnifiedPanelCore.js"));
 const { buildUnifiedPanelViewModel } = await import(source("spellUnifiedPanelViewCore.js"));
 const { buildSpellUnifiedAreaCommand, getSpellUnifiedAreaEligibility } = await import(source("spellUnifiedAreaAdapter.js"));
@@ -363,7 +364,8 @@ async function castOnce({ id, phase, variant, outcome }) {
     hpValues: {
       damage: SWEEP_DAMAGE,
       healing: SWEEP_HEALING,
-      temporaryHp: 1,
+      // The lowest roll of the die: False Life's 1d4 starts from 1, Bear's Endurance's 2d6 from 2.
+      temporaryHp: spellCastTemporaryHpRollRange(presentation.inputs?.temporaryHp?.die)?.min ?? 1,
       hp: SWEEP_DAMAGE,
       ...(presentation.inputs?.primaryDamage?.required || presentation.inputs?.primaryDamage?.visible ? { primaryDamage: SWEEP_DAMAGE } : {}),
     },
