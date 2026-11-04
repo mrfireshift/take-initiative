@@ -526,6 +526,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const input=node("input","","amount");input.type="number";input.min="0";input.step="1";input.inputMode="numeric";input.value=value;
     input.setAttribute("aria-label",label);input.title="Il totale tirato";return input;
   };
+  // The dice to roll in the empty box, which holds six characters: a longer formula stays beside it, never cut.
+  const amountHint=formula=>{const text=String(formula || "");return text.length<=6?text:"";};
   // Every damage row shares one grid: lead (checkbox, remove or nothing), name with its dice, amount.
   const componentRow=(lead,body,amount)=>{
     const row=node("div","","component-row");
@@ -602,7 +604,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       if(field("type")) field("type").disabled=busy;
       const dice=option.slotLevels?(state.bonus?option.bonus.diceBySlot:option.diceBySlot)[state.slotLevel]:option.dice;
       field("dice").textContent=dice?(draft.outcome==="critical"?`${dice} · critico ${pcAttackCriticalDice(dice)}`:dice):"—";
-      field("amount").placeholder=dice?(draft.outcome==="critical"?pcAttackCriticalDice(dice):dice):"";
+      field("amount").placeholder=amountHint(dice && (draft.outcome==="critical"?pcAttackCriticalDice(dice):dice));
       if(field("options")) field("options").hidden=!state.on;
       for(const name of ["slot","bonus","onHit"]) if(field(name)) field(name).disabled=busy || (name==="slot" && option.slotLevels.length===1);
       field("reason").textContent=option.available?option.warning || "":option.reason;
@@ -733,7 +735,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       // On a miss only the activations used on the roll itself are listed.
       row.hidden=draft.outcome==="miss" && !option.preRoll;
       field("amount").hidden=!state.on || !(option.damage || option.secondary || option.tempHp);field("amount").disabled=busy;
-      field("amount").placeholder=option.tempHp?"":critical(option.dice)?.split(" · critico ").at(-1) || "";
+      field("amount").placeholder=option.tempHp?"":amountHint(critical(option.dice)?.split(" · critico ").at(-1));
       if(field("choice")){field("choice").value=state.choice;field("choice").disabled=busy;}
       if(field("save")) field("save").hidden=!save;
       if(field("temp-hp")){field("temp-hp").hidden=!state.on;updateTempHp(field("temp-hp"),option,state);}
@@ -1010,7 +1012,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       remove.addEventListener("click",()=>{draft.extras.splice(index,1);renderExtras();renderState();});
       const type=typeSelect(DAMAGE_TYPES.map(entry=>entry.id),extra.type,{placeholder:"Tipo"});type.dataset.extraField="type";type.setAttribute("aria-label","Tipo di danno extra");
       type.addEventListener("change",()=>{extra.type=type.value;renderState();});
-      const label=node("input","","field");label.type="text";label.maxLength=40;label.placeholder="Etichetta (es. Lama Roboante)";label.value=extra.label;
+      const label=node("input","","field");label.type="text";label.maxLength=40;label.placeholder="Etichetta";label.title="Etichetta (es. Lama Roboante)";label.value=extra.label;
       label.dataset.extraField="label";label.setAttribute("aria-label","Etichetta della componente extra");label.addEventListener("input",()=>{extra.label=label.value;});
       const fields=node("div","","component-body extra-fields");fields.append(type,label);
       const amount=amountInput(extra.amount,"Danni extra");amount.dataset.extraField="amount";
@@ -1026,6 +1028,18 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const pickerShown=()=>!!picker && !picker.hidden;
   // Whether the picker writes the entry's name: the line under it then leaves it out (renderPicker).
   let pickerNamesEntry=false;
+  // The kind of attack beside the name, on the menu's button and rows: the line under it then leaves it out.
+  let pickerNamesRange=false;
+  const entryRange=entry=>{
+    if(entry?.mode==="maneuver") return RANGE_LABELS.melee;
+    if(entry?.tab==="cantrips") {
+      const cantrip=getPcAttackCantrip(entry.spellId);
+      return cantrip && !cantrip.save && !cantrip.area?RANGE_LABELS[cantrip.range] || "":"";
+    }
+    if(entry?.tab!=="attacks") return "";
+    const action=(attackerCard().quickActions || []).find(item=>item?.id===entry.actionId);
+    return action && !action.area && !action.save?RANGE_LABELS[action.range] || "":"";
+  };
   // The casting time at a glance: azione, azione bonus, reazione, or the time itself (1 minuto, 10 minuti…); "" until
   // the reference is loaded.
   function castingTimeLabel(spellId) {
@@ -1061,6 +1075,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const current=currentEntry();
     picker.hidden=entries.length<2 || !current;
     pickerNamesEntry=false;
+    pickerNamesRange=false;
     if(picker.hidden){pickerSignature="";return;}
     const tabs=pcAttackPickerTabs(entries),inTab=entries.filter(entry=>entry.tab===current.tab);
     // The spells and features tabs are lists (by level, by group); the other tabs keep the select.
@@ -1106,16 +1121,18 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         entry.tab!=="attacks" && entry.mode==="attack"?{text:"Console",title:"Si risolve nella console"}:null,entry.concentration?{text:"Conc.",title:"Concentrazione"}:null,
         entry.ritual?{text:"Rit.",title:"Rituale"}:null,inProgress(entry)?{text:"in corso",title:"Lancio in corso: raggi o dardi ancora da registrare"}:null]).filter(Boolean);
     const rowTags=entry=>[capitalized(rowCost(entry)),...rowParts(entry).map(part=>part.text),exhausted(entry)?"esaurita":""].filter(Boolean).join(" · ");
-    const rowTagsNode=entry=>{
-      const box=node("span","","picker-row-tags"),cost=rowCost(entry);
-      const parts=[...(cost?[costTag(cost)]:[]),...rowParts(entry).map(part=>{
+    // The cells after the name, on the columns of the list (pc-attack.html): the kind of attack, the cost, the marks.
+    const rowCells=entry=>{
+      const range=node("span",entryRange(entry),"picker-row-range"),costBox=node("span","","picker-row-cost"),marks=node("span","","picker-row-marks"),cost=rowCost(entry);
+      if(cost) costBox.append(costTag(cost));
+      rowParts(entry).forEach((part,index)=>{
         const span=node("span",part.text,part.uses?"uses-badge":"");
         if(part.title) span.title=part.title;
         if(part.zero) span.dataset.zero="true";
-        return span;
-      })];
-      parts.forEach((part,index)=>{if(index)box.append(node("span","·","tag-sep"));box.append(part);});
-      return box;
+        if(index) marks.append(node("span","·","tag-sep"));
+        marks.append(span);
+      });
+      return [range,costBox,marks];
     };
     const groupOf=entry=>entry.tab==="features"?entry.group:favourite(entry)?"pinned":entry.level;
     const groupTitle=group=>group==="pinned"?"★ Preferiti":group==="usable"?"Utilizzabili":group==="other"?"Altre capacità":Number.isInteger(group)?`${group}° livello`
@@ -1133,7 +1150,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // Another tab starts its search afresh.
     if(pickerQueryTab!==current.tab){pickerQueryTab=current.tab;pickerQuery="";if(pickerSearch)pickerSearch.value="";}
     // Rebuilt only when the list changes: a live update never closes the select the GM has open, nor scrolls the list.
-    const signature=JSON.stringify([tabs.map(tab=>tab.id),current.tab,asList,otherShown,inTab.map(entry=>[entry.key,label(entry),rowTags(entry)]),
+    const signature=JSON.stringify([tabs.map(tab=>tab.id),current.tab,asList,otherShown,inTab.map(entry=>[entry.key,label(entry),rowTags(entry),entryRange(entry)]),
       slots.map(row=>[row.level,row.pact,row.current,row.maximum])]);
     if(signature!==pickerSignature) {
       pickerSignature=signature;
@@ -1149,7 +1166,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       // The menu's entries, the list's rows: the name on the left, the cost and marks on the right.
       if(pickerMenu) pickerMenu.replaceChildren(...(asList?[]:inTab.map(entry=>{
         const row=node("button","","picker-row");row.type="button";row.dataset.pickerKey=entry.key;row.title=label(entry);
-        row.append(node("span",`${entry.pinned?"★ ":""}${plainLabel(entry.label)}`,"picker-row-name"),rowTagsNode(entry));
+        row.append(node("span",`${entry.pinned?"★ ":""}${plainLabel(entry.label)}`,"picker-row-name"),...rowCells(entry));
         row.addEventListener("click",()=>{setMenuOpen(false,{focus:true});chooseEntry((presentation?.picker || []).find(item=>item.key===entry.key));});
         return row;
       })));
@@ -1172,7 +1189,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
           const row=node("button","","picker-row");row.type="button";row.dataset.pickerKey=entry.key;row.dataset.group=String(group);
           row.dataset.name=plainLabel(entry.label);row.title=plainLabel(entry.label);
           if(exhausted(entry)) row.dataset.exhausted="true";
-          row.append(node("span",`${entry.pinned && !favourite(entry)?"★ ":""}${plainLabel(entry.label)}`,"picker-row-name"),rowTagsNode(entry));
+          row.append(node("span",`${entry.pinned && !favourite(entry)?"★ ":""}${plainLabel(entry.label)}`,"picker-row-name"),...rowCells(entry));
           row.addEventListener("click",()=>chooseEntry((presentation?.picker || []).find(item=>item.key===entry.key)));
           return row;
         })])));
@@ -1187,7 +1204,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       pickerDropdown.hidden=!asDropdown;
       if(!asDropdown) setMenuOpen(false);
       else {
-        dropdownButton.replaceChildren(node("span",`${current.pinned?"★ ":""}${plainLabel(current.label)}`,"picker-row-name"),rowTagsNode(current),node("span","","picker-dropdown-caret"));
+        pickerNamesRange=!!entryRange(current);
+        dropdownButton.replaceChildren(node("span",`${current.pinned?"★ ":""}${plainLabel(current.label)}`,"picker-row-name"),...rowCells(current),node("span","","picker-dropdown-caret"));
         dropdownButton.title=label(current);dropdownButton.disabled=busy;
         if(busy) setMenuOpen(false);
         for(const row of pickerMenu?.querySelectorAll("button") || []){row.setAttribute("aria-pressed",String(row.dataset.pickerKey===current.key));row.disabled=busy;}
@@ -1461,16 +1479,15 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const missing=classFeatureMissingText(feature);
     return [text?rulesTextBlock(text,{document:documentRef,className:"spell-rules",paragraphClass:"spell-text"}):node("p",missing?privateTextMissingNote(missing):classFeatureDescriptionsLoaded()?"Testo non disponibile.":"Caricamento del testo…","launch-details")];
   }
-  // The spell's details under an accordion ("Dettagli"): tags, casting time, range, components, duration, then the
+  // The spell's details under an accordion ("Dettagli"): casting time, range, components, duration, then the
   // text of the spell and its higher levels. One open state for every accordion of the console: open stays open.
-  function spellDetailsNodes(spellId,tags=[]) {
+  function spellDetailsNodes(spellId) {
     if(spellId && !spellbookSpellReferenceLoaded()) {
       // The Italian reference loads once, on the first spell shown.
       void loadSpellbookSpellReference().then(()=>{launchSignature="";if(launching())renderLaunch();else renderSpellDetails();}).catch(()=>{});
     }
     const details=spellId?spellbookSpellDetails(spellId):null;
     const nodes=[];
-    if(tags.length){const row=node("div","","launch-meta");row.append(...tags.map(([text,kind])=>node("span",text,`launch-tag${kind?" "+kind:""}`)));nodes.push(row);}
     const line=details?[details.castingTime,details.range,details.components,details.duration].filter(Boolean).join(" · "):"";
     if(line) nodes.push(node("p",line,"launch-details"));
     if(details?.description) nodes.push(rulesTextBlock(details.description,{document:documentRef,className:"spell-rules",paragraphClass:"spell-text"}));
@@ -1518,7 +1535,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!maneuverDraft.targetId) maneuverDraft.targetId=(draft?.targetId && targetById(draft.targetId)?draft.targetId:"")
       || (selection.status==="single" && targetById(selection.target?.id)?selection.target.id:"");
     $("pc-attack-title").textContent=actorName();
-    $("pc-attack-subtitle").textContent=`${pickerNamesEntry?"":`${entry.label} · `}Attacco speciale in mischia`;
+    // On the button when the menu names it; the note below says what kind of attack it is.
+    $("pc-attack-subtitle").textContent=pickerNamesRange?"":`${pickerNamesEntry?"":`${entry.label} · `}Attacco speciale in mischia`;
     // Rebuilt only when what it shows changes: a live update never eats a click in flight or closes the open select.
     const signature=JSON.stringify([kind,presentation.targets.map(item=>[item.id,bossTargetLabel(item)]),maneuverDraft.targetId,maneuverDraft.outcome,
       maneuverDraft.effect,selection.status,busy,invalidated]);
@@ -1619,6 +1637,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   // The card of an entry the console does not resolve. The warnings stay in view, the details sit in the accordion,
   // and Lancia (a spell) or Usa (a ⚡ quick action) waits in the fixed row at the bottom, always visible.
+  const launchHead=(entry,words=[])=>{
+    const head=node("div","","launch-head");
+    head.append(node("strong",plainLabel(entry.label),"launch-title"));
+    if(words.length) head.append(node("span",words.join(" · "),"launch-words"));
+    return head;
+  };
   function renderLaunch() {
     if(!launchBox) return;
     // The fixed row is shared with the attacks: their defenses do not follow here.
@@ -1676,7 +1700,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     }
     const tags=isFeature?feature.tags:entry?.ritual?[["Rituale",""]]:[];
     // A feature keeps its tags and uses in view, its text in the accordion; a spell's details all go in the accordion.
-    const body=isFeature?featureDetailsNodes(entry):entry?.spellId?spellDetailsNodes(entry.spellId,tags):[];
+    const body=isFeature?featureDetailsNodes(entry):entry?.spellId?spellDetailsNodes(entry.spellId):[];
     // A feature's form follows its state and, for Purifying Touch, the creature selected and its spells.
     const formSignature=isFeature?[feature.form.kind,feature.form.label,(feature.form.fields || []).map(field=>[field.id,field.max,field.options?.length]),
       (feature.form.fields || []).some(field=>field.type==="target-spell")?(()=>{const {item,spells}=purifyTarget();return [item?.id,spells.map(spell=>spell.instanceId || spell.name)];})():null]:null;
@@ -1692,11 +1716,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(signature===launchSignature){syncTarget();return;}
     launchSignature=signature;
     const children=[];
-    // The feature's activation pill takes its cost colour (Azione, Azione bonus, Reazione).
-    if(isFeature && tags.length){const row=node("div","","launch-meta");row.append(...tags.map(([text,kind])=>{
-      const cost=costKind(text),pill=node("span",text,`launch-tag${kind?" "+kind:""}${cost?" cost-tag":""}`);
-      if(cost) pill.dataset.cost=cost;
-      return pill;}));children.push(row);}
+    // The card's title: the entry on screen, with what can be said of it in a word (on whom it acts, active, its species).
+    if(entry) children.push(launchHead(entry,tags.map(([text])=>text)));
     if(isFeature && feature.target){const line=node("p","","feature-target");line.dataset.featureTarget="1";children.push(line);}
     // The uses left sit in the fixed row when the feature has a button; the reason it is off too.
     if(isFeature && feature.detailText && !canLaunch && !pickerNamesEntry) children.push(node("p",feature.detailText,"launch-details"));
@@ -1725,13 +1746,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const signature=JSON.stringify(["monster",entry.key,entry.label,entry.text]);
     if(signature===launchSignature) return;
     launchSignature=signature;
-    const children=[];
-    if(entry.activation && entry.group!=="monster-legendary" && !pickerNamesEntry){
-      const row=node("div","","launch-meta"),text=capitalized(entry.activation),cost=costKind(text);
-      const pill=node("span",text,`launch-tag${cost?" cost-tag":""}`);
-      if(cost) pill.dataset.cost=cost;
-      row.append(pill);children.push(row);
-    }
+    const children=[launchHead(entry,entry.activation && entry.group!=="monster-legendary" && !pickerNamesEntry?[capitalized(entry.activation)]:[])];
     children.push(node("p",entry.text || "Testo non disponibile.","spell-text"));
     if(entry.group==="monster-legendary") children.push(node("p","Le azioni leggendarie si segnano sui diamanti del tracker.","launch-details"));
     launchBox.replaceChildren(...children);
@@ -1819,7 +1834,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const saveLabel=pcAttackSaveLabel(attack,presentation?.item?.metadata?.[META_KEY]?.initiativeCard);
     const area=areaFacts(attack);
     const parts=[...(pickerNamesEntry?[]:[named || action?.label,...(attack?.cantrip?["Trucchetto"]:[]),...(attack?.spell?[`Incantesimo di ${attack.spell.level}° livello`]:[])]),
-      ...(area.length?area:[saveLabel || (attack?.spell?.delivery==="auto"?"Senza tiro per colpire":RANGE_LABELS[attack?.range]) || ""]),
+      ...(area.length?area:[saveLabel || (attack?.spell?.delivery==="auto"?"Senza tiro per colpire":pickerNamesRange?"":RANGE_LABELS[attack?.range]) || ""]),
       // A monster's attack: its bonus, reach or range, recharge and uses, as its stat block prints them; the uses left and a
       // recharge already used from the actor's resources.
       ...pcAttackMonsterTags(attack,presentation?.item?.metadata?.[META_KEY]?.classFeatureState?.resources || {})].filter(Boolean);
@@ -2004,7 +2019,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         :attack.spell?preview().spell?.dice || pcAttackSpellDice(getPcAttackSpell(attack.spell.spellId),draft.spell?.slotLevel):component.formula) || "";
       meta.textContent=formula?(draft.outcome==="critical"?`${formula} · critico ${pcAttackCriticalDice(formula)}`:formula):"";
       const input=damage.querySelector(`[data-damage-input="${component.id}"]`);
-      if(input) input.placeholder=formula?(draft.outcome==="critical"?pcAttackCriticalDice(formula):formula):"";
+      if(input) input.placeholder=amountHint(formula && (draft.outcome==="critical"?pcAttackCriticalDice(formula):formula));
       meta.hidden=!formula;
     }
   }
@@ -2049,7 +2064,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     extrasBox.hidden=!damaging;addExtra.hidden=!damaging;
     // Activations follow the outcome and the riders chosen (Wrath of the Order, Wails from the Grave).
     updateActivations();
-    if(extrasCaption){extrasCaption.textContent=preRollOnMiss?"Prima del tiro":resolved()?.cantrip?.save?"Extra al danno":"Extra al colpo";extrasCaption.hidden=false;}
+    // The title only over something to title: alone, «+ Danno extra» stays on the damage row (pc-attack.html).
+    if(extrasCaption){
+      extrasCaption.textContent=preRollOnMiss?"Prima del tiro":resolved()?.cantrip?.save?"Extra al danno":"Extra al colpo";
+      extrasCaption.hidden=!preRollOnMiss && !draft.extras.length && !riderOptions().length && !wovenOptions().length && !activationOptions().length;
+    }
     const view=preview();
     // In the fixed row, under the total it explains: each defense with what it did to the damage typed. A monster's save on
     // the hit counts in the total and cannot be ignored here: its defense is only said.
@@ -2148,11 +2167,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const attack=resolved(),onHit=attack?.onHit;
     const shown=!!onHit && !!draft && ["hit","critical"].includes(draft.outcome) && !launching();
     if(!hitBox) {
-      // Under the attack's damage rows, before the extras.
+      // Under the attack's damage rows and what was added to them.
       if(!shown || !damage?.parentNode) return;
       hitBox=node("div","","hit-effect");
-      // The card is a grid ordered by section: the damage rows are 1, the extras 2.
-      if(hitBox.style) hitBox.style.order="1";
+      // The card is ordered by section: the damage rows are 1, the extras 2, the notes 3 and after.
+      if(hitBox.style) hitBox.style.order="3";
       if(typeof damage.parentNode.insertBefore==="function") damage.parentNode.insertBefore(hitBox,damage.nextSibling || null);
       else damage.parentNode.appendChild(hitBox);
     }

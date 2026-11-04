@@ -4,7 +4,7 @@ Micro-audit del 04/11/2026 su `pc-attack.html` e `src/pc-attack.js`, chiesto dal
 
 Restano fermi i colori del costo in stile Baldur's Gate, il rosso solo per il danno e niente conteggi sui tab, già decisi dall'utente.
 
-Stato: D1-D3 approvate come consigliate il 04/11/2026. Lotti 1, 2, 3, 4 e 5 fatti, restano il 6 e il 7.
+Stato: D2 e D3 approvate il 04/11/2026; D1 rovesciata dall'utente dopo la prova. Lotti 1, 2, 3, 4 e 5 fatti, il 6 annullato, resta il 7. Prima del 7, altre rifiniture chieste dall'utente: vedi «Dopo la prova dell'utente».
 
 ## Misure
 
@@ -95,19 +95,40 @@ Tutti riguardano l'aspetto: danni, PF e registrazione non si toccano.
 
 1. **Errori e parole.** I tre errori, le etichette, «Pronto.», i messaggi ripetuti. Fatto.
 2. **Testata.** Via sottotitolo e `Turno`, dati sotto il selettore, menu ⋯, una riga sola per i cambi di creatura. Fatto. In più, un solo pulsante quando la creatura selezionata è quella di turno.
-3. **Griglia e densità.** Un bordo sinistro, etichetta e controllo, righe a una linea, niente riquadri, difesa accanto al totale, menu del bersaglio con i PF a destra. `TS fallito` e `TS superato` del bersaglio singolo diventano `Fallito` e `Superato`: il TS ora è scritto sopra, sotto il selettore. Fatto. In più, tab sottolineate e altezze 24, 32 e 36. Restano nativi il menu `Tiro` e quelli piccoli di slot e tipo di danno.
+3. **Griglia e densità.** Un bordo sinistro, etichetta e controllo, righe a una linea, niente riquadri, difesa accanto al totale, menu del bersaglio con i PF a destra. `TS fallito` e `TS superato` del bersaglio singolo diventano `Fallito` e `Superato`: il TS ora è scritto sopra, sotto il selettore. Fatto. In più, tab sottolineate e altezze 24, 32 e 36. Restano nativi il menu `Tiro` e quelli piccoli di slot e tipo di danno. I riquadri sono tornati in parte dopo la prova dell'utente.
 4. **Aree.** Danno prima dell'elenco, righe compatte, PF sempre visibili. Fatto. In più, area, TS e CD una volta sola sotto il selettore, `Tiro` sotto il selettore anche fuori dalle aree, `+ Danno extra` sulla riga del danno.
 5. **Pill, icone e colori.** Una forma per gli usi, una famiglia di frecce, emoji, colori per significato, note brevi di Immagine speculare e Scudo. Fatto sul pannello attacchi. La console boss conserva testi lunghi e colori fino al lotto 7. Gli usi a zero passano dal rosso al giallo: il rosso è solo del danno.
-6. **Altezza della finestra.** Dopo il lotto 3.
+6. **Altezza della finestra.** Fatto in `e5c01287`, annullato in `a03ebd7d` dopo la prova dell'utente: la finestra resta di 560 px.
 7. **Console boss.** Quello che vale anche lì: condividono `public/console-shell.css`.
 
 ## Decisioni
 
 Approvate il 04/11/2026.
 
-- **D1, altezza della finestra.** Segue il contenuto, cresce quando serve e non si restringe durante un attacco.
+- **D1, altezza della finestra.** Approvata come «segue il contenuto», rovesciata dall'utente dopo averla provata: altezza costante.
 - **D2, `PG` e `Mostri`.** Nel menu ⋯ della testata.
 - **D3, emoji delle capacità.** Tolte dalle righe del pannello.
+
+## Dopo la prova dell'utente
+
+Provato su una scena reale, il pannello sembrava ancora compresso e senza gerarchia nelle capacità. Cambiano solo i testi e la disposizione: danni, PF e registrazione restano uguali.
+
+- **Altezza costante.** Lotto 6 annullato.
+- **Tipo di attacco.** `Mischia` e `Distanza` non occupano più una riga: stanno sul selettore e nelle righe del menu. Sotto restano, se ci sono, bonus e portata.
+- **Capacità.** L'elenco ha di nuovo uno sfondo suo, con una linea fra i gruppi. Le righe sono in colonna: nome, costo allineato a sinistra, usi a destra.
+- **Pill senza contesto.** `Su di sé` e `Su un bersaglio` diventano parole accanto al titolo della scheda: `Ira  Su di sé`. La scheda ha il suo riquadro.
+- **Aria.** Testata 40 px, 12 px fra i blocchi, righe dell'elenco 30 px.
+- **Riquadri in più.** Hanno uno sfondo anche il danno, la tabella delle creature e la prova contrapposta della manovra. Non erano richiesti: si possono togliere.
+- **Titoli vuoti.** `Extra al colpo` compare solo sopra qualcosa; altrimenti `+ Danno extra` sta sulla riga del danno, come nelle aree. `Effetto del colpo` passa sotto gli extra.
+- **Colonna sotto il selettore.** `Multiattacco` sta nella colonna dei dati dell'attacco. Nelle aree occupano tutta la larghezza.
+- **Testi tagliati.** La casella del danno mostra solo formule fino a 6 caratteri: una più lunga resta accanto. `Etichetta` non ha più l'esempio, che passa nel suggerimento.
+- **Dettagli.** Uno stacco fra dati, testo e «Ai livelli superiori».
+
+Al banco, sui 38 stati:
+
+- 32 stati hanno più di 40 px vuoti (mediana 177, massimo 257): è il prezzo dell'altezza costante.
+- Scorrono due stati: le manovre di 172 px, un incantesimo a dardi di 3 px.
+- I nomi lunghi si tagliano prima: `Mischia` divide il selettore col nome, che resta intero nel suggerimento.
 
 ## Prova in stanza del lotto 1
 
@@ -143,11 +164,23 @@ Approvate il 04/11/2026.
 
 ## Prova in stanza del lotto 5
 
-- [ ] **Righe:** in Capacità nessuna emoji; a destra il costo e l'ultimo numero, gli usi (`3/3`). Passando sul numero il suggerimento dice cosa conta. A zero usi il numero è giallo.
-- [ ] **Scheda della capacità:** niente pill del costo, che sta già sulla riga; restano `Su di sé`, `Su un bersaglio`, `Attiva`. Accanto al pulsante compare solo il motivo per cui è spento.
+- [ ] **Righe:** in Capacità nessuna emoji; il costo in colonna e, a destra, gli usi (`3/3`). Passando sul numero il suggerimento dice cosa conta. A zero usi il numero è giallo.
+- [ ] **Scheda della capacità:** niente pill: accanto al titolo `Su di sé`, `Su un bersaglio`, `Attiva`. Accanto al pulsante compare solo il motivo per cui è spento.
 - [ ] **Manovre:** `Manovre · Dadi di Superiorità` con `5/5` in fondo alla riga. Una capacità con i suoi usi ha il numero a destra, e sparisce dalla riga il nome della risorsa.
-- [ ] **Incantesimi:** a destra `Azione · Console` per quelli che si risolvono nella console; `Concentrazione` non compare più come pill nei Dettagli.
+- [ ] **Incantesimi:** `Azione` in colonna e `Console` a destra per quelli che si risolvono nella console; `Concentrazione` non compare più come pill nei Dettagli.
 - [ ] **Azioni leggendarie:** nessuna scritta `Leggendaria`; `Costo 2` su quelle che costano 2.
 - [ ] **Frecce:** `Altre capacità` e `Dettagli` hanno il chevron dei menu, a destra, che gira quando si aprono.
 - [ ] **Bersaglio con reazioni:** con Immagine speculare e Scudo due righe senza colore: `Immagine speculare · d20 ≥ 6` e `Reazione · +5 CA`, ognuna col suo pulsante. La regola è nel suggerimento, e i pulsanti funzionano come prima.
 - [ ] **Console boss:** con lo stesso bersaglio mostra ancora i testi lunghi, come prima.
+
+## Prova in stanza dopo la prova dell'utente
+
+- [ ] **Altezza:** la finestra resta di 560 px, qualunque scheda si apra.
+- [ ] **Attacco di un PG:** `Mischia` sul selettore e nelle righe del menu, nessuna riga sotto.
+- [ ] **Attacco di un mostro:** sotto il selettore `+14 al tiro · portata 3 m` e `Multiattacco`, nella stessa colonna.
+- [ ] **Capacità:** `Utilizzabili` e `Altre capacità` nello stesso riquadro, separate da una linea. Costi in colonna, usi a destra, `Ira  Su di sé` nel titolo della scheda.
+- [ ] **Danno senza extra:** nessun titolo, `+ Danno extra` accanto alla casella. Aggiungendo una componente torna `Extra al colpo`.
+- [ ] **Critico con formula lunga:** la formula va a capo e nulla si sovrappone.
+- [ ] **Mostro con effetto al colpo:** `Effetto del colpo` sotto il danno; TS, pulsanti e danno del veleno funzionano come prima.
+- [ ] **Manovra:** `Spingi via di 1,5 m` e `Butta Prono`, poi il riquadro della prova contrapposta. Registra come prima.
+- [ ] **Dettagli aperti:** uno stacco fra dati, testo e «Ai livelli superiori».

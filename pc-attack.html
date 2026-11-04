@@ -21,20 +21,20 @@
     .glass-shell { position: relative; }
     /* The header says who acts, on one line: what it does is under the picker. Its grip sits in the gutter: the name starts
        on the panel's one left edge. */
-    .header { min-height: 36px; padding-top: var(--obrt-space-xs); padding-bottom: var(--obrt-space-xs); padding-left: 0; }
+    .header { min-height: 40px; padding-top: var(--obrt-space-xs); padding-bottom: var(--obrt-space-xs); padding-left: 0; }
     .header .icon-button { width: var(--obrt-hit-min); height: var(--obrt-hit-min); }
     /* The actor's name; an amber pill when it acts on another's turn. */
     .title-row { min-width: 0; display: flex; align-items: center; gap: 6px; }
     .turn-badge { flex: 0 0 auto; padding: 1px 6px; border: 1px solid rgba(253, 230, 138, .42); border-radius: var(--obrt-radius-pill); background: rgba(161, 98, 7, .30); color: var(--warn-text); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); }
     /* The menu of the header's ⋯: the turn auto-open (pcAttackTurnController.js), local to this browser. */
-    .more-menu { position: absolute; z-index: 20; top: 38px; right: var(--obrt-space-xl); width: 220px; display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); box-shadow: 0 12px 28px rgba(0, 0, 0, .45); }
+    .more-menu { position: absolute; z-index: 20; top: 42px; right: var(--obrt-space-xl); width: 220px; display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); box-shadow: 0 12px 28px rgba(0, 0, 0, .45); }
     .more-title { margin: 0; font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-semibold); }
     .more-option { display: flex; align-items: center; gap: 6px; min-height: var(--obrt-hit-min); cursor: pointer; }
     .more-option input { width: 15px; height: 15px; margin: 0; accent-color: var(--obrt-accent); cursor: pointer; }
     .more-hint { margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); line-height: 1.3; text-wrap: pretty; }
     /* Under the header, only when there is somewhere to go: back to the turn's creature, on to the one selected on the map.
        One line: a long name is cut, and the button's tooltip says it in full. Only the bar of a turn that moved takes a line of its own. */
-    .switch-row { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 5px var(--obrt-space-xl); border-bottom: 1px solid var(--line); }
+    .switch-row { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 6px var(--obrt-space-xl); border-bottom: 1px solid var(--line); }
     .switch-row:not(:has(> :not([hidden]))) { display: none; }
     .switch-row:has(> .follow-bar:not([hidden]):not([data-kind="off"])) { flex-wrap: wrap; }
     .switch-row .small { min-width: 0; min-height: var(--obrt-hit-min); overflow: hidden; padding: 2px 8px; color: var(--info-text); font-size: var(--obrt-type-secondary); text-overflow: ellipsis; white-space: nowrap; }
@@ -49,16 +49,20 @@
     /* What the action is: under the picker, in full (it wraps, it is never cut). */
     .action-facts { margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; line-height: 1.3; text-wrap: pretty; }
     .action-facts:empty { display: none; }
-    .picker:not([hidden]) + .action-facts { margin-top: -4px; }
+    .picker:not([hidden]) + .action-facts { margin-top: -6px; }
     /* Under the menu it describes, level with its text: not in the labels' column. */
-    .picker:has(.picker-dropdown:not([hidden])) + .action-facts { padding-left: calc(var(--form-label) + var(--obrt-space-md) + 11px); }
-    #pc-attack-multiattack { margin-top: -4px; line-height: 1.3; text-wrap: pretty; }
+    .picker:has(.picker-dropdown:not([hidden])) + .action-facts, .picker:has(.picker-dropdown:not([hidden])) ~ .caster-state { padding-left: calc(var(--form-label) + var(--obrt-space-md) + 11px); }
+    #pc-attack-multiattack { margin-top: -6px; line-height: 1.3; text-wrap: pretty; }
     /* One scroll: the console's view fills the panel, and in the spells and features tabs the list takes the height left. */
-    .panel { display: flex; flex-direction: column; padding: var(--obrt-space-md) var(--obrt-space-xl) var(--obrt-space-lg); }
+    .panel { display: flex; flex-direction: column; padding: var(--obrt-space-xl); }
     .panel > .view { flex: 1 1 auto; min-height: 0; }
+    /* Room between what are separate steps: the attack, the target, the outcome, the damage. */
+    .view { gap: var(--obrt-space-xl); }
     .muted { margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); }
-    /* Sections: no frames, the space and the titles say where each one starts. */
-    .card { display: grid; gap: 6px; }
+    /* Sections: the attack and the target are a form on the panel, what follows them is what gets filled in: in a box. */
+    .card { display: grid; gap: var(--obrt-space-md); }
+    #pc-attack-attack-view:not([data-area="true"]) > .card:not(.target-card) { display: flex; flex-direction: column; padding: var(--obrt-space-lg) var(--obrt-space-xl); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
+    #pc-attack-attack-view[data-area="true"] .area-list { padding: var(--obrt-space-md) var(--obrt-space-sm); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
     .card-note { color: var(--muted); font-size: var(--obrt-type-secondary); line-height: 1.3; text-wrap: pretty; }
     .block { display: grid; gap: 6px; }
     /* A label and its control, on one grid: the attack, the target, the roll. */
@@ -84,10 +88,10 @@
     .attack-reaction-amount { flex: 0 0 52px; width: 52px; min-height: 24px; padding: 2px 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); color: inherit; }
     .attack-reaction .mini-button { flex: 0 0 auto; }
     /* The picker: weapon attacks, cantrips and attack spells of the actor, one tab each, then the entry. */
-    .picker { flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--obrt-space-md); }
+    .picker { flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--obrt-space-lg); }
     /* A long list gives way down to its 132 px, never under the card below it: the tabs, the search and that much stay. */
-    .picker:has(> .picker-list:not([hidden]):not([data-short="true"])) { flex: 0 1 auto; min-height: calc(var(--obrt-hit-min) + 1px + 8px + 132px); }
-    .picker:has(> .picker-list:not([hidden]):not([data-short="true"])):has(> .picker-search:not([hidden])) { min-height: calc(var(--obrt-hit-min) * 2 + 1px + 16px + 132px); }
+    .picker:has(> .picker-list:not([hidden]):not([data-short="true"])) { flex: 0 1 auto; min-height: calc(var(--obrt-hit-min) + 1px + 10px + 132px); }
+    .picker:has(> .picker-list:not([hidden]):not([data-short="true"])):has(> .picker-search:not([hidden])) { min-height: calc(var(--obrt-hit-min) * 2 + 1px + 20px + 132px); }
     /* Only the list gives way: the tabs would otherwise shrink to nothing. */
     .picker > :not(.picker-list) { flex: 0 0 auto; }
     /* Tabs change page: light and underlined, so that the outcome stays the panel's strongest control. */
@@ -95,13 +99,18 @@
     .picker-tabs button { min-height: var(--obrt-hit-min); padding: 0; border: 0; background: none; color: var(--muted); }
     .picker-tabs button:hover { color: #fff; }
     .picker-tabs button[aria-pressed="true"] { color: #fff; background: none; box-shadow: inset 0 -2px 0 #60a5fa; }
-    /* The spells tab: a list by level instead of a select (every spell in view, one click each). Its rows' highlight runs
-       into the gutter, their text stays on the panel's edge. A short list is as tall as its rows (filterPicker). */
-    .picker-list { flex: 0 1 auto; min-height: 132px; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 2px; overflow-y: auto; margin-inline: -11px; padding-inline: 3px; }
+    /* The spells tab: a list by level instead of a select (every spell in view, one click each), in a box of its own: where
+       the list ends and the card of what is chosen begins. A short list is as tall as its rows (filterPicker). The rows take
+       the list's columns, so that the cost starts at one point on every row and the uses end on the right. */
+    .picker-list, .picker-menu { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-content: start; row-gap: 2px; }
+    .picker-list { flex: 0 1 auto; min-height: 132px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
     .picker-list[data-short="true"] { min-height: 0; }
-    .picker-list .picker-row { padding-inline: 7px; }
-    .picker-level { padding: 4px 8px 2px; color: var(--muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-wide); text-transform: uppercase; }
-    .picker-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 26px; padding: 3px 8px; border: 1px solid transparent; border-radius: var(--obrt-radius-md); background: transparent; text-align: left; cursor: pointer; }
+    .picker-list > .picker-level, .picker-list > .picker-row, .picker-menu > .picker-row { grid-column: 1 / -1; }
+    .picker-list > .picker-row, .picker-menu > .picker-row { display: grid; grid-template-columns: subgrid; }
+    /* A group starts under a line. */
+    .picker-list > .picker-level:not(:first-child) { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--line); border-top-left-radius: 0; border-top-right-radius: 0; }
+    .picker-level { padding: 4px 8px 4px; color: var(--muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-wide); text-transform: uppercase; }
+    .picker-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 30px; padding: 3px 8px; border: 1px solid transparent; border-radius: var(--obrt-radius-md); background: transparent; text-align: left; cursor: pointer; }
     .picker-row:hover { background: var(--obrt-hover); }
     .picker-row[aria-pressed="true"] { border-color: rgba(96, 165, 250, .55); background: rgba(37, 99, 235, .28); }
     .picker-row:disabled { cursor: default; opacity: .6; }
@@ -112,7 +121,7 @@
     .picker-dropdown-button[aria-expanded="true"] { border-color: rgba(96, 165, 250, .7); }
     .picker-dropdown-button:disabled { cursor: default; opacity: .6; }
     .picker-dropdown-caret { flex: 0 0 auto; width: 12px; height: 8px; background: var(--obrt-select-caret-image) no-repeat center / 12px 8px; }
-    .picker-menu { position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; right: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; max-height: 264px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); box-shadow: 0 12px 28px rgba(0, 0, 0, .45); }
+    .picker-menu { position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; right: 0; max-height: 264px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); box-shadow: 0 12px 28px rgba(0, 0, 0, .45); }
     /* The rows' text under the text of the menu's button. */
     .picker-menu .picker-row { padding-inline: 5px; }
     /* A target's hit points, on the right of its row and of its menu's button: the name gives way, they never do. */
@@ -130,7 +139,7 @@
     .picker-level[data-count]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     /* No use or slot left: the row fades, its uses turn yellow (red is for damage). */
     .picker-row[data-exhausted="true"] { opacity: .62; }
-    .picker-row-tags .tag-sep { margin: 0 4px; color: var(--dim); }
+    .picker-row-marks .tag-sep { margin: 0 4px; color: var(--dim); }
     /* The uses left, in one form everywhere: the number, on the right, what it counts in its tooltip. */
     .uses-badge, .component-uses { color: var(--text); font-weight: var(--obrt-weight-semibold); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .uses-badge[data-zero="true"] { color: var(--warn-text); }
@@ -141,7 +150,14 @@
     .picker-level[data-slots]::after { content: attr(data-slots); letter-spacing: 0; text-transform: none; font-weight: var(--obrt-weight-semibold); font-variant-numeric: tabular-nums; color: var(--muted); }
     .picker-level[data-slots-zero="true"]::after { color: var(--warn-text); }
     .picker-row-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .picker-row-tags { flex: 0 0 auto; color: var(--muted); font-size: var(--obrt-type-caption); }
+    /* After the name: the kind of attack, the cost from one left edge, the marks and the uses against the right. An empty
+       cell takes no room. */
+    .picker-row-range, .picker-row-cost, .picker-row-marks { flex: 0 0 auto; color: var(--muted); font-size: var(--obrt-type-secondary); white-space: nowrap; }
+    .picker-row-range:not(:empty), .picker-row-cost:not(:empty), .picker-row-marks:not(:empty) { padding-left: 10px; }
+    .picker-row-marks { justify-self: end; text-align: right; }
+    /* On the menu's button the cells only follow each other, and leave all the room they can to the name. */
+    .picker-dropdown-button .picker-row-range, .picker-dropdown-button .picker-row-cost, .picker-dropdown-button .picker-row-marks { padding-left: 0; }
+    .picker-dropdown-button > :empty:not(.picker-dropdown-caret) { display: none; }
     /* Action costs, as in Baldur's Gate 3: Azione green (circle), Azione bonus orange (triangle), Reazione purple
        (diamond), on the list rows, the feature's pill and the fixed row. */
     .cost-tag[data-cost] { font-weight: var(--obrt-weight-bold); white-space: nowrap; }
@@ -152,11 +168,14 @@
     .cost-tag[data-cost="bonus"]::before { width: 8px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
     .cost-tag[data-cost="reaction"] { color: var(--cost-reaction); }
     .cost-tag[data-cost="reaction"]::before { width: 6px; height: 6px; transform: rotate(45deg); }
-    .launch-tag.cost-tag[data-cost] { border-color: color-mix(in srgb, currentColor 45%, transparent); background: color-mix(in srgb, currentColor 12%, transparent); }
     /* Cantrips and spells: the slots left and the concentration in progress; a spell the console does not resolve. */
     .caster-state { display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; }
     /* A long text (Forma Selvatica's details) scrolls inside its card instead of covering the list above it. */
-    .launch { gap: 8px; overflow-y: auto; align-content: start; margin-inline: -3px; padding-inline: 3px; }
+    .launch { gap: var(--obrt-space-md); overflow-y: auto; align-content: start; padding: var(--obrt-space-lg) var(--obrt-space-xl); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
+    /* Its title: the entry chosen, and what its words refer to. */
+    .launch-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+    .launch-title { font-size: var(--obrt-type-card-title); font-weight: var(--obrt-weight-semibold); }
+    .launch-words { color: var(--muted); font-size: var(--obrt-type-secondary); }
     /* A feature's form (the character sheet's inputs): a label over its select or number. */
     .feature-field { display: grid; gap: 3px; }
     .feature-field-label { color: var(--muted); font-size: var(--obrt-type-secondary); }
@@ -173,6 +192,9 @@
     .spell-details summary::-webkit-details-marker { display: none; }
     .spell-details[open] summary { margin-bottom: 6px; }
     .spell-details, .spell-details-body { display: grid; gap: 6px; }
+    /* Closed, nothing to keep apart from its title. */
+    .spell-details:not([open]) { gap: 0; }
+    .spell-details > :not(summary) + :not(summary) { margin-top: 8px; }
     .spell-text { margin: 0; font-size: var(--obrt-type-secondary); line-height: 1.4; text-wrap: pretty; white-space: pre-line; }
     .spell-rules { font-size: var(--obrt-type-secondary); line-height: 1.4; }
     /* The turn moved on while an attack is in progress: the console waits for the GM (pcAttackTurnController.js). */
@@ -184,8 +206,6 @@
     .follow-bar[data-kind="off"] { flex: 0 1 auto; flex-wrap: nowrap; min-width: 0; padding: 0; border: 0; border-radius: 0; background: none; }
     .follow-bar.ready { border-color: rgba(96, 165, 250, .55); background: rgba(37, 99, 235, .22); color: var(--info-text); }
     .follow-bar .follow-ready { min-width: 0; min-height: var(--obrt-h-control-md); overflow: hidden; padding: 4px 12px; text-overflow: ellipsis; white-space: nowrap; }
-    .launch-meta { display: flex; flex-wrap: wrap; gap: 4px; }
-    .launch-tag { padding: 1px 7px; border: 1px solid var(--line); border-radius: var(--obrt-radius-pill); color: var(--muted); font-size: var(--obrt-type-caption); }
     .launch-details { margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); line-height: 1.35; text-wrap: pretty; }
     .launch-note { margin: 0; font-size: var(--obrt-type-secondary); line-height: 1.35; text-wrap: pretty; }
     .launch-note.warning { color: var(--warn-text); }
@@ -207,7 +227,7 @@
     .segmented button[aria-pressed="true"][data-outcome=critical] { color: var(--warn-text); background: rgba(161, 98, 7, .45); }
     /* One grid for every damage row (weapon, rider, added component): a lead column only with a checkbox or a remove, the
        name with its dice on the same line, the amount always in the same right column, which gives way when it is hidden. */
-    .component-list { display: grid; gap: 2px; }
+    .component-list { display: grid; gap: var(--obrt-space-xs); }
     .component-list:empty { display: none; }
     .component-row { display: grid; grid-template-columns: var(--lead) minmax(0, 1fr) 64px; column-gap: 6px; align-items: start; }
     .component-row:has(> .component-lead:empty) { grid-template-columns: minmax(0, 1fr) 64px; }
@@ -238,7 +258,7 @@
     .amount:focus, .field:focus { border-color: rgba(96, 165, 250, .7); }
     .amount:disabled { opacity: .45; }
     .inline-select { height: var(--obrt-hit-min); padding: 0 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); font-size: var(--obrt-type-secondary); }
-    .extras-section { display: grid; gap: 2px; margin-top: 2px; }
+    .extras-section { display: grid; gap: var(--obrt-space-xs); margin-top: var(--obrt-space-xs); }
     /* A section's title with its button on the right: one line, even when the section holds nothing else. */
     .section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--obrt-hit-min); }
     .section-head:not(:has(> :not([hidden]))) { display: none; }
@@ -262,10 +282,12 @@
     #pc-attack-attack-view[data-area="true"] > .card:not(.target-card) { display: contents; }
     #pc-attack-attack-view[data-area="true"] > .target-card { order: 3; }
     /* Its words are long: the whole width, with the Multiattack's under them. */
-    #pc-attack-form:has(#pc-attack-attack-view[data-area="true"]) .action-facts { padding-left: 0; }
+    #pc-attack-form:has(#pc-attack-attack-view[data-area="true"]) .action-facts, #pc-attack-form:has(#pc-attack-attack-view[data-area="true"]) .caster-state { padding-left: 0; }
     /* With nothing to title, «+ Danno extra» takes no line of its own: on the last damage row, before its amount. */
-    #pc-attack-attack-view[data-area="true"]:has(#pc-attack-damage:not(:empty)) #pc-attack-extras-section:has(#pc-attack-extras-caption[hidden]) { align-self: flex-end; margin-top: calc(-1 * (var(--obrt-space-md) + var(--obrt-hit-min))); margin-right: 70px; }
-    .area { display: grid; gap: 2px; }
+    #pc-attack-attack-view[data-area="true"]:has(#pc-attack-damage:not(:empty)) #pc-attack-extras-section:has(#pc-attack-extras-caption[hidden]) { align-self: flex-end; margin-top: calc(-1 * (var(--obrt-space-xl) + var(--obrt-hit-min))); margin-right: 70px; }
+    #pc-attack-attack-view:not([data-area="true"]):has(#pc-attack-damage:not(:empty)) #pc-attack-extras-section:has(#pc-attack-extras-caption[hidden]) { align-self: flex-end; margin-top: calc(-1 * (var(--obrt-space-md) + var(--obrt-hit-min))); margin-right: 70px; }
+    #pc-attack-attack-view:has(#pc-attack-extras-section:not([hidden])):has(#pc-attack-extras-caption[hidden]) #pc-attack-damage > .component-row:last-child > .component-body { padding-right: 78px; }
+    .area { display: grid; gap: var(--obrt-space-xs); }
     /* Beside their title, their text on the panel's right edge. */
     .area-tools { flex: 0 0 auto; display: flex; flex-wrap: wrap; justify-content: flex-end; margin-right: -5px; }
     .area-tool { min-height: var(--obrt-hit-min); padding: 0 5px; border: 0; border-radius: var(--obrt-radius-md); background: transparent; color: var(--info-text); font-size: var(--obrt-type-secondary); white-space: nowrap; cursor: pointer; }
@@ -275,7 +297,7 @@
     .mini-button:disabled { opacity: .45; cursor: default; }
     /* A table of its creatures, every row on the same columns: the tick, the name (the only thing that gives way), its hit
        points, its bonus to the save, its outcome, what it takes (its room kept: the outcomes do not move as the damage is typed). */
-    .area-list { display: grid; grid-template-columns: var(--lead) minmax(0, 1fr) auto auto auto minmax(26px, auto); align-items: center; gap: 2px 4px; }
+    .area-list { display: grid; grid-template-columns: var(--lead) minmax(0, 1fr) auto auto auto minmax(26px, auto); align-items: center; gap: var(--obrt-space-xs) 3px; }
     .area-row { display: contents; }
     .area-row .component-lead input { width: 15px; height: 15px; margin: 0; accent-color: var(--obrt-accent); cursor: pointer; }
     .area-row .segmented.mini button { padding: 0 4px; }
@@ -295,10 +317,11 @@
     .palm-title { font-weight: var(--obrt-weight-semibold); }
     .palm-row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
     /* Grapple and Shove: the contest's card in place of the attack form; the grapples in progress above it. */
-    .maneuver { display: grid; gap: 6px; }
+    .maneuver { display: grid; gap: var(--obrt-space-xl); }
     .maneuver[hidden] { display: none; }
     /* The title on its line, the note under it. */
-    .maneuver-head { display: grid; gap: 2px; padding-top: 4px; }
+    .maneuver-box { display: grid; gap: var(--obrt-space-md); padding: var(--obrt-space-lg) var(--obrt-space-xl); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
+    .maneuver-head { display: grid; gap: 2px; }
     .grapple { display: grid; gap: 4px; }
     .grapple[hidden] { display: none; }
     .grapple-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
@@ -320,14 +343,14 @@
     .defense-note { align-self: center; padding: 0 6px; color: var(--muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); }
     /* Total and Registra stay in view whatever the number of extras: outside the scrolling panel. So do the defenses, beside
        the button, under the total they explain. */
-    .apply-row { flex: 0 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px var(--obrt-space-sm); padding: 8px var(--obrt-space-xl); border-top: 1px solid var(--line); background: rgba(15, 23, 42, .32); }
+    .apply-row { flex: 0 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px var(--obrt-space-sm); padding: var(--obrt-space-lg) var(--obrt-space-xl); border-top: 1px solid var(--line); background: rgba(15, 23, 42, .32); }
     .apply-row[hidden] { display: none; }
     .apply-row .total { grid-column: 1; grid-row: 1; }
     .apply-row .defense-chips { grid-column: 1; grid-row: 2; }
     .apply-row .apply { grid-column: 2; grid-row: 1 / span 2; min-width: 96px; }
     /* No defense: the total in the middle of the row, beside the button. */
     .apply-row:has(> .defense-chips:empty) .total { grid-row: 1 / span 2; }
-    .reaction-row { flex: 0 0 auto; display: flex; align-items: center; padding: 6px var(--obrt-space-xl) 0; border-top: 1px solid var(--line); background: rgba(15, 23, 42, .32); color: var(--muted); font-size: var(--obrt-type-secondary); }
+    .reaction-row { flex: 0 0 auto; display: flex; align-items: center; padding: var(--obrt-space-md) var(--obrt-space-xl) 0; border-top: 1px solid var(--line); background: rgba(15, 23, 42, .32); color: var(--muted); font-size: var(--obrt-type-secondary); }
     .reaction-row[hidden] { display: none; }
     .reaction-row:not([hidden]) + .apply-row { border-top: 0; }
     .reaction-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
@@ -405,9 +428,11 @@
           </div>
           <p class="hint" id="pc-attack-maneuver-hint" hidden></p>
           <div class="segmented" id="pc-attack-maneuver-effects" role="group" aria-label="Effetto della spinta" hidden></div>
-          <div class="maneuver-head"><span class="caption">Prova contrapposta</span><span class="card-note" id="pc-attack-maneuver-contest"></span></div>
-          <div class="segmented" id="pc-attack-maneuver-outcomes" role="group" aria-label="Esito della prova contrapposta"></div>
-          <p class="launch-note" id="pc-attack-maneuver-note"></p>
+          <div class="maneuver-box">
+            <div class="maneuver-head"><span class="caption">Prova contrapposta</span><span class="card-note" id="pc-attack-maneuver-contest"></span></div>
+            <div class="segmented" id="pc-attack-maneuver-outcomes" role="group" aria-label="Esito della prova contrapposta"></div>
+            <p class="launch-note" id="pc-attack-maneuver-note"></p>
+          </div>
         </section>
         <div class="view" id="pc-attack-attack-view">
         <div class="form-row"><span class="form-label" id="pc-attack-mode-caption" hidden>Tiro</span><select class="target-select" id="pc-attack-mode" aria-label="Tiro" hidden></select></div>

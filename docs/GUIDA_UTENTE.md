@@ -487,8 +487,8 @@ azioni leggendarie, nella tab **Capacità** della scheda e della console.
 
 Al turno del mostro la console mostra:
 
-- gli **attacchi** con bonus al tiro, portata o gittata in metri nella riga
-  sotto il selettore («Mischia · +14 al tiro · portata 3 m»): si tirano i
+- gli **attacchi**: `Mischia` o `Distanza` sul selettore e, nella riga sotto,
+  bonus al tiro, portata o gittata in metri («+14 al tiro · portata 3 m»): si tirano i
   dadi al tavolo, si sceglie Colpito, Critico o Mancato e si inseriscono i
   danni, come per un PG;
 - le **azioni a tiro salvezza** (soffi, sguardi, Presenza terrificante): la
