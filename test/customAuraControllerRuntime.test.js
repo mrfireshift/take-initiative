@@ -139,12 +139,13 @@ const sdk = {
         const item = scene.items.find((entry) => entry.id === id);
         const x = Number(item?.position?.x) || 0;
         const y = Number(item?.position?.y) || 0;
+        const side = 100 * (Math.abs(Number(item?.scale?.x)) || 1);
         return {
           min: { x, y },
-          max: { x: x + 100, y: y + 100 },
-          center: { x: x + 50, y: y + 50 },
-          width: 100,
-          height: 100,
+          max: { x: x + side, y: y + side },
+          center: { x: x + side / 2, y: y + side / 2 },
+          width: side,
+          height: side,
         };
       },
     },
@@ -489,6 +490,22 @@ test("Custom Aura controller runtime: CHARACTER fuori iniziativa senza META entr
         .some((notice) => notice.timing === "enter")),
       "an owned membership mutation does not suppress its newly planned enter notice",
     );
+
+    // A token resized (by the stat block's size, or by hand): its aura starts from the new footprint at once, with no move.
+    const auraVisual = () => scene.items.find((item) => item.metadata?.[CUSTOM_AURA_META_KEY]).metadata[CUSTOM_AURA_META_KEY];
+    assert.equal(auraVisual().footprintWidthCells, 1);
+    await sdk.scene.items.updateItems(["source"], (drafts) => {
+      drafts[0].scale = { x: 3, y: 3 };
+    });
+    await wait(300);
+    assert.equal(auraVisual().footprintWidthCells, 2, "the outline follows the larger token");
+    assert.equal(scene.items.filter((item) => item.metadata?.[CUSTOM_AURA_META_KEY]).length, 1, "the old outline is gone with no other event");
+    await sdk.scene.items.updateItems(["source"], (drafts) => {
+      delete drafts[0].scale;
+    });
+    await wait(300);
+    assert.equal(auraVisual().footprintWidthCells, 1);
+    assert.equal(scene.items.filter((item) => item.metadata?.[CUSTOM_AURA_META_KEY]).length, 1);
 
     const disabledPill = aura();
     disabledPill.pills = disabledPill.pills.map((pill) => (

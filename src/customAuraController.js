@@ -549,6 +549,11 @@ async function reconcileCustomAuras({
     scheduleCustomAuraRecovery();
     return;
   }
+  // An outline replaced (a token resized, a new radius): the new one is in, and that write of ours made the snapshot
+  // stale before the old one went. One more pass deletes it; deleting adds nothing, so the passes end there.
+  if (auraVisualReconcile?.outcome === "stale" && Number(auraVisualReconcile.metrics?.addCalls) > 0) {
+    requestCustomAuraReconcile({ reason: "aura-visual-replaced" });
+  }
   const rearmedActivationIds = [...new Set(
     rearmedTriggerNotices
       .map((notice) => String(notice?.activationId || "").trim())

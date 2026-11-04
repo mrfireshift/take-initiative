@@ -447,12 +447,18 @@ preparazione al tavolo: basta importarne lo statblock.
      sugli omonimi non feriti. I PF dei personaggi e quelli condivisi non si
      toccano mai da qui;
    - **Rinomina il token** con il nome del mostro (solo il token aperto);
+   - **Dimensione del token**: la taglia dello statblock, sul token e sugli
+     omonimi, mai sui PG: Minuscola, Piccola e Media 1 casella, Grande 2×2,
+     Enorme 3×3, Mastodontica 4×4. La riga compare solo se un token
+     cambierebbe. Un token di misura pari va su un angolo della griglia, e lo
+     spostamento non consuma movimento. Come nome e ritratto, non entra nella
+     Cronologia;
    - **Leggendario** per un mostro con azioni leggendarie: accende la modalità
      del tracker, con i numeri dello statblock, sul token e sugli omonimi che
      non hanno già una modalità boss;
    - **Usa il ritratto di 5eTools** (spenta; serve l'indirizzo delle immagini
      nelle Opzioni).
-4. **Salva**: la scheda, poi nome, ritratto, PF e Leggendario. I token con lo
+4. **Salva**: la scheda, poi nome, ritratto, dimensione, PF e Leggendario. I token con lo
    stesso nome ricevono lo stesso statblock; i loro PF, condizioni e usi
    restano i loro.
 

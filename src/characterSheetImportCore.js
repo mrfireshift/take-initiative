@@ -15,6 +15,7 @@ import { normalizeSpeedMeters } from "./speedCheckCore.js";
 import { importedMonsterActions, importedMonsterHitPoints, isMonsterStatblock, monsterImportConditionName, monsterImportRef, monsterImportSource }
   from "./monsterStatblockImportCore.js";
 import { monsterLegendaryOf } from "./monsterLegendaryCore.js";
+import { normalizeMonsterSize } from "./tokenSizeCore.js";
 
 // In the order the import panel lists them.
 export const SHEET_IMPORT_SECTIONS = Object.freeze([
@@ -452,7 +453,16 @@ export function parseCharacterSheetImport(value) {
   return { error, name: text(data.name ?? data.nome).slice(0, 80), sections, unresolved,
     ...(monster ? { monster: { source: monsterImportSource(data), ...(monsterImportRef(data) ? { ref: monsterImportRef(data) } : {}),
       ...monsterDefensesOf(data), ...monsterSpeedsOf(data) },
-      hitPoints: importedMonsterHitPoints(data), legendary: monsterLegendaryOf(data) } : {}) };
+      hitPoints: importedMonsterHitPoints(data), legendary: monsterLegendaryOf(data), tokenSize: monsterTokenSizeOf(data, unresolved) } : {}) };
+}
+
+// A monster's size, for its token on the map: "large", "Grande" or "L". What it does not know is said, not guessed.
+function monsterTokenSizeOf(data, unresolved) {
+  const value = data.size ?? data.taglia ?? data.dimensione;
+  if (value === undefined || value === null || value === "") return null;
+  const size = normalizeMonsterSize(value);
+  if (!size) unresolved.push(`taglia «${text(value).slice(0, 40)}»`);
+  return size || null;
 }
 
 // A monster's conditions immunities and Evasion (fase 5, lotto 2): the plugin's condition names, in English or Italian

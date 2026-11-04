@@ -717,6 +717,8 @@ export function fiveToolsMonsterToStatblock(input, { pool = [], allow2024 = fals
     kind: "monster", source: "5etools", ref: `${input.name}|${input.source}`, name: monster.name,
     // Its token image in 5eTools' image mirror (fase 4, lotto 3): the path; the sheet adds the mirror's address.
     ...(portrait ? { portrait: { fiveTools: portrait } } : {}),
+    // Its size for the token on the map; of two ("Small or Medium", in the book's order) the first.
+    ...(SIZE_NAMES[asList(monster.size)[0]] ? { size: SIZE_NAMES[asList(monster.size)[0]].toLowerCase() } : {}),
     ...(armorClass ? { armorClass } : {}),
     ...spellcasting,
     ...(legendary ? { legendary } : {}),

@@ -78,6 +78,7 @@ import { createFiveToolsArchivePanel } from "./fiveToolsArchivePanel.js";
 import { monsterStatblockOf, monsterStatblockSectionsToClear, monsterStatblockTargets, sameMonsterStatblock } from "./monsterStatblockShareCore.js";
 import { setTokenDisplayName, statblockReplacesHitPoints, statblockTokenName } from "./tokenNameCore.js";
 import { setTokenPortrait } from "./tokenPortraitCore.js";
+import { MONSTER_TOKEN_SIZES, monsterTokenSizeText, planMonsterTokenSize } from "./tokenSizeCore.js";
 import { fiveToolsTokenUrl } from "./fiveToolsArchiveCore.js";
 import { monsterStatblockTextRecord, monsterStatblockTextRef } from "./monsterStatblockTextCore.js";
 import { createMonsterStatblockTextLoader } from "./monsterStatblockTextLoader.js";
@@ -3847,6 +3848,8 @@ let pendingMonsterHitPoints = null;
 let pendingMonsterName = "";
 // The monster's 5eTools portrait as the token's image, written after Salva (fase 4, lotto 3): { url, width, height } or null.
 let pendingMonsterPortrait = null;
+// The monster's size for its token on the map, written after Salva on it and its namesakes: a key of MONSTER_TOKEN_SIZES or "".
+let pendingMonsterTokenSize = "";
 // The monster's full stat block, kept in this browser after Salva (fase 4, lotto 4b): a record or null.
 let pendingMonsterText = null;
 // The tracker's Leggendario mode from the stat block, set after Salva (fase 4, lotto 5): { actions, resistances } or null.
@@ -3854,14 +3857,14 @@ let pendingMonsterLegendary = null;
 // The full stat blocks kept in this browser, each reference read once (monsterStatblockTextLoader.js).
 let monsterStatblockTextLoader = null;
 const statblockTextLoader = () => (monsterStatblockTextLoader ||= createMonsterStatblockTextLoader());
-// The import's two automatic steps, remembered in this browser: rename the token, set its hit points.
+// The import's automatic steps, remembered in this browser: rename the token, set its hit points, set its size.
 const STATBLOCK_IMPORT_PREFS_KEY = `${ID}/statblock-import-prefs`;
 function statblockImportPrefs() {
   try {
     const stored = JSON.parse(localStorage.getItem(STATBLOCK_IMPORT_PREFS_KEY) || "{}");
-    return { rename: stored.rename !== false, hitPoints: stored.hitPoints !== false };
+    return { rename: stored.rename !== false, hitPoints: stored.hitPoints !== false, tokenSize: stored.tokenSize !== false };
   } catch {
-    return { rename: true, hitPoints: true };
+    return { rename: true, hitPoints: true, tokenSize: true };
   }
 }
 function rememberStatblockImportPrefs(prefs) {
@@ -3931,6 +3934,7 @@ function readSheetImport() {
   pendingMonsterHitPoints = null;
   pendingMonsterName = "";
   pendingMonsterPortrait = null;
+  pendingMonsterTokenSize = "";
   pendingMonsterText = null;
   pendingMonsterLegendary = null;
   const text = $("sheetImportText").value;
@@ -4004,6 +4008,7 @@ async function readFiveToolsMonster(monster, { retried = false } = {}) {
   pendingMonsterHitPoints = null;
   pendingMonsterName = "";
   pendingMonsterPortrait = null;
+  pendingMonsterTokenSize = "";
   pendingMonsterText = null;
   pendingMonsterLegendary = null;
   const { pool } = fiveToolsCollection(allFiveToolsInputs());
@@ -4111,6 +4116,7 @@ function renderSheetImportResult(result, { summary = "", report = [], portrait =
   $("sheetImportSections").replaceChildren(...rows);
   if (result.hitPoints) void appendSheetImportHitPoints(result);
   if (portrait) void appendSheetImportPortrait(result, portrait);
+  if (result.monster && result.tokenSize) void appendSheetImportTokenSize(result);
   $("sheetImportSections").hidden = false;
   $("sheetImportApplyRow").hidden = false;
   const kind = result.monster ? "Statblock" : "Scheda";
@@ -4168,6 +4174,23 @@ async function appendSheetImportHitPoints(result) {
   if (namesakes.length) option("sheetImportHpNamesakes", "Anche agli altri token con lo stesso nome (mai a quelli feriti)", true);
   const unresolved = $("sheetImportSections").querySelector(".sheet-import-unresolved");
   for (const node of [row, ...options]) $("sheetImportSections").insertBefore(node, unresolved);
+}
+
+// The monster's size on the map: offered only when a token would change, on it and on its namesakes, after Salva.
+async function appendSheetImportTokenSize(result) {
+  const items = await OBR.scene.items.getItems().catch(() => []);
+  if (sheetImportResult !== result) return;
+  const cells = MONSTER_TOKEN_SIZES[result.tokenSize].cells;
+  if (!planMonsterTokenSize({ items, sourceId: item?.id, cells }).targetIds.length) return;
+  const label = document.createElement("label");
+  label.className = "sheet-import-hp-option sheet-import-token-size";
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.checked = statblockImportPrefs().tokenSize;
+  box.dataset.sheetImportTokenSize = result.tokenSize;
+  label.append(box, document.createTextNode(`Dimensione del token: ${monsterTokenSizeText(result.tokenSize)} (anche agli omonimi)`));
+  const rename = $("sheetImportSections").querySelector(".sheet-import-rename");
+  $("sheetImportSections").insertBefore(label, rename?.nextSibling || $("sheetImportSections").querySelector(".sheet-import-report, .sheet-import-unresolved"));
 }
 
 // The monster's portrait from 5eTools' images (fase 4, lotto 3): offered only once the file has loaded (its size keeps
@@ -4358,13 +4381,17 @@ function applySheetImport() {
   pendingMonsterPortrait = portraitBox?.checked ? { url: portraitBox.dataset.sheetImportPortrait,
     width: Number(portraitBox.dataset.width), height: Number(portraitBox.dataset.height) } : null;
   if (pendingMonsterPortrait) chosen.push("portrait");
+  const tokenSizeBox = $("sheetImportSections").querySelector("[data-sheet-import-token-size]");
+  pendingMonsterTokenSize = tokenSizeBox?.checked ? tokenSizeBox.dataset.sheetImportTokenSize : "";
+  if (pendingMonsterTokenSize) chosen.push("tokenSize");
   pendingMonsterText = sheetImportResult.monster && sheetImportResult.statblockText ? sheetImportResult.statblockText : null;
   pendingMonsterLegendary = $("sheetImportSections").querySelector("[data-sheet-import-legendary]")?.checked ? sheetImportResult.legendary : null;
   if (pendingMonsterLegendary) chosen.push("legendary");
   if (pendingMonsterText) chosen.push("statblockText");
   if (sheetImportResult.monster) {
     rememberStatblockImportPrefs({ rename: renameBox ? renameBox.checked : statblockImportPrefs().rename,
-      hitPoints: hpBox ? hpBox.checked : statblockImportPrefs().hitPoints });
+      hitPoints: hpBox ? hpBox.checked : statblockImportPrefs().hitPoints,
+      tokenSize: tokenSizeBox ? tokenSizeBox.checked : statblockImportPrefs().tokenSize });
   }
   // A monster's block marks the card as a monster's (its source), whatever sections were applied.
   if (sheetImportResult.monster) {
@@ -4373,7 +4400,7 @@ function applySheetImport() {
     draftMonsterProfile = sanitizeMonsterProfile({ ...kept, ...sheetImportResult.monster });
   }
   const labelsById = new Map([...SHEET_IMPORT_SECTIONS.map((section) => [section.id, section.label]), ["hitPoints", "Punti ferita (dopo Salva)"],
-    ["name", "Nome del token (dopo Salva)"], ["portrait", "Ritratto del token (dopo Salva)"],
+    ["name", "Nome del token (dopo Salva)"], ["portrait", "Ritratto del token (dopo Salva)"], ["tokenSize", "Dimensione del token (dopo Salva)"],
     ["statblockText", "Testo dello statblock (dopo Salva)"], ["legendary", "Leggendario (dopo Salva)"]]);
   setSheetImportStatus(
     `Compilato: ${chosen.map((id) => labelsById.get(id)).join(", ")}. Controlla le schede e premi Salva.`,
@@ -4975,6 +5002,7 @@ function setEditing(active) {
   pendingMonsterHitPoints = null;
   pendingMonsterName = "";
   pendingMonsterPortrait = null;
+  pendingMonsterTokenSize = "";
   pendingMonsterText = null;
   pendingMonsterLegendary = null;
   fiveToolsInputs = [];
@@ -5328,6 +5356,21 @@ $("form").addEventListener("submit", async (event) => {
       }
       if (!sceneLifecycle.isCurrent(operation)) return;
     }
+    // The monster's size on the map: after the name, so its namesakes are those of the new name, as the shared stat block's.
+    const tokenSize = pendingMonsterTokenSize;
+    pendingMonsterTokenSize = "";
+    let tokenSizeStatus = "";
+    if (tokenSize) {
+      try {
+        const { applyMonsterTokenSize } = await import("./monsterTokenSize.js");
+        const resized = await applyMonsterTokenSize({ sourceId: item.id, cells: MONSTER_TOKEN_SIZES[tokenSize].cells,
+          isCurrent: () => sceneLifecycle.isCurrent(operation) });
+        if (resized) tokenSizeStatus = `Dimensione del token: ${monsterTokenSizeText(tokenSize)}${resized > 1 ? ` su ${resized} token` : ""}.`;
+      } catch (error) {
+        tokenSizeStatus = `Dimensione del token non cambiata: ${error?.message || error}.`;
+      }
+      if (!sceneLifecycle.isCurrent(operation)) return;
+    }
     // A monster's hit points from its stat block: after the card, as their own command (History, Undo).
     const hitPoints = pendingMonsterHitPoints;
     pendingMonsterHitPoints = null;
@@ -5373,7 +5416,7 @@ $("form").addEventListener("submit", async (event) => {
     if (!sceneLifecycle.isCurrent(operation)) return;
     renderView();
     setEditing(false);
-    const savedStatus = [nameStatus, portraitStatus, hitPointsStatus, legendaryStatus, shareStatus, statblockTextStatus].filter(Boolean).join(" ");
+    const savedStatus = [nameStatus, portraitStatus, tokenSizeStatus, hitPointsStatus, legendaryStatus, shareStatus, statblockTextStatus].filter(Boolean).join(" ");
     if (savedStatus) $("status").textContent = savedStatus;
   } catch (err) {
     $("status").textContent = err?.message || "Salvataggio non riuscito";

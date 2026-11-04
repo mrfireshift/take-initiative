@@ -312,7 +312,8 @@ function markPluginTokenChange(flags, before, after, lifecycleChange) {
   flags.visibility ||= visibilityChanged;
   // Scaled by the GM (lot L20): the map HP bar is measured again on the token's new size. Its rotation is not here:
   // the bar never turns with the token.
-  flags.tokenScale ||= !lifecycleChange && tokenScaleSignature(before?.item) !== tokenScaleSignature(after?.item);
+  const tokenScaleChanged = !lifecycleChange && tokenScaleSignature(before?.item) !== tokenScaleSignature(after?.item);
+  flags.tokenScale ||= tokenScaleChanged;
   flags.hpBars ||= hpChanged || attitudeChanged || visibilityChanged;
   flags.attitude ||= attitudeChanged;
   flags.hpMemory ||= nameChanged || imageChanged || attitudeChanged;
@@ -349,13 +350,15 @@ function markPluginTokenChange(flags, before, after, lifecycleChange) {
   flags.aura ||= lifecycleChange
     || visibilityChanged
     || movementChanged
+    || tokenScaleChanged
     || spellsChanged
     || concentrationChanged
     || attitudeChanged
     || conditionsChanged
     || changedKeys.has("classFeatureState")
     || changedKeys.has("customAuras");
-  flags.zone ||= lifecycleChange || movementChanged || spellsChanged || concentrationChanged || attitudeChanged || conditionsChanged;
+  // A token resized: its auras start from its new footprint, and that footprint may be inside a zone now.
+  flags.zone ||= lifecycleChange || movementChanged || tokenScaleChanged || spellsChanged || concentrationChanged || attitudeChanged || conditionsChanged;
   flags.preparedSpells ||= lifecycleChange || movementChanged || spellsChanged || concentrationChanged;
   flags.elevation ||= lifecycleChange
     || before?.geometrySignature !== after?.geometrySignature

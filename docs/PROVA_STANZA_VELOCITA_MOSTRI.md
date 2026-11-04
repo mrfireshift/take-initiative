@@ -1,6 +1,6 @@
-# Prova in stanza: velocità dei mostri
+# Prova in stanza: velocità dei mostri e dimensione del token
 
-Controlli a mano del [piano velocità dei mostri](PIANO_VELOCITA_MOSTRI.md), prima del bundle di produzione. Ogni controllo del tracker va fatto **in vista estesa e in vista compatta**.
+Controlli a mano del [piano velocità dei mostri](PIANO_VELOCITA_MOSTRI.md) e della [dimensione del token](GUIDA_UTENTE.md#console-attacchi-per-i-mostri), prima del bundle di produzione. Ogni controllo del tracker va fatto **in vista estesa e in vista compatta**.
 
 Il banco non può provare due cose, che qui contano più delle altre:
 
@@ -68,6 +68,21 @@ Tieni le due finestre affiancate.
 - [ ] **Fine combattimento:** con **Svuota iniziativa** spariscono i contatori. Nel combattimento dopo il drago riparte a piedi.
 
 Facoltativo, se vuoi un numero sul turno: `await __tbpPerf.runFluidityCheck()`, come in [Prova in stanza: fluidità](PROVA_STANZA_FLUIDITA.md).
+
+## 7. Dimensione del token
+
+Il banco non disegna i token e non ha una griglia vera: qui conta guardarli sulla mappa.
+
+- [ ] **Grande:** importa un mostro Grande su un nemico da una casella. La scheda offre **Dimensione del token: Grande, 2×2 caselle**, spuntata. Dopo **Salva** il token occupa 2×2 caselle esatte, allineato alla griglia.
+- [ ] **Omonimi:** con due token dello stesso nome e senza rinominarli, cambiano entrambi. Un PG con lo stesso nome resta com'è.
+- [ ] **Enorme e Mastodontica:** 3×3 e 4×4, allineati alla griglia, anche partendo da un token già ridimensionato.
+- [ ] **Medio su un token da una casella:** la riga non compare.
+- [ ] **Immagine vera:** con un token dal bordo trasparente o non quadrato, l'aspetto resta accettabile. Vale anche dopo **Usa il ritratto di 5eTools**.
+- [ ] **Barre ed etichette:** barra dei PF, numero, etichette delle condizioni e del turno seguono la nuova misura, anche senza muovere il token.
+- [ ] **Aura:** su un mostro con un'aura (per esempio un boss), il contorno si ridisegna subito dalla nuova misura, una volta sola, e chi ne entra o ne esce riceve i suoi effetti.
+- [ ] **Zona:** un token che cresce e tocca una zona entra nella zona senza bisogno di muoverlo.
+- [ ] **Nel suo turno:** importa durante il turno del mostro. Il movimento consumato non cambia e **Movimento esaurito** non compare.
+- [ ] **Tavolo:** sulla finestra dei giocatori il token visibile cambia misura come sul GM.
 
 ## Esito
 

@@ -121,7 +121,9 @@ Un blocco è uno statblock quando ha `"kind": "monster"` oppure una lista
 personaggio; in più `speeds` (le velocità oltre la camminata, in piedi o in
 metri come `speed`: `{ "fly": "80 ft", "swim": "40 ft", "climb": "20 ft",
 "burrow": "10 ft" }`, con `"hover": true` se vola stazionario; vale anche uno
-`speed` a oggetto, `{ "walk": "40 ft", "fly": "80 ft" }`), `conditionImmunities` (le condizioni a cui il mostro è
+`speed` a oggetto, `{ "walk": "40 ft", "fly": "80 ft" }`), `size` (la taglia,
+in inglese o in italiano: `"large"`, `"Grande"`; propone la [dimensione del
+token](GUIDA_UTENTE.md#console-attacchi-per-i-mostri)), `conditionImmunities` (le condizioni a cui il mostro è
 immune, in inglese o in italiano: la console lo segna «Immune») ed
 `"evasion": true` (il tratto Elusione). Le distanze sono in piedi come negli statblock (`10`,
 `"10 ft"`) oppure in metri (`"3 m"`). Le velocità di `speeds` compaiono nel
@@ -132,6 +134,7 @@ riquadro **Altre velocità** della scheda e diventano le modalità del
 {
   "kind": "monster",
   "name": "Drago rosso adulto",
+  "size": "huge",
   "armorClass": 19,
   "hitPoints": { "average": 256, "formula": "19d12+133" },
   "speed": "40 ft",
@@ -426,7 +429,8 @@ Allega lo statblock (testo, immagine o PDF) e incolla:
 Leggi lo statblock di D&D 5e allegato e restituisci SOLO un oggetto JSON,
 senza commenti né testo intorno, con queste chiavi (ometti quelle assenti):
 
-kind: "monster"; name; armorClass; hitPoints: { average, formula };
+kind: "monster"; name; size: la taglia in inglese (tiny, small, medium, large,
+huge o gargantuan; di due la prima); armorClass; hitPoints: { average, formula };
 speed in piedi ("40 ft"); speeds: le altre velocità, { fly, swim, climb, burrow }
 in piedi, con hover: true se vola stazionario; abilities: punteggi con chiavi str dex con int
 wis cha; savingThrows: bonus totali con le stesse chiavi; damageDefenses:
