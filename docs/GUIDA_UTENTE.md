@@ -441,7 +441,7 @@ plugin chiede conferma prima di lanciare.
 
 ### Console attacchi fuori turno
 
-Quando sulla mappa è selezionata un'altra creatura, la console attacchi offre **⇄ Agisci con…**: la console passa a quella creatura per un'azione fuori turno (un attacco di opportunità, una reazione). L'intestazione dice **Fuori turno**. Un attacco fuori turno propone la casella **Usa la reazione (attacco di opportunità)**, spenta finché non la spunti; se la reazione è già usata nel round la console lo dice e l'attacco non la segna. Se la creatura della console torna al proprio turno con un attacco già scelto, la casella si spegne di nuovo. Gli esiti di un attacco ad area non ancora registrati vengono chiesti prima di cambiare creatura.
+Quando sulla mappa è selezionata un'altra creatura, sotto l'intestazione della console attacchi compare **⇄ Agisci con…**: la console passa a quella creatura per un'azione fuori turno (un attacco di opportunità, una reazione). L'intestazione dice **Fuori turno** e, sulla stessa riga di **⇄ Agisci con…**, **⇄ Torna a…** riporta alla creatura di turno; se la creatura selezionata è proprio quella, il pulsante è uno solo. Un nome troppo lungo si taglia sul pulsante, e il suggerimento lo scrive intero. Un attacco fuori turno propone la casella **Usa la reazione (attacco di opportunità)**, già spuntata: togli la spunta se l'attacco non usa la reazione; se la reazione è già usata nel round la console lo dice e l'attacco non la segna. Se la console era già sulla creatura durante il suo turno e il turno passa, la casella parte spenta. Gli esiti di un attacco ad area non ancora registrati vengono chiesti prima di cambiare creatura.
 
 ### Console attacchi per i mostri
 
@@ -488,8 +488,8 @@ azioni leggendarie, nella tab **Capacità** della scheda e della console.
 
 Al turno del mostro la console mostra:
 
-- gli **attacchi** con bonus al tiro, portata o gittata in metri nel
-  sottotitolo («Morso · Mischia · +14 al tiro · portata 3 m»): si tirano i
+- gli **attacchi** con bonus al tiro, portata o gittata in metri nella riga
+  sotto il selettore («Mischia · +14 al tiro · portata 3 m»): si tirano i
   dadi al tavolo, si sceglie Colpito, Critico o Mancato e si inseriscono i
   danni, come per un PG;
 - le **azioni a tiro salvezza** (soffi, sguardi, Presenza terrificante): la
@@ -507,7 +507,7 @@ Al turno del mostro la console mostra:
   ghoul, la presa del coccodrillo): su Colpito o Critico, il riquadro **Effetto
   del colpo** chiede l'esito del TS del bersaglio e il suo danno, applica le
   condizioni, «Afferrato» con la CD di fuga e Prono; la spinta si fa a mano;
-- **Ricarica 5–6**: dopo l'uso il sottotitolo scrive «usata»; non blocca mai,
+- **Ricarica 5–6**: dopo l'uso la riga sotto il selettore scrive «usata»; non blocca mai,
   se al tavolo la ricarica esce, si usa di nuovo;
 - **usi al giorno** («2/3 al giorno»): finiti gli usi l'azione è bloccata;
   tornano con il riposo lungo;
@@ -533,11 +533,12 @@ mostro contro un altro mostro. Nei danni degli incantesimi ad area il
 dimezzamento resta al GM. Un mostro importato prima di questa versione riceve
 queste difese reimportandolo.
 
-Nell'intestazione della console le pillole **PG** e **Mostri** (gruppo «Ogni
-turno», solo questo browser) aprono la console da sola al turno di un
-personaggio o alleato e, rispettivamente, di un mostro; ai boss si apre la
-console Boss. Finché non tocchi **Mostri**, vale come **PG**. Le stesse
-caselle sono nel pannello Opzioni, sezione **Console attacchi**.
+Nel menu **⋯** dell'intestazione della console, **Apri da sola a ogni turno**
+(solo questo browser) ha due caselle: **Personaggi e alleati** apre la console
+al turno di un personaggio o alleato, **Mostri** a quello di un mostro; ai boss
+si apre la console Boss. Finché non tocchi **Mostri**, vale come **Personaggi e
+alleati**. Le stesse caselle sono nel pannello Opzioni, sezione **Console
+attacchi**.
 
 La scheda di un mostro resta sul token e nella memoria di questo browser, che
 la ritrova per nome su un nuovo token; non occupa la memoria condivisa della

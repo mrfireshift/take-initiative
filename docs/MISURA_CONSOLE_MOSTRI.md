@@ -50,14 +50,14 @@ Dopo la preparazione, la sessione si fa da sola:
 Il tool:
 
 - salva le dimensioni dei metadata in `perf-runs/gm-mostri-dimensioni.json`;
-- per ogni blocco della tabella sotto imposta le pillole, chiude le console,
+- per ogni blocco della tabella sotto imposta le due caselle del menu ⋯, chiude le console,
   azzera il probe e manda **10 turni avanti** con la scorciatoia del tracker
   (lo stesso «→» del GM, con tutti i suoi controlli: non scrive mai lo stato
   dell'iniziativa); dopo ogni turno aspetta il suo tick (al massimo 15 s) e
   altri 3 s perché le console si aprano;
 - salva l'export di ogni blocco in `perf-runs/` (un file esistente non viene
   mai sovrascritto: il nuovo prende `-2`, `-3`…);
-- alla fine rimette le pillole come erano, anche se la sessione si ferma o
+- alla fine rimette le caselle come erano, anche se la sessione si ferma o
   fallisce, e stampa una tabella e il comando di confronto.
 
 Dura pochi minuti (circa 3 con i valori predefiniti). Va fatta su una scena di prova: 30 turni avanti fanno
@@ -73,11 +73,11 @@ Prima di ogni blocco, nel contesto **background.html**:
 nessuna chiusura): si apre e si sposta da sola. Il cambio turno è solo
 **avanti** (Spazio o →): i turni all'indietro non producono tick.
 
-| Blocco | Pillole della console | Turni | File |
+| Blocco | Caselle del menu ⋯ della console | Turni | File |
 | --- | --- | --- | --- |
 | Dimensioni | — | — | `perf-runs/gm-mostri-dimensioni.json` |
-| A | **PG** acceso, **Mostri** spento | 10 avanti | `perf-runs/gm-mostri-pg.json` |
-| B | **PG** e **Mostri** accesi | 10 avanti | `perf-runs/gm-mostri-entrambi.json` |
+| A | **Personaggi e alleati** acceso, **Mostri** spento | 10 avanti | `perf-runs/gm-mostri-pg.json` |
+| B | **Personaggi e alleati** e **Mostri** accesi | 10 avanti | `perf-runs/gm-mostri-entrambi.json` |
 | C | entrambi spenti | 10 avanti | `perf-runs/gm-mostri-spenti.json` |
 
 - **Dimensioni**, prima del blocco A:

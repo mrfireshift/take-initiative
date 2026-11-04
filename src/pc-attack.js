@@ -271,6 +271,19 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // A click elsewhere closes it.
   documentRef.addEventListener?.("click",event=>{if(menuOpen && !event.target?.closest?.("#pc-attack-picker-dropdown"))setMenuOpen(false);});
   const autoOpenRow=$("pc-attack-auto-open-row"),autoOpenBox=$("pc-attack-auto-open"),autoOpenMonstersBox=$("pc-attack-auto-open-monsters");
+  // The header's ⋯: the console's own options, the turn auto-open. A click elsewhere or Esc closes it.
+  const moreButton=$("pc-attack-more"),moreMenu=$("pc-attack-more-menu");
+  const moreOpen=()=>!!moreMenu && !moreMenu.hidden;
+  function setMoreOpen(open,{focus=false}={}) {
+    if(!moreMenu) return;
+    moreMenu.hidden=!open;
+    moreButton?.setAttribute("aria-expanded",String(!!open));
+    if(open) moreMenu.querySelector("input")?.focus?.();
+    else if(focus) moreButton?.focus?.();
+  }
+  setMoreOpen(false);
+  moreButton?.addEventListener("click",()=>setMoreOpen(!moreOpen()));
+  documentRef.addEventListener?.("click",event=>{if(moreOpen() && !event.target?.closest?.("#pc-attack-more-menu, #pc-attack-more"))setMoreOpen(false);});
   const attackView=$("pc-attack-attack-view"),launchBox=$("pc-attack-launch"),casterLine=$("pc-attack-caster");
   // A monster's card: its Multiattack over the Attacchi tab, its action's note (what the console does not automate).
   const multiattackLine=$("pc-attack-multiattack"),monsterNote=$("pc-attack-monster-note");
@@ -993,6 +1006,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // The picker (pcAttackPickerCore.js): the actor's weapon attacks, cantrips and attack spells. With one entry it
   // hides; when it shows, the cantrip or spell select below gives way to it (its notes and slot controls stay).
   const pickerShown=()=>!!picker && !picker.hidden;
+  // Whether the picker writes the entry's name: the line under it then leaves it out (renderPicker).
+  let pickerNamesEntry=false;
   // The casting time at a glance: azione, azione bonus, reazione, or the time itself (1 minuto, 10 minuti…); "" until
   // the reference is loaded.
   function castingTimeLabel(spellId) {
@@ -1027,10 +1042,13 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const entries=presentation?.picker || [];
     const current=currentEntry();
     picker.hidden=entries.length<2 || !current;
+    pickerNamesEntry=false;
     if(picker.hidden){pickerSignature="";return;}
     const tabs=pcAttackPickerTabs(entries),inTab=entries.filter(entry=>entry.tab===current.tab);
     // The spells and features tabs are lists (by level, by group); the other tabs keep the select.
     const asList=["spells","features"].includes(current.tab) && !!pickerList;
+    // A row or the menu's button names the entry; a tab with a single entry has neither.
+    pickerNamesEntry=asList || inTab.length>=2;
     // A leveled spell cast left open (rays or darts still to register) says so in its entry.
     const inProgress=entry=>entry.mode==="attack" && entry.tab==="spells"
       && !!pcAttackOpenSpellCast({sourceItem:presentation.item,spellId:entry.spellId,turnState:presentation.turnState});
@@ -1471,7 +1489,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!maneuverDraft.targetId) maneuverDraft.targetId=(draft?.targetId && targetById(draft.targetId)?draft.targetId:"")
       || (selection.status==="single" && targetById(selection.target?.id)?selection.target.id:"");
     $("pc-attack-title").textContent=actorName();
-    $("pc-attack-subtitle").textContent=`${entry.label} · Attacco speciale in mischia`;
+    $("pc-attack-subtitle").textContent=`${pickerNamesEntry?"":`${entry.label} · `}Attacco speciale in mischia`;
     // Rebuilt only when what it shows changes: a live update never eats a click in flight or closes the open select.
     const signature=JSON.stringify([kind,presentation.targets.map(item=>[item.id,bossTargetLabel(item)]),maneuverDraft.targetId,maneuverDraft.outcome,
       maneuverDraft.effect,selection.status,busy,invalidated]);
@@ -1585,7 +1603,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const level=entry?.level;
     const isFeature=entry?.mode==="activate" || entry?.mode==="reference";
     $("pc-attack-title").textContent=actorName();
-    $("pc-attack-subtitle").textContent=!entry?"":[plainLabel(entry.label),
+    // The picker's row names it and its group says what it is; otherwise this line does.
+    $("pc-attack-subtitle").textContent=!entry || pickerNamesEntry?"":[plainLabel(entry.label),
       ...(isFeature?[entry.species?"Tratto di specie":"Capacità di classe"]:[level===0?"Trucchetto":`Incantesimo di ${level}° livello`])].filter(Boolean).join(" · ");
     const others=concentrationNames().filter(name=>name.toLocaleLowerCase("it")!==String(entry?.label || "").toLocaleLowerCase("it"));
     const meta=presentation?.item?.metadata?.[META_KEY] || {};
@@ -1667,7 +1686,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function renderMonsterTrait(entry) {
     $("pc-attack-title").textContent=actorName();
     const kind={"monster-trait":"Tratto","monster-reaction":"Reazione","monster-legendary":"Azione leggendaria"}[entry.group] || "";
-    $("pc-attack-subtitle").textContent=[plainLabel(entry.label),kind].filter(Boolean).join(" · ");
+    $("pc-attack-subtitle").textContent=pickerNamesEntry?"":[plainLabel(entry.label),kind].filter(Boolean).join(" · ");
     if(applyRow) applyRow.hidden=true;
     apply.hidden=true;
     if(launchButton) launchButton.hidden=true;
@@ -1730,28 +1749,26 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       if(result?.ok) rememberEntry(entry.key);
     } finally {launchBusy=false;renderLaunch();}
   }
-  // The title is who acts (D3 of the console's audit); what it does goes in the subtitle, without the catalog's emoji.
+  // The title is who acts (D3 of the console's audit); what it does is in the picker, its details in the line under it.
   const actorName=()=>presentation?.item?.name || presentation?.item?.id || "Attacco";
   const plainLabel=text=>String(text || "").replace(/^[\p{Extended_Pictographic}️‍\s]+/u,"").trim();
-  // Whose turn it is, beside the actor's name: its own, or another's (an off-turn action); nothing out of combat.
+  // Beside the actor's name, when it acts on another's turn: its own turn is the normal case, and needs no word.
   const turnBadge=$("pc-attack-turn");
   function renderTurnBadge() {
     if(!turnBadge) return;
     const order=Array.isArray(presentation?.turnState?.order)?presentation.turnState.order.filter(Boolean):[];
-    turnBadge.hidden=!presentation || !order.length;
-    if(turnBadge.hidden) return;
-    const off=isOffTurn(presentation.turnState,sourceId);
-    turnBadge.dataset.turn=off?"off":"own";
-    turnBadge.textContent=off?"Fuori turno":"Turno";
+    turnBadge.hidden=!presentation || !order.length || !isOffTurn(presentation.turnState,sourceId);
+    if(!turnBadge.hidden) turnBadge.textContent="Fuori turno";
   }
   function renderHeader() {
     const action=presentation?.action,attack=resolved();
     $("pc-attack-title").textContent=actorName();
-    // The subtitle names the cantrip or spell chosen, not the action that records it.
+    // The line under the picker: never the name it already shows. When it shows none, the cantrip or spell chosen, not the
+    // action that records it.
     const named=attack?.cantrip?.name || attack?.spell?.name || "";
     // A saving throw cantrip names its save (and the actor's DC) instead of a range.
     const saveLabel=pcAttackSaveLabel(attack,presentation?.item?.metadata?.[META_KEY]?.initiativeCard);
-    const parts=[named || action?.label,...(attack?.cantrip?["Trucchetto"]:[]),...(attack?.spell?[`Incantesimo di ${attack.spell.level}° livello`]:[]),
+    const parts=[...(pickerNamesEntry?[]:[named || action?.label]),...(attack?.cantrip?["Trucchetto"]:[]),...(attack?.spell?[`Incantesimo di ${attack.spell.level}° livello`]:[]),
       saveLabel || (attack?.spell?.delivery==="auto"?"Senza tiro per colpire":RANGE_LABELS[attack?.range]) || "",
       // A monster's attack: its bonus, reach or range, recharge and uses, as its stat block prints them; the uses left and a
       // recharge already used from the actor's resources.
@@ -2440,10 +2457,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // decisions (an outcome, an amount, an extra, a cast in flight) waits for the GM.
   function followTurn(next,name="") {
     if(invalidated) return;
-    if(next===sourceId){pendingFollow=null;pendingReady=false;renderFollow();return;}
+    if(next===sourceId){pendingFollow=null;pendingReady=false;renderFollow();renderUseSelected();return;}
     const held=!!(palmDraft.outcome || maneuverDraft.outcome || (draft && draftLocked(draft)));
     // afterLoad: only a load was running (no decision, no registration): the console follows once it ends.
-    if(busy || launchBusy || held){pendingFollow={sourceId:next,name,...(busy && !committing && !launchBusy && !held?{afterLoad:true}:{})};pendingReady=false;renderFollow();return;}
+    if(busy || launchBusy || held){pendingFollow={sourceId:next,name,...(busy && !committing && !launchBusy && !held?{afterLoad:true}:{})};pendingReady=false;renderFollow();renderUseSelected();return;}
     if(!next){closeConsole();return;}
     switchActor(next,name);
   }
@@ -2473,11 +2490,13 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const signature=JSON.stringify(["away",away.id,away.name,busy,launchBusy]);
       if(signature===followSignature) return;
       followSignature=signature;
-      const back=node("button",away.name?`Torna a ${away.name}`:"Torna al turno","small");back.type="button";
+      const back=node("button",away.name?`⇄ Torna a ${away.name}`:"⇄ Torna al turno","small");back.type="button";
+      back.title=`Fuori turno${away.name?`: è il turno di ${away.name}`:""}`;
       back.disabled=busy || launchBusy;
       back.addEventListener("click",()=>{if(!busy && !launchBusy && leaveDraft())switchActor(away.id,away.name);});
       followBar.dataset.kind="off";
-      followBar.replaceChildren(node("span",`Fuori turno${away.name?`: è il turno di ${away.name}`:""}.`),back);
+      followBar.classList?.remove?.("ready");
+      followBar.replaceChildren(back);
       return;
     }
     const {sourceId:next,name}=pendingFollow;
@@ -2500,7 +2519,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function renderUseSelected() {
     if(!useSelectedButton) return;
     const target=selection.status==="single"?selection.target:null;
-    const show=!!presentation && !!target && target.id!==sourceId && hasEntries(target);
+    // One button for one destination: not when the bar's own already leads to the creature selected.
+    const show=!!presentation && !!target && target.id!==sourceId && hasEntries(target)
+      && (pendingFollow?pendingFollow.sourceId:turnActor()?.id)!==target.id;
     useSelectedButton.hidden=!show;
     if(useSelectedRow) useSelectedRow.hidden=!show;
     if(!show) return;
@@ -2519,6 +2540,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   documentRef.addEventListener?.("keydown",event=>{
     // Esc closes the console, after asking when an attack holds decisions not registered yet.
     if(event.key==="Escape" && menuOpen){setMenuOpen(false,{focus:true});return;}
+    if(event.key==="Escape" && moreOpen()){setMoreOpen(false,{focus:true});return;}
     if(event.key==="Escape"){
       if(busy) return;
       if(((draft && draftLocked(draft)) || palmDraft.outcome || maneuverDraft.outcome) && !confirmSwitch("Chiudere la console? Le scelte non registrate andranno perse.")) return;
