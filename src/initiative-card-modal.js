@@ -20,7 +20,7 @@ import {
   getQuickActionSpellOptions,
 } from "./spells-srd.js";
 import { getSpellsFromItem } from "./spells.js";
-import { DAMAGE_TYPES, DAMAGE_DEFENSES_FIELD, sanitizeDamageDefenses, damageDefenseFor, damageDefenseTag, hasDamageDefenses, profileDamageDefenses } from "./damageDefensesCore.js";
+import { DAMAGE_TYPES, DAMAGE_DEFENSES_FIELD, sanitizeDamageDefenses, damageDefenseFor, damageDefenseTag, hasDamageDefenses, markNonmagicalDefenses, profileDamageDefenses } from "./damageDefensesCore.js";
 import {
   SPECIES, SPECIES_FIELD, SUPERNATURAL_GIFTS, SUPERNATURAL_GIFT_FIELD, getSpecies, sanitizeSpecies, sanitizeSupernaturalGift,
   SPECIES_SPELL_ABILITY_FIELD, sanitizeSpeciesSpellAbility, speciesHasSpellAbilityChoice,
@@ -4904,10 +4904,10 @@ function buildAbilityModifierInputs() {
 // Actor Profile damage defenses: read by Boss Actions per damage type.
 function renderDamageDefenses() {
   const defenses = profileDamageDefenses(profile);
-  const tags = DAMAGE_TYPES
+  const tags = markNonmagicalDefenses(DAMAGE_TYPES
     .map((type) => ({ type: type.id, defense: damageDefenseFor(defenses, type.id) }))
-    .filter((row) => row.defense)
-    .map(damageDefenseTag);
+    .filter((row) => row.defense), profile)
+    .map((row) => damageDefenseTag(row));
   $("damageDefenses").textContent = tags.join(" · ");
   $("damageDefensesBlock").hidden = tags.length === 0;
 }

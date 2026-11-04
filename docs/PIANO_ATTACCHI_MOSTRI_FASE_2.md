@@ -85,7 +85,7 @@ Mostri (30 su 38), con poche modifiche (`replaceTxt`, `replaceArr`,
 - Ricarica, usi al giorno, multiattacco (testo senza tag).
 - Il resto del testo dell'azione va nella nota, senza tag («{@condition
   frightened}» → «frightened»), tagliato a 280 caratteri con «…».
-- Difese condizionali («from nonmagical attacks»): vedi D3.
+- Difese condizionali («from nonmagical attacks»): vedi D3. Rivista il 04/11/2026: queste ora entrano nella scheda e si ignorano nella console per un'arma magica; restano segnalate quelle che dipendono da altro ([IMPORT_SCHEDA](IMPORT_SCHEDA.md#da-5etools)).
 - Immunità alle condizioni e tratti: elencati nelle note (280 caratteri).
 - Test con mostri dell'SRD 5.1 (licenza CC-BY): goblin, drago rosso giovane,
   ghoul, ragno gigante, bugbear, druido, elefante, drago d'argento adulto… Niente testi fuori SRD nel

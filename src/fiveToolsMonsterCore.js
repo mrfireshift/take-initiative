@@ -6,6 +6,7 @@
 // are played with the plugin's 2014 rules, and the report says so. What the adapter cannot read becomes the action's
 // note or a line of the report, never a guess.
 import { monsterImportConditionName } from "./monsterStatblockImportCore.js";
+import { damageTypeLabel, nonmagicalDefenseText } from "./damageDefensesCore.js";
 import { fiveToolsTokenPath } from "./fiveToolsArchiveCore.js";
 import { spellSlotMaximums } from "./spellSlotCore.js";
 import { fiveTools2024TagText, monsterActionAreaOrigin, monsterHitEffects, monsterSave2024, monsterSaveEffects } from "./monsterActionHeuristicsCore.js";
@@ -266,14 +267,33 @@ export function fiveToolsActions(action, { suffix = "" } = {}) {
   return attackAction(name, text, extra) || saveAction(name, text, extra) || [{ name, status: "manual", text }];
 }
 
-function defenses(list, field, report) {
+const NONMAGICAL_DEFENSE_TYPES = new Set(["bludgeoning", "piercing", "slashing"]);
+const DEFENSE_FIELD_LABELS = Object.freeze({ resist: "resistenza", immune: "immunità", vulnerable: "vulnerabilità" });
+
+// A defense that holds only against nonmagical weapons ("from nonmagical attacks", "that aren't silvered", "that is
+// nonmagical"): an ordinary one on the sheet, ignored in the console for a magic weapon. Never with another condition
+// ("while in dim light or darkness"), never on what a weapon cannot deal. Returns { except } or null.
+function nonmagicalDefense(note, types, field) {
+  if (field === "vulnerable" || !/\bnonmagical\b/i.test(note) || /\bwhile\b/i.test(note)) return null;
+  if (!types.every((type) => NONMAGICAL_DEFENSE_TYPES.has(type))) return null;
+  return { except: ["silvered", "adamantine"].filter((material) => new RegExp(`\\b${material}\\b`, "i").test(note)) };
+}
+
+// nonmagical collects the types of those defenses and the materials that get through them.
+function defenses(list, field, report, nonmagical) {
   const plain = [];
   for (const entry of Array.isArray(list) ? list : []) {
     if (typeof entry === "string") plain.push(entry);
     else if (entry && typeof entry === "object") {
       const types = Array.isArray(entry[field]) ? entry[field].filter((type) => typeof type === "string") : [];
-      // "from nonmagical attacks": the plugin does not tell magic weapons apart (decision D3 of phase 2).
-      if (types.length) report.push(`${{ resist: "resistenza", immune: "immunità", vulnerable: "vulnerabilità" }[field]} condizionale non importata: ${types.join(", ")}${entry.note ? ` (${fiveToolsPlainText(entry.note)})` : ""}`);
+      const note = fiveToolsPlainText(entry.note || "");
+      const onlyNonmagical = types.length ? nonmagicalDefense(note, types, field) : null;
+      if (onlyNonmagical) {
+        plain.push(...types);
+        nonmagical.types.push(...types);
+        nonmagical.except.push(...onlyNonmagical.except);
+        report.push(`${DEFENSE_FIELD_LABELS[field]} ai danni ${nonmagicalDefenseText(onlyNonmagical.except)}: ${types.map(damageTypeLabel).join(", ")} (per un'arma magica${onlyNonmagical.except.length ? " o di quel materiale" : ""}, ignorala nella console)`);
+      } else if (types.length) report.push(`${DEFENSE_FIELD_LABELS[field]} condizionale non importata: ${types.join(", ")}${note ? ` (${note})` : ""}`);
       else if (entry.special) report.push(`difesa speciale: ${fiveToolsPlainText(entry.special)}`);
     }
   }
@@ -694,10 +714,13 @@ export function fiveToolsMonsterToStatblock(input, { pool = [], allow2024 = fals
   const speeds = fiveToolsSpeeds(monster, report);
   const abilities = Object.fromEntries(["str", "dex", "con", "int", "wis", "cha"].filter((key) => Number.isFinite(monster[key])).map((key) => [key, monster[key]]));
   const savingThrows = monster.save && typeof monster.save === "object" ? { ...monster.save } : null;
+  const nonmagical = { types: [], except: [] };
   const damageDefenses = {
-    resistances: defenses(monster.resist, "resist", report),
-    immunities: defenses(monster.immune, "immune", report),
-    vulnerabilities: defenses(monster.vulnerable, "vulnerable", report),
+    resistances: defenses(monster.resist, "resist", report, nonmagical),
+    immunities: defenses(monster.immune, "immune", report, nonmagical),
+    vulnerabilities: defenses(monster.vulnerable, "vulnerable", report, nonmagical),
+    ...(nonmagical.types.length ? { nonmagical: [...new Set(nonmagical.types)] } : {}),
+    ...(nonmagical.except.length ? { nonmagicalExcept: [...new Set(nonmagical.except)] } : {}),
   };
   const conditionImmune = (Array.isArray(monster.conditionImmune) ? monster.conditionImmune : [])
     .flatMap((entry) => (typeof entry === "string" ? [entry] : Array.isArray(entry?.conditionImmune) ? entry.conditionImmune : []))
@@ -731,7 +754,7 @@ export function fiveToolsMonsterToStatblock(input, { pool = [], allow2024 = fals
     ...(Object.keys(abilities).length ? { abilities } : {}),
     ...(savingThrows ? { savingThrows } : {}),
     ...(Number.isFinite(monster.passive) ? { passivePerception: monster.passive } : {}),
-    ...(Object.values(damageDefenses).some((list) => list.length) ? { damageDefenses } : {}),
+    ...([damageDefenses.resistances, damageDefenses.immunities, damageDefenses.vulnerabilities].some((list) => list.length) ? { damageDefenses } : {}),
     ...(multiattack ? { multiattack } : {}),
     ...(notes ? { notes: notes.length > MAX_NOTE ? `${notes.slice(0, MAX_NOTE - 1).trimEnd()}…` : notes } : {}),
     actions,

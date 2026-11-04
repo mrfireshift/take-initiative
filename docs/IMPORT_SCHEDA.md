@@ -130,6 +130,27 @@ immune, in inglese o in italiano: la console lo segna «Immune») ed
 riquadro **Altre velocità** della scheda e diventano le modalità del
 [tracker movimento](GUIDA_UTENTE.md#8-movimento-e-condizioni-di-dd-2014).
 
+Una difesa valida solo contro le armi non magiche va nelle liste di
+`damageDefenses` come le altre, con due chiavi accanto: `nonmagical` (i suoi
+tipi di danno: contundenti, perforanti o taglienti, gli altri non contano) e
+`nonmagicalExcept` (i materiali che la superano: `silvered`, `adamantine`, anche
+in italiano). Valgono anche `nonMagici` e `nonMagiciTranne`. Un diavolo con la
+resistenza «from nonmagical attacks not made with silvered weapons»:
+
+```json
+"damageDefenses": {
+  "resistances": ["cold", "bludgeoning", "piercing", "slashing"],
+  "immunities": ["fire", "poison"],
+  "nonmagical": ["bludgeoning", "piercing", "slashing"],
+  "nonmagicalExcept": ["silvered"]
+}
+```
+
+La difesa vale sempre: per un'arma magica o di quel materiale si ignora dalla
+console, [con un clic](GUIDA_UTENTE.md#console-attacchi-per-i-mostri).
+
+Uno statblock completo:
+
 ```json
 {
   "kind": "monster",
@@ -314,11 +335,18 @@ della sua base; se manca, il messaggio dice quale caricare.
 Sopra le sezioni compare cosa la console registra e, in **Al tavolo**, cosa
 resta da gestire a mano: le azioni senza danni né tiro salvezza, gli effetti
 al colpo che le regole non leggono (malattie, trascinamenti, riduzione dei PF
-massimi: restano nella nota), le difese condizionali (per esempio la resistenza alle armi non
-magiche, segnalata e non importata), le velocità valide solo in una forma o in
+massimi: restano nella nota), le difese che dipendono da altro («while in dim
+light or darkness», Pelle di pietra, le vulnerabilità alle armi magiche:
+segnalate e non importate), le velocità valide solo in una forma o in
 un caso («owl form only»), che non diventano modalità. Tratti e reazioni sono elencati con il
 rimando alla scheda Capacità della console. Nomi di mostri e azioni restano in
 inglese.
+
+Le difese contro le armi non magiche («from nonmagical attacks», anche «that
+aren't silvered» o «adamantine») entrano nella scheda come le altre, con la
+scritta «(non magici né d'argento)». **Al tavolo** lo ricorda: per un'arma
+magica o di quel materiale si ignorano nella console. Un mostro importato prima
+di questa versione le riceve reimportandolo.
 
 Gli incantesimi si leggono dai blocchi «Spellcasting» e «Innate
 Spellcasting» come descritto sopra. In **Al tavolo** compaiono:
@@ -434,7 +462,10 @@ huge o gargantuan; di due la prima); armorClass; hitPoints: { average, formula }
 speed in piedi ("40 ft"); speeds: le altre velocità, { fly, swim, climb, burrow }
 in piedi, con hover: true se vola stazionario; abilities: punteggi con chiavi str dex con int
 wis cha; savingThrows: bonus totali con le stesse chiavi; damageDefenses:
-{ resistances, immunities, vulnerabilities } con i tipi di danno in inglese;
+{ resistances, immunities, vulnerabilities } con i tipi di danno in inglese,
+compresi quelli validi solo contro attacchi non magici, che vanno anche in
+nonmagical, con in nonmagicalExcept i materiali che li superano (silvered,
+adamantine);
 multiattack: il testo del Multiattacco; actions: una voce per azione con
 name e, a seconda dell'azione:
 - attacco con tiro per colpire: attack: { bonus, type: "melee" o "ranged",

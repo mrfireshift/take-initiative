@@ -138,14 +138,19 @@ test("usi al giorno, ricarica 6, linea con larghezza, un bersaglio, danno fisso,
   assert.deepEqual([bolt.attack.type, bolt.attack.range, bolt.status], ["ranged", { normal: 120 }, "full"]);
 });
 
-test("difese condizionali segnalate e non importate; azioni bonus con il loro nome", () => {
+test("difese da armi non magiche importate e segnate, le altre condizionali segnalate; azioni bonus con il loro nome", () => {
   const { block, report } = fiveToolsMonsterToStatblock(invented({
     resist: ["fire", { resist: ["bludgeoning", "piercing", "slashing"], note: "from nonmagical attacks", cond: true }],
     bonus: [{ name: "Morso rapido", entries: ["{@atk mw} {@hit 3} to hit, reach 5 ft., one target. {@h}4 ({@damage 1d4 + 2}) piercing damage."] }],
   }));
-  assert.deepEqual(block.damageDefenses.resistances, ["fire"]);
-  assert.ok(report.includes("resistenza condizionale non importata: bludgeoning, piercing, slashing (from nonmagical attacks)"));
+  assert.deepEqual(block.damageDefenses.resistances, ["fire", "bludgeoning", "piercing", "slashing"]);
+  assert.deepEqual(block.damageDefenses.nonmagical, ["bludgeoning", "piercing", "slashing"]);
+  assert.equal(block.damageDefenses.nonmagicalExcept, undefined);
+  assert.ok(report.includes("resistenza ai danni non magici: contundenti, perforanti, taglienti (per un'arma magica, ignorala nella console)"));
   assert.deepEqual(block.actions.map((action) => action.name), ["Morso rapido (bonus action)"]);
+  const inDarkness = fiveToolsMonsterToStatblock(invented({ resist: [{ resist: ["slashing"], note: "from nonmagical attacks while in dim light or darkness", cond: true }] }));
+  assert.equal(inDarkness.block.damageDefenses, undefined);
+  assert.ok(inDarkness.report.includes("resistenza condizionale non importata: slashing (from nonmagical attacks while in dim light or darkness)"));
 });
 
 test("rifiutati: i mostri delle regole 2024 e, per ora, quelli derivati da un altro (lotto 2)", () => {

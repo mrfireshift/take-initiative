@@ -131,6 +131,19 @@ export function evasionFactor(factor) {
   return factor === "full" ? "half" : factor === "half" ? "zero" : factor;
 }
 
-export function damageDefenseTag({ type, defense }) {
-  return `${DAMAGE_DEFENSE_LABELS[defense] || defense} ${damageTypeLabel(type)}`;
+// A monster's defense that holds only against nonmagical weapons (card.monster.nonmagicalDefenses) is an ordinary entry of
+// its damage defenses, as Stoneskin's is: it counts unless ignored. This only says so on the rows that show it.
+const NONMAGICAL_MATERIAL_LABELS = Object.freeze({ silvered: "d'argento", adamantine: "di adamantio" });
+export function nonmagicalDefenseText(except = []) {
+  const materials = (Array.isArray(except) ? except : []).map((material) => NONMAGICAL_MATERIAL_LABELS[material]).filter(Boolean);
+  return ["non magici", ...materials].join(" né ");
+}
+export function markNonmagicalDefenses(rows, card) {
+  const marker = card?.monster?.nonmagicalDefenses;
+  if (!Array.isArray(marker?.types) || !marker.types.length) return rows;
+  return rows.map((row) => (marker.types.includes(row.type) ? { ...row, nonmagical: nonmagicalDefenseText(marker.except) } : row));
+}
+
+export function damageDefenseTag({ type, defense, nonmagical = "" }) {
+  return `${DAMAGE_DEFENSE_LABELS[defense] || defense} ${damageTypeLabel(type)}${nonmagical ? ` (${nonmagical})` : ""}`;
 }

@@ -1930,7 +1930,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const view=preview();
     defensesBox.replaceChildren(...view.defenses.map(row=>{
       const chip=node("button",damageDefenseTag(row),"defense-chip");chip.type="button";
-      chip.setAttribute("aria-pressed",String(!row.ignored));chip.title=row.ignored?"Difesa ignorata: clic per applicarla":"Clic per ignorarla in questo attacco";
+      chip.setAttribute("aria-pressed",String(!row.ignored));
+      chip.title=row.ignored?"Difesa ignorata: clic per applicarla":row.nonmagical?`Vale solo contro danni ${row.nonmagical}: con un'arma che la supera, clic per ignorarla in questo attacco`:"Clic per ignorarla in questo attacco";
       chip.disabled=busy;
       chip.addEventListener("click",()=>{
         draft.ignored=row.ignored?draft.ignored.filter(type=>type!==row.type):[...draft.ignored,row.type];renderState();

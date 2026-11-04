@@ -1,6 +1,6 @@
-# Prova in stanza: velocità dei mostri e dimensione del token
+# Prova in stanza: velocità dei mostri, dimensione del token e difese
 
-Controlli a mano del [piano velocità dei mostri](PIANO_VELOCITA_MOSTRI.md) e della [dimensione del token](GUIDA_UTENTE.md#console-attacchi-per-i-mostri), prima del bundle di produzione. Ogni controllo del tracker va fatto **in vista estesa e in vista compatta**.
+Controlli a mano del [piano velocità dei mostri](PIANO_VELOCITA_MOSTRI.md), della [dimensione del token](GUIDA_UTENTE.md#console-attacchi-per-i-mostri) e delle difese contro le armi non magiche, prima del bundle di produzione. Ogni controllo del tracker va fatto **in vista estesa e in vista compatta**.
 
 Il banco non può provare due cose, che qui contano più delle altre:
 
@@ -83,6 +83,18 @@ Il banco non disegna i token e non ha una griglia vera: qui conta guardarli sull
 - [ ] **Zona:** un token che cresce e tocca una zona entra nella zona senza bisogno di muoverlo.
 - [ ] **Nel suo turno:** importa durante il turno del mostro. Il movimento consumato non cambia e **Movimento esaurito** non compare.
 - [ ] **Tavolo:** sulla finestra dei giocatori il token visibile cambia misura come sul GM.
+
+## 8. Difese contro le armi non magiche
+
+Il banco ha provato import, pulsante e PF su un JSON scritto a mano. Qui conta il JSON vero dell'archivio e un attacco registrato in stanza.
+
+- [ ] **Import:** su un nemico, importa **Barbed Devil** (MM). **Al tavolo** dice che la resistenza ai danni non magici né d'argento si ignora nella console per un'arma magica. Le difese della scheda mostrano `Res. taglienti (non magici né d'argento)` e `Res. freddo`, senza scritta.
+- [ ] **Arma normale:** da un PG con un'arma tagliente, scegli il diavolo, **Colpito** e 10 danni. Il pulsante della difesa è acceso e il totale è 5.
+- [ ] **Arma magica:** un clic sul pulsante e il totale è 10. Dopo **Registra** il diavolo perde 10 PF. Al prossimo attacco il pulsante è di nuovo acceso.
+- [ ] **Annulla:** dalla Cronologia i PF tornano com'erano.
+- [ ] **Immunità:** su **Stone Golem** (MM) la scheda mostra `Imm. taglienti (non magici né di adamantio)`. Lo stesso colpo fa 0 danni, 10 con il pulsante spento.
+- [ ] **Omonimi:** con due token dello stesso nome, le difese e la scritta arrivano a entrambi.
+- [ ] **Altro mostro:** importa un mostro senza queste difese sullo stesso token. Le scritte spariscono.
 
 ## Esito
 

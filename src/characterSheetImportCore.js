@@ -471,7 +471,21 @@ function monsterDefensesOf(data) {
   const names = (Array.isArray(data.conditionImmunities) ? data.conditionImmunities : [])
     .map((name) => text(name)).filter(Boolean)
     .map((name) => (/^(exhaustion|indebolimento)$/i.test(name) ? "indebolimento" : monsterImportConditionName(name) || name).toLocaleLowerCase("it"));
-  return { ...(names.length ? { conditionImmunities: names } : {}), ...(data.evasion === true ? { evasion: true } : {}) };
+  return { ...(names.length ? { conditionImmunities: names } : {}), ...(data.evasion === true ? { evasion: true } : {}),
+    ...monsterNonmagicalDefensesOf(data) };
+}
+
+// Which of its damage defenses hold only against nonmagical weapons: damageDefenses.nonmagical, a list of types among its
+// resistances and immunities; nonmagicalExcept, the materials that get through ("silvered", "argento").
+const NONMAGICAL_MATERIALS = new Map(Object.entries({ silvered: "silvered", silver: "silvered", argento: "silvered",
+  adamantine: "adamantine", adamantio: "adamantine" }));
+function monsterNonmagicalDefensesOf(data) {
+  const source = data.damageDefenses && typeof data.damageDefenses === "object" ? data.damageDefenses : data;
+  const asList = (value) => (Array.isArray(value) ? value : value === undefined || value === null ? [] : [value]);
+  const types = asList(source.nonmagical ?? source.nonMagici ?? source.nonMagiche).map((value) => resolveDamageType(value)).filter(Boolean);
+  if (!types.length) return {};
+  const except = asList(source.nonmagicalExcept ?? source.nonMagiciTranne).map((value) => NONMAGICAL_MATERIALS.get(lookupKey(value))).filter(Boolean);
+  return { nonmagicalDefenses: { types, ...(except.length ? { except } : {}) } };
 }
 
 // A monster's speeds beyond walking (velocità dei mostri, lotto 1), in "speeds" or in an object "speed": metres or feet as

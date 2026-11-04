@@ -20,7 +20,7 @@ import { bossDefendedDamage } from "./bossActionsViewCore.js";
 import { getSpellDefinition, getSpellEffects, getSpellSummaryParts } from "./spells-srd.js";
 import { catalogSpellApplicationOperations } from "./spellLifecycleOperationsCore.js";
 import { spellEffectThemeFor } from "./spellColorCore.js";
-import { actorHasEvasion, damageDefensesForItem, damageTypeLabel, evasionFactor, relevantDamageDefenses } from "./damageDefensesCore.js";
+import { actorHasEvasion, damageDefensesForItem, damageTypeLabel, evasionFactor, markNonmagicalDefenses, relevantDamageDefenses } from "./damageDefensesCore.js";
 import { MONSTER_PROFILE_FIELD } from "./monsterProfileCore.js";
 import { CLASS_FEATURE_RESOURCE_POOL_BY_ID, getClassFeatureDefinition, getClassFeatureResourcePool, getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import {
@@ -1046,7 +1046,8 @@ export function pcAttackPreview({
     ...Object.fromEntries(chosenExtras.map((extra, index) => [`x${index + 1}`, extra.amount])),
   };
   const profileDefenses = targetItem ? damageDefensesForItem(targetItem, META_KEY) : {};
-  const defenses = relevantDamageDefenses(profileDefenses, components.filter((component) => damageTypeSet.has(component.type)), ignoredDefenses);
+  const defenses = markNonmagicalDefenses(relevantDamageDefenses(profileDefenses, components.filter((component) => damageTypeSet.has(component.type)), ignoredDefenses),
+    targetItem?.metadata?.[META_KEY]?.initiativeCard);
   // Full damage on a hit, a critical or a failed save (the shared helper would halve a "passed" save).
   // A monster's hit effect (fase 5, lotto 4): its save's damage on top, with the target's defenses.
   const hitPlan = targetItem ? pcAttackHitEffectPlan({ attack, outcome, hitEffect, targetItem, sourceItem }) : null;

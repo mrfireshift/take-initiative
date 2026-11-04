@@ -500,6 +500,19 @@ Al turno del mostro la console mostra:
 - nella scheda **Capacità**, tratti, reazioni e azioni leggendarie del mostro
   da leggere, con il costo delle leggendarie (i diamanti restano sul tracker).
 
+Le **difese** dello statblock valgono quando il mostro è il bersaglio, nella
+console attacchi e nella console boss: il danno di quel tipo si dimezza o si
+azzera, e il pulsante della difesa compare accanto ai danni. Anche le difese
+limitate alle armi non magiche, come «Res. taglienti (non magici né
+d'argento)», si applicano da sole, perché il plugin non sa di che arma si
+tratta. Per un'arma magica, del materiale giusto o per Frusta di Spine, un clic
+sul pulsante la ignora in quell'attacco; all'attacco dopo vale di nuovo. Le aree
+della console non hanno il pulsante e la difesa vale sempre: in pratica conta
+solo per la Freccia perforante dell'Arciere arcano e per l'azione ad area di un
+mostro contro un altro mostro. Nei danni degli incantesimi ad area il
+dimezzamento resta al GM. Un mostro importato prima di questa versione riceve
+queste difese reimportandolo.
+
 Nell'intestazione della console le pillole **PG** e **Mostri** (gruppo «Ogni
 turno», solo questo browser) aprono la console da sola al turno di un
 personaggio o alleato e, rispettivamente, di un mostro; ai boss si apre la

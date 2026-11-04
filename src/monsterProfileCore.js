@@ -15,10 +15,22 @@ const sourceSet = new Set(MONSTER_PROFILE_SOURCES);
 const MAX_MONSTER_CONDITION_IMMUNITIES = 16;
 const MAX_MONSTER_CONDITION_NAME = 40;
 // The stat block's own fields of the profile: a new monster's block replaces them, never merges with the old ones.
-export const MONSTER_PROFILE_STATBLOCK_FIELDS = Object.freeze(["conditionImmunities", "evasion", "speeds", "hover"]);
+export const MONSTER_PROFILE_STATBLOCK_FIELDS = Object.freeze(["conditionImmunities", "evasion", "speeds", "hover", "nonmagicalDefenses"]);
 // Its speeds beyond walking, which stays the card's speed (velocità dei mostri, lotto 1).
 export const MONSTER_SPEED_MODES = Object.freeze(["fly", "swim", "climb", "burrow"]);
 const MONSTER_SPEED_LABELS = Object.freeze({ fly: "Volare", swim: "Nuotare", climb: "Scalare", burrow: "Scavare" });
+
+// Which of its damage defenses hold only against nonmagical weapons, unless of a material: { types, except? }, or null.
+// The defenses themselves are the card's damageDefenses; this is what the rows that show them say.
+const NONMAGICAL_DEFENSE_TYPES = Object.freeze(["bludgeoning", "piercing", "slashing"]);
+const NONMAGICAL_DEFENSE_MATERIALS = Object.freeze(["silvered", "adamantine"]);
+function sanitizeNonmagicalDefenses(value) {
+  const listed = (list) => (Array.isArray(list) ? list : []).map((entry) => String(entry ?? "").trim().toLowerCase());
+  const types = NONMAGICAL_DEFENSE_TYPES.filter((type) => listed(value?.types).includes(type));
+  if (!types.length) return null;
+  const except = NONMAGICAL_DEFENSE_MATERIALS.filter((material) => listed(value?.except).includes(material));
+  return { types, ...(except.length ? { except } : {}) };
+}
 
 export function sanitizeMonsterProfile(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -31,9 +43,11 @@ export function sanitizeMonsterProfile(value) {
     .map((name) => String(name ?? "").trim().toLocaleLowerCase("it").slice(0, MAX_MONSTER_CONDITION_NAME)).filter(Boolean))].slice(0, MAX_MONSTER_CONDITION_IMMUNITIES);
   // { fly: 24, swim: 12 } in metres; hover only with a flying speed.
   const speeds = Object.fromEntries(MONSTER_SPEED_MODES.map((mode) => [mode, normalizeSpeedMeters(value.speeds?.[mode])]).filter(([, meters]) => meters > 0));
+  const nonmagicalDefenses = sanitizeNonmagicalDefenses(value.nonmagicalDefenses);
   return { source, ...(ref ? { ref } : {}), ...(multiattack ? { multiattack } : {}),
     ...(conditionImmunities.length ? { conditionImmunities } : {}), ...(value.evasion === true ? { evasion: true } : {}),
-    ...(Object.keys(speeds).length ? { speeds } : {}), ...(value.hover === true && speeds.fly ? { hover: true } : {}) };
+    ...(Object.keys(speeds).length ? { speeds } : {}), ...(value.hover === true && speeds.fly ? { hover: true } : {}),
+    ...(nonmagicalDefenses ? { nonmagicalDefenses } : {}) };
 }
 
 // "Volare 24 m (stazionario) · Nuotare 12 m", "" without other speeds.

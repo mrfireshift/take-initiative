@@ -17,7 +17,7 @@ import { bossActionTargets,bossActionGroups,bossActionExecutionKind,bossActionDa
   bossFeetPerCell,bossInnerTargetIds,bossPointTooClose,bossGroupConfirmationText,bossGroupOutcomes,bossGroupMissingDamageIds,bossAreaTheme,bossPointDistanceFeet,
   validateBossThrowSelection,validateBossEffectEndSelection,bossReachFeet,
   BOSS_ACTIONS_HEIGHT } from "./bossActionsViewCore.js";
-import { damageDefensesForItem, relevantDamageDefenses, damageDefenseTag, EVASION_DEFENSE, evasionAppliesTo, evasionForItem, evasionFactor } from "./damageDefensesCore.js";
+import { damageDefensesForItem, markNonmagicalDefenses, relevantDamageDefenses, damageDefenseTag, EVASION_DEFENSE, evasionAppliesTo, evasionForItem, evasionFactor } from "./damageDefensesCore.js";
 import { bossActionAreaRuleId,bossAreaShapeLabel,bossGroupRequiresConfirmation,bossTargetImmune,bossGrappledIds,bossGrappleBlocker,bossEffectSummaryParts,
   bossMarkApplies,bossMarkReady,bossTargetMarked,bossMarkBlocker,bossMarkedDefenses,bossTriggerMet,bossActiveEffects,bossThrowDistances,
   bossSeamRuleId,BOSS_SEAM_ITEM_KEY,bossSeamSegments,bossSeamSegmentLabel } from "./bossActionExecutionCore.js";
@@ -334,7 +334,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
   // Actor Profile defenses relevant to this action; a click ignores one for this resolution only (explicit, locks the draft).
   function defenseChips(id,onChange) {
     const effective=markReadyFor(id)?bossMarkedDefenses(defensesOf(id)):defensesOf(id);
-    const rows=relevantDamageDefenses(effective,bossActionDamageComponents(draft.action),ignoredFor(id));
+    const rows=markNonmagicalDefenses(relevantDamageDefenses(effective,bossActionDamageComponents(draft.action),ignoredFor(id)),targetById(id)?.metadata?.[META_KEY]?.initiativeCard);
     if(evasionFor(id))rows.push({type:EVASION_DEFENSE,defense:"evasion",ignored:ignoredFor(id).includes(EVASION_DEFENSE)});
     if(!rows.length) return null;
     const wrap=node("span","","defense-chips");wrap.dataset.defensesFor=id;
