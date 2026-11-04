@@ -321,7 +321,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   let offPing=null,offAutoOpen=null;
   const extrasCaption=$("pc-attack-extras-caption"),modeCaption=$("pc-attack-mode-caption");
   const modeSelect=$("pc-attack-mode"),outcomeBlock=$("pc-attack-outcome-block"),targetCaption=$("pc-attack-target-caption");
-  const areaBox=$("pc-attack-area"),areaNote=$("pc-attack-area-note"),areaList=$("pc-attack-area-list");
+  const areaBox=$("pc-attack-area"),areaList=$("pc-attack-area-list");
   const areaPropose=$("pc-attack-area-propose"),areaAllFailed=$("pc-attack-area-all-failed"),areaAllPassed=$("pc-attack-area-all-passed");
   // A breath weapon's cone or line drawn on the map with the shared area tool (spellAreaRules.js): its creatures are ticked.
   const areaDraw=$("pc-attack-area-draw");
@@ -827,18 +827,6 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const attack=resolved(),area=attack?.area;
     areaBox.hidden=!area;
     if(!area) return;
-    const name=presentation.item?.name || "l'attaccante";
-    // A breath weapon: its cone or line, its dice at this level (the damage's hint), its save and DC.
-    // Acid Spit: its one creature, nothing on a success. The metallic breath: its condition on a failure, no damage.
-    const breathWhere=area.shape==="target"?"Un bersaglio entro 9 m: spuntalo. "
-      :`${area.shape==="line"?"Linea di 9 m":"Cono di 4,5 m"}: disegnalo sulla mappa o spunta le creature colpite. `;
-    const onFail=attack.breath?.onFail;
-    const breathEffect=onFail
-      ?`${pcAttackSaveLabel(attack,attackerCard())}: chi fallisce è ${onFail.condition.toLowerCase()}${onFail.when?` ${onFail.when}`:""}.${onFail.note?` ${onFail.note}`:""}`
-      :`${attack.components[0]?.formula || ""} ${damageTypeLabel(attack.breath?.damageType)} · ${pcAttackSaveLabel(attack,attackerCard())}, ${attack.breath?.half===false?"niente se superato":"metà se superato"}.`;
-    const breathNote=attack.breath?breathWhere+breathEffect:"";
-    areaNote.textContent=breathNote || pcAttackMonsterAreaNote(attack,attackerCard()) || (area.manual?"Sulla linea di 9 m: spunta le creature colpite."
-      :`Entro 1,5 m da ${name}${area.chosen?", solo quelle che scegli":", alleati compresi"}.`);
     // A monster's sphere around itself proposes its creatures like an area cantrip (proposeFeet), still ticked by hand.
     const proposeFeet=area.manual?area.proposeFeet:area.radiusFeet;
     areaPropose.hidden=!proposeFeet;
@@ -877,6 +865,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         box.addEventListener("change",()=>{const member=draft.area.members[item.id] ||= {on:false,outcome:""};member.on=box.checked;renderArea();renderState();});
         lead.append(box);
         const label=node("span","","area-name");label.dataset.areaField="name";
+        const hp=node("span","","area-hp");hp.dataset.areaField="hp";hp.title="Punti ferita";
+        const save=node("span","","area-hp");save.dataset.areaField="save";save.title="Bonus al tiro salvezza";
         const outcomesBox=node("div","","segmented mini");outcomesBox.setAttribute("role","group");outcomesBox.setAttribute("aria-label",`Tiro salvezza di ${item.name || item.id}`);
         for(const outcome of outcomes) {
           // One save for all: the note above names it, each row says only how it went.
@@ -884,9 +874,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
           button.addEventListener("click",()=>{const member=draft.area.members[item.id] ||= {on:false,outcome:""};member.on=true;member.outcome=outcome;renderArea();renderState();});
           outcomesBox.append(button);
         }
-        // Below the row: what this creature takes and why (renderAreaState).
+        // What this creature takes in its column; below the row, only when there is something to say (renderAreaState).
+        const amount=node("span","","area-amount");amount.dataset.areaField="amount";
         const damageLine=node("span","","area-damage");damageLine.dataset.areaField="damage";damageLine.hidden=true;
-        row.append(lead,label,outcomesBox,damageLine);return row;
+        row.append(lead,label,hp,save,outcomesBox,amount,damageLine);return row;
       }));
     }
     for(const item of presentation.targets) {
@@ -896,14 +887,13 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const meta=item.metadata?.[META_KEY] || {};
       row.dataset.on=String(!!member.on);
       const box=row.querySelector('[data-area-field="on"]');box.checked=!!member.on;box.disabled=busy;
-      const label=row.querySelector('[data-area-field="name"]');label.replaceChildren(node("span",item.name || item.id));
-      if(Number.isFinite(meta.hp)) label.append(node("span",` · ${meta.hp}/${meta.hpMax} PF`,"area-hp"));
-      // Its bonus to this save (the players and the GM roll, decision D2), its Evasion, a condition it is immune to.
+      // The name gives way, its hit points and its bonus to this save (the players and the GM roll, decision D2) never do.
       const bonus=attack.monster?pcAttackTargetSaveBonus(item,attack.save):null;
-      if(bonus!==null) label.append(node("span",` · TS ${bonus>=0?"+":""}${bonus}`,"area-hp"));
-      if(pcAttackTargetEvasion(attack,item)) label.append(node("span"," · Elusione","area-hp"));
-      if(condition && pcAttackTargetConditionImmune(item,condition)) label.append(node("span",` · immune a ${condition.toLowerCase()}`,"area-hp"));
-      if(pcAttackTargetActionImmune(item,attack,sourceId)) label.append(node("span",` · immune a ${attack.label}`,"area-hp"));
+      const bonusText=bonus!==null?`${bonus>=0?"+":"−"}${Math.abs(bonus)}`:"";
+      const label=row.querySelector('[data-area-field="name"]');label.textContent=item.name || item.id;
+      label.title=[bossTargetLabel(item),...(bonusText?[`TS ${bonusText}`]:[])].join(" · ");
+      row.querySelector('[data-area-field="hp"]').textContent=Number.isFinite(meta.hp)?`${meta.hp}/${meta.hpMax}`:"";
+      row.querySelector('[data-area-field="save"]').textContent=bonusText;
       for(const outcome of outcomes) {
         const button=row.querySelector(`[data-area-field="${outcome}"]`);
         button.setAttribute("aria-pressed",String(!!member.on && member.outcome===outcome));button.disabled=busy;
@@ -1783,20 +1773,39 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     turnBadge.hidden=!presentation || !order.length || !isOffTurn(presentation.turnState,sourceId);
     if(!turnBadge.hidden) turnBadge.textContent="Fuori turno";
   }
+  // An area in the line under the picker: where its creatures are, its save, what a success and a failure do, once. How to
+  // draw it is the tooltip of Disegna, its dice are in the damage's row.
+  function areaFacts(attack) {
+    const area=attack?.area;
+    if(!area) return [];
+    const card=attackerCard(),save=pcAttackSaveLabel(attack,card);
+    if(attack.monster) return pcAttackMonsterAreaNote(attack,card).split(" · ");
+    // A breath weapon: its cone or line. Acid Spit: its one creature, nothing on a success. The metallic breath: its
+    // condition on a failure, no damage.
+    if(attack.breath) {
+      const onFail=attack.breath.onFail;
+      return [area.shape==="target"?"Un bersaglio entro 9 m":area.shape==="line"?"Linea di 9 m":"Cono di 4,5 m",save,
+        onFail?`chi fallisce è ${onFail.condition.toLowerCase()}${onFail.when?` ${onFail.when}`:""}`:attack.breath.half===false?"niente se superato":"metà se superato",
+        ...(onFail?.note?[onFail.note]:[])];
+    }
+    return [area.manual?"Linea di 9 m":`Entro 1,5 m da ${presentation.item?.name || "l'attaccante"}${area.chosen?", solo quelle che scegli":", alleati compresi"}`,save];
+  }
   function renderHeader() {
     const action=presentation?.action,attack=resolved();
     $("pc-attack-title").textContent=actorName();
-    // The line under the picker: never the name it already shows. When it shows none, the cantrip or spell chosen, not the
-    // action that records it.
+    // The line under the picker: never what it already says, the entry's name, its tab, its level. When it says none of
+    // them, the cantrip or spell chosen, not the action that records it.
     const named=attack?.cantrip?.name || attack?.spell?.name || "";
     // A saving throw cantrip names its save (and the actor's DC) instead of a range.
     const saveLabel=pcAttackSaveLabel(attack,presentation?.item?.metadata?.[META_KEY]?.initiativeCard);
-    const parts=[...(pickerNamesEntry?[]:[named || action?.label]),...(attack?.cantrip?["Trucchetto"]:[]),...(attack?.spell?[`Incantesimo di ${attack.spell.level}° livello`]:[]),
-      saveLabel || (attack?.spell?.delivery==="auto"?"Senza tiro per colpire":RANGE_LABELS[attack?.range]) || "",
+    const area=areaFacts(attack);
+    const parts=[...(pickerNamesEntry?[]:[named || action?.label,...(attack?.cantrip?["Trucchetto"]:[]),...(attack?.spell?[`Incantesimo di ${attack.spell.level}° livello`]:[])]),
+      ...(area.length?area:[saveLabel || (attack?.spell?.delivery==="auto"?"Senza tiro per colpire":RANGE_LABELS[attack?.range]) || ""]),
       // A monster's attack: its bonus, reach or range, recharge and uses, as its stat block prints them; the uses left and a
       // recharge already used from the actor's resources.
       ...pcAttackMonsterTags(attack,presentation?.item?.metadata?.[META_KEY]?.classFeatureState?.resources || {})].filter(Boolean);
-    $("pc-attack-subtitle").textContent=presentation?parts.join(" · "):"";
+    // A short part keeps its words together: the line wraps between parts, never in «TS Destrezza (CD 14)» or «Ricarica 5–6».
+    $("pc-attack-subtitle").textContent=presentation?parts.map(part=>part.length<=30?part.replace(/ /gu,"\u00a0"):part).join(" · "):"";
   }
   // Mirror Image on the target of an attack roll (lotto C): the d20 to aim at a duplicate; a hit on one destroys it
   // with the spell's own action, and the attack is not recorded on the caster.
@@ -1890,9 +1899,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     for(const row of menu.querySelectorAll("button")){row.setAttribute("aria-pressed",String(row.dataset.targetId===chosen.id));row.disabled=disabled;}
   }
   function renderTarget() {
-    // An area attack replaces the target with the creatures of its area: their title, on a line of its own.
+    // An area attack replaces the target with the creatures of its area, under its damage (pc-attack.html).
     const area=isArea();
-    if(targetCaption){targetCaption.textContent=area?"Creature colpite":"Bersaglio";targetCaption.className=area?"caption":"form-label";}
+    if(attackView) attackView.dataset.area=String(area);
+    if(targetCaption) targetCaption.hidden=area;
     targetSelect.hidden=area || !!targetDropdown;
     if(targetDropdown) targetDropdown.hidden=area;
     if(area) targetControl.setOpen(false);
@@ -2050,19 +2060,27 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(activationsBox) activationsBox.hidden=true;
     if(activationsCaption) activationsCaption.hidden=true;
     extrasBox.hidden=false;addExtra.hidden=false;
-    // An area without damage (Frightful Presence, the metallic breath) has no damage to title. Its button stays: damage the
-    // stat block's text did not give the console can still be added by hand.
-    const bare=!resolved()?.components?.length && !draft.extras.length;
-    if(extrasCaption){extrasCaption.textContent="Extra al danno";extrasCaption.hidden=bare;}
+    // The title only over something to title: the casters' riders, a component added. Its button stays: damage the stat
+    // block's text did not give the console can still be added by hand.
+    const attack=resolved();
+    const bare=!attack?.components?.length && !draft.extras.length;
+    if(extrasCaption){extrasCaption.textContent="Extra al danno";extrasCaption.hidden=!draft.extras.length && !riderOptions().length;}
     defensesBox.replaceChildren();
     const view=areaPreview();
-    // The total says only the sum: each creature's row says what it takes and what its defenses did.
+    const condition=attack?.monster?.onFail?.condition || "";
+    // The total says only the sum: each creature's row says what it takes; under it, what its defenses did, its Evasion and
+    // what it is immune to, only when there is something to say.
     for(const item of presentation?.targets || []) {
-      const line=areaList.querySelector(`[data-area-id="${item.id}"]`)?.querySelector('[data-area-field="damage"]');
-      if(!line) continue;
-      const damage=pcAttackAreaRowDamage(view.rows.find(row=>row.id===item.id));
-      line.hidden=!damage;
-      line.replaceChildren(...(damage?[node("strong",damage.amount),...(damage.reason?[node("span",` · ${damage.reason}`)]:[])]:[]));
+      const row=areaList.querySelector(`[data-area-id="${item.id}"]`);
+      if(!row) continue;
+      const damage=pcAttackAreaRowDamage(view.rows.find(entry=>entry.id===item.id));
+      row.querySelector('[data-area-field="amount"]').textContent=damage?.amount || "";
+      const notes=[...(pcAttackTargetEvasion(attack,item)?["Elusione"]:[]),
+        ...(condition && pcAttackTargetConditionImmune(item,condition)?[`immune a ${condition.toLowerCase()}`]:[]),
+        ...(pcAttackTargetActionImmune(item,attack,sourceId)?[`immune a ${attack.label}`]:[]),...(damage?.reason?[damage.reason]:[])];
+      const line=row.querySelector('[data-area-field="damage"]');
+      line.hidden=!notes.length;
+      line.textContent=notes.join(" · ");
     }
     total.replaceChildren();total.title=view.ready?"":view.blocker;total.dataset.kind="";
     // An area without damage (the metallic breath): the creatures it reaches.

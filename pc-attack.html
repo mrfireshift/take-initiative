@@ -251,24 +251,35 @@
     .temp-hp-row .inline-select { min-width: 0; }
     .temp-hp-add { justify-self: start; min-height: var(--obrt-hit-min); margin-left: calc(var(--lead) + 6px); padding: 2px 8px; border: 1px dashed rgba(148, 163, 184, .35); border-radius: var(--obrt-radius-md); background: transparent; color: var(--info-text); font-size: var(--obrt-type-secondary); cursor: pointer; }
     .temp-hp-add:disabled { opacity: .45; cursor: default; }
-    /* Area attacks: the creatures hit, each with its save (one row each: tick, name and HP, outcome). */
-    .area { display: grid; gap: 4px; }
-    /* The note on its own line, the tools below it. */
-    .area-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
-    .area-note { flex: 1 1 100%; min-width: 0; color: var(--muted); font-size: var(--obrt-type-secondary); line-height: var(--obrt-leading-normal); text-wrap: pretty; }
-    .area-tools { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 4px; }
+    /* Area attacks: one roll for all, so the damage comes first; then the creatures; the notes and the details after them.
+       The damage card's parts join the view to be ordered (they keep their order: damage 1, extras 2, notes 3, 4, 5). */
+    #pc-attack-attack-view[data-area="true"] > .card:not(.target-card) { display: contents; }
+    #pc-attack-attack-view[data-area="true"] > .target-card { order: 3; }
+    /* Its words are long: the whole width, with the Multiattack's under them. */
+    #pc-attack-form:has(#pc-attack-attack-view[data-area="true"]) .action-facts { padding-left: 0; }
+    /* With nothing to title, «+ Danno extra» takes no line of its own: on the last damage row, before its amount. */
+    #pc-attack-attack-view[data-area="true"]:has(#pc-attack-damage:not(:empty)) #pc-attack-extras-section:has(#pc-attack-extras-caption[hidden]) { align-self: flex-end; margin-top: calc(-1 * (var(--obrt-space-md) + var(--obrt-hit-min))); margin-right: 70px; }
+    .area { display: grid; gap: 2px; }
+    /* Beside their title, their text on the panel's right edge. */
+    .area-tools { flex: 0 0 auto; display: flex; flex-wrap: wrap; justify-content: flex-end; margin-right: -5px; }
+    .area-tool { min-height: var(--obrt-hit-min); padding: 0 5px; border: 0; border-radius: var(--obrt-radius-md); background: transparent; color: var(--info-text); font-size: var(--obrt-type-secondary); white-space: nowrap; cursor: pointer; }
+    .area-tool:hover { background: var(--obrt-hover); }
+    .area-tool:disabled { opacity: .45; cursor: default; }
     .mini-button { height: var(--obrt-hit-min); padding: 0 8px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); font-size: var(--obrt-type-secondary); cursor: pointer; }
     .mini-button:disabled { opacity: .45; cursor: default; }
-    .area-list { display: grid; gap: 2px; }
-    .area-row { display: grid; grid-template-columns: var(--lead) minmax(0, 1fr) auto; column-gap: 6px; align-items: center; min-height: 26px; }
+    /* A table of its creatures, every row on the same columns: the tick, the name (the only thing that gives way), its hit
+       points, its bonus to the save, its outcome, what it takes (its room kept: the outcomes do not move as the damage is typed). */
+    .area-list { display: grid; grid-template-columns: var(--lead) minmax(0, 1fr) auto auto auto minmax(26px, auto); align-items: center; gap: 2px 4px; }
+    .area-row { display: contents; }
     .area-row .component-lead input { width: 15px; height: 15px; margin: 0; accent-color: var(--obrt-accent); cursor: pointer; }
+    .area-row .segmented.mini button { padding: 0 4px; }
     .area-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .area-hp { color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; }
+    .area-hp { color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+    .area-amount { color: #fca5a5; font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-bold); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
     .area-row[data-on="false"] .area-name, .area-row[data-on="false"] .area-hp { opacity: .7; }
-    /* What the creature takes and why, under its name and its outcome. */
-    .area-damage { grid-column: 2 / -1; color: var(--info-text); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; line-height: 1.3; }
+    /* Under the row, only when there is something to say: what its defenses did, its Evasion, what it is immune to. */
+    .area-damage { grid-column: 2 / -1; margin-bottom: 2px; color: var(--info-text); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; line-height: 1.3; text-wrap: pretty; }
     .area-damage[hidden] { display: none; }
-    .area-damage strong { color: #fca5a5; }
     .burst-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; width: 100%; }
     .burst-list .option-check { min-width: 0; }
     .burst-list .option-check span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -391,6 +402,7 @@
           <p class="launch-note" id="pc-attack-maneuver-note"></p>
         </section>
         <div class="view" id="pc-attack-attack-view">
+        <div class="form-row"><span class="form-label" id="pc-attack-mode-caption" hidden>Tiro</span><select class="target-select" id="pc-attack-mode" aria-label="Tiro" hidden></select></div>
         <section class="card target-card" aria-label="Bersaglio">
           <span class="form-label" id="pc-attack-target-caption">Bersaglio</span>
           <div class="picker-dropdown" id="pc-attack-target-dropdown">
@@ -398,16 +410,14 @@
             <div class="picker-menu" id="pc-attack-target-menu" role="group" aria-label="Bersagli" hidden></div>
           </div>
           <select class="target-select" id="pc-attack-target" aria-label="Bersaglio" hidden></select>
-          <span class="form-label" id="pc-attack-mode-caption" hidden>Tiro</span>
-          <select class="target-select" id="pc-attack-mode" aria-label="Tiro" hidden></select>
           <div class="area" id="pc-attack-area" hidden>
-            <div class="area-head">
-              <span class="area-note" id="pc-attack-area-note"></span>
+            <div class="section-head">
+              <span class="caption">Creature colpite</span>
               <span class="area-tools">
-                <button class="mini-button" id="pc-attack-area-propose" type="button" title="Riprendi le creature vicine dalla mappa">Proponi</button>
-                <button class="mini-button" id="pc-attack-area-draw" type="button" title="Disegna l'area sulla mappa: le creature al suo interno vengono spuntate" hidden>Disegna</button>
-                <button class="mini-button" id="pc-attack-area-all-failed" type="button">Tutti falliti</button>
-                <button class="mini-button" id="pc-attack-area-all-passed" type="button">Tutti superati</button>
+                <button class="area-tool" id="pc-attack-area-propose" type="button" title="Riprendi le creature vicine dalla mappa">Proponi</button>
+                <button class="area-tool" id="pc-attack-area-draw" type="button" title="Disegna l'area sulla mappa: le creature al suo interno vengono spuntate" hidden>Disegna</button>
+                <button class="area-tool" id="pc-attack-area-all-failed" type="button">Tutti falliti</button>
+                <button class="area-tool" id="pc-attack-area-all-passed" type="button">Tutti superati</button>
               </span>
             </div>
             <div class="area-list" id="pc-attack-area-list"></div>

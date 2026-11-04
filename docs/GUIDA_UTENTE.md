@@ -492,12 +492,14 @@ Al turno del mostro la console mostra:
   dadi al tavolo, si sceglie Colpito, Critico o Mancato e si inseriscono i
   danni, come per un PG;
 - le **azioni a tiro salvezza** (soffi, sguardi, Presenza terrificante): la
-  nota dice area, TS, CD e cosa succede a chi fallisce e a chi supera.
+  riga sotto il selettore dice area, TS, CD e cosa succede a chi fallisce e a
+  chi supera; il danno viene prima dell'elenco delle creature.
   **Disegna** mette l'area sulla mappa alla misura dello statblock (dal token
   del mostro, o su un punto) e spunta le creature dentro; un'area attorno al
-  mostro propone le creature da sola. Accanto a ogni creatura il suo bonus al
-  TS, «Elusione» e le sue immunità; gli esiti sono **Fallito**, **Superato**
-  e **Immune** (chi è immune parte già lì). Chi supera subisce
+  mostro propone le creature da sola. Su ogni riga i PF, il bonus al TS (`+4`),
+  l'esito e il danno che subisce; il nome si accorcia, il suggerimento lo scrive
+  intero. Sotto la riga, solo se serve, «Elusione» e le sue immunità. Gli esiti
+  sono **Fallito**, **Superato** e **Immune** (chi è immune parte già lì). Chi supera subisce
   metà danni solo se lo statblock lo prevede; le condizioni durano quanto
   dice lo statblock e, con il tiro ripetuto, portano il promemoria del TS a
   fine turno della creatura, che superato le toglie; un'azione come la
@@ -520,8 +522,9 @@ Le **difese** dello statblock valgono quando il mostro è il bersaglio, nella
 console attacchi e nella console boss: il danno di quel tipo si dimezza o si
 azzera. L'anteprima dice cosa ha fatto ogni difesa al danno digitato: sul
 pulsante della difesa, `Res. taglienti: 10 → 5`, nella console attacchi sotto il
-totale, accanto a **Registra** e sempre in vista; nelle aree e nei gruppi, sotto
-ogni creatura, `−30 · Res. fuoco: 60 → 30`. Anche le difese limitate alle armi
+totale, accanto a **Registra** e sempre in vista; nelle aree il danno sta sulla
+riga della creatura (`−30`) e la difesa sotto (`Res. fuoco: 60 → 30`); nei gruppi
+della console boss il conto sta sotto la creatura. Anche le difese limitate alle armi
 non magiche, come `Res. taglienti non magici: 10 → 5` nella console attacchi,
 con il materiale nel suggerimento del pulsante, si applicano da sole, perché il
 plugin non sa di che arma si tratta. Per un'arma magica, del materiale giusto o

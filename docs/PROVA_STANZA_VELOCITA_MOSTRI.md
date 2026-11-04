@@ -89,11 +89,11 @@ Il banco non disegna i token e non ha una griglia vera: qui conta guardarli sull
 Il banco ha provato import, pulsante, conto e PF su un JSON scritto a mano. Qui conta il JSON vero dell'archivio e un attacco registrato in stanza.
 
 - [ ] **Import:** su un nemico, importa **Barbed Devil** (MM). **Al tavolo** dice che la resistenza ai danni non magici né d'argento si ignora nella console per un'arma magica. Le difese della scheda mostrano `Res. taglienti (non magici né d'argento)` e `Res. freddo`, senza scritta.
-- [ ] **Arma normale:** da un PG con un'arma tagliente, scegli il diavolo, **Colpito** e 10 danni. Sopra il totale il pulsante dice `Res. taglienti (non magici né d'argento): 10 → 5`, e il totale è 5.
+- [ ] **Arma normale:** da un PG con un'arma tagliente, scegli il diavolo, **Colpito** e 10 danni. Sotto il totale il pulsante dice `Res. taglienti non magici: 10 → 5`, con il materiale nel suggerimento, e il totale è 5.
 - [ ] **Arma magica:** un clic sul pulsante: il conto sparisce e il totale è 10. Dopo **Registra** il diavolo perde 10 PF. Al prossimo attacco il pulsante è di nuovo acceso.
 - [ ] **Molti extra:** con un PG che ha Attacco Furtivo e Punizione Divina, il pulsante si vede senza scorrere, e il totale resta accanto a **Registra**.
-- [ ] **Incantesimo:** passa a un incantesimo della console: sopra **Lancia** non c'è nessun pulsante della difesa. Tornando agli attacchi ricompare.
-- [ ] **Area:** usa un soffio su tre creature, una resistente, una immune e una senza difese. Sotto ognuna si legge `−30 · Res. fuoco: 60 → 30`, `Nessun danno · Imm. fuoco: 60 → 0` e `−60`. I PF scendono di quei numeri.
+- [ ] **Incantesimo:** passa a un incantesimo della console: accanto a **Lancia** non c'è nessun pulsante della difesa. Tornando agli attacchi ricompare.
+- [ ] **Area:** usa un soffio su tre creature, una resistente, una immune e una senza difese. Sulle righe si legge `−30`, `0` e `−60`; sotto le prime due `Res. fuoco: 60 → 30` e `Imm. fuoco: 60 → 0`. I PF scendono di quei numeri.
 - [ ] **Console boss:** su un bersaglio resistente il pulsante nella riga **Difese** ha il conto. In un'azione su più creature il conto è sotto la riga della creatura.
 - [ ] **Annulla:** dalla Cronologia i PF tornano com'erano.
 - [ ] **Immunità:** su **Stone Golem** (MM) la scheda mostra `Imm. taglienti (non magici né di adamantio)`. Lo stesso colpo fa 0 danni, 10 con il pulsante spento.

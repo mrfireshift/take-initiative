@@ -11,13 +11,15 @@ const { bootPcAttack, defaultCantripId, resultSummary, areaSummary } = await imp
 const { sanitizeQuickAction } = await import("../src/quickActionsCore.js");
 const { pcAttackPickerEntries } = await import("../src/pcAttackPickerCore.js");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
+// The line under the picker, whose short parts keep their words together with no-break spaces.
+const facts = (f) => f.$("pc-attack-subtitle").textContent.replaceAll("\u00a0", " ");
 
 const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-picker-search", "pc-attack-minimize", "pc-attack-picker-dropdown", "pc-attack-picker-dropdown-button", "pc-attack-picker-menu", "pc-attack-use-selected-row", "pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
   "pc-attack-outcomes", "pc-attack-damage", "pc-attack-defenses", "pc-attack-total", "pc-attack-apply", "pc-attack-status", "pc-attack-undo",
   "pc-attack-extras-section", "pc-attack-riders", "pc-attack-extras", "pc-attack-add-extra", "pc-attack-cantrip-row", "pc-attack-cantrip",
   "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven", "pc-attack-activations", "pc-attack-activations-caption",
   "pc-attack-palm", "pc-attack-palm-note", "pc-attack-palm-outcomes", "pc-attack-palm-amount", "pc-attack-palm-apply",
-  "pc-attack-mode", "pc-attack-outcome-block", "pc-attack-target-caption", "pc-attack-area", "pc-attack-area-note", "pc-attack-area-list",
+  "pc-attack-mode", "pc-attack-outcome-block", "pc-attack-target-caption", "pc-attack-area", "pc-attack-area-list",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed", "pc-attack-picker", "pc-attack-picker-tabs", "pc-attack-picker-select",
   "pc-attack-auto-open-row", "pc-attack-auto-open", "pc-attack-attack-view", "pc-attack-launch", "pc-attack-caster", "pc-attack-follow", "pc-attack-picker-list",
   "pc-attack-launch-button", "pc-attack-spell-details", "pc-attack-spell-details-body", "pc-attack-use-selected",
@@ -129,8 +131,8 @@ test("the console shows the attack and asks for a target first", async () => {
   const f = fixture(); await f.controller.ready; await tick();
   assert.equal(f.$("pc-attack-form").hidden, false);
   assert.equal(f.$("pc-attack-title").textContent, "Aria");
-  assert.match(f.$("pc-attack-subtitle").textContent, /^Spada sacra( · |$)/);
-  assert.equal(f.$("pc-attack-subtitle").textContent, "Spada sacra · Mischia");
+  assert.match(facts(f), /^Spada sacra( · |$)/);
+  assert.equal(facts(f), "Spada sacra · Mischia");
   assert.match(textOf(f.$("pc-attack-damage")), /taglienti .*1d8\+3 .*radiosi .*2d8/i);
   assert.equal(f.$("pc-attack-apply").disabled, true);
   assert.equal(f.$("pc-attack-total").textContent, "Scegli il bersaglio.");
@@ -333,11 +335,11 @@ test("a cantrip action: pick the cantrip, its dice follow the character level, n
   assert.equal(f.$("pc-attack-cantrip-row").hidden, false);
   assert.deepEqual(picker.children.map((option) => option.textContent), ["Dardo di fuoco", "Deflagrazione occulta", "Stretta folgorante"]);
   assert.equal(picker.value, "eldritch-blast", "the cantrip used last comes first");
-  assert.equal(f.$("pc-attack-subtitle").textContent, "Deflagrazione occulta · Trucchetto · Distanza");
+  assert.equal(facts(f), "Deflagrazione occulta · Trucchetto · Distanza");
   assert.match(textOf(f.$("pc-attack-damage")), /Forza 1d10/);
   assert.match(f.$("pc-attack-cantrip-note").textContent, /Raggi: 2 al livello del personaggio/);
   picker.value = "shocking-grasp"; await picker.emit("change");
-  assert.equal(f.$("pc-attack-subtitle").textContent, "Stretta folgorante · Trucchetto · Mischia");
+  assert.equal(facts(f), "Stretta folgorante · Trucchetto · Mischia");
   assert.match(textOf(f.$("pc-attack-damage")), /Fulmine 2d8/);
   assert.equal(f.$("pc-attack-cantrip-note").textContent,
     "Vantaggio al tiro per colpire contro un bersaglio con armatura di metallo. Al colpo: etichetta «Niente reazioni».");
@@ -366,7 +368,7 @@ test("a saving throw cantrip: TS outcomes, the save in the subtitle, Toll the De
   picker.value = "xanathar-rintocco-dei-morti"; await picker.emit("change");
   assert.equal(f.controller.getDraft().outcome, "", "an attack outcome does not carry over to a save");
   assert.deepEqual(f.$("pc-attack-outcomes").children.map((button) => button.textContent), ["Fallito", "Superato"], "the save is named once, above them");
-  assert.equal(f.$("pc-attack-subtitle").textContent, "Rintocco dei Morti · Trucchetto · TS Saggezza (CD 14)");
+  assert.equal(facts(f), "Rintocco dei Morti · Trucchetto · TS Saggezza (CD 14)");
   assert.match(textOf(f.$("pc-attack-damage")), /Necrotici 2d8/);
   assert.equal(f.$("pc-attack-cantrip-note").hidden, true, "Toll the Dead has no note");
   picker.value = "fire-bolt"; await picker.emit("change");
@@ -663,11 +665,12 @@ test("an area cantrip: the creatures near the caster proposed, a save for each, 
   assert.equal(f.$("pc-attack-area").hidden, false);
   assert.equal(f.$("pc-attack-target").hidden, true);
   assert.equal(f.$("pc-attack-target-dropdown").hidden, true, "no target to choose: its menu goes too");
-  assert.deepEqual([f.$("pc-attack-target-caption").textContent, f.$("pc-attack-target-caption").className], ["Creature colpite", "caption"], "a title on its own line");
+  assert.equal(f.$("pc-attack-target-caption").hidden, true, "and its label");
+  assert.equal(f.$("pc-attack-attack-view").dataset.area, "true", "the creatures under the damage");
   assert.equal(f.$("pc-attack-outcomes").hidden, true, "no single outcome: a save for each creature");
-  assert.match(f.$("pc-attack-area-note").textContent, /Entro 1,5 m da Aria, alleati compresi/);
+  assert.match(facts(f), /Entro 1,5 m da Aria, alleati compresi · TS Destrezza \(CD 14\)$/);
   assert.deepEqual(["ghoul", "imp"].map((id) => areaField(areaRow(f, id), "on").checked), [true, false], "proposed from the map");
-  assert.match(textOf(areaRow(f, "ghoul")), /Ghoul · 30\/30 PF/);
+  assert.deepEqual([areaField(areaRow(f, "ghoul"), "name").textContent, areaField(areaRow(f, "ghoul"), "hp").textContent, areaField(areaRow(f, "ghoul"), "name").title], ["Ghoul", "30/30", "Ghoul · 30/30 PF"], "the name gives way, its hit points stay apart");
   assert.equal(f.$("pc-attack-total").textContent, "Scegli l'esito del tiro salvezza di ogni creatura.");
   await f.$("pc-attack-area-all-failed").click();
   await areaField(areaRow(f, "imp"), "passed").click();
@@ -688,27 +691,47 @@ test("an area cantrip: the creatures near the caster proposed, a save for each, 
   assert.equal(areaSummary({ rows: [] }, "Rombo di Tuono"), "Registrato: Rombo di Tuono su 0 creature.");
 });
 
-test("an area: under each creature what it takes and what its defenses did, once its save and the roll are known", async () => {
+test("an area: on each creature's row what it takes, under it what its defenses did, once its save and the roll are known", async () => {
   const action = sanitizeQuickAction({ id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["tasha-turbine-di-spade"] } });
   const f = fixture({ action, attacker: { initiativeCard: { characterBuild: [{ classId: "mago", level: 5 }], spellSaveDC: 14 } }, turnState: ownTurn,
     defenses: { resistances: ["force"], immunities: [], vulnerabilities: [] }, nearby: () => ["ghoul"] });
   await f.controller.ready; await tick();
   const line = (id) => areaField(areaRow(f, id), "damage");
-  const lineText = (id) => textOf(line(id)).trim();
-  assert.equal(line("ghoul").hidden, true, "no save yet");
+  const amount = (id) => areaField(areaRow(f, id), "amount").textContent;
+  assert.deepEqual([line("ghoul").hidden, amount("ghoul")], [true, ""], "no save yet");
   await areaField(areaRow(f, "ghoul"), "failed").click();
   await areaField(areaRow(f, "imp"), "failed").click();
-  assert.equal(line("ghoul").hidden, true, "no roll yet");
+  assert.deepEqual([line("ghoul").hidden, amount("ghoul")], [true, ""], "no roll yet");
   await typeAmounts(f, ["7"]);
-  assert.equal(lineText("ghoul"), "−3 · Res. forza: 7 → 3");
-  assert.equal(lineText("imp"), "−7");
+  assert.deepEqual([amount("ghoul"), line("ghoul").hidden, line("ghoul").textContent], ["−3", false, "Res. forza: 7 → 3"]);
+  assert.deepEqual([amount("imp"), line("imp").hidden], ["−7", true], "no defense: nothing under its row");
   assert.match(textOf(f.$("pc-attack-total")), /10 danni · 2 creature$/);
   assert.equal(f.$("pc-attack-defenses").children.length, 0, "no button in an area: the rows say it");
   await areaField(areaRow(f, "imp"), "passed").click();
-  assert.equal(lineText("imp"), "Nessun danno");
+  assert.equal(amount("imp"), "0");
   const on = areaField(areaRow(f, "ghoul"), "on");
   on.checked = false; await on.emit("change");
-  assert.equal(line("ghoul").hidden, true, "out of the area, nothing to say");
+  assert.deepEqual([line("ghoul").hidden, amount("ghoul")], [true, ""], "out of the area, nothing to say");
+});
+
+test("an area's row: the bonus to the save in its column; its Evasion and what it is immune to under it; no title over nothing", async () => {
+  const monster = { initiativeCard: { monster: { source: "manual" } } };
+  const breath = sanitizeQuickAction({ id: "breath", label: "Soffio di fuoco", kind: "attack", range: "ranged", components: [{ id: "c1", type: "fire", formula: "18d6" }], save: "dex", saveDC: 21, saveHalf: true, area: { shape: "cone", sizeFeet: 60 } });
+  const f = fixture({ action: breath, attacker: monster, turnState: ownTurn, metas: { ghoul: { initiativeCard: { savingThrows: { dex: 4 }, monster: { source: "manual", evasion: true } } } } });
+  await f.controller.ready; await tick();
+  const ghoul = areaRow(f, "ghoul"), imp = areaRow(f, "imp");
+  assert.deepEqual([areaField(ghoul, "save").textContent, areaField(imp, "save").textContent], ["+4", ""], "the save is named once, above");
+  assert.equal(areaField(ghoul, "name").title, "Ghoul · 30/30 PF · TS +4", "the name may be cut: its tooltip says it all");
+  assert.deepEqual([areaField(ghoul, "damage").hidden, areaField(ghoul, "damage").textContent], [false, "Elusione"], "said before the save, it changes what to roll");
+  assert.equal(areaField(imp, "damage").hidden, true, "nothing to say, no line");
+  assert.equal(f.$("pc-attack-extras-caption").hidden, true, "no row to title: only its button");
+  assert.equal(f.$("pc-attack-add-extra").hidden, false);
+  await f.$("pc-attack-add-extra").click();
+  assert.equal(f.$("pc-attack-extras-caption").hidden, false, "a component added: its title");
+  const presence = sanitizeQuickAction({ id: "presence", label: "Presenza terrificante", kind: "attack", components: [], save: "wis", saveDC: 19, area: { shape: "sphere", sizeFeet: 120 }, onFail: { condition: "Spaventato" } });
+  const g = fixture({ action: presence, attacker: monster, turnState: ownTurn, metas: { ghoul: { initiativeCard: { monster: { source: "manual", conditionImmunities: ["spaventato"] } } } } });
+  await g.controller.ready; await tick();
+  assert.equal(areaField(areaRow(g, "ghoul"), "damage").textContent, "immune a spaventato");
 });
 
 // Lot L11 of the bugfix pass (AT-04): the saves of an area attack were not decisions: Esc, ⇄ or a turn change dropped
@@ -754,7 +777,7 @@ test("the arrows of the Arcane Archer: Seeking replaces the roll with a save; Pi
   mode.value = ARROW("perforante"); await mode.emit("change");
   assert.equal(f.$("pc-attack-area").hidden, false);
   assert.equal(f.$("pc-attack-area-propose").hidden, true, "a line: ticked by hand");
-  assert.match(f.$("pc-attack-area-note").textContent, /Sulla linea di 9 m/);
+  assert.match(facts(f), /Linea di 9 m · TS Destrezza \(CD 12\)/);
   assert.deepEqual(f.nearbyCalls, [], "nothing proposed for a line");
   await areaField(areaRow(f, "imp"), "failed").click();
   await typeAmounts(f, ["8", "3"]);
@@ -808,7 +831,7 @@ test("the picker: one tab per kind, the entries of the current tab, the cantrip 
   assert.equal(f.$("pc-attack-picker-select").value, "holy-sword");
   await pickerTabs(f)[1].click(); await tick();
   assert.equal(f.$("pc-attack-title").textContent, "Aria");
-  assert.equal(f.$("pc-attack-subtitle").textContent, "Trucchetto · Distanza", "under the picker, without the name it shows");
+  assert.equal(facts(f), "Distanza", "under the picker, without what it says: the name and the tab");
   assert.equal(f.$("pc-attack-picker-select").value, "cantrip::fire-bolt");
   assert.deepEqual(pickerOptions(f), ["cantrip::fire-bolt", "cantrip::ray-of-frost"]);
   assert.equal(f.controller.getDraft().spellId, "fire-bolt");
@@ -965,7 +988,7 @@ test("a spell the console does not resolve shows its card instead of the form; t
   assert.equal(f.$("pc-attack-attack-view").hidden, true);
   assert.equal(f.$("pc-attack-launch").hidden, false);
   assert.equal(f.$("pc-attack-title").textContent, "Aria");
-  assert.equal(f.$("pc-attack-subtitle").textContent, "", "the list's row names it, its group says the level");
+  assert.equal(facts(f), "", "the list's row names it, its group says the level");
   assert.match(textOf(f.$("pc-attack-picker-list").querySelector('[aria-pressed="true"]')), /Benedizione/);
   assert.match(textOf(f.$("pc-attack-launch")), /Concentrazione/);
   assert.equal(f.$("pc-attack-launch-button").textContent, "Lancia");
@@ -1035,7 +1058,7 @@ test("an actor with spells and no attack opens on its spells", async () => {
   assert.equal(f.$("pc-attack-form").hidden, false);
   assert.equal(f.$("pc-attack-attack-view").hidden, true);
   assert.equal(f.$("pc-attack-title").textContent, "Aria");
-  assert.match(f.$("pc-attack-subtitle").textContent, /^Luce( · |$)/, "alone in its tab: no menu names it, this line does");
+  assert.match(facts(f), /^Luce( · |$)/, "alone in its tab: no menu names it, this line does");
 });
 
 test("a blade cantrip points to the weapon attack", async () => {
@@ -1162,7 +1185,7 @@ test("the Capacità tab lists the features by group with their activation and us
   assert.match(textOf(list.querySelectorAll("button")[0]), /Ira.*Azione bonus · 2\/3/);
   assert.equal(f.$("pc-attack-title").textContent, "Aria");
   assert.match(textOf(f.$("pc-attack-picker-list").querySelector('[aria-pressed="true"]')), /Ira/);
-  assert.equal(f.$("pc-attack-subtitle").textContent, "");
+  assert.equal(facts(f), "");
   assert.match(textOf(f.$("pc-attack-launch")), /Azione bonus.*Su di sé/);
   assert.match(textOf(f.$("pc-attack-total")), /Ire 2\/3/, "the uses left beside the button");
   assert.ok(f.$("pc-attack-launch").querySelector("details"), "its text in the accordion");
@@ -1761,7 +1784,7 @@ test("off turn, the attack that spends the reaction: no warning right after it, 
 test("a cantrip action naming no spell opens on one the actor knows: the selector, the header and the damage agree", async () => {
   const f = fixture({ card: clericCard, attacker: clericMeta, actionId: "cantrip" }); await f.controller.ready; await tick();
   assert.equal(f.controller.getDraft().spellId, "sacred-flame", "not the first of all the cantrips");
-  assert.equal(f.$("pc-attack-subtitle").textContent, "Trucchetto · TS Destrezza");
+  assert.equal(facts(f), "TS Destrezza");
   assert.equal(f.$("pc-attack-picker-select").value, "cantrip::sacred-flame");
   assert.match(textOf(f.$("pc-attack-damage")), /Radiosi/);
   const offered = sanitizeQuickAction({ id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["fire-bolt", "ray-of-frost"] } });
@@ -1841,7 +1864,7 @@ test("Lotta: the target from the map, the contest's outcome, Registra; the next 
   await pick(f, "maneuver::grapple");
   assert.equal(f.$("pc-attack-maneuver").hidden, false);
   assert.equal(f.$("pc-attack-attack-view").hidden, true);
-  assert.equal(f.$("pc-attack-subtitle").textContent, "Attacco speciale in mischia");
+  assert.equal(facts(f), "Attacco speciale in mischia");
   assert.equal(f.$("pc-attack-maneuver-target").value, "ghoul", "the attack's target carries over");
   assert.equal(f.$("pc-attack-maneuver-effects").hidden, true, "a Grapple has no effect to choose");
   assert.match(f.$("pc-attack-maneuver-contest").textContent, /Atletica contro Atletica o Acrobazia/);
@@ -1924,7 +1947,7 @@ const dragonCard = { spellSaveDC: 8, quickActions: [dragonBite, dragonBreath], m
 
 test("monster attack in the console: its bonus and reach under the picker, the Multiattack, the note under the damage", async () => {
   const f = fixture({ card: dragonCard, actionId: "bite", attacker: { initiativeCard: dragonCard } }); await f.controller.ready; await tick();
-  assert.equal(f.$("pc-attack-subtitle").textContent, "Mischia · +14 al tiro · portata 3 m");
+  assert.equal(facts(f), "Mischia · +14 al tiro · portata 3 m");
   assert.equal(f.$("pc-attack-multiattack").hidden, false);
   assert.equal(f.$("pc-attack-multiattack").textContent, "Multiattacco: Un morso e due artigli.");
   assert.equal(f.$("pc-attack-monster-note").hidden, false);
@@ -1932,11 +1955,11 @@ test("monster attack in the console: its bonus and reach under the picker, the M
   assert.deepEqual(f.$("pc-attack-outcomes").children.map((button) => button.dataset.outcome), ["hit", "critical", "miss"]);
 });
 
-test("monster save action in the console: its area note and DC, drawn on the map or ticked by hand", async () => {
+test("monster save action in the console: its area and DC under the picker, drawn on the map or ticked by hand", async () => {
   const f = fixture({ card: dragonCard, actionId: "breath", attacker: { initiativeCard: dragonCard } }); await f.controller.ready; await tick();
-  assert.equal(f.$("pc-attack-subtitle").textContent, "TS Destrezza (CD 21) · Ricarica 5–6");
+  assert.equal(facts(f), "Cono di 18 m · TS Destrezza (CD 21) · metà se superato · Ricarica 5–6", "once, under the picker");
+  assert.match(f.$("pc-attack-subtitle").textContent, /TS\u00a0Destrezza\u00a0\(CD\u00a021\) · metà\u00a0se\u00a0superato · Ricarica\u00a05–6$/, "the line wraps between its parts, never inside one");
   assert.equal(f.$("pc-attack-area").hidden, false);
-  assert.equal(f.$("pc-attack-area-note").textContent, "Cono di 18 m: disegna l'area sulla mappa o spunta le creature colpite. TS Destrezza (CD 21): metà se superato.");
   assert.equal(f.$("pc-attack-area-propose").hidden, true);
   assert.equal(f.$("pc-attack-monster-note").hidden, true, "no note on this action");
   await areaField(areaRow(f, "ghoul"), "failed").click();

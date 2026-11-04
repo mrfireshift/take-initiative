@@ -14,13 +14,15 @@ const { sanitizeQuickAction } = await import("../src/quickActionsCore.js");
 const { getSpellAreaRuleById } = await import("../src/spellAreaRules.js");
 const { spellAreaTheme } = await import("../src/spellAreaStyleCore.js");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
+// The line under the picker, whose short parts keep their words together with no-break spaces.
+const facts = (f) => f.$("pc-attack-subtitle").textContent.replaceAll("\u00a0", " ");
 
 const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
   "pc-attack-outcomes", "pc-attack-damage", "pc-attack-defenses", "pc-attack-total", "pc-attack-apply", "pc-attack-status", "pc-attack-undo",
   "pc-attack-extras-section", "pc-attack-riders", "pc-attack-extras", "pc-attack-add-extra", "pc-attack-cantrip-row", "pc-attack-cantrip",
   "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven", "pc-attack-activations", "pc-attack-activations-caption",
   "pc-attack-palm", "pc-attack-palm-note", "pc-attack-palm-outcomes", "pc-attack-palm-amount", "pc-attack-palm-apply",
-  "pc-attack-mode", "pc-attack-outcome-block", "pc-attack-target-caption", "pc-attack-area", "pc-attack-area-note", "pc-attack-area-list",
+  "pc-attack-mode", "pc-attack-outcome-block", "pc-attack-target-caption", "pc-attack-area", "pc-attack-area-list",
   "pc-attack-area-propose", "pc-attack-area-draw", "pc-attack-area-all-failed", "pc-attack-area-all-passed", "pc-attack-picker", "pc-attack-picker-tabs",
   "pc-attack-picker-select", "pc-attack-picker-list", "pc-attack-auto-open-row", "pc-attack-auto-open", "pc-attack-attack-view", "pc-attack-launch",
   "pc-attack-caster", "pc-attack-follow"];
@@ -82,7 +84,7 @@ test("Disegna: the console folds while the GM draws, then ticks the creatures in
   await f.controller.ready; await tick();
   const draw = f.$("pc-attack-area-draw");
   assert.equal(draw.hidden, false, "the breath shows the draw button");
-  assert.match(textOf(f.$("pc-attack-area-note")), /Cono di 4,5 m: disegnalo sulla mappa/);
+  assert.match(facts(f), /Cono di 4,5 m · TS Destrezza \(CD \d+\) · metà se superato/);
   await draw.click(); await tick();
   assert.equal(f.requests.length, 1);
   assert.deepEqual([f.requests[0].ruleId, f.requests[0].casterId], ["pc-breath-area:cone:fire", "kriv"]);
@@ -149,5 +151,5 @@ test("a sphere around the monster proposes the creatures within its radius, no d
   const members = f.controller.getDraft().area.members;
   assert.deepEqual(["ghoul", "imp"].map((id) => !!members[id]?.on), [true, false]);
   assert.equal(f.$("pc-attack-area-propose").hidden, false);
-  assert.match(textOf(f.$("pc-attack-area-note")), /^Entro 36 m dal mostro: proposte, togli quelle che non sceglie\./);
+  assert.match(facts(f), /Entro 36 m dal mostro, a sua scelta · /);
 });

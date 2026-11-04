@@ -127,12 +127,12 @@ test("console attacchi, area: ogni creatura dice cosa subisce e perché", () => 
   const plain = creature("plain");
   const preview = (members, amounts = { c1: 60 }) => pcAttackAreaPreview({ action: breath, sourceItem: dragon, members, amounts });
   const view = preview([{ item: resist, outcome: "failed" }, { item: immune, outcome: "failed" }, { item: plain, outcome: "failed" }]);
-  assert.deepEqual(view.rows.map(pcAttackAreaRowDamage), [{ amount: "−30", reason: "Res. fuoco: 60 → 30" }, { amount: "Nessun danno", reason: "Imm. fuoco: 60 → 0" }, { amount: "−60", reason: "" }]);
+  assert.deepEqual(view.rows.map(pcAttackAreaRowDamage), [{ amount: "−30", reason: "Res. fuoco: 60 → 30" }, { amount: "0", reason: "Imm. fuoco: 60 → 0" }, { amount: "−60", reason: "" }]);
   assert.equal(view.total, 90, "the sum of the rows");
   const rows = preview([{ item: resist, outcome: "passed" }, { item: plain, outcome: "immune" }, { item: immune, outcome: "" }]).rows;
-  assert.deepEqual(rows.map(pcAttackAreaRowDamage), [{ amount: "−15", reason: "Res. fuoco: 60 → 15" }, { amount: "Nessun danno", reason: "" }, null]);
+  assert.deepEqual(rows.map(pcAttackAreaRowDamage), [{ amount: "−15", reason: "Res. fuoco: 60 → 15" }, { amount: "0", reason: "" }, null]);
   const unrolled = preview([{ item: resist, outcome: "failed" }, { item: plain, outcome: "immune" }], {}).rows;
-  assert.deepEqual(unrolled.map(pcAttackAreaRowDamage), [null, { amount: "Nessun danno", reason: "" }], "without the roll only who takes nothing is known");
+  assert.deepEqual(unrolled.map(pcAttackAreaRowDamage), [null, { amount: "0", reason: "" }], "without the roll only who takes nothing is known");
   const fright = sanitizeQuickAction({ id: "fright", label: "Presenza", kind: "attack", components: [], save: "wis", saveDC: 19, area: { shape: "sphere", sizeFeet: 120 }, onFail: { condition: "Spaventato" } });
   const conditionOnly = pcAttackAreaPreview({ action: fright, sourceItem: dragon, members: [{ item: plain, outcome: "failed" }], amounts: {} }).rows;
   assert.equal(pcAttackAreaRowDamage(conditionOnly[0]), null, "an area without damage says nothing of it");

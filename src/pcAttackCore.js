@@ -945,23 +945,23 @@ const MONSTER_AREA_TEXT = Object.freeze({
   cylinder: (area) => `Cilindro di ${pcAttackFeetLabel(area.sizeFeet)} di raggio`,
 });
 
-// The area note of a monster's save action: where its creatures are, its save and DC, what a success and a failure do.
-// "" for any other attack.
+// The words of a monster's save action, for the line under the picker: where its creatures are, its save and DC, what a
+// success and a failure do. How to draw it is the tooltip of Disegna. "" for any other attack.
 export function pcAttackMonsterAreaNote(attack, card = {}) {
   if (!attack?.monster || !attack.area) return "";
   const area = attack.area;
   const where = area.shape === "target"
-    ? (area.maxTargets > 1 ? `Fino a ${area.maxTargets} bersagli: spuntali. ` : "Un bersaglio: spuntalo. ")
+    ? (area.maxTargets > 1 ? `Fino a ${area.maxTargets} bersagli` : "Un bersaglio")
     : area.proposeFeet
-      ? `Entro ${pcAttackFeetLabel(area.proposeFeet)} dal mostro: proposte${area.chosen ? ", togli quelle che non sceglie" : ", alleati compresi"}. `
-      : `${MONSTER_AREA_TEXT[area.shape]?.(area) || "Area"}: disegna l'area sulla mappa o spunta le creature colpite. `;
+      ? `Entro ${pcAttackFeetLabel(area.proposeFeet)} dal mostro${area.chosen ? ", a sua scelta" : ", alleati compresi"}`
+      : MONSTER_AREA_TEXT[area.shape]?.(area) || "Area";
   const onFail = attack.monster.onFail;
   const effects = [
     ...(attack.components.length ? [attack.monster.half ? "metà se superato" : "niente se superato"] : []),
     ...(onFail ? [`chi fallisce è ${pcAttackMonsterFailureText(onFail)}`] : []),
     ...(attack.immuneHours ? [`chi supera è immune per ${attack.immuneHours} ore`] : []),
   ];
-  return `${where}${pcAttackSaveLabel(attack, card)}${effects.length ? `: ${effects.join(", ")}` : ""}.`;
+  return [where, pcAttackSaveLabel(attack, card), ...effects].filter(Boolean).join(" · ");
 }
 
 // Creatures near a token (3C): the circle of the area tool around the token's space, of radius radiusFeet. The caster's
@@ -1909,7 +1909,7 @@ export function pcAttackAreaPreview({
 // What a creature of an area takes and why, for its row in the console: null until its outcome and the damage are known.
 export function pcAttackAreaRowDamage(row) {
   if (!row?.counted) return null;
-  return { amount: row.total > 0 ? `−${row.total}` : "Nessun danno", reason: (row.defenseCounts || []).map((entry) => damageDefenseCount(entry)).join(" · ") };
+  return { amount: row.total > 0 ? `−${row.total}` : "0", reason: (row.defenseCounts || []).map((entry) => damageDefenseCount(entry)).join(" · ") };
 }
 
 export function buildPcAttackAreaMutation({

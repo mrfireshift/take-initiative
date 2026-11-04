@@ -113,22 +113,22 @@ test("le etichette del mostro: bonus, portata e gittata in metri, ricarica e usi
   assert.deepEqual([5, 15, 60, 120].map(pcAttackFeetLabel), ["1,5 m", "4,5 m", "18 m", "36 m"]);
 });
 
-test("la nota dell'area: forma e misura, TS e CD, cosa fanno successo e fallimento", () => {
+test("le parole dell'area: forma e misura, TS e CD, cosa fanno successo e fallimento", () => {
   const card = dragon().metadata[META].initiativeCard;
   assert.equal(pcAttackMonsterAreaNote(pcAttackResolvedAction(fireBreath), card),
-    "Cono di 18 m: disegna l'area sulla mappa o spunta le creature colpite. TS Destrezza (CD 21): metà se superato.");
+    "Cono di 18 m · TS Destrezza (CD 21) · metà se superato");
   assert.equal(pcAttackMonsterAreaNote(pcAttackResolvedAction(presence), card),
-    "Sfera di 36 m di raggio: disegna l'area sulla mappa o spunta le creature colpite. TS Saggezza (CD 19): chi fallisce è spaventato.");
+    "Sfera di 36 m di raggio · TS Saggezza (CD 19) · chi fallisce è spaventato");
   // Fase 5, lotto 1: "within 120 feet of the dragon", "of its choice": the creatures within are proposed.
   const around = pcAttackResolvedAction(sanitizeQuickAction({ ...presence, area: { shape: "sphere", sizeFeet: 120, origin: "self", choice: true } }));
   assert.deepEqual([around.area.manual, around.area.proposeFeet, around.area.chosen], [true, 120, true]);
-  assert.equal(pcAttackMonsterAreaNote(around, card), "Entro 36 m dal mostro: proposte, togli quelle che non sceglie. TS Saggezza (CD 19): chi fallisce è spaventato.");
+  assert.equal(pcAttackMonsterAreaNote(around, card), "Entro 36 m dal mostro, a sua scelta · TS Saggezza (CD 19) · chi fallisce è spaventato");
   const onPoint = pcAttackResolvedAction(sanitizeQuickAction({ ...presence, area: { shape: "sphere", sizeFeet: 20, origin: "point" } }));
   assert.equal(onPoint.area.proposeFeet, undefined, "a sphere on a point is drawn, never proposed");
   assert.equal(pcAttackMonsterAreaNote(pcAttackResolvedAction(poison), card),
-    "Un bersaglio: spuntalo. TS Costituzione (CD 13): niente se superato.");
+    "Un bersaglio · TS Costituzione (CD 13) · niente se superato");
   const line = sanitizeQuickAction({ ...fireBreath, area: { shape: "line", sizeFeet: 60, widthFeet: 5 } });
-  assert.match(pcAttackMonsterAreaNote(pcAttackResolvedAction(line), card), /^Linea di 18 m larga 1,5 m: /);
+  assert.match(pcAttackMonsterAreaNote(pcAttackResolvedAction(line), card), /^Linea di 18 m larga 1,5 m · /);
   assert.equal(pcAttackMonsterAreaNote(pcAttackResolvedAction(bite), card), "");
 });
 
@@ -281,7 +281,7 @@ test("sulla scheda: condizioni in più, round, fino al prossimo turno, tiro ripe
 test("la durata in parole e nei comandi: il tiro ripetuto non conta i round (D7)", () => {
   const attack = pcAttackResolvedAction(frightful);
   assert.equal(pcAttackMonsterFailureText(attack.monster.onFail), "spaventato fino a 1 minuto, TS a fine turno");
-  assert.match(pcAttackMonsterAreaNote(attack, dragon().metadata[META].initiativeCard), /chi fallisce è spaventato fino a 1 minuto, TS a fine turno, chi supera è immune per 24 ore\.$/);
+  assert.match(pcAttackMonsterAreaNote(attack, dragon().metadata[META].initiativeCard), /chi fallisce è spaventato fino a 1 minuto, TS a fine turno · chi supera è immune per 24 ore$/);
   assert.deepEqual(pcAttackMonsterConditionTiming(attack), { expiry: { mode: "manual" }, manualRemoval: true, saveReminder: { ability: "wis", timing: "turn-end", dc: 19 } });
   const timed = pcAttackResolvedAction(sanitizeQuickAction({ ...frightful, onFail: { condition: "Stordito", rounds: 1 }, immuneHours: undefined }));
   assert.deepEqual(pcAttackMonsterConditionTiming(timed), { manualRemoval: false, expiry: { mode: "rounds", remaining: 1 } });

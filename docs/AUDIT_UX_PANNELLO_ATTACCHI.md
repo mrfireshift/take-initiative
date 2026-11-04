@@ -4,7 +4,7 @@ Micro-audit del 04/11/2026 su `pc-attack.html` e `src/pc-attack.js`, chiesto dal
 
 Restano fermi i colori del costo in stile Baldur's Gate, il rosso solo per il danno e niente conteggi sui tab, già decisi dall'utente.
 
-Stato: D1-D3 approvate come consigliate il 04/11/2026. Lotti 1, 2 e 3 fatti, gli altri da fare.
+Stato: D1-D3 approvate come consigliate il 04/11/2026. Lotti 1, 2, 3 e 4 fatti, gli altri da fare.
 
 ## Misure
 
@@ -96,7 +96,7 @@ Tutti riguardano l'aspetto: danni, PF e registrazione non si toccano.
 1. **Errori e parole.** I tre errori, le etichette, «Pronto.», i messaggi ripetuti. Fatto.
 2. **Testata.** Via sottotitolo e `Turno`, dati sotto il selettore, menu ⋯, una riga sola per i cambi di creatura. Fatto. In più, un solo pulsante quando la creatura selezionata è quella di turno.
 3. **Griglia e densità.** Un bordo sinistro, etichetta e controllo, righe a una linea, niente riquadri, difesa accanto al totale, menu del bersaglio con i PF a destra. `TS fallito` e `TS superato` del bersaglio singolo diventano `Fallito` e `Superato`: il TS ora è scritto sopra, sotto il selettore. Fatto. In più, tab sottolineate e altezze 24, 32 e 36. Restano nativi il menu `Tiro` e quelli piccoli di slot e tipo di danno.
-4. **Aree.** Danno prima dell'elenco, righe compatte, PF sempre visibili.
+4. **Aree.** Danno prima dell'elenco, righe compatte, PF sempre visibili. Fatto. In più, area, TS e CD una volta sola sotto il selettore, `Tiro` sotto il selettore anche fuori dalle aree, `+ Danno extra` sulla riga del danno.
 5. **Pill, icone e colori.** Una forma per gli usi, una famiglia di frecce, emoji, colori per significato, note brevi di Immagine speculare e Scudo.
 6. **Altezza della finestra.** Dopo il lotto 3.
 7. **Console boss.** Quello che vale anche lì: condividono `public/console-shell.css`.
@@ -131,3 +131,12 @@ Approvate il 04/11/2026.
 - [ ] **Difesa:** con un bersaglio resistente la pill sta sotto il totale, accanto a **Registra**; un clic sulla ✕ la ignora, un altro la riapplica.
 - [ ] **Molti token:** con più di dieci creature il menu scorre e non esce dalla finestra.
 - [ ] **Liste corte e lunghe:** la lista Capacità è alta quanto le sue voci; un elenco lungo di incantesimi scorre senza spingere i Dettagli fuori dalla finestra.
+
+## Prova in stanza del lotto 4
+
+- [ ] **Soffio:** sotto il selettore si legge `Cono di 18 m · TS Destrezza (CD 21) · metà se superato · Ricarica 5–6`, poi il danno, poi le creature. **Disegna** funziona come prima.
+- [ ] **Righe:** PF, bonus al TS, esito e danno stanno in colonne. Un nome lungo si accorcia, il suggerimento lo scrive intero. Scrivendo il danno gli esiti non si spostano.
+- [ ] **Sotto la riga:** una creatura resistente dice `Res. fuoco: 60 → 30`, un ladro di 7° livello `Elusione`, una immune alla condizione `immune a spaventato`.
+- [ ] **Freccia Perforante:** `Tiro` resta in alto, il danno sotto, le creature in fondo.
+- [ ] **Danno extra:** su un'area `+ Danno extra` sta sulla riga del danno. Aggiungendone uno compare il titolo `Extra al danno`.
+- [ ] **Registra:** i PF scendono come prima, anche con i tiri segnati da **Tutti falliti**.
