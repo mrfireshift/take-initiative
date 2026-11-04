@@ -46,7 +46,8 @@
     /* An off-turn action with the creature selected on the map. */
     .use-selected-row { display: flex; min-width: 0; }
     .use-selected { min-width: 0; overflow: hidden; border-color: rgba(96, 165, 250, .45); text-overflow: ellipsis; }
-    /* What the action is: under the picker, in full (it wraps, it is never cut). */
+    /* What the action is, in full (it wraps, it is never cut): its name under the picker when the picker does not say it,
+       its figures above the damage. */
     .action-facts { margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; line-height: 1.3; text-wrap: pretty; }
     .action-facts:empty { display: none; }
     .picker:not([hidden]) + .action-facts { margin-top: -6px; }
@@ -213,7 +214,7 @@
     /* The damage card: the cantrip or spell controls, the damage rows and extras, then the notes and Dettagli at the bottom
        (the cantrip row's children join the card's grid to be ordered). */
     .cantrip-row { display: contents; }
-    #pc-attack-damage { order: 1; }
+    #pc-attack-facts, #pc-attack-damage { order: 1; }
     #pc-attack-extras-section { order: 2; }
     .cantrip-note { order: 4; }
     #pc-attack-spell-details { order: 5; }
@@ -281,8 +282,6 @@
        The damage card's parts join the view to be ordered (they keep their order: damage 1, extras 2, notes 3, 4, 5). */
     #pc-attack-attack-view[data-area="true"] > .card:not(.target-card) { display: contents; }
     #pc-attack-attack-view[data-area="true"] > .target-card { order: 3; }
-    /* Its words are long: the whole width, with the Multiattack's under them. */
-    #pc-attack-form:has(#pc-attack-attack-view[data-area="true"]) .action-facts, #pc-attack-form:has(#pc-attack-attack-view[data-area="true"]) .caster-state { padding-left: 0; }
     /* With nothing to title, «+ Danno extra» takes no line of its own: on the last damage row, before its amount. */
     #pc-attack-attack-view[data-area="true"]:has(#pc-attack-damage:not(:empty)) #pc-attack-extras-section:has(#pc-attack-extras-caption[hidden]) { align-self: flex-end; margin-top: calc(-1 * (var(--obrt-space-xl) + var(--obrt-hit-min))); margin-right: 70px; }
     #pc-attack-attack-view:not([data-area="true"]):has(#pc-attack-damage:not(:empty)) #pc-attack-extras-section:has(#pc-attack-extras-caption[hidden]) { align-self: flex-end; margin-top: calc(-1 * (var(--obrt-space-md) + var(--obrt-hit-min))); margin-right: 70px; }
@@ -480,6 +479,7 @@
             <p class="cantrip-note" id="pc-attack-cantrip-note" hidden></p>
             <details class="spell-details" id="pc-attack-spell-details" hidden><summary>Dettagli</summary><div class="spell-details-body" id="pc-attack-spell-details-body"></div></details>
           </div>
+          <p class="action-facts" id="pc-attack-facts"></p>
           <div class="component-list" id="pc-attack-damage"></div>
           <p class="monster-note" id="pc-attack-monster-note" hidden></p>
           <div class="extras-section" id="pc-attack-extras-section" hidden>

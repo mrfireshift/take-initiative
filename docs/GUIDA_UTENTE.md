@@ -487,12 +487,12 @@ azioni leggendarie, nella tab **Capacità** della scheda e della console.
 
 Al turno del mostro la console mostra:
 
-- gli **attacchi**: `Mischia` o `Distanza` sul selettore e, nella riga sotto,
+- gli **attacchi**: `Mischia` o `Distanza` sul selettore e, sopra il danno,
   bonus al tiro, portata o gittata in metri («+14 al tiro · portata 3 m»): si tirano i
   dadi al tavolo, si sceglie Colpito, Critico o Mancato e si inseriscono i
   danni, come per un PG;
 - le **azioni a tiro salvezza** (soffi, sguardi, Presenza terrificante): la
-  riga sotto il selettore dice area, TS, CD e cosa succede a chi fallisce e a
+  riga sopra il danno dice area, TS, CD e cosa succede a chi fallisce e a
   chi supera; il danno viene prima dell'elenco delle creature.
   **Disegna** mette l'area sulla mappa alla misura dello statblock (dal token
   del mostro, o su un punto) e spunta le creature dentro; un'area attorno al
@@ -508,7 +508,7 @@ Al turno del mostro la console mostra:
   ghoul, la presa del coccodrillo): su Colpito o Critico, la sezione **Effetto
   del colpo** chiede l'esito del TS del bersaglio e il suo danno, applica le
   condizioni, «Afferrato» con la CD di fuga e Prono; la spinta si fa a mano;
-- **Ricarica 5–6**: dopo l'uso la riga sotto il selettore scrive «usata»; non blocca mai,
+- **Ricarica 5–6**: dopo l'uso la riga sopra il danno scrive «usata»; non blocca mai,
   se al tavolo la ricarica esce, si usa di nuovo;
 - **usi al giorno** («2/3 al giorno»): finiti gli usi l'azione è bloccata;
   tornano con il riposo lungo;

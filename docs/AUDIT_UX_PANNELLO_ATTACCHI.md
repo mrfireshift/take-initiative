@@ -120,7 +120,8 @@ Provato su una scena reale, il pannello sembrava ancora compresso e senza gerarc
 - **Aria.** Testata 40 px, 12 px fra i blocchi, righe dell'elenco 30 px.
 - **Riquadri in più.** Hanno uno sfondo anche il danno, la tabella delle creature e la prova contrapposta della manovra. Non erano richiesti: si possono togliere.
 - **Titoli vuoti.** `Extra al colpo` compare solo sopra qualcosa; altrimenti `+ Danno extra` sta sulla riga del danno, come nelle aree. `Effetto del colpo` passa sotto gli extra.
-- **Colonna sotto il selettore.** `Multiattacco` sta nella colonna dei dati dell'attacco. Nelle aree occupano tutta la larghezza.
+- **Dati dell'attacco sopra il danno.** Dopo una seconda prova, `+5 al tiro · portata 1,5 m` e allo stesso modo TS, area e ricarica passano in cima al riquadro del danno; nelle aree, che non hanno riquadro, subito sopra il danno. Vanno a capo fra una parte e l'altra, col `·` in fondo alla riga.
+- **Sotto il selettore.** Resta `Multiattacco`, allineato al testo del selettore anche nelle aree, e il nome dell'attacco quando manca il menu che lo dice.
 - **Testi tagliati.** La casella del danno mostra solo formule fino a 6 caratteri: una più lunga resta accanto. `Etichetta` non ha più l'esempio, che passa nel suggerimento.
 - **Dettagli.** Uno stacco fra dati, testo e «Ai livelli superiori».
 
@@ -139,7 +140,7 @@ Al banco, sui 38 stati:
 ## Prova in stanza del lotto 2
 
 - [ ] **Testata:** una riga sola con il nome. Nel proprio turno nessuna pillola, nel turno di un altro `Fuori turno`. La testata trascina ancora la console e **−** la riduce.
-- [ ] **Dati:** sotto il selettore il morso di un mostro dice bonus, portata e, dopo l'uso, `usata`, senza tagli.
+- [ ] **Dati:** sopra il danno il morso di un mostro dice bonus, portata e, dopo l'uso, `usata`, senza tagli.
 - [ ] **Menu ⋯:** si apre e si chiude dal suo pulsante, con un clic fuori e con Esc; il secondo Esc chiude la console. Le due caselle cambiano le stesse opzioni del pannello Opzioni, e al turno dopo la console si apre o no di conseguenza.
 - [ ] **Cambi di creatura:** fuori turno con un'altra creatura selezionata, **⇄ Torna a…** e **⇄ Agisci con…** stanno su una riga. Selezionando quella di turno ne resta uno.
 - [ ] **Turno che cambia durante un attacco:** a esito scelto, la barra gialla offre **Passa a…**; dopo **Registra** diventa blu.
@@ -155,7 +156,7 @@ Al banco, sui 38 stati:
 
 ## Prova in stanza del lotto 4
 
-- [ ] **Soffio:** sotto il selettore si legge `Cono di 18 m · TS Destrezza (CD 21) · metà se superato · Ricarica 5–6`, poi il danno, poi le creature. **Disegna** funziona come prima.
+- [ ] **Soffio:** subito sopra il danno si legge `Cono di 18 m · TS Destrezza (CD 21) · metà se superato · Ricarica 5–6`, poi le creature. **Disegna** funziona come prima.
 - [ ] **Righe:** PF, bonus al TS, esito e danno stanno in colonne. Un nome lungo si accorcia, il suggerimento lo scrive intero. Scrivendo il danno gli esiti non si spostano.
 - [ ] **Sotto la riga:** una creatura resistente dice `Res. fuoco: 60 → 30`, un ladro di 7° livello `Elusione`, una immune alla condizione `immune a spaventato`.
 - [ ] **Freccia Perforante:** `Tiro` resta in alto, il danno sotto, le creature in fondo.
@@ -177,7 +178,8 @@ Al banco, sui 38 stati:
 
 - [ ] **Altezza:** la finestra resta di 560 px, qualunque scheda si apra.
 - [ ] **Attacco di un PG:** `Mischia` sul selettore e nelle righe del menu, nessuna riga sotto.
-- [ ] **Attacco di un mostro:** sotto il selettore `+14 al tiro · portata 3 m` e `Multiattacco`, nella stessa colonna.
+- [ ] **Attacco di un mostro:** `+14 al tiro · portata 3 m` in cima al riquadro del danno, sopra `Perforanti`; sotto il selettore solo `Multiattacco`.
+- [ ] **Incantesimo con slot:** prima il selettore dello slot, poi `Senza tiro per colpire`, poi il danno.
 - [ ] **Capacità:** `Utilizzabili` e `Altre capacità` nello stesso riquadro, separate da una linea. Costi in colonna, usi a destra, `Ira  Su di sé` nel titolo della scheda.
 - [ ] **Danno senza extra:** nessun titolo, `+ Danno extra` accanto alla casella. Aggiungendo una componente torna `Extra al colpo`.
 - [ ] **Critico con formula lunga:** la formula va a capo e nulla si sovrappone.

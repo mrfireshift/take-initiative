@@ -319,7 +319,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // Off-turn actions (a reaction, an opportunity attack): the selected creature in the console, then back to the turn's.
   const useSelectedButton=$("pc-attack-use-selected"),useSelectedRow=$("pc-attack-use-selected-row");
   let offPing=null,offAutoOpen=null;
-  const extrasCaption=$("pc-attack-extras-caption"),modeCaption=$("pc-attack-mode-caption");
+  const extrasCaption=$("pc-attack-extras-caption"),modeCaption=$("pc-attack-mode-caption"),attackFacts=$("pc-attack-facts");
   const modeSelect=$("pc-attack-mode"),outcomeBlock=$("pc-attack-outcome-block"),targetCaption=$("pc-attack-target-caption");
   const areaBox=$("pc-attack-area"),areaList=$("pc-attack-area-list");
   const areaPropose=$("pc-attack-area-propose"),areaAllFailed=$("pc-attack-area-all-failed"),areaAllPassed=$("pc-attack-area-all-passed");
@@ -1828,18 +1828,20 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const action=presentation?.action,attack=resolved();
     $("pc-attack-title").textContent=actorName();
     // The line under the picker: never what it already says, the entry's name, its tab, its level. When it says none of
-    // them, the cantrip or spell chosen, not the action that records it.
+    // them, the cantrip or spell chosen, not the action that records it; nothing else, the rest is above the damage.
     const named=attack?.cantrip?.name || attack?.spell?.name || "";
     // A saving throw cantrip names its save (and the actor's DC) instead of a range.
     const saveLabel=pcAttackSaveLabel(attack,presentation?.item?.metadata?.[META_KEY]?.initiativeCard);
     const area=areaFacts(attack);
-    const parts=[...(pickerNamesEntry?[]:[named || action?.label,...(attack?.cantrip?["Trucchetto"]:[]),...(attack?.spell?[`Incantesimo di ${attack.spell.level}° livello`]:[])]),
-      ...(area.length?area:[saveLabel || (attack?.spell?.delivery==="auto"?"Senza tiro per colpire":pickerNamesRange?"":RANGE_LABELS[attack?.range]) || ""]),
+    // A short part keeps its words together: the line wraps between parts, never in «TS Destrezza (CD 14)» or «Ricarica 5–6»,
+    // and the dot stays at the end of the line, never at the start of the next.
+    const line=parts=>presentation?parts.filter(Boolean).map(part=>part.length<=30?part.replace(/ /gu,"\u00a0"):part).join("\u00a0· "):"";
+    $("pc-attack-subtitle").textContent=pickerNamesEntry?"":line([named || action?.label,...(attack?.cantrip?["Trucchetto"]:[]),...(attack?.spell?[`Incantesimo di ${attack.spell.level}° livello`]:[])]);
+    // What the roll needs, right above the damage it leads to.
+    if(attackFacts) attackFacts.textContent=line([...(area.length?area:[saveLabel || (attack?.spell?.delivery==="auto"?"Senza tiro per colpire":pickerNamesRange?"":RANGE_LABELS[attack?.range]) || ""]),
       // A monster's attack: its bonus, reach or range, recharge and uses, as its stat block prints them; the uses left and a
       // recharge already used from the actor's resources.
-      ...pcAttackMonsterTags(attack,presentation?.item?.metadata?.[META_KEY]?.classFeatureState?.resources || {})].filter(Boolean);
-    // A short part keeps its words together: the line wraps between parts, never in «TS Destrezza (CD 14)» or «Ricarica 5–6».
-    $("pc-attack-subtitle").textContent=presentation?parts.map(part=>part.length<=30?part.replace(/ /gu,"\u00a0"):part).join(" · "):"";
+      ...pcAttackMonsterTags(attack,presentation?.item?.metadata?.[META_KEY]?.classFeatureState?.resources || {})]);
   }
   // Mirror Image on the target of an attack roll (lotto C): the d20 to aim at a duplicate; a hit on one destroys it
   // with the spell's own action, and the attack is not recorded on the caster.

@@ -15,9 +15,9 @@ const { getSpellAreaRuleById } = await import("../src/spellAreaRules.js");
 const { spellAreaTheme } = await import("../src/spellAreaStyleCore.js");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 // The line under the picker, whose short parts keep their words together with no-break spaces.
-const facts = (f) => f.$("pc-attack-subtitle").textContent.replaceAll("\u00a0", " ");
+const facts = (f) => f.$("pc-attack-facts").textContent.replaceAll("\u00a0", " ");
 
-const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
+const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-facts", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
   "pc-attack-outcomes", "pc-attack-damage", "pc-attack-defenses", "pc-attack-total", "pc-attack-apply", "pc-attack-status", "pc-attack-undo",
   "pc-attack-extras-section", "pc-attack-riders", "pc-attack-extras", "pc-attack-add-extra", "pc-attack-cantrip-row", "pc-attack-cantrip",
   "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven", "pc-attack-activations", "pc-attack-activations-caption",
