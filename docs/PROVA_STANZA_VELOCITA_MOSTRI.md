@@ -25,6 +25,7 @@ Il banco non può provare due cose, che qui contano più delle altre:
 - [ ] **Annulla:** con Ctrl+Z il token torna indietro e il movimento torna a 0 m.
 - [ ] **Modalità:** scegli **Volare**. La velocità diventa 24 m e la distanza già percorsa resta.
 - [ ] **Turno dopo:** fai un giro di turni. Il drago riparte in **Volare** con 0 m, il PG riparte a piedi.
+- [ ] **Token grande:** su un mostro con un token 2×2 o più, due caselle di movimento costano 3 m. Il banco non ha una griglia vera su cui provarlo.
 - [ ] **Senza velocità:** nel turno del nemico senza velocità non c'è nessun riquadro e il token si muove libero.
 - [ ] **Velocità a metà turno:** scrivi una velocità sulla sua scheda: il riquadro compare. Toglila: il riquadro sparisce e il token torna a muoversi libero.
 
