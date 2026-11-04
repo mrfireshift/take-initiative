@@ -205,7 +205,7 @@ export async function nextTurn() {
 }
 
 // Cast from the panel. outcomes: "failed" for everyone by default, or { id: outcome }; damage and healing fill their field.
-export async function castFromPanel({ spellId, caster = "dars", slot = null, variant = "", at = null, toward = null, targets = [], untick = [], outcomes = "failed", damage = 10, healing = 8, mapSelection = [] }) {
+export async function castFromPanel({ spellId, caster = "dars", slot = null, variant = "", at = null, toward = null, targets = [], untick = [], outcomes = "failed", damage = 10, healing = 8, mapSelection = [], context = {} }) {
   await selectOnMap(mapSelection);
   await openPanel(spellId, caster, slot);
   const report = {};
@@ -243,9 +243,20 @@ export async function castFromPanel({ spellId, caster = "dars", slot = null, var
     const button = doc().querySelector(`.unified-target-row[data-target-key="${target}"] [data-outcome="${wanted}"]`);
     if (button) { button.click(); await sleep(150); }
   }
+  // context: { targetId: { fieldId: value } }, the per-target fields of the panel (the d8 of Prismatic Spray).
+  for (const [target, fields] of Object.entries(context)) {
+    for (const [field, value] of Object.entries(fields)) {
+      const control = doc().querySelector(`[id="spell-unified-context-${target}-${field}"]`);
+      if (control) {
+        control.value = String(value);
+        control.dispatchEvent(new (panel().Event)("change", { bubbles: true }));
+        await sleep(180);
+      }
+    }
+  }
   await setField("damage", damage);
   await setField("healing", healing);
-  report.previews = report.selected.map((target) => doc().querySelector(`.unified-target-row[data-target-key="${target}"]`)?.innerText.replace(/\n+/g, " | ").slice(0, 60));
+  report.previews =report.selected.map((target) => doc().querySelector(`.unified-target-row[data-target-key="${target}"]`)?.innerText.replace(/\n+/g, " | ").slice(0, 60));
   report.primary = primary().textContent;
   report.blocked = primary().disabled;
   if (!report.blocked) {

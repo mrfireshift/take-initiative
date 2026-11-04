@@ -336,10 +336,10 @@
       "level": 7,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: pedina al lancio, il primo attacco dal ⚡ già nel turno del lancio, come Arma spirituale."
       },
       "sweep": {
         "runs": 2,
@@ -1516,10 +1516,10 @@
       "level": 7,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: 12d6 e 1 per slot, +1d6 a fine turno del caster, Termina apre la detonazione, caster compreso."
       },
       "sweep": {
         "runs": 2,
@@ -1528,8 +1528,8 @@
         ]
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Slot 8: 13 dadi; un dado in più a fine turno del caster; Termina apre la detonazione con il caster dentro."
       }
     },
     {
@@ -1681,18 +1681,18 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: nessun danno se supera, 3d6 per slot, a 0 PF non si tira la morte."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Slot 7: 13d6+40; superato nessun danno."
       }
     },
     {
@@ -1781,18 +1781,18 @@
       "level": 7,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: soglie di PF e durate, Morto a 20 o meno, la parte avversa spuntata per prima."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "PF 7, 35 e 48: Morto, Assordato e Accecato 10 minuti, Assordato 1 minuto."
       }
     },
     {
@@ -2061,18 +2061,18 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: tre varianti; il sonno finisce col danno, Prono resta, Termina toglie l'effetto."
       },
       "sweep": {
         "runs": 6,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Sonno: il danno sveglia e Prono resta; Termina toglie l'effetto."
       }
     },
     {
@@ -2301,18 +2301,18 @@
       "level": 7,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: 7d8+30, metà se supera."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "7d8+30; un PG a 0 PF è morente."
       }
     },
     {
@@ -2461,18 +2461,18 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: il primo fallimento conta, al terzo Pietrificato; permanente a concentrazione intera."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Tre fallimenti in due turni: Pietrificato."
       }
     },
     {
@@ -2541,18 +2541,18 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto nelle regole. Limite: il promemoria compare per ogni creatura e il GM conferma i tipi scelti."
       },
       "sweep": {
         "runs": 4,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Promemoria a inizio turno e all'ingresso per ogni creatura; Termina."
       }
     },
     {
@@ -2561,18 +2561,18 @@
       "level": 7,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: gabbia da 6 m, scatola da 3 m, conta chi è tutto dentro."
       },
       "sweep": {
         "runs": 4,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Scatola: nessuno dentro, Termina."
       }
     },
     {
@@ -2761,18 +2761,18 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: immobile; la pill dice il livello in più per slot."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Slot 7; chi entra ha la pill, chi esce la perde; Termina."
       }
     },
     {
@@ -3061,10 +3061,10 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "P3-1: non ha TS, tolto quello mostrato per errore in P2."
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: 70 e 10 per slot, toglie accecato, assordato e malattie."
       },
       "sweep": {
         "runs": 2,
@@ -3072,7 +3072,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Pannello: nessun TS."
+        "note": "Da 0 a 45 PF, senza TS."
       }
     },
     {
@@ -3481,18 +3481,18 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: TS con l'azione, promemoria a inizio turno; se supera finisce."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "TS a inizio turno; fallito resta, superato finisce."
       }
     },
     {
@@ -3961,18 +3961,18 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "D6: chiede l'esito del TS, il lancio rapido lo considera fallito."
+        "state": "corretto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "La durata non seguiva lo slot. Ora 10 giorni, 30 giorni, un anno e un giorno, sulla pill del lancio e su quella della creatura."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Slot 6, 7, 8 e 9: pill e condizione con la durata dello slot."
       }
     },
     {
@@ -4564,18 +4564,18 @@
       "level": 7,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: un d8 per bersaglio, due raggi con l'8, promemoria di Indaco e Viola."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Rosso, Indaco, Viola e l'8 con Arancione e Indaco: danni, condizioni, promemoria."
       }
     },
     {
@@ -4826,18 +4826,18 @@
       "level": 7,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: 4d8+15 al lancio, 1 PF a inizio turno, 1 ora."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Campo 4d8+15 e pill di 1 ora."
       }
     },
     {
@@ -4928,10 +4928,10 @@
       "level": 7,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: CAP-STABILIZE. Chi è a 0 PF ma non morto non torna."
       },
       "sweep": {
         "runs": 2,
@@ -6316,18 +6316,18 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun limite di bersagli: ora il caster più dieci."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Il pannello dice 1/11; con Controllare Venti il TS tocca chi vola."
       }
     },
     {
@@ -6456,18 +6456,18 @@
       "level": 5,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: le 18 abilità tra le varianti."
       },
       "sweep": {
         "runs": 36,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Variante Furtività su Mira."
       }
     },
     {
@@ -6496,18 +6496,18 @@
       "level": 5,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: TS al lancio e a fine turno per chi è dentro, caster compreso."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Slot 6: 4d10 fissi; TS a fine turno di chi è dentro; chi entra non ha il TS d'ingresso; Termina."
       }
     },
     {
@@ -6536,18 +6536,18 @@
       "level": 5,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto nel lancio. L'esplosione è un'azione del ⚡: P4."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Pill e +2d8 dal lancio; il ⚡ non è provato."
       }
     },
     {
@@ -6656,18 +6656,18 @@
       "level": 5,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Le regole reggono. Il promemoria di Alberi e Liane diceva Danno di zona anche senza danni: ora Effetto di zona."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Terreno ai soli nemici, promemoria a inizio e a fine turno del caster, Termina."
       }
     },
     {
@@ -6756,18 +6756,18 @@
       "level": 5,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: il TS della corrente discendente tocca solo chi vola."
       },
       "sweep": {
         "runs": 8,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Discendente: nessun TS a chi cammina; con Camminare nel vento Mira ha il TS a inizio turno."
       }
     },
     {
@@ -6876,10 +6876,10 @@
       "level": 5,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: 2d8 o 4d8 e 1 per slot, se supera finisce, il caster cura metà."
       },
       "sweep": {
         "runs": 2,
@@ -6887,7 +6887,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Pannello: con esiti misti i dadi di ciascun esito sotto il campo."
+        "note": "Slot 6: 3d8 o 5d8; superato nessuna pill, fallito pill e popup al turno del caster."
       }
     },
     {
@@ -7036,18 +7036,18 @@
       "level": 5,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: metà se supera; su un non morto metà del tiro in PF temporanei."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Non morto 21: 10 PF temporanei; superato 21: 10 danni."
       }
     },
     {
@@ -7176,18 +7176,18 @@
       "level": 5,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: 8d6, poi TS a fine turno con 4d6; se supera finisce."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "8d6; TS a fine turno: fallito 7 danni, superato finisce senza danni."
       }
     },
     {
@@ -7236,18 +7236,18 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: cinque resistenze vere, le immunità dalle azioni."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "damageDefensesForItem dà le cinque resistenze."
       }
     },
     {
@@ -7256,18 +7256,18 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Immunità e resistenza erano etichette: ora difese vere. Il danno del Cono gelido resta manuale: P4."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Aura su chi entra, caster escluso; damageDefensesForItem dà freddo e fuoco."
       }
     },
     {
@@ -7276,18 +7276,18 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: volo 18 m, il cubo è un'azione del ⚡."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Pill e volo 18 m."
       }
     },
     {
@@ -7296,18 +7296,18 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Immunità e resistenza erano etichette: ora difese vere."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Promemoria a fine turno e all'ingresso, non al lancio; damageDefensesForItem dà fuoco e freddo."
       }
     },
     {
@@ -7316,18 +7316,18 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: la resistenza è ai soli attacchi non magici, che il motore non distingue."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Pill, nessuna difesa vera."
       }
     },
     {
@@ -7396,18 +7396,18 @@
       "level": 5,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: terreno difficile e TS a inizio turno."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Terreno a chi entra, TS Forza a inizio turno, Termina."
       }
     },
     {
@@ -7536,18 +7536,18 @@
       "level": 5,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: 1d8 per slot, TS a fine turno, danno a fine turno. Decisione del proprietario: Accecato non finisce con l'incantesimo, dura il suo minuto."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Slot 6: 5d8; TS e danno a fine turno; Termina lascia Accecato."
       }
     },
     {
@@ -7818,18 +7818,18 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: 5d10 comunque, se supera finisce."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Superato: danni e niente pill. Fallito: Trattenuto e Isolamento."
       }
     },
     {
@@ -7918,18 +7918,18 @@
       "level": 5,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: 8d6, −1d6 per 1 minuto, TS a fine turno."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Pill, TS Int a fine turno di ciascuno."
       }
     },
     {
@@ -8198,18 +8198,18 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "I 50 PF temporanei restavano dopo la fine, contro il testo. Decisione del proprietario, che rovescia la D3 di CAP-TEMP: quelli rimasti finiscono con l'incantesimo."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "50 PF temporanei; Termina li toglie e chiede il TS CD 15; Annulla li riporta; 60 danni li consumano e la pill resta."
       }
     },
     {
@@ -8218,18 +8218,18 @@
       "level": 5,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: tre varianti, CAP-TERRAIN."
       },
       "sweep": {
         "runs": 6,
         "findings": []
       },
       "bench": {
-        "date": "2026-11-03",
-        "note": "Le tre varianti dal pannello."
+        "date": "2026-11-04",
+        "note": "Roccia in fango: Trattenuto al lancio e all'ingresso, terreno ×4 a chi è dentro; Termina."
       }
     },
     {
@@ -8358,18 +8358,18 @@
       "level": 6,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Le immunità erano etichette: ora difese vere. Decisione del proprietario: i due tipi del piano scelto valgono insieme."
       },
       "sweep": {
         "runs": 4,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Due varianti: le due immunità, volo 12 m."
       }
     },
     {
@@ -9398,18 +9398,18 @@
       "level": 5,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza una creatura selezionata e l'aura valeva anche per i nemici. Ora sta sul caster e vale per le creature amiche; il caster ha la pill del lancio."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato da solo; Sera e Mira dentro, nemici no; Mira esce e perde la pill; Termina toglie tutto."
       }
     },
     {
@@ -9458,18 +9458,18 @@
       "level": 5,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: la parte avversa spuntata per prima, 5d6, Prono se fallisce."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Solo i nemici spuntati; 5d6; Prono."
       }
     },
     {
@@ -9478,18 +9478,18 @@
       "level": 5,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-6",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: l'esilio solo a 50 PF o meno; sopra, l'incantesimo finisce col colpo."
       },
       "sweep": {
         "runs": 4,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Dal popup vero: goblin a 4 PF esiliato; Auril a 577 PF no, e l'incantesimo finisce."
       }
     },
     {

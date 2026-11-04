@@ -95,7 +95,8 @@ speranza, Previsione, Suggestione e gli altri del lotto L1) mettono sui
 bersagli la pill con le mini pill del beneficio. Sono informative (CA, tiri e
 vantaggi restano al tavolo), tranne le difese di Protezione dai veleni,
 Protezione dall'energia, Invulnerabilità, Aura di Purezza, Aura di Vita,
-Fortezza della Mente e Morte Apparente: la pill porta
+Fortezza della Mente, Morte Apparente, Investitura del Ghiaccio, Investitura
+della Fiamma e Abito Ultraterreno: la pill porta
 `mechanics.damageDefenses` e la console attacchi e la console boss le
 applicano ai danni come le difese del profilo, con il chip che il GM può
 ignorare, finché l'incantesimo dura. Pelle di pietra resta informativa: vale

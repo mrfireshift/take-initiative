@@ -1,6 +1,6 @@
 # Polishing degli incantesimi (piano)
 
-Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1, 2, 3, 4, 5 e D6 fatti)**. Questo piano guida la
+Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1, 2, 3, 4, 5, 6 e D6 fatti)**. Questo piano guida la
 revisione di tutti i 477 incantesimi prima di aggiungere nuove capacità. Per ognuno si controlla:
 
 - **A, l'interpretazione:** il motore fa ciò che dice il testo 2014?
@@ -350,6 +350,47 @@ con una spunta tolta, con il caster aggiunto, con la selezione del caster sulla 
 dopo; Annulla e Termina. Palla di Fuoco con un bersaglio tolto e uno aggiunto da fuori, che ha scritto i danni giusti. Cura ferite di massa con
 una riga fuori dall'area.
 
+#### Lotto 6 (fatto il 4/11): i 40 successivi
+
+Gli ultimi di 5° livello, quelli di 6° e i primi di 7°.
+
+| Difetto | Incantesimi | Correzione |
+|---|---|---|
+| Non si lanciava senza una creatura selezionata, e l'aura valeva anche per i nemici | Cerchio di Potere | Aura sul caster senza scelta, filtro «amiche», come Passare senza tracce. Il caster ha la pill del lancio |
+| La durata non seguiva lo slot | Suggestione di massa | 10 giorni, 30 giorni, un anno e un giorno, sulla pill del lancio e su quella della creatura (`effectForCastDuration`) |
+| Immunità e resistenze solo etichetta | Investitura del Ghiaccio, Investitura della Fiamma, Abito Ultraterreno | `mechanics.damageDefenses`, come le quattro del lotto 5 |
+| Nessun limite di bersagli | Camminare nel vento | Il caster più dieci: 11 |
+| Il promemoria diceva «Danno di zona» anche senza danni | Collera della Natura, Santificare, ogni zona con avviso o condizione | «Effetto di zona» quando non c'è nulla da scrivere sui PF |
+| I 50 PF temporanei restavano dopo la fine | Trasformazione di Tenser | La pill è la loro fonte: quelli rimasti finiscono con l'incantesimo. Finiti i PF, l'incantesimo continua |
+
+Decisioni del proprietario sui dubbi del lotto, il 4/11:
+- **Trasformazione di Tenser:** i PF temporanei rimasti finiscono con l'incantesimo, come dice il testo. La decisione D3 di CAP-TEMP è
+  rovesciata: partiva da una lettura sbagliata.
+- **Muro di Luce:** Accecato non finisce con l'incantesimo. Dura il suo minuto, o finché la creatura non supera il TS.
+- **Abito Ultraterreno:** le due immunità valgono insieme: fuoco e veleno, oppure radiosi e necrotici. La traduzione dice «o».
+
+Limiti rimasti:
+- **Proibizione:** il promemoria compare per ogni creatura e il GM conferma i tipi scelti, perché il plugin non conosce il tipo del token.
+- **Investitura del Ghiaccio:** il Cono gelido applica la velocità dimezzata, ma il danno resta manuale, a differenza delle altre Investiture. In P4.
+
+Falsi allarmi, da non riaprire: Controllare Venti non chiede il TS a chi cammina, perché tocca solo chi vola (`requireMovementModes`): con
+Camminare nel vento Mira lo ha ricevuto. Gabbia di forza ha la scatola da 3 m tra le scelte, e la pill di Globo dice il livello in più per slot.
+Resurrezione rifiuta un PG a 0 PF: è morente, non morto.
+
+Il banco è cresciuto: `context` in `castFromPanel`, per i campi di ogni bersaglio come il d8 di Spruzzo prismatico.
+
+Provato al banco, con il servizio di sfondo vero: Cerchio di Potere con Mira che esce e Termina; Suggestione di massa ai quattro slot; le difese
+con `damageDefensesForItem`; Alba, Maelstrom, Muro di Luce, Collera della Natura, Controllare Venti, Trasmutare Roccia, Proibizione, Gabbia di
+forza, Globo di invulnerabilità, le Investiture di Ghiaccio e Fiamma turno per turno; Palla di fuoco ritardata fino alla detonazione; Spruzzo
+prismatico con quattro raggi; Parola divina alle tre soglie; Sguardo penetrante col danno e con Termina; Carne in pietra fino a Pietrificato;
+Danza irresistibile e Immolazione con TS fallito e superato; Debilitazione; Prigione Mentale; Scossa Sinaptica; Disintegrazione; Flusso di Energia
+Negativa su un non morto; Punizione Esiliante dal popup vero, sopra e sotto i 50 PF. **Non provate:** le azioni del ⚡ (Arma Sacra, Cubo di vento,
+Scossa tellurica, Rocce e Liane, le Immunità di Interdizione Primordiale), in P4; Resurrezione su una creatura davvero morta, coperta dai test.
+Test in `test/spellPolishLot6.test.js`.
+
+Provato al banco dopo le decisioni: Trasformazione di Tenser con Termina, che toglie i PF temporanei e lascia il TS CD 15; con Annulla, che li
+riporta; con 60 danni, che li consumano e lasciano la pill.
+
 ### P4, i workflow che la prova non copre ancora (B)
 
 - Le azioni del ⚡ e gli spostamenti delle zone.
@@ -361,6 +402,7 @@ una riga fuori dall'area.
 - Un falso «ingresso nell'area» al lancio per il caster che sta dentro la zona: la sagoma lo esclude, la zona lo conta, e la base dei trigger
   non lo ha. Visto al banco su Nube di Pugnali; stessi dati per Sfera infuocata, Crescita di spine, Spirito Guaritore e Proibizione. Santificare
   l'ha risolto mettendo il caster nella sagoma.
+- Il Cono gelido di Investitura del Ghiaccio come azione con TS e danno, come la Linea di fuoco e il Cubo di vento delle altre Investiture.
 - Un giro automatico al banco sui casi complessi.
 - I casi che oggi la prova esclude, sulla lista delle eccezioni del test: Animare oggetti, i teletrasporti, i ritorni in vita.
 

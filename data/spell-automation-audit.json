@@ -7250,8 +7250,7 @@
       "coverage": [
         "tracking",
         "aree:aura",
-        "lifecycle",
-        "TS"
+        "lifecycle"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -7269,7 +7268,7 @@
           "aura"
         ],
         "triggerIds": [],
-        "saveAutomation": true,
+        "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 1,
         "activeActionIds": [],
@@ -7301,7 +7300,6 @@
           "visibleInputs": [
             "caster",
             "slot",
-            "targets",
             "placement",
             "automation"
           ]

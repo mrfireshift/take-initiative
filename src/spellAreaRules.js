@@ -788,6 +788,11 @@ const SELF_CAST_AURA_TARGETING_BY_SPELL = Object.freeze({
     ...SELF_CAST_AURA_TARGETING,
     includeCaster: true,
   }),
+  // "Each friendly creature in the area": the enemies stay out of it. The caster keeps the pill of the cast.
+  "phb2014-cerchio-di-potere": Object.freeze({
+    ...SELF_CAST_AURA_TARGETING,
+    filter: "friendly",
+  }),
   // "Each creature you choose within 30 feet of you (including you)": the caster's side, read from the attitudes.
   "pass-without-trace": Object.freeze({
     ...SELF_CAST_AURA_TARGETING,
@@ -817,6 +822,7 @@ const SELF_CAST_AURA_SPELL_IDS = new Set([
   "phb2014-aura-di-purezza",
   "phb2014-aura-di-vita",
   "phb2014-aura-di-vitalita",
+  "phb2014-cerchio-di-potere",
   "xanathar-vento-di-interdizione",
 ]);
 const CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS = new Set([

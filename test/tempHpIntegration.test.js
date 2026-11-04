@@ -491,7 +491,7 @@ test("T3b: False Life gives the 1d4 rolled + 4 + 5 per slot above the 1st, its p
   assert.deepEqual([...hpOf(CASTER), pillOf(CASTER, "Vita falsata")], [18, undefined, undefined], "one Undo takes the cast away");
 });
 
-test("T3b: Armor of Agathys, 5 per slot level, its pill ending when they are gone; Tenser's 50 outlast the spell", async () => {
+test("T3b: Armor of Agathys, 5 per slot level, its pill ending when they are gone; Tenser's 50 end with the spell", async () => {
   await resetScene([token(CASTER, 30, 30)]);
   await cast("phb2014-armatura-di-agathys", 2);
   const armor = (meta(CASTER).conditions?.instances || []).find((entry) => entry.effectId === "agathys-armor");
@@ -501,7 +501,18 @@ test("T3b: Armor of Agathys, 5 per slot level, its pill ending when they are gon
     "none left: the armor ends");
   await resetScene([token(CASTER, 60, 60, { tempHp: 5 })]);
   await cast("xanathar-trasformazione-di-tenser", 6);
-  assert.deepEqual([...hpOf(CASTER), sourceOf(CASTER)], [60, 50, undefined], "no source: they stay after the spell");
+  const tenser = () => (meta(CASTER).conditions?.instances || []).find((entry) => entry.effectId === "tensers-transformation" && entry.active !== false);
+  const form = tenser();
+  assert.deepEqual([...hpOf(CASTER), sourceOf(CASTER)], [60, 50, form?.id], "the pill of the spell is their source");
+  await hit(CASTER, 20);
+  assert.deepEqual([...hpOf(CASTER), sourceOf(CASTER)], [60, 30, form?.id]);
+  await endPill(CASTER, form.id);
+  assert.deepEqual([...hpOf(CASTER), sourceOf(CASTER)], [60, undefined, undefined], "the ones left are lost when it ends");
+  await resetScene([token(CASTER, 60, 60)]);
+  await cast("xanathar-trasformazione-di-tenser", 6);
+  await hit(CASTER, 50);
+  assert.equal(hpOf(CASTER)[1], undefined);
+  assert.ok(tenser(), "none left: the transformation goes on, unlike the armor");
 });
 
 // CAP-TEMP, lotto T3c: Armor of Agathys' cold on an attacker that hits in melee, while its temporary hit points last.

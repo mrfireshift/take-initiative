@@ -205,7 +205,7 @@ export function buildSpellApplicationIntent({
     ? buildSpellCastAutomationPlan({
       proposedConditions: getProposedConditions(spell, selectedChoice),
       proposedEffects: phaseEffects,
-      saveAutomation: getAreaSaveAutomation(spell, selectedChoice),
+      saveAutomation: getAreaSaveAutomation(spell, selectedChoice, persistedCastContext),
       applyAutomatedConditions,
       hasEffectChoices: getSpellEffectChoices(spell).length > 0,
     })
@@ -238,7 +238,7 @@ export function buildSpellApplicationIntent({
       casterId,
       targetIds: subjects,
       outcomes: normalizedSaveOutcomeMap,
-      automation: getAreaSaveAutomation(spell, selectedChoice),
+      automation: getAreaSaveAutomation(spell, selectedChoice, persistedCastContext),
       saveWorkflowRule: getSpellSaveWorkflowRule(spell?.id),
       choiceValue: selectedChoice,
       slotLevel: persistedCastContext?.slotLevel,

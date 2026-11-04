@@ -53,11 +53,11 @@ test("False Life: 1d4 + 4, 5 more per slot above the 1st; the roll is required a
   assert.equal(spellCastTemporaryHpHint(spellCastTemporaryHpRule("false-life"), 2), "Tira 1d4: il plugin aggiunge 9 (PF temporanei = tiro + 9).");
 });
 
-test("Armor of Agathys: 5 per slot level; Tenser's Transformation: 50, with no pill as their source", () => {
+test("Armor of Agathys: 5 per slot level; Tenser's Transformation: 50, with its pill as their source", () => {
   assert.deepEqual([1, 2, 5].map((slot) => amount("phb2014-armatura-di-agathys", slot)), [5, 10, 25]);
   assert.equal(spellCastTemporaryHpRule("phb2014-armatura-di-agathys").effectId, "agathys-armor");
   assert.equal(amount("xanathar-trasformazione-di-tenser", 6), 50);
-  assert.equal(spellCastTemporaryHpRule("xanathar-trasformazione-di-tenser").effectId, "", "they outlast the spell (D3)");
+  assert.equal(spellCastTemporaryHpRule("xanathar-trasformazione-di-tenser").effectId, "tensers-transformation", "the ones left are lost when it ends");
   assert.equal(spellCastTemporaryHpRule("cure-wounds"), null);
 });
 

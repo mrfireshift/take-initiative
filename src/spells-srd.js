@@ -627,7 +627,8 @@ const TARGETING_OVERRIDES = Object.freeze({
   "teleport": Object.freeze({ resolver: "passenger-capacity" }),
   "dimension-door": Object.freeze({ resolver: "passenger-capacity" }),
   "astral-projection": Object.freeze({ resolver: "passenger-capacity" }),
-  "wind-walk": Object.freeze({ resolver: "passenger-capacity" }),
+  // 2014: the caster and up to ten willing creatures.
+  "wind-walk": Object.freeze({ maximum: 11 }),
   "mass-cure-wounds": Object.freeze({ maximum: 6 }),
   // 2014: one more creature for each slot level above 2nd.
   "invisibility": Object.freeze({
@@ -667,6 +668,11 @@ const SLOT_DURATION_OVERRIDES = Object.freeze({
   "dominate-monster": Object.freeze({
     baseSlot: 8,
     turnsBySlot: Object.freeze({ 8: 600, 9: 4800 }),
+  }),
+  // 2014: 24 hours; 10 days with a 7th-level slot, 30 days with an 8th, a year and a day with a 9th.
+  "mass-suggestion": Object.freeze({
+    baseSlot: 6,
+    turnsBySlot: Object.freeze({ 6: 14400, 7: 144000, 8: 432000, 9: 5270400 }),
   }),
 });
 
@@ -1522,7 +1528,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "mass-suggestion-compelled",
       kind: "debuff",
       label: "Segue la suggestione",
-      detail: "Segue il corso d'azione suggerito dal caster per 24 ore o finché non lo ha completato. Per questa creatura termina se il caster o un suo compagno la danneggia: rimuovere l'etichetta.",
+      detail: "Segue il corso d'azione suggerito dal caster per tutta la durata o finché non lo ha completato. Per questa creatura termina se il caster o un suo compagno la danneggia: rimuovere l'etichetta.",
       expiry: Object.freeze({ mode: "rounds", remaining: 14400 }),
       summaryParts: Object.freeze([
         Object.freeze({ id: "mass-suggestion-follows", label: "Segue il suggerimento" }),
@@ -2266,6 +2272,15 @@ if (MISSING_ITALIAN_NAMES.length) {
   );
 }
 
+// A pill that counts the spell's whole duration by itself follows the duration of this cast (Mass Suggestion: 10 days with a
+// 7th-level slot).
+function effectForCastDuration(effect, spell, castContext = {}) {
+  const turns = durationTurnsForSlot(spell, castContext);
+  return turns && effect?.expiry?.mode === "rounds" && Number(effect.expiry.remaining) === Number(spell?.defaultTurns)
+    ? { ...effect, expiry: { ...effect.expiry, remaining: turns } }
+    : effect;
+}
+
 function effectSaveRule(effect, spell) {
   const expiry = effect?.expiry
     || (spell?.concentration ? CONCENTRATION_EXPIRY : spell?.expiry)
@@ -2340,7 +2355,7 @@ function automationSaveRules(spell) {
   });
 }
 
-function areaSaveAutomationForSpell(spell, choiceValue = "") {
+function areaSaveAutomationForSpell(spell, choiceValue = "", castContext = {}) {
   if (!spell) return null;
   const areaChoices = Array.isArray(AREA_SAVE_RULE_CHOICES[spell.id])
     ? AREA_SAVE_RULE_CHOICES[spell.id]
@@ -2368,7 +2383,7 @@ function areaSaveAutomationForSpell(spell, choiceValue = "") {
     || null;
   const failedEffects = [...fixedEffects, ...(selectedChoice?.effects || [])]
     .filter((effect) => failedEffectIds.has(effect.id))
-    .map((effect) => effectSaveRule(effect, spell))
+    .map((effect) => effectSaveRule(effectForCastDuration(effect, spell, castContext), spell))
     .filter((rule) => rule.condition && rule.effectKind);
 
   if (!base && !declared && !workflowChoiceAutomation && !failedEffects.length) return null;
@@ -2565,9 +2580,9 @@ export function getSpellDefinition(value) {
   return BY_LOOKUP.get(normalizeLookup(value)) || null;
 }
 
-export function getAreaSaveAutomation(value, choiceValue = "") {
+export function getAreaSaveAutomation(value, choiceValue = "", castContext = {}) {
   const spell = value && typeof value === "object" ? value : getSpellDefinition(value);
-  return areaSaveAutomationForSpell(spell, choiceValue);
+  return areaSaveAutomationForSpell(spell, choiceValue, castContext);
 }
 
 export function getAreaSaveRuleChoices(value) {
@@ -2618,7 +2633,7 @@ export function getSpellEffects(value, choiceValue = "", castContext = {}) {
   const choices = Array.isArray(spell?.effectChoices) ? spell.effectChoices : [];
   const selected = choices.find((choice) => choice.id === choiceValue) || choices[0] || null;
   return [...fixed, ...(selected?.effects || [])]
-    .map((effect) => resolveSpellEffect(effect, castContext));
+    .map((effect) => resolveSpellEffect(effectForCastDuration(effect, spell, castContext), castContext));
 }
 
 export function getSpellSummaryParts(value, choiceValue = "", castContext = {}) {

@@ -664,10 +664,16 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     label: "Imm. freddo · Res. fuoco · aura ghiaccio",
     detail: "Immunità al freddo, resistenza al fuoco e terreno difficile ghiacciato attorno al caster.",
     summaryParts: Object.freeze([
-      Object.freeze({ id: "ice-investiture-cold-immunity", label: "Imm. freddo" }),
-      Object.freeze({ id: "ice-investiture-fire-resistance", label: "Res. fuoco" }),
+      Object.freeze({ id: "damage-defense-immunity-cold", label: "Imm. freddo" }),
+      Object.freeze({ id: "damage-defense-resistance-fire", label: "Res. fuoco" }),
       Object.freeze({ id: "ice-investiture-difficult-terrain-aura", label: "Terreno diff. aura" }),
     ]),
+    mechanics: Object.freeze({
+      damageDefenses: Object.freeze({
+        immunities: Object.freeze(["cold"]),
+        resistances: Object.freeze(["fire"]),
+      }),
+    }),
   })]),
   "xanathar-investitura-del-vento": Object.freeze([Object.freeze({
     id: "wind-investiture",
@@ -693,9 +699,15 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     label: "Imm. fuoco · Res. freddo",
     detail: "L'incantatore è immune ai danni da fuoco e possiede resistenza ai danni da freddo.",
     summaryParts: Object.freeze([
-      Object.freeze({ id: "flame-investiture-fire-immunity", label: "Imm. fuoco" }),
-      Object.freeze({ id: "flame-investiture-cold-resistance", label: "Res. freddo" }),
+      Object.freeze({ id: "damage-defense-immunity-fire", label: "Imm. fuoco" }),
+      Object.freeze({ id: "damage-defense-resistance-cold", label: "Res. freddo" }),
     ]),
+    mechanics: Object.freeze({
+      damageDefenses: Object.freeze({
+        immunities: Object.freeze(["fire"]),
+        resistances: Object.freeze(["cold"]),
+      }),
+    }),
   })]),
   "xanathar-investitura-della-pietra": Object.freeze([Object.freeze({
     id: "stone-investiture",
@@ -1084,16 +1096,18 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         id: "lower-planes-benefits",
         kind: "buff",
         label: "+2 CA · volo · Imm. fuoco/veleno",
-        detail: "Bonus di 2 alla CA, volo, immunità al fuoco o veleno e alla condizione avvelenato, attacchi magici e attacco extra.",
+        detail: "Bonus di 2 alla CA, volo, immunità al fuoco, al veleno e alla condizione avvelenato, attacchi magici e attacco extra.",
         summaryParts: Object.freeze([
           Object.freeze({ id: "lower-planes-armor-class", label: "+2 CA" }),
           Object.freeze({ id: "lower-planes-flight", label: "Volo 12 m" }),
-          Object.freeze({ id: "lower-planes-elemental-immunity", label: "Imm. fuoco/veleno" }),
+          Object.freeze({ id: "damage-defense-immunity-fire", label: "Imm. fuoco" }),
+          Object.freeze({ id: "damage-defense-immunity-poison", label: "Imm. veleno" }),
           Object.freeze({ id: "lower-planes-poisoned-immunity", label: "Imm. avvelenato" }),
           Object.freeze({ id: "lower-planes-magical-attacks", label: "Attacchi magici" }),
           Object.freeze({ id: "lower-planes-extra-attack", label: "Attacco extra" }),
         ]),
         mechanics: Object.freeze({
+          damageDefenses: Object.freeze({ immunities: Object.freeze(["fire", "poison"]) }),
           movement: Object.freeze({
             modes: Object.freeze({
               fly: Object.freeze({ grantMeters: 12 }),
@@ -1110,16 +1124,18 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         id: "upper-planes-benefits",
         kind: "buff",
         label: "+2 CA · volo · Imm. radiosi/necrotici",
-        detail: "Bonus di 2 alla CA, volo, immunità ai radiosi o necrotici e alla condizione affascinato, attacchi magici e attacco extra.",
+        detail: "Bonus di 2 alla CA, volo, immunità ai radiosi, ai necrotici e alla condizione affascinato, attacchi magici e attacco extra.",
         summaryParts: Object.freeze([
           Object.freeze({ id: "upper-planes-armor-class", label: "+2 CA" }),
           Object.freeze({ id: "upper-planes-flight", label: "Volo 12 m" }),
-          Object.freeze({ id: "upper-planes-elemental-immunity", label: "Imm. radiosi/necrotici" }),
+          Object.freeze({ id: "damage-defense-immunity-necrotic", label: "Imm. necrotici" }),
+          Object.freeze({ id: "damage-defense-immunity-radiant", label: "Imm. radiosi" }),
           Object.freeze({ id: "upper-planes-charmed-immunity", label: "Imm. affascinato" }),
           Object.freeze({ id: "upper-planes-magical-attacks", label: "Attacchi magici" }),
           Object.freeze({ id: "upper-planes-extra-attack", label: "Attacco extra" }),
         ]),
         mechanics: Object.freeze({
+          damageDefenses: Object.freeze({ immunities: Object.freeze(["necrotic", "radiant"]) }),
           movement: Object.freeze({
             modes: Object.freeze({
               fly: Object.freeze({ grantMeters: 12 }),

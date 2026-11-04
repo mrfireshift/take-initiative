@@ -158,7 +158,8 @@ quel personaggio.
   lancio**; nella console attacchi la riga del lancio dice quale slot è stato
   speso.
 - Protezione dai veleni, Protezione dall'energia, Invulnerabilità, Aura di
-  Purezza, Aura di Vita, Fortezza della Mente e Morte Apparente danno difese vere
+  Purezza, Aura di Vita, Fortezza della Mente, Morte Apparente, Investitura del
+  Ghiaccio, Investitura della Fiamma e Abito Ultraterreno danno difese vere
   finché durano: la console attacchi e la console boss dimezzano o azzerano il
   danno di quel tipo, e il GM può ignorare il chip della difesa per un singolo
   attacco. Nei danni degli incantesimi ad area il dimezzamento resta al GM. Le
@@ -549,7 +550,7 @@ Alcuni li danno da soli:
 - **Vita falsata**: il pannello chiede l'1d4 tirato e aggiunge il resto. I temporanei rimasti spariscono quando finisce l'incantesimo.
 - **Caratteristica potenziata, Resistenza dell'orso**: il pannello chiede i 2d6 tirati. Con più bersagli lo stesso tiro vale per tutti. I temporanei rimasti spariscono quando finisce l'incantesimo.
 - **Armatura di Agathys**: 5 per livello di slot. Finché restano, le console attacchi e Boss propongono **Applica N** dopo un colpo in mischia, per i danni da freddo all'attaccante: applicali prima di confermare il colpo. Quando i temporanei finiscono, l'etichetta sparisce.
-- **Trasformazione di Tenser**: 50, che restano anche dopo la fine dell'incantesimo.
+- **Trasformazione di Tenser**: 50, e quelli rimasti si perdono quando finisce l'incantesimo.
 - **Guardiano della Natura, Grande Albero**: 10, che spariscono quando finisce l'incantesimo.
 - **Eroismo**: immunità a Spaventato e, a inizio di ogni turno del bersaglio, un promemoria con il modificatore da incantatore già inserito (si ricava da CD e livello della scheda di chi lancia; se mancano, lo scrivi tu). Premi **Applica PF temporanei** o **Ignora**. Quelli rimasti spariscono alla fine della concentrazione. Uno Spaventato già presente al lancio lo togli a mano.
 - **Flusso di Energia Negativa**: per un non morto premi **Non morto** al posto dell'esito del TS, e inserisci il tiro di 5d12: riceve metà del tiro come temporanei, senza danni. Il tipo di creatura lo indichi sempre tu. Chi viene ucciso riceve l'etichetta **Si rianima come zombi**, con il promemoria al prossimo turno di chi ha lanciato; il token dello zombi lo aggiungi tu.

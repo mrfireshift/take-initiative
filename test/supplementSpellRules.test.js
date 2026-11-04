@@ -117,8 +117,8 @@ test("anti-invisibilità e Investiture dichiarano summaryParts senza perdere il 
       { id: "mind-spike-no-invisibility", label: "No invis." },
     ],
     "xanathar-investitura-del-ghiaccio": [
-      { id: "ice-investiture-cold-immunity", label: "Imm. freddo" },
-      { id: "ice-investiture-fire-resistance", label: "Res. fuoco" },
+      { id: "damage-defense-immunity-cold", label: "Imm. freddo" },
+      { id: "damage-defense-resistance-fire", label: "Res. fuoco" },
       { id: "ice-investiture-difficult-terrain-aura", label: "Terreno diff. aura" },
     ],
     "xanathar-investitura-del-vento": [
@@ -126,8 +126,8 @@ test("anti-invisibilità e Investiture dichiarano summaryParts senza perdere il 
       { id: "wind-investiture-ranged-disadvantage", label: "Svant. att. distanza" },
     ],
     "xanathar-investitura-della-fiamma": [
-      { id: "flame-investiture-fire-immunity", label: "Imm. fuoco" },
-      { id: "flame-investiture-cold-resistance", label: "Res. freddo" },
+      { id: "damage-defense-immunity-fire", label: "Imm. fuoco" },
+      { id: "damage-defense-resistance-cold", label: "Res. freddo" },
     ],
     "xanathar-investitura-della-pietra": [
       { id: "stone-investiture-weapon-resistance", label: "Res. armi non magiche" },
@@ -204,7 +204,8 @@ test("le varianti difensive dichiarano summaryParts per ogni scelta persistente"
     ["tasha-abito-ultraterreno-di-tasha", "lower-planes", [
       { id: "lower-planes-armor-class", label: "+2 CA" },
       { id: "lower-planes-flight", label: "Volo 12 m" },
-      { id: "lower-planes-elemental-immunity", label: "Imm. fuoco/veleno" },
+      { id: "damage-defense-immunity-fire", label: "Imm. fuoco" },
+      { id: "damage-defense-immunity-poison", label: "Imm. veleno" },
       { id: "lower-planes-poisoned-immunity", label: "Imm. avvelenato" },
       { id: "lower-planes-magical-attacks", label: "Attacchi magici" },
       { id: "lower-planes-extra-attack", label: "Attacco extra" },
@@ -212,7 +213,8 @@ test("le varianti difensive dichiarano summaryParts per ogni scelta persistente"
     ["tasha-abito-ultraterreno-di-tasha", "upper-planes", [
       { id: "upper-planes-armor-class", label: "+2 CA" },
       { id: "upper-planes-flight", label: "Volo 12 m" },
-      { id: "upper-planes-elemental-immunity", label: "Imm. radiosi/necrotici" },
+      { id: "damage-defense-immunity-necrotic", label: "Imm. necrotici" },
+      { id: "damage-defense-immunity-radiant", label: "Imm. radiosi" },
       { id: "upper-planes-charmed-immunity", label: "Imm. affascinato" },
       { id: "upper-planes-magical-attacks", label: "Attacchi magici" },
       { id: "upper-planes-extra-attack", label: "Attacco extra" },

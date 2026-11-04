@@ -1309,7 +1309,7 @@ async function buildPlan(command, runtime) {
     && text(command?.spell?.phase) === "cast"
     && getSpellCastResolutionRule(spell)?.resolution === "manual-damage";
   const configuredAutomation = command?.automation
-    || getAreaSaveAutomation(spell, text(command?.spell?.choiceValue))
+    || getAreaSaveAutomation(spell, text(command?.spell?.choiceValue), command?.spell?.castContext)
     || spell.saveAutomation
     || null;
   const suppressInitialZoneAutomation = staticZonePlacement

@@ -280,7 +280,7 @@ export function saveReminderNoticeBatchPresentation(batch = null) {
   const sharedPhase = phases.length === 1 ? phases[0] : "";
   const kinds = new Set(entries.map((entry) => entry.kind));
   const aggregateLabel = kinds.size === 1 && kinds.has("zone-effect")
-    ? "Danni di zona"
+    ? entries.some((entry) => entry.eyebrow) ? "Effetti di zona" : "Danni di zona"
     : kinds.size === 1 && kinds.has("effect-reminder")
       ? "Promemoria"
       : kinds.has("zone-effect") || kinds.has("effect-reminder")

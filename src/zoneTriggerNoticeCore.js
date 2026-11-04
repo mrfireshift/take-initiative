@@ -72,7 +72,9 @@ export function normalizeZoneTriggerNotice(value) {
   const dc = optionalDC(value?.dc);
   const timing = normalizeNoticeTiming(value?.timing || value?.event);
   const failureEffect = normalizedText(value?.failureEffect, "", 240);
-  const eyebrow = normalizedText(value?.eyebrow, "", 80);
+  // Nothing to write on the hit points: an effect, not damage (the roots of Wrath of Nature, Hallow's save).
+  const eyebrow = normalizedText(value?.eyebrow, "", 80)
+    || (value?.resolution === "informational" || value?.resolution?.mode === "manual-condition" ? "Effetto di zona" : "");
   const instruction = normalizedText(value?.instruction, "", 320);
   const resolution = normalizeReminderResolution(value?.resolution);
   const kind = value?.kind === "zone-effect"

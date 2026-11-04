@@ -308,8 +308,8 @@ const EFFECT_SUMMARY_PARTS = Object.freeze({
     Object.freeze({ id: "mind-spike-no-invisibility", label: "No invis." }),
   ]),
   "ice-investiture": Object.freeze([
-    Object.freeze({ id: "ice-investiture-cold-immunity", label: "Imm. freddo" }),
-    Object.freeze({ id: "ice-investiture-fire-resistance", label: "Res. fuoco" }),
+    Object.freeze({ id: "damage-defense-immunity-cold", label: "Imm. freddo" }),
+    Object.freeze({ id: "damage-defense-resistance-fire", label: "Res. fuoco" }),
     Object.freeze({ id: "ice-investiture-difficult-terrain-aura", label: "Terreno diff. aura" }),
   ]),
   "wind-investiture": Object.freeze([
@@ -317,8 +317,8 @@ const EFFECT_SUMMARY_PARTS = Object.freeze({
     Object.freeze({ id: "wind-investiture-ranged-disadvantage", label: "Svant. att. distanza" }),
   ]),
   "flame-investiture": Object.freeze([
-    Object.freeze({ id: "flame-investiture-fire-immunity", label: "Imm. fuoco" }),
-    Object.freeze({ id: "flame-investiture-cold-resistance", label: "Res. freddo" }),
+    Object.freeze({ id: "damage-defense-immunity-fire", label: "Imm. fuoco" }),
+    Object.freeze({ id: "damage-defense-resistance-cold", label: "Res. freddo" }),
   ]),
   "stone-investiture": Object.freeze([
     Object.freeze({ id: "stone-investiture-weapon-resistance", label: "Res. armi non magiche" }),
@@ -408,7 +408,8 @@ const EFFECT_SUMMARY_PARTS = Object.freeze({
   "lower-planes-benefits": Object.freeze([
     Object.freeze({ id: "lower-planes-armor-class", label: "+2 CA" }),
     Object.freeze({ id: "lower-planes-flight", label: "Volo 12 m" }),
-    Object.freeze({ id: "lower-planes-elemental-immunity", label: "Imm. fuoco/veleno" }),
+    Object.freeze({ id: "damage-defense-immunity-fire", label: "Imm. fuoco" }),
+    Object.freeze({ id: "damage-defense-immunity-poison", label: "Imm. veleno" }),
     Object.freeze({ id: "lower-planes-poisoned-immunity", label: "Imm. avvelenato" }),
     Object.freeze({ id: "lower-planes-magical-attacks", label: "Attacchi magici" }),
     Object.freeze({ id: "lower-planes-extra-attack", label: "Attacco extra" }),
@@ -416,7 +417,8 @@ const EFFECT_SUMMARY_PARTS = Object.freeze({
   "upper-planes-benefits": Object.freeze([
     Object.freeze({ id: "upper-planes-armor-class", label: "+2 CA" }),
     Object.freeze({ id: "upper-planes-flight", label: "Volo 12 m" }),
-    Object.freeze({ id: "upper-planes-elemental-immunity", label: "Imm. radiosi/necrotici" }),
+    Object.freeze({ id: "damage-defense-immunity-necrotic", label: "Imm. necrotici" }),
+    Object.freeze({ id: "damage-defense-immunity-radiant", label: "Imm. radiosi" }),
     Object.freeze({ id: "upper-planes-charmed-immunity", label: "Imm. affascinato" }),
     Object.freeze({ id: "upper-planes-magical-attacks", label: "Attacchi magici" }),
     Object.freeze({ id: "upper-planes-extra-attack", label: "Attacco extra" }),

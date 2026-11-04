@@ -143,7 +143,8 @@ test("il fallback legacy copre anche le varianti difensive persistenti", () => {
     "lower-planes-benefits": [
       { id: "lower-planes-armor-class", label: "+2 CA" },
       { id: "lower-planes-flight", label: "Volo 12 m" },
-      { id: "lower-planes-elemental-immunity", label: "Imm. fuoco/veleno" },
+      { id: "damage-defense-immunity-fire", label: "Imm. fuoco" },
+      { id: "damage-defense-immunity-poison", label: "Imm. veleno" },
       { id: "lower-planes-poisoned-immunity", label: "Imm. avvelenato" },
       { id: "lower-planes-magical-attacks", label: "Attacchi magici" },
       { id: "lower-planes-extra-attack", label: "Attacco extra" },
@@ -151,7 +152,8 @@ test("il fallback legacy copre anche le varianti difensive persistenti", () => {
     "upper-planes-benefits": [
       { id: "upper-planes-armor-class", label: "+2 CA" },
       { id: "upper-planes-flight", label: "Volo 12 m" },
-      { id: "upper-planes-elemental-immunity", label: "Imm. radiosi/necrotici" },
+      { id: "damage-defense-immunity-necrotic", label: "Imm. necrotici" },
+      { id: "damage-defense-immunity-radiant", label: "Imm. radiosi" },
       { id: "upper-planes-charmed-immunity", label: "Imm. affascinato" },
       { id: "upper-planes-magical-attacks", label: "Attacchi magici" },
       { id: "upper-planes-extra-attack", label: "Attacco extra" },

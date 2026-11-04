@@ -6,8 +6,8 @@ const SPELL_CAST_TEMPORARY_HP = Object.freeze({
   "false-life": Object.freeze({ die: "1d4", base: 4, baseSlot: 1, perSlotAbove: 5, effectId: "false-life-temporary-hit-points" }),
   // Armor of Agathys: 5 for the duration, 5 more for each slot level above the 1st; its pill ends with them.
   "phb2014-armatura-di-agathys": Object.freeze({ base: 5, baseSlot: 1, perSlotAbove: 5, effectId: "agathys-armor" }),
-  // Tenser's Transformation: 50, which its text does not tie to the duration (decision D3): they stay after it.
-  "xanathar-trasformazione-di-tenser": Object.freeze({ base: 50, effectId: "" }),
+  // Tenser's Transformation: 50, the ones left are lost when the spell ends.
+  "xanathar-trasformazione-di-tenser": Object.freeze({ base: 50, effectId: "tensers-transformation" }),
 });
 
 // The temporary hit points of one variant of a spell. Enhance Ability, Bear's Endurance: 2d6, lost when the spell ends.
