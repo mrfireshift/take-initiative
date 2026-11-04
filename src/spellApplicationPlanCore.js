@@ -215,8 +215,9 @@ export function buildSpellApplicationIntent({
       usedSaveAutomation: false,
     };
   const choiceTiming = getSpellChoiceTiming(spell, selectedChoice, persistedCastContext);
+  // A choice describes the resolution: at the preparation it cannot dismiss a concentration that has yet to start.
   const concentrationAction = castAutomationPlan.concentrationAction
-    || choiceTiming?.concentrationAction
+    || (resolvedPhasePlan.phase === "prepare" ? "" : choiceTiming?.concentrationAction)
     || resolvedPhasePlan.concentrationAction
     || "replace";
   const summaryParts = getSpellSummaryParts(spell, selectedChoice, persistedCastContext);

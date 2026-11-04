@@ -1,5 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
+import { broadcastConcentrationSaveWarnings, broadcastEffectSaveDamageNotices } from "./concentrationSaveReminder.js";
 import { spellForCastContext } from "./spellCastContextCore.js";
 import { buildSharedHpPreview, sharedHpIntents, sharedHpCommittedUpdates, sharedHpDamageEntries } from "./sharedHpViewCore.js";
 import { resolveSharedHpGroup, sharedHpScopeIds } from "./sharedHpCore.js";
@@ -34,6 +34,7 @@ import {
 } from "./prismaticWallRules.js";
 import {
   getAreaSaveAutomation,
+  getSpellDurationTurns,
   getSpellAttackResolution,
   getSpellDefinition,
   getSpellSummaryParts,
@@ -940,6 +941,12 @@ async function defaultConcentrationWarnings(entries = [], _plan = {}, { sceneEpo
       causeHistoryEntryId,
       eventId: `${baseEventId}:${index + 1}`,
     });
+    // The saves the damage itself asks for (Dominate, Hideous Laughter): one per dart too.
+    await broadcastEffectSaveDamageNotices(changes, {
+      eventId: `${baseEventId}:effect:${index + 1}`,
+    }).catch((error) => {
+      console.warn("[spell-area] effect save notices:", error?.message || error);
+    });
   }
 }
 
@@ -1268,9 +1275,10 @@ async function buildPlan(command, runtime) {
   const outcomeEntries = Object.entries(command?.outcomes?.byTarget || {});
   const outcomes = new Map(outcomeEntries);
   const saveWorkflowRule = getSpellSaveWorkflowRule(spell.id);
+  // The outcome the panel records for the attack: with the choice alone, a miss still applied the effects of a hit.
   const attackResolution = getSpellAttackResolution(
     spell,
-    text(command?.spell?.choiceValue),
+    text(command?.outcomes?.attack) || text(command?.spell?.choiceValue),
     { slotLevel: command?.spell?.slotLevel },
   );
   const phaseResolution = command?.phaseResolution && typeof command.phaseResolution === "object"
@@ -1591,7 +1599,7 @@ async function buildPlan(command, runtime) {
       resolution: resolved,
       instanceId: spellInstanceId,
       casterName: itemName(caster),
-      turns: spell.defaultTurns || 1,
+      turns: getSpellDurationTurns(spell, command?.spell?.castContext) || 1,
       spellExpiry: spell.concentration ? { mode: "concentration" } : spell.expiry || null,
       appliedAt,
       concentrationAction,
@@ -1634,7 +1642,7 @@ async function buildPlan(command, runtime) {
             sourceId: casterId,
             sourceName: itemName(caster),
             ...(appliedAt ? { appliedAt } : {}),
-            expiry: effect.expiry || { mode: "manual" },
+            expiry: effect.expiry || spell.expiry || { mode: "manual" },
           },
         );
         effectOperations.push({
@@ -1645,6 +1653,8 @@ async function buildPlan(command, runtime) {
             ...attackEffectOptions,
             parentEffectId: "",
             type: "automatic",
+            spellId: spell.id,
+            spellName: spell.displayName || spell.name,
           },
         });
       }
@@ -1880,6 +1890,7 @@ async function buildPlan(command, runtime) {
       trackConcentration: spell.concentration === true && !hasTrackedSpellInstance,
       ruleChoice: placementRuleChoice,
       slotLevel: command?.spell?.slotLevel,
+      turns: getSpellDurationTurns(spell, command?.spell?.castContext),
       castContext: castContextFor({
         spell,
         resolution: resolved,
@@ -2234,6 +2245,9 @@ async function buildPlan(command, runtime) {
     // The spell slot spent with the cast: the caster's entry keeps the History even when the area is empty.
     ...(Array.isArray(runtime.extraOperations) && runtime.extraOperations.length && casterId ? [casterId] : []),
     ...(command?.source?.kind === "prepared-resolution" && casterId ? [casterId] : []),
+    // Concentration lives on the caster: when every target saves, it is all the cast changes, and it needs its Undo.
+    // Only the History's snapshot: the caster is no target of the spell, in the combat log either.
+    ...(casterId && effectOperations.some((operation) => ["concentration:register", "concentration:break"].includes(operation?.type)) ? [casterId] : []),
     ...(cloudPlacement || teleportRule ? teleportSubjectIds : []),
     ...await runtime.getZeroHPConditionHistoryIds(ids),
   ]);

@@ -76,7 +76,7 @@ export function renderSpellOverview({
     );
     const duration = documentRef.createElement("span");
     duration.className = "overview-badge";
-    duration.textContent = spellTurnsLabel(group.turns, group.counters);
+    duration.textContent = spellTurnsLabel(group.turns, group.counters, group.concentrating === true);
     heading.append(name, referenceButton);
     if (duration.textContent) heading.appendChild(duration);
     if (group.concentrating) {

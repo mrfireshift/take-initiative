@@ -1374,7 +1374,7 @@
     "dominate-person": {
       "id": "dominate-person",
       "name": "Dominare persone",
-      "level": 0,
+      "level": 5,
       "school": "Ammaliamento",
       "ritual": false,
       "castingTime": "1 azione",

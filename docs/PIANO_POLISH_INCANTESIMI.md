@@ -1,0 +1,214 @@
+# Polishing degli incantesimi (piano)
+
+Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1 e 2 e D6 fatti)**. Questo piano guida la
+revisione di tutti i 477 incantesimi prima di aggiungere nuove capacità. Per ognuno si controlla:
+
+- **A, l'interpretazione:** il motore fa ciò che dice il testo 2014?
+- **B, i workflow:** lancio, esiti, card, Annulla, Termina e ciò che segue funzionano davvero?
+
+Lo stato incantesimo per incantesimo sta in [`data/spell-polish-register.json`](../data/spell-polish-register.json).
+Lo stato dell'automazione resta nel [Piano di automazione](PIANO_AUTOMAZIONE_INCANTESIMI.md).
+
+## Che cosa ha mostrato lo studio
+
+Le regole di base reggono: il confronto automatico tra testi e motore su tutto il catalogo ha trovato poche
+contraddizioni, e i 20 incantesimi comuni letti a mano non hanno errori di regola. I difetti stanno nei workflow.
+L'audit esistente segna 382 incantesimi su 477 come «non rivisti», cioè controllati solo nella struttura.
+
+## Decisioni
+
+| # | Domanda | Decisione |
+|---|---|---|
+| **D1** | Prima i difetti o prima la lettura completa? | Prima i difetti gravi |
+| **D2** | Gli effetti di zona sulle creature oggi non si vedono sulla card. Mostrarli? | Sì, quelli che contano. Anche il terreno difficile si mostra, quando un attore entra nell'area che lo produce |
+| **D3** | Mostrare ovunque quale TS richiede il lancio? | Sì |
+| **D4** | Proporre ovunque la formula dei danni, con la crescita per slot? | Sì |
+| **D5** | La lettura di P3 in sequenza o con più agenti in parallelo? | In sequenza |
+| **D6** | 31 lanci dicono un TS ma non ne chiedono l'esito: aggiungere gli esiti? | Sì, e il lancio rapido considera fallito il TS: vedi il lotto D6 di P3 |
+
+## I lotti
+
+### P0, il banco permanente (fatto il 4/11)
+
+La prova sistematica sta in `test-support/spellSweepHarness.js`: ogni incantesimo, ogni variante, un TS fallito e uno
+superato, dal contratto del pannello al comando reale, fino all'Annulla di produzione e al Termina del pannello. Su una
+scena in memoria con tre token controlla PF, pill, concentrazione, zone e voci di Cronologia. Sono 1184 lanci in circa
+45 secondi.
+
+- `test/spellCatalogSweep.test.js` fallisce se compare un difetto che non è sulla lista delle eccezioni, ciascuna con
+  il suo motivo, e anche se un'eccezione non si verifica più: così la lista si accorcia chiudendo i lotti.
+- `npm run polish:register` aggiorna il registro: ciò che trova oggi la prova. Conserva ciò che è scritto a mano
+  (`reading`, `bench`), e il test controlla che il registro sia aggiornato.
+- `npm run polish:sheets -- --out <cartella> [--ids a,b]` scrive le schede da leggere, con il testo accanto al motore.
+  Contengono i testi privati dei manuali: lo script rifiuta le cartelle dentro il progetto.
+
+### P1, i difetti gravi (fatto il 4/11)
+
+| Difetto | Incantesimi | Correzione |
+|---|---|---|
+| Nessun campo danni: i PF non cambiavano | Eruzione Terrestre, Orrido Avvizzimento di Abi-Dalzim, Sfera al Vetriolo, Evoca Raffica, Evoca Pioggia di Armi, Turbine di Spade | `initialHP` e formula in `spellCastResolutionRules.js`. Questi incantesimi non hanno un `damageType`, che era l'unica via per il campo danni di un'area istantanea |
+| Applicava «0 elementi» | Allucinazione di Forza | `initialResolution: "manual-save"` e TS Intelligenza: con `none` l'automazione del TS veniva soppressa, e senza bersagli tracciati non nasceva nemmeno la zona |
+| Chiedeva un danno inesistente, a pulsante bloccato | Intralciare, Terremoto, Inversione della gravità, Sfera Acquea | `initialHP: false`: una zona con TS al lancio chiede il danno, se non è dichiarato il contrario |
+| Concentrazione senza Annulla quando nessuno subisce l'effetto | Luminescenza, Trama ipnotica, Lentezza, Paura, Confusione, Fatale, Calmare emozioni, Drago Illusorio, Minuscole Meteore, Soffio del Drago, Miscela Caustica | Il caster entra in `historyIds` quando il lancio tocca la sua concentrazione. Solo nell'istantanea della Cronologia: in `effectSubjectIds` finirebbe tra i bersagli del Registro di combattimento |
+
+Test: `test/spellPolishP1.test.js`. Provati al banco dal pannello vero: Evoca Raffica, Intralciare, Terremoto,
+Allucinazione di Forza e Luminescenza.
+
+### P2, i difetti medi e piccoli (fatto il 4/11)
+
+| Difetto | Incantesimi | Correzione |
+|---|---|---|
+| Effetto salvato ma invisibile sulla card (D2) | Tocco gelido, Dardo tracciante, Raggio di gelo, Freccia acida, Regressione mentale, Sfera al Vetriolo, Braccia di Hadar e gli effetti di zona di 25 incantesimi | `spellEffectStandsAlone` in `effectLabelCore.js`: un buff o un debuff d'incantesimo senza la pill del suo incantesimo sulla creatura ha una pill sua, in entrambe le viste. Il terreno difficile si vede sempre. Niente × se è legato a una zona o a un incantesimo, perché finisce con loro. Azioni dei mostri e capacità di classe restano come sono |
+| TS superato: dimezzava, il testo dice nessun danno | Coltello di Ghiaccio, Creare Falò | `successfulSaveDamage: "none"` |
+| Effetto d'attacco a rimozione manuale dal pannello | Tocco gelido, Dardo tracciante, Raggio di gelo | Scade come dichiara l'incantesimo. L'effetto porta anche `spellId` |
+| Il limite di bersagli non cresceva con lo slot | Esilio, Charme su persone, Caratteristica potenziata, Volare, Passo veloce, Charme sui Mostri, Incuti Paura, Sonnellino, Fortezza della Mente | `TARGETING_OVERRIDES` in `spells-srd.js`; Esilio nel suo workflow. La distanza massima tra i bersagli, dove il testo ne chiede una, resta al tavolo |
+| I dadi dei promemoria non crescevano con lo slot | Nube mortale, Sfera infuocata, Piaga degli insetti, Raggio lunare, Guardiani spirituali, cortina del Muro di ghiaccio, Muro di spine | `baseSlot` e `additionalPerSlotAbove` sui trigger di `spellAreaRules.js` |
+| TS non detto (D3) | Tutti i lanci con un TS al lancio: prima 6 su 95 | `spellCastSaveAbility` per chi non lo dichiara già nella zona o nel workflow, e la riga «Tiro salvezza: Destrezza» tra i bersagli. I TS successivi hanno i loro promemoria e restano fuori |
+| Formula non proposta (D4) | Prima 20 lanci su 68 con campo danni | `SPELL_CAST_DAMAGE_DICE` in `spellCastResolutionRules.js`, con la crescita per slot. Con esiti misti e gli stessi dadi l'etichetta dice i dadi. Un trucchetto mostra i dadi base e, sotto il campo, come crescono col livello del personaggio, che il pannello non conosce. Il pannello non mostrava quel suggerimento: ora il footer lo disegna, anche per «TS superato: X. TS fallito: Y.» |
+| «Porta Dimensionale» nell'errore di portata di ogni teletrasporto | Passo velato e simili | Messaggio generico |
+| «Durata non indicata» accanto al badge Concentrazione | Incantesimi di sola concentrazione | `spellTurnsLabel` riceve la concentrazione |
+| Livello 0 nel riferimento | Dominare persone | Livello 5. Era l'unica differenza tra catalogo e riferimento |
+| «Applica» senza lasciare traccia | Controllare Fiamme, Modellare Acqua, Modellare Terra | Passano a solo registrazione: **Registra lancio** |
+| Alla preparazione la variante extraplanare toglieva la concentrazione | Punizione Esiliante | Alla preparazione la scelta non decide la concentrazione |
+| La pill non diceva la velocità 0, già nel profilo di movimento | Trama ipnotica | Dettaglio «Vel 0» |
+
+**Trovati al banco, invisibili alla prova automatica:**
+
+- La normalizzazione delle condizioni scartava `spellId`, quindi gli effetti d'attacco restavano nascosti anche con la regola
+  nuova. Ora lo conserva, e `test-support/spellSweepHarness.js` guarda le istanze normalizzate, come la card.
+- Il cassetto della vista compatta mostrava due volte i dettagli di ogni effetto: la pill veniva avvolta due volte.
+
+**Limiti noti:**
+
+- Nella vista espansa la pill di un incantesimo mostra solo il nome, per scelta del progetto: «Vel 0» si legge nel cassetto
+  della vista compatta.
+- Il TS mostrato prendeva anche la caratteristica di comodo dei workflow senza TS: è un errore di questo lotto, corretto nel
+  lotto 1 di P3.
+- I round successivi di Tempesta di Vendetta cambiano dadi a ogni round: il campo non propone una formula.
+- I dadi cresciuti dei promemoria, che al banco di allora non si potevano vedere, sono provati dal lotto 2 di P3.
+
+Test: `test/spellPolishP2.test.js`. Provati al banco dal pannello vero, in vista compatta ed espansa: Tocco gelido,
+Regressione mentale, Intralciare, Braccia di Hadar e Trama ipnotica. Solo nel pannello: Palla di fuoco, Charme su persone,
+Modellare Terra, Debilitazione.
+
+### P3, la lettura vera (A)
+
+Lotti di circa 40 incantesimi con `npm run polish:sheets`, in sequenza (D5), partendo dai più usati. I 145 tracciati o
+solo registrati richiedono un controllo veloce. Per ogni lotto: il registro segna `reading`, i dubbi di regola vanno al
+proprietario del progetto, le correzioni passano dal banco. Altri 65 incantesimi hanno dadi di danno nel testo e nessun
+campo al lancio: molti sono giusti (punizioni, evocazioni, promemoria), vanno classificati qui.
+
+Già annotati per questa lettura: il tiro per colpire di Coltello di Ghiaccio non è gestito; Stretta della Terra di
+Maximilian ha il campo danni ma non chiede gli esiti; i round successivi di Tempesta di Vendetta.
+
+**Dal lotto 2 la lettura non si ferma ai dati.** Per ogni incantesimo si guarda anche che cosa succede davvero: chi entra
+nell'area, se ogni promemoria di TS compare nel momento che il testo dice, che cosa fa con un TS superato e con uno fallito,
+come scorrono le durate lanciando nel turno del caster, come finisce. Le schede riportano la sagoma vera, chi conta come dentro
+e ogni promemoria. Il banco esegue il vero servizio di sfondo: `test-support/boss-actions-browser/polishBench.js` (`zoneRun`,
+`reminderRun`, `damageWith`, `terminateFromPanel`), sul banco `frame.html?scenario=tracker`.
+
+#### Lotto 1 (fatto il 4/11): i 40 più usati
+
+Trucchetti d'attacco e di TS, cure, buff comuni e i classici fino al 3° livello. Durate, gittate, aree, condizioni, scadenze,
+concentrazione e crescita per slot coincidono con i testi: nessun errore di regola nelle automazioni. Corretti:
+
+| Difetto | Incantesimi | Correzione |
+|---|---|---|
+| Un TS che il testo non ha, introdotto da P2 | Dardo incantato, Dissolvi magie, Ristorare inferiore, Rinascita e altri 8 con la caratteristica di comodo del workflow; Telekinesi, che risolve una contesa | Il pannello usa la caratteristica del workflow solo se chiede l'esito di un TS, e non con le etichette di contesa |
+| Promemoria che chiedeva un TS senza dire quale | Nube maleodorante, Folata di Vento: gli unici 2 su 78 | Caratteristica nei dati del promemoria. Per la Nube, chi fallisce riceve «Conati: azione persa», finora mai applicata |
+| Mancava l'immunità al tuono | Silenzio | `damageDefenses` sull'effetto di chi è nella zona; il dettaglio dice anche della componente verbale |
+| Non diceva il caso del non morto | Tocco gelido | Nel dettaglio dell'effetto: si risolve al tavolo |
+| La cura non proponeva i dadi | Cura ferite, Parola guaritrice, Parola guaritrice di massa, Cura ferite di massa, Preghiera di guarigione | `spellCastHealingFormula`: «Cura · 3d8 + mod», con la crescita per slot |
+
+Test: `test/spellPolishP3.test.js`. Provati al banco dal pannello vero: Silenzio in entrambe le viste; nel pannello Dardo
+incantato, Rinascita, Dissolvi magie, Ristorare inferiore, Guarire, Telekinesi, Blocca persone, Cura ferite e Charme su persone.
+Il promemoria della Nube è provato dal lotto 2, che ha portato al banco i servizi di sfondo.
+
+#### Lotto D6 (fatto il 4/11): gli esiti e il lancio rapido
+
+Se il bersaglio superava il TS, il pannello di 31 lanci non aveva modo di dirlo. Ora ci sono due percorsi, senza nuovi pulsanti:
+
+- **Il pannello aperto a mano** (Incantesimi o il ⚙ del libro) chiede l'esito di ogni bersaglio. Con un TS superato spende lo slot,
+  non lascia effetti né concentrazione, e l'Annulla restituisce lo slot.
+- **Il lancio rapido** (console 🗡️, menu ⚡, libro) considera fallito il TS, come già faceva
+  `QUICK_ACTION_INITIAL_SAVE_OUTCOME`. Se non serve altro applica subito: 25 incantesimi, prima 5 con il TS dichiarato. Se serve
+  un'area, un danno o una variante apre il pannello con ogni bersaglio già su «Fallito»: basta inserire ciò che manca e segnare
+  chi lo supera (`withAssumedSaveOutcomes`, indirizzo `assumedSaveOutcome`). La riga del TS lo dice.
+
+| Che cosa | Incantesimi | Correzione |
+|---|---|---|
+| Esiti (21) | Amicizia con gli animali, Scagliare maledizione, Charme su persone, Dominare bestie, Dominare mostri, Dominare persona, Estasiare, Costrizione, Risata incontenibile, Imprigionare, Suggestione, Suggestione di massa, Modificare memoria, Allucinazione mortale, Legame planare, Charme sui Mostri, Incuti Paura, Nemici in Abbondanza, Vincolo della Terra, Duello Obbligato, Corona di Follia | Stessa corsia di Blocca persone: `MULTI_TARGET_SAVE_SPELL_IDS` e `workflowRule`. Le condizioni restano in `AUTOMATION` (`automationSaveRules`), gli effetti in `SPELL_EFFECTS` |
+| Limite per slot | Amicizia con gli animali: mancava, il testo lo prevede | Nel suo workflow |
+| Durata per slot ignorata sulla corsia dei TS | Dominare a slot alti restava 10 round; vale anche per Cerchio magico | `getSpellDurationTurns` nell'esecutore |
+| La pill durava 1 round | Imprigionare, che dura finché non viene dissolto | Scadenza manuale |
+| TS solo per chi non è consenziente | Ingrandire/ridurre, Levitazione, Spostamento planare, Metamorfosi, Metamorfosi pura, Metamorfosi di Massa, Sfera elastica, Sembrare | Nessun esito: un alleato non tira. La riga dice «se non è consenziente» |
+
+Confronto prima e dopo su 83 lanci, anche a slot alti: stessi effetti, stessa concentrazione, stesso Annulla e stesso Termina.
+Restano tre differenze volute:
+- una condizione tolta a mano termina l'incantesimo su quel bersaglio, e con l'ultimo bersaglio anche la concentrazione;
+- a slot 5–8 gli effetti di Scagliare maledizione seguono la pill invece di contare i round;
+- gli effetti riportano il loro incantesimo (`spellId`).
+
+Rimandati alla lettura: Muro di pietra, Stretta della Terra di Maximilian e Morsa del Gelo, che hanno pedine, danni o la console.
+Le durate per slot di Costrizione, Legame planare e Suggestione di massa non sono tracciate: al tavolo non pesano.
+
+Test: `test/spellPolishP3.test.js`. Provati al banco:
+- **Dal menu ⚡:** Charme su persone applicato subito con lo slot speso; Inaridire con il danno da inserire; Palla di fuoco con tre
+  bersagli già falliti dopo l'area, uno cambiato in superato.
+- **Dal pannello a mano:** Charme su persone con TS superato, Suggestione, Dominare persona al 7°, Palla di fuoco senza esiti
+  precompilati, Levitazione.
+
+#### Lotto 2 (fatto il 4/11): i 40 successivi, più 22 aree del lotto 1 rilette
+
+Zone, muri, tempeste, cure di gruppo e attacchi a incantesimo, poi di nuovo le aree già lette, con il metodo nuovo. Il lotto
+ha trovato quasi tutto al banco, non nei dati:
+
+| Difetto | Incantesimi | Correzione |
+|---|---|---|
+| La × sulla pill di una zona toglieva la pill, ma zona, concentrazione ed effetti restavano | Tutte le zone in concentrazione | La concentrazione di una zona non ha bersagli: `__terminateSpellOnTrackerCard` la interrompe davvero, come il Termina del pannello. Il titolo non dice più «su questo bersaglio» |
+| Il danno dal pannello o da un promemoria di zona non chiedeva il TS «quando subisce danni» | Dominare persona, bestie e mostri, Risata incontenibile e ogni effetto con quel momento | `broadcastEffectSaveDamageNotices` dopo il commit: solo un avviso, come fanno già Quick HP, console Boss e attacchi |
+| Il danno ritardato si perdeva: la pill scadeva nello stesso fine turno che doveva chiederlo | Freccia acida, Sfera al Vetriolo (gli unici 2 del catalogo) | La pill resta finché il promemoria non è risolto; il promemoria ora ha campo danni e Conferma |
+| Un attacco mancato applicava gli effetti del colpo | Freccia acida, Dardo tracciante, Tocco gelido, Raggio di gelo | L'esecutore legge l'esito dell'attacco, non solo la scelta |
+| Dall'avviso il contatore non scendeva: il Guardiano non svaniva mai | Guardiano della fede (60 danni), Cordone di Frecce | `zoneTriggerResourceSpend` anche in `buildReminderResolutionPlan` |
+| Nessun promemoria di TS | Zona di verità | TS CAR all'ingresso e a inizio turno; chi fallisce non viene richiesto, e l'etichetta finisce uscendo (come Ragnatela) |
+| Il TS all'ingresso solo nel proprio turno | Bagliore lunare | Il primo ingresso in ogni turno, come dice il testo |
+| Il Prono finiva con l'incantesimo | Unto, Terremoto | Resta, come già per Tempesta di nevischio |
+| Mancava il ricordo della deriva | Nube mortale | Promemoria a inizio turno del caster; la zona si trascina a mano |
+| Sagome sbagliate | Sfera infuocata (4×4 caselle invece di 3×3), Guardiano della fede (6×6 m invece di 9×9), Nube di nebbia (nessuna crescita per slot) | Dati del catalogo e `SPELL_AREA_SLOT_GEOMETRY_SCALING` |
+| Bastava toccare, il testo vuole interamente dentro | Silenzio, Nube maleodorante | `containment: "fully-inside"`, come la Gabbia di forza |
+| Mancava la forma ad anello | Barriera di lame, Muro di spine | `placementChoices`, come Muro di fuoco: a ogni lancio si sceglie la forma |
+| La pill della zona ignorava la durata per slot | Cerchio magico | `turns` in `staticSpellZoneOwnerOperation` |
+| Dati diversi dal testo | Barriera di lame (+1d10 per slot che non esiste), Fiotto acido (può prendere due creature) | Dati |
+
+**Dubbi di regola per il proprietario, oggi lasciati come sono:**
+- Riscaldare il metallo: chi tiene l'oggetto e supera il TS non ha svantaggio. Il testo italiano si può leggere così, l'inglese
+  direbbe che lo ha comunque.
+- Risata incontenibile: alla fine dell'incantesimo sparisce anche il Prono; il testo farebbe restare a terra chi deve rialzarsi.
+- Caratteristica potenziata: i 2d6 PF temporanei di Resistenza dell'orso sono solo nell'etichetta.
+- Spruzzo colorato e Sonno: la riserva di PF (6d10, 5d8 e la crescita per slot) non è proposta dal pannello.
+
+Provato al banco, con il servizio di sfondo vero e lanciando nel turno del caster: si veda `bench` nel registro. La × anche nella
+vista compatta, dal cassetto degli effetti. Non provati: lo spostamento di Bagliore lunare e di Sfera infuocata, il cambio di
+direzione di Folata di vento, il Vortice di Controllare acqua, il ripetere di Riscaldare il metallo.
+
+### P4, i workflow che la prova non copre ancora (B)
+
+- Le azioni del ⚡ e gli spostamenti delle zone.
+- La console attacchi e il lancio dalle schede dei mostri.
+- Le resistenze nei danni ad area: l'esecutore ad area non legge il tipo di danno né le difese del bersaglio, a differenza
+  della console attacchi. Da verificare e, se serve, da decidere.
+- Un giro automatico al banco sui casi complessi.
+- I casi che oggi la prova esclude, sulla lista delle eccezioni del test: Animare oggetti, i teletrasporti, i ritorni in vita.
+
+### P5, la prova in stanza
+
+Una lista breve e mirata, che raccoglie anche ciò che i lotti precedenti non hanno potuto provare al banco.
+
+## Come si lavora
+
+1. Prima di correggere, si riproduce il difetto con `test-support/spellSweepHarness.js` o al banco.
+2. Si corregge il dato o la regola più piccola che lo risolve, e si toglie l'eccezione da `test/spellCatalogSweep.test.js`.
+3. `npm run polish:register`, `npm test`, `npm run build`.
+4. Ciò che tocca il pannello o la card si prova al banco dal pannello vero, in vista compatta ed espansa, e si annota in
+   `bench` nel registro.
+5. Mai testi dei manuali nel repository: né nel registro, né nei documenti, né nei test.

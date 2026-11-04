@@ -339,7 +339,10 @@ export function buildSpellChips(spells, options = {}) {
       terminate.type = "button";
       terminate.textContent = "×";
       terminate.dataset.cardSelectionIgnore = "1";
-      terminate.title = `Termina ${displayName} su questo bersaglio`;
+      // The pill of a zone or of an aura stands for the whole spell, not for one target.
+      terminate.title = spell?.castContext?.staticZoneOwner === true || spell?.castContext?.mobileAura === true
+        ? `Termina ${displayName}`
+        : `Termina ${displayName} su questo bersaglio`;
       terminate.setAttribute("aria-label", terminate.title);
       Object.assign(terminate.style, {
         minWidth: "10px",

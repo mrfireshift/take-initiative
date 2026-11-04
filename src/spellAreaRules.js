@@ -46,6 +46,8 @@ const SPELL_AREA_EFFECT_MODES = Object.freeze([
 ]);
 const SPELL_ZONE_OWNERS = Object.freeze(["caster"]);
 const SPELL_ZONE_MOVEMENTS = Object.freeze(["fixed", "manual", "drift"]);
+// A zone that counts only who is entirely inside it (2014: Silence, Stinking Cloud; Forcecage's cage).
+const FULLY_INSIDE_ZONE_SPELL_IDS = new Set(["forcecage", "silence", "stinking-cloud"]);
 export const SPELL_ZONE_MOVEMENT_MODES = Object.freeze(["action", "bonus-action"]);
 export const SPELL_ZONE_MOVEMENT_ECONOMIES = Object.freeze(["action", "bonus-action"]);
 
@@ -114,6 +116,10 @@ const SPELL_AREA_SLOT_GEOMETRY_SCALING = Object.freeze({
   confusion: Object.freeze({
     baseSlot: 4,
     sizeMetersPerSlotAbove: 1.5,
+  }),
+  "fog-cloud": Object.freeze({
+    baseSlot: 1,
+    sizeMetersPerSlotAbove: 6,
   }),
 });
 
@@ -858,11 +864,12 @@ const difficultTerrainEffect = (id, label, detail, costMultiplier = 2) => ({
     },
   },
 });
-const conditionMembershipEffect = (id, condition, detail) => ({
+const conditionMembershipEffect = (id, condition, detail, mechanics = null) => ({
   id,
   condition,
   label: condition,
   detail,
+  ...(mechanics ? { mechanics } : {}),
 });
 const ZONE_INITIAL_SAVE_SPELL_IDS = new Set([
   "symbol",
@@ -1490,6 +1497,34 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       },
     },
   ],
+  // 2014: who enters for the first time on a turn or starts its turn there saves. Who fails cannot lie while it stays:
+  // it is not asked again, and the label goes when it leaves (the same link as the Web's Restrained).
+  "zone-of-truth": [
+    {
+      id: "zone-of-truth-save-on-entry",
+      group: "zone-of-truth-save",
+      label: "TS Carisma entrando nella Zona di Verità",
+      event: "enter",
+      frequency: "once-per-turn",
+      resolution: "manual-save",
+      failureEffect: "Non può mentire deliberatamente mentre rimane nella zona.",
+      requiresOwnTurn: false,
+      triggerOnAreaMove: false,
+      skipLinkedConditions: ["Zona di Verità: non può mentire"],
+      removeLinkedConditionOnLeave: true,
+    },
+    {
+      id: "zone-of-truth-save-on-turn-start",
+      group: "zone-of-truth-save",
+      label: "TS Carisma a inizio turno nella Zona di Verità",
+      event: "turn-start",
+      frequency: "once-per-turn",
+      resolution: "manual-save",
+      failureEffect: "Non può mentire deliberatamente mentre rimane nella zona.",
+      skipLinkedConditions: ["Zona di Verità: non può mentire"],
+      removeLinkedConditionOnLeave: true,
+    },
+  ],
   "blade-barrier": [
     {
       id: "blade-barrier-save-on-entry",
@@ -1498,7 +1533,7 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       event: "enter",
       frequency: "once-per-turn",
       resolution: "manual-save",
-      failureEffect: "6d10 danni taglienti, +1d10 per slot sopra il 6° (metà se superato).",
+      failureEffect: "6d10 danni taglienti (metà se superato).",
       requiresOwnTurn: false,
       triggerOnAreaMove: false,
       damage: {
@@ -1514,7 +1549,7 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       event: "turn-start",
       frequency: "once-per-turn",
       resolution: "manual-save",
-      failureEffect: "6d10 danni taglienti, +1d10 per slot sopra il 6° (metà se superato).",
+      failureEffect: "6d10 danni taglienti (metà se superato).",
       damage: {
         dice: "6d10",
         type: "taglienti",
@@ -1523,6 +1558,17 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
     },
   ],
   "cloudkill": [
+    {
+      // 2014: the fog moves 3 m away from the caster at the start of each of the caster's turns: the GM drags the zone.
+      id: "cloudkill-drift-on-source-turn-start",
+      group: "cloudkill-drift",
+      label: "Nube mortale: sposta la nube di 3 m lontano dal caster",
+      event: "turn-start",
+      frequency: "once-per-turn",
+      resolution: "informational",
+      requiresSourceTurn: true,
+      targetMode: "caster",
+    },
     {
       id: "cloudkill-save-on-entry",
       group: "cloudkill-save-on-entry",
@@ -1537,6 +1583,8 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
         dice: "5d8",
         type: "veleno",
         onSave: "half",
+        baseSlot: 5,
+        additionalPerSlotAbove: 1,
       },
     },
     {
@@ -1551,6 +1599,8 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
         dice: "5d8",
         type: "veleno",
         onSave: "half",
+        baseSlot: 5,
+        additionalPerSlotAbove: 1,
       },
     },
   ],
@@ -1566,6 +1616,8 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       dice: "2d6",
       type: "fuoco",
       onSave: "half",
+      baseSlot: 2,
+      additionalPerSlotAbove: 1,
     },
   }, {
     id: "flaming-sphere-save-on-contact",
@@ -1583,6 +1635,8 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       dice: "2d6",
       type: "fuoco",
       onSave: "half",
+      baseSlot: 2,
+      additionalPerSlotAbove: 1,
     },
   }],
   "incendiary-cloud": [
@@ -1632,6 +1686,8 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
         dice: "4d10",
         type: "perforanti",
         onSave: "half",
+        baseSlot: 5,
+        additionalPerSlotAbove: 1,
       },
     },
     {
@@ -1646,6 +1702,8 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
         dice: "4d10",
         type: "perforanti",
         onSave: "half",
+        baseSlot: 5,
+        additionalPerSlotAbove: 1,
       },
     },
   ],
@@ -1703,6 +1761,8 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
         dice: "5d6",
         type: "freddo",
         onSave: "half",
+        baseSlot: 6,
+        additionalPerSlotAbove: 1,
       },
     },
     {
@@ -1720,6 +1780,8 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
         dice: "5d6",
         type: "freddo",
         onSave: "half",
+        baseSlot: 6,
+        additionalPerSlotAbove: 1,
       },
     },
     {
@@ -1737,6 +1799,8 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
         dice: "5d6",
         type: "freddo",
         onSave: "half",
+        baseSlot: 6,
+        additionalPerSlotAbove: 1,
       },
     },
   ],
@@ -1755,6 +1819,8 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
         dice: "7d8",
         type: "taglienti",
         onSave: "half",
+        baseSlot: 6,
+        additionalPerSlotAbove: 1,
       },
     },
     {
@@ -1769,6 +1835,8 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
         dice: "7d8",
         type: "taglienti",
         onSave: "half",
+        baseSlot: 6,
+        additionalPerSlotAbove: 1,
       },
     },
   ],
@@ -2060,6 +2128,16 @@ const TRANSMUTE_ROCK_MUD_SAVE = Object.freeze({
   },
 });
 
+const ZONE_OF_TRUTH_FAILURE = Object.freeze({
+  condition: "Zona di Verità: non può mentire",
+  options: Object.freeze({
+    manualRemoval: true,
+    effectKind: "debuff",
+    effectDetail: "Non può pronunciare deliberatamente una menzogna mentre rimane nella zona.",
+    summaryParts: Object.freeze([Object.freeze({ id: "zone-of-truth-no-lies", label: "No menzogne" })]),
+  }),
+});
+
 const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
   ...Object.fromEntries(SYMBOL_ZONE_EFFECTS.flatMap(({ choice, ability }) => ["on-entry", "on-turn-end"].map((when) => [
     `symbol-${choice}-save-${when}`,
@@ -2091,7 +2169,7 @@ const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
   },
   "earthquake-ground-save-on-source-turn-end": {
     ability: "dex",
-    failureCondition: { condition: "Prono" },
+    failureCondition: { condition: "Prono", options: { parentEffectId: "" } },
   },
   "guardian-of-faith-save-on-entry": { ability: "dex" },
   "guardian-of-faith-save-on-move-within": { ability: "dex" },
@@ -2107,12 +2185,14 @@ const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
   },
   "grease-save-on-entry": {
     ability: "dex",
-    failureCondition: { condition: "Prono" },
+    failureCondition: { condition: "Prono", options: { parentEffectId: "" } },
   },
   "grease-save-on-turn-end": {
     ability: "dex",
-    failureCondition: { condition: "Prono" },
+    failureCondition: { condition: "Prono", options: { parentEffectId: "" } },
   },
+  "zone-of-truth-save-on-entry": { ability: "cha", failureCondition: ZONE_OF_TRUTH_FAILURE },
+  "zone-of-truth-save-on-turn-start": { ability: "cha", failureCondition: ZONE_OF_TRUTH_FAILURE },
   "sleet-storm-save-on-entry": {
     ability: "dex",
     failureCondition: {
@@ -2196,6 +2276,8 @@ const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
       additionalPerSlotAbove: 1,
     },
   },
+  "stinking-cloud-save-on-turn-start": { ability: "con", failureAutomation: "spell-save" },
+  "gust-of-wind-save-on-turn-start": { ability: "str" },
   "cordon-of-arrows-save-on-entry": { ability: "dex" },
   "cordon-of-arrows-save-on-turn-end": { ability: "dex" },
   "hunger-of-hadar-save-on-turn-end": { ability: "dex" },
@@ -2434,7 +2516,8 @@ function catalogAreaRule(spec) {
       conditionMembershipEffect(
         "silence-zone",
         "Assordato",
-        "Nessun suono può essere creato o attraversare la zona.",
+        "Nessun suono nella zona. Immune ai danni da tuono; niente incantesimi con componente verbale.",
+        { damageDefenses: { immunities: ["thunder"] } },
       ),
     ],
     "sleet-storm": [
@@ -2817,7 +2900,7 @@ function catalogAreaRule(spec) {
               "gust-of-wind",
               "phb2014-cordone-di-frecce",
             ].includes(spec.spellId),
-            ...(spec.spellId === "forcecage"
+            ...(FULLY_INSIDE_ZONE_SPELL_IDS.has(spec.spellId)
               ? { containment: "fully-inside" }
               : {}),
           },
@@ -2935,7 +3018,9 @@ export const SPELL_AREA_RULES = Object.freeze([
       movement: "fixed",
       membershipPaddingSquares: 1,
       targetScope: "spell-targets",
-      initialResolution: "none",
+      // The save at the cast decides everything: a zone without it would suppress the failed save's effect.
+      initialResolution: "manual-save",
+      initialSave: { ability: "int" },
       membershipTargeting: {
         filter: "all",
         includeCaster: true,
@@ -3384,13 +3469,15 @@ export const SPELL_AREA_RULES = Object.freeze([
           frequency: "once-per-turn",
           resolution: "manual-save",
           failureEffect: "Danni radiosi dell'incantesimo (metà se superato).",
-          requiresOwnTurn: true,
+          requiresOwnTurn: false,
           triggerOnAreaMove: false,
           ruleChoice: "damage",
           damage: {
             dice: "2d10",
             type: "radiosi",
             onSave: "half",
+            baseSlot: 2,
+            additionalPerSlotAbove: 1,
           },
         },
         {
@@ -3406,6 +3493,8 @@ export const SPELL_AREA_RULES = Object.freeze([
             dice: "2d10",
             type: "radiosi",
             onSave: "half",
+            baseSlot: 2,
+            additionalPerSlotAbove: 1,
           },
         },
       ],
@@ -3462,6 +3551,8 @@ export const SPELL_AREA_RULES = Object.freeze([
             dice: "3d8",
             type: "radiosi o necrotici",
             onSave: "half",
+            baseSlot: 3,
+            additionalPerSlotAbove: 1,
           },
         },
         {
@@ -3476,6 +3567,8 @@ export const SPELL_AREA_RULES = Object.freeze([
             dice: "3d8",
             type: "radiosi o necrotici",
             onSave: "half",
+            baseSlot: 3,
+            additionalPerSlotAbove: 1,
           },
         },
       ],

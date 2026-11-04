@@ -212,6 +212,28 @@ const AREA_OVERRIDES = Object.freeze({
     rangeMeters: 45,
     note: "Le aree escluse e i vegetali mancanti restano al tavolo. Per l'uso da 8 ore (terra fertile) lancia senza posizionare la zona.",
   },
+  "blade-barrier": {
+    shape: "line",
+    sizeMeters: 30,
+    widthMeters: 1.5,
+    origin: "point",
+    rangeMeters: 27,
+    placementChoices: [
+      { id: "line", label: "Muro lineare, 30 m", shape: "line", sizeMeters: 30, widthMeters: 1.5 },
+      { id: "ring", label: "Muro circolare, 18 m di diametro", shape: "circle", sizeMeters: 9, widthMeters: 1.5, ring: true, innerSizeMeters: 7.5 },
+    ],
+  },
+  "wall-of-thorns": {
+    shape: "line",
+    sizeMeters: 18,
+    widthMeters: 1.5,
+    origin: "point",
+    rangeMeters: 36,
+    placementChoices: [
+      { id: "line", label: "Muro lineare, 18 m", shape: "line", sizeMeters: 18, widthMeters: 1.5 },
+      { id: "ring", label: "Muro circolare, 6 m di diametro", shape: "circle", sizeMeters: 3, widthMeters: 1.5, ring: true, innerSizeMeters: 1.5 },
+    ],
+  },
   "wall-of-force": {
     shape: "line",
     sizeMeters: 30,
@@ -314,7 +336,7 @@ const AREA_OVERRIDES = Object.freeze({
     ],
   },
   "flaming-sphere": {
-    shape: "circle",
+    shape: "square",
     sizeMeters: 1.5,
     origin: "point",
     rangeMeters: 18,
@@ -322,7 +344,7 @@ const AREA_OVERRIDES = Object.freeze({
   },
   "guardian-of-faith": {
     shape: "circle",
-    sizeMeters: 3,
+    sizeMeters: 4.5,
   },
   "gust-of-wind": {
     shape: "rectangle",

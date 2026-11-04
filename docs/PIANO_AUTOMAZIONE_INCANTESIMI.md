@@ -25,8 +25,8 @@ conferma.
 | Categoria | Incantesimi | Che cosa fa oggi il plugin |
 | --- | ---: | --- |
 | Automatizzati | 292 | Lancio e risoluzione assistiti: pannello, console ad area o console attacchi. |
-| Tracciati, nessuna automazione utile | 113 | Pill con durata e concentrazione; informazioni, evocazioni e ambiente al tavolo. |
-| Solo registrazione, nessuna automazione utile | 32 | Istantanei di utilità: lo slot e il registro di combattimento. |
+| Tracciati, nessuna automazione utile | 110 | Pill con durata e concentrazione; informazioni, evocazioni e ambiente al tavolo. |
+| Solo registrazione, nessuna automazione utile | 35 | Istantanei di utilità: lo slot e il registro di combattimento. |
 | **Pronti: bastano i dati** | **0** | Si lanciano e registrano; l'automazione richiede soltanto dati e test. |
 | **Dopo una capacità condivisa** | **26** | Si lanciano e registrano; serve prima una capacità del motore. |
 | Su misura | 12 | Si lanciano e registrano; lo stato è troppo specifico per un'automazione generica. |
@@ -879,11 +879,11 @@ Lancio e risoluzione assistiti dal pannello, dalla console ad area o dalla conso
 - **8° livello**: Antipatia/simpatia, Aura sacra, Dominare mostri, Drago Illusorio, Esplosione solare, Labirinto, Nube incendiaria, Orrido Avvizzimento di Abi-Dalzim, Oscurità della Follia, Parola del potere stordire, Regressione mentale, Terremoto.
 - **9° livello**: Fatale, Invulnerabilità, Lama del Disastro, Muro prismatico, Parola del Potere Guarire, Parola del potere uccidere, Previsione, Resurrezione pura, Urlo Psichico.
 
-### Tracciati: nessuna automazione utile (113)
+### Tracciati: nessuna automazione utile (110)
 
 Il lancio crea la pill con durata e concentrazione; gli effetti (informazioni, evocazioni, ambiente) si risolvono al tavolo. (R) = rituale.
 
-- **Trucchetti**: Controllare Fiamme, Illusione minore, Luce, Luci danzanti, Mano magica, Messaggio, Modellare Acqua, Modellare Terra, Pietra Magica, Prestidigitazione, Randello incantato, Taumaturgia.
+- **Trucchetti**: Illusione minore, Luce, Luci danzanti, Mano magica, Messaggio, Pietra Magica, Prestidigitazione, Randello incantato, Taumaturgia.
 - **1° livello**: Allarme (R), Caduta morbida (reazione), Camuffare se stesso, Comprensione dei linguaggi (R), Disco fluttuante (R), Immagine silenziosa, Individuazione del bene e del male, Individuazione del magico (R), Individuazione delle malattie e dei veleni (R), Parlare con gli animali (R), Scritto illusorio (R), Servitore inosservato (R).
 - **2° livello**: Animale messaggero (R), Aura magica dell'arcanista, Bocca magica (R), Evocare Bestia, Fiamma perenne, Individuazione dei pensieri, Lama d'Ombra, Lama infuocata, Localizza oggetto, Riposo inviolato (R), Scritta Celeste (R), Scurovisione, Serratura arcana, Trucco della corda, Vedere invisibilità.
 - **3° livello**: Anti-individuazione, Camminare sull'acqua (R), Capanna (R), Chiaroveggenza, Destriero fantomatico (R), Evoca animali, Evoca Bestia d'Ombra, Evoca Demoni Minori, Evoca Folletto (Tasha), Evoca Non Morto, Fondersi nella pietra (R), Immagine maggiore, Inviare, Linguaggi, Parlare con i morti, Parlare con i vegetali, Respirare sott'acqua (R), Servitore Minuscolo.
@@ -894,11 +894,11 @@ Il lancio crea la pill con durata e concentrazione; gli effetti (informazioni, e
 - **8° livello**: Controllare tempo atmosferico, Fortezza Possente, Loquacità, Semipiano, Telepatia, Vuoto mentale.
 - **9° livello**: Metamorfosi di Massa, Portale, Proiezione astrale.
 
-### Solo registrazione: nessuna automazione utile (32)
+### Solo registrazione: nessuna automazione utile (35)
 
 Istantanei: il lancio spende lo slot e finisce nel registro, senza pill. (R) = rituale.
 
-- **Trucchetti**: Artificio druidico, Folata, Riparare.
+- **Trucchetti**: Artificio druidico, Controllare Fiamme, Folata, Modellare Acqua, Modellare Terra, Riparare.
 - **1° livello**: Creare o distruggere acqua, Identificare (R), Purificare cibo e bevande (R), Trova famiglio (R).
 - **2° livello**: Localizza animali o vegetali (R), Presagio (R), Scassinare, Scopri trappole, Trova cavalcatura.
 - **3° livello**: Animare morti, Controincantesimo (reazione), Creare cibo e acqua, Rimuovi maledizione.

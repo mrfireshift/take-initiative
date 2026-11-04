@@ -50,8 +50,8 @@ function view(spellId, sessionPatch = {}, options = {}) {
 }
 
 test("un discrete senza override deriva il massimo RAW 1", () => {
-  const model = contract("charm-person");
-  assert.equal(getSpellDefinition("charm-person").targeting, undefined);
+  const model = contract("hideous-laughter");
+  assert.equal(getSpellDefinition("hideous-laughter").targeting, undefined);
   assert.equal(model.presentation.targeting.limit.maximum, 1);
   assert.equal(model.presentation.targeting.limit.classification, "single-target-default");
 });

@@ -54,6 +54,8 @@ import {
 } from "./chainLightningTargetingCore.js";
 import {
   getSpellCastResolutionRule,
+  spellCastSaveAbility,
+  spellCastSaveOnlyIfUnwilling,
   spellHasExplicitInitialHPPolicy,
 } from "./spellCastResolutionRules.js";
 import {
@@ -1299,12 +1301,12 @@ const SAVE_ABILITY_LABELS = Object.freeze({
   cha: "Carisma",
 });
 
-function initialSaveDescriptor(castRules = [], choiceValue = "") {
+function initialSaveDescriptor(castRules = [], choiceValue = "", fallbackAbility = "") {
   const rule = (Array.isArray(castRules) ? castRules : []).find((entry) => (
     entry?.zonePolicy?.initialResolution === "manual-save"
       && entry?.zonePolicy?.initialSave?.ability
   ));
-  const ability = text(spellZoneInitialSaveForChoice(rule, choiceValue)?.ability).toLowerCase();
+  const ability = text(spellZoneInitialSaveForChoice(rule, choiceValue)?.ability || fallbackAbility).toLowerCase();
   if (!ability) return null;
   return {
     ability,
@@ -1569,7 +1571,15 @@ export function buildSpellUnifiedPanelContract({
     workflowRule,
   });
   const saveOutcomeOptionsValue = saveOutcomeOptions({ saveOutcomes, workflowRule });
-  const initialSave = initialSaveDescriptor(presentationCastRules, choiceValue);
+  // A workflow's ability is a save only when the panel asks for its outcome: without outcomes it is a placeholder
+  // (Magic Missile, Revivify...), and custom labels are something else (Telekinesis's contest).
+  const workflowSaveAbility = saveOutcomes && !workflowRule?.outcomeLabels?.failed ? workflowRule?.ability : "";
+  // A spell with a later phase asks for its save in that phase: the smite's preparation has none.
+  const initialSave = initialSaveDescriptor(
+    presentationCastRules,
+    choiceValue,
+    workflowSaveAbility || (saveOutcomes || phases.length <= 1 ? spellCastSaveAbility(spell) : ""),
+  );
   const combinedAttackAndSave = spellPhaseAttackOutcomeRequired(phasePlan)
     && saveOutcomes;
   const automation = automationDescriptor({ spell, phasePlan });
@@ -1713,7 +1723,9 @@ export function buildSpellUnifiedPanelContract({
           : "save",
         options: combinedAttackAndSave ? saveOutcomeOptionsValue : outcomeOptionsValue,
         ...(combinedAttackAndSave ? { attackOptions: outcomeOptionsValue } : {}),
-        ...(initialSave ? { save: initialSave } : {}),
+        ...(initialSave
+          ? { save: { ...initialSave, ...(spellCastSaveOnlyIfUnwilling(spell) ? { onlyIfUnwilling: true } : {}) } }
+          : {}),
       },
       placement: areaPlacement,
       inputs,
@@ -1886,6 +1898,26 @@ function contractPhase(contract, requestedPhase = "") {
 
 function contractSlotDefault(contract) {
   return optionalInteger(contract?.presentation?.slot?.default);
+}
+
+// A quick launch that opens the panel takes the saves as failed: every target without an outcome starts from it, and
+// the GM marks only who passes. It never overwrites a choice.
+export function withAssumedSaveOutcomes(session, contract, assumedOutcome = "") {
+  const outcome = text(assumedOutcome);
+  const outcomes = contract?.presentation?.outcomes;
+  if (!outcome
+    || contract?.presentation?.inputs?.outcomes?.required !== true
+    || !["save", "attack-and-save"].includes(outcomes?.mode)
+    || !(outcomes?.options || []).some((option) => option?.value === outcome)) {
+    return session;
+  }
+  const current = session?.outcomes || {};
+  const missing = (Array.isArray(session?.targetIds) ? session.targetIds : []).filter((id) => !current[id]);
+  if (!missing.length) return session;
+  return {
+    ...session,
+    outcomes: { ...current, ...Object.fromEntries(missing.map((id) => [id, outcome])) },
+  };
 }
 
 export function createSpellPanelSession({

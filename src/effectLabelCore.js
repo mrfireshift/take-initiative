@@ -588,6 +588,29 @@ export function effectSummaryPartsFor(effect = {}, options = {}) {
   return defenseParts.length ? [...resolvedParts, ...defenseParts] : resolvedParts;
 }
 
+// A spell's buff or debuff shows inside the pill of its spell on the same creature. With no such pill there (an instant
+// spell, a zone whose pill is on the caster) the card had nowhere to show it: it gets a pill of its own. So does difficult
+// terrain, which the spell's pill does not name. Lotto P2, decisione D2 di docs/PIANO_POLISH_INCANTESIMI.md.
+export function spellEffectStandsAlone(instance, spellInstanceIds = []) {
+  if (instance?.effectKind !== "buff" && instance?.effectKind !== "debuff") return false;
+  if (instance?.type !== "spell" && !String(instance?.spellId || "").trim()) return false;
+  if (instance?.mechanics?.movement?.category === "difficult-terrain") return true;
+  const parent = String(instance?.parentEffectId || "").trim();
+  return !parent || !spellInstanceIds.includes(parent);
+}
+
+// An effect held by a spell or a zone ends with them, or on leaving the area: its pill has no ×.
+export function spellEffectRemovableFromCard(instance) {
+  return instance?.manualRemoval === true || !String(instance?.parentEffectId || "").trim();
+}
+
+// The label of its own pill: the card is narrow, and the tooltip keeps the full name.
+export function spellEffectPillLabel(value) {
+  const label = compactSpellEffectLabel(value);
+  const terrain = label.match(/^(Terreno difficile(?: ×\d+)?) \/ /u);
+  return terrain ? terrain[1] : label;
+}
+
 export function compactSpellEffectLabel(value) {
   const label = String(value || "").trim();
   return (COMPACT_EFFECT_LABELS[label] || label).replace(/\s*·\s*/gu, " / ");

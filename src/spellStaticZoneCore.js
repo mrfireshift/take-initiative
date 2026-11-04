@@ -196,6 +196,8 @@ export function staticSpellZoneOwnerOperation({
   slotLevel = null,
   summaryParts = null,
   castContext = null,
+  // The duration of the cast when its slot changes it (Magic Circle); the spell's own otherwise.
+  turns = null,
 } = {}) {
   const normalizedInstanceId = normalizedId(instanceId);
   const normalizedCasterId = normalizedId(casterId);
@@ -211,7 +213,7 @@ export function staticSpellZoneOwnerOperation({
   const name = String(spell?.displayName || spell?.name || "").trim();
   const spellId = normalizedId(spell?.id || rule.spellId);
   if (!name || !spellId) return null;
-  const defaultTurns = Math.floor(Number(spell?.defaultTurns));
+  const defaultTurns = Math.floor(Number(turns ?? spell?.defaultTurns));
   const hasFiniteDuration = Number.isFinite(defaultTurns) && defaultTurns > 0;
   return {
     type: "spell:upsert",

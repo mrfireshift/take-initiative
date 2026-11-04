@@ -4,7 +4,12 @@ import {
 } from "./spellExpiryCore.js";
 import { enableInlineNameEditor } from "./initiativeEditors.js";
 import { CLASS_FEATURE_MAX_VISIBLE_DURATION_ROUNDS } from "./classFeatureCore.js";
-import { effectSummaryPartsFor } from "./effectLabelCore.js";
+import {
+  effectSummaryPartsFor,
+  spellEffectPillLabel,
+  spellEffectRemovableFromCard,
+  spellEffectStandsAlone,
+} from "./effectLabelCore.js";
 import { buildEffectSummaryContainer } from "./effectSummaryViewCore.js";
 import { getSpellSummaryParts } from "./spells-srd.js";
 import { spellPillHasActions } from "./spellPillActionsCore.js";
@@ -97,10 +102,12 @@ export function __compactEffectItems(
     ? formatting.spellKey
     : compactSpellKey;
   // Buffs and debuffs appear inside their spell's pill; a consumable or a gift (effectId "buff:…")
-  // has no spell, so it is a pill of its own.
+  // has no spell, so it is a pill of its own, and so is a spell's effect with no pill here.
+  const spellInstanceIds = spells.map((spell) => String(spell?.instanceId || "").trim()).filter(Boolean);
   const effects = conditionInstances.filter((instance) =>
     (instance?.effectKind !== "buff" && instance?.effectKind !== "debuff")
     || String(instance?.effectId || "").startsWith("buff:")
+    || spellEffectStandsAlone(instance, spellInstanceIds)
   ).map((instance) => {
     const summaryParts = showEffectSummaryParts
       ? effectSummaryPartsFor(instance, { suppressSaveReminderParts: true })
@@ -112,9 +119,12 @@ export function __compactEffectItems(
       kind: instance?.type === "class-feature" ? "class-feature" : standaloneKind || "condition",
       instanceId: String(instance?.id || ""),
       ...(standaloneKind && instance.theme && typeof instance.theme === "object" ? { theme: { ...instance.theme } } : {}),
-      label: __compactConditionPillLabel(instance, formatting),
+      label: __compactConditionPillLabel(instance, spellEffectStandsAlone(instance, spellInstanceIds)
+        ? { ...formatting, formatConditionName: spellEffectPillLabel }
+        : formatting),
       title: formatConditionInstance(instance),
       ...(summaryParts.length ? { summaryParts } : {}),
+      ...(spellEffectStandsAlone(instance, spellInstanceIds) && !spellEffectRemovableFromCard(instance) ? { fixed: true } : {}),
       ...(instance?.type === "class-feature"
         ? {
           classFeatureInstance: instance,
@@ -290,6 +300,7 @@ function appendCompactEffectRemoveButton(pill, title, run, documentRef) {
 // Lot U11 (UX-04): what the drawer's × can end besides a class feature. Not on the card's own pill, where a × was
 // turned down on 23/10 as too easy to hit by mistake; the drawer is opened on purpose.
 function compactEffectRemovable(effect) {
+  if (effect?.fixed === true) return false;
   return (effect?.kind === "condition" || effect?.kind === "buff" || effect?.kind === "debuff")
     ? !!effect.instanceId
     : effect?.kind === "spell" && !!(effect.spellInstanceId || effect.key);
@@ -1022,7 +1033,8 @@ export function appendCompactEffectsDrawer(
       const pill = __buildCompactEffectPill(effect, true,
         { documentRef, spellColor, onTerminateClassFeature, onSpellActions, onRemoveEffect });
       Object.assign(pill.style, { display: "block", width: "100%" });
-      column.appendChild(buildEffectSummaryContainer(effect, pill, { documentRef, preview: true }));
+      // __buildCompactEffectPill already holds the effect's details: wrapping it again showed them twice.
+      column.appendChild(pill);
     }
     drawer.appendChild(column);
   }

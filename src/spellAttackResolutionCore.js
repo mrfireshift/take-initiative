@@ -94,7 +94,8 @@ export function getSpellAttackResolution(spell, choiceValue = "", castContext = 
           kind: "debuff",
           label: `Freccia acida: ${delayedDamage} a fine turno`,
           detail: `Subisce ${delayedDamage} danni da acido alla fine del prossimo turno.`,
-          expiry: { mode: "turn-end", actor: "target", remaining: 1, anchor: "next-turn" },
+          // Its reminder removes it when resolved: an expiry on the same turn end could take it first, and the damage with it.
+          expiry: { mode: "manual" },
           deferredEffect: {
             id: "acid-arrow-delayed-acid",
             timing: "turn-end",
@@ -102,6 +103,7 @@ export function getSpellAttackResolution(spell, choiceValue = "", castContext = 
             anchor: "next-turn",
             reminder: `${delayedDamage} danni da acido`,
             damage: { dice: delayedDamage, type: definition.damageType },
+            resolution: { mode: "manual-damage", damage: { dice: delayedDamage, type: definition.damageType } },
             provenance: {
               spellId: spell.id,
               spellName: spell.displayName || spell.name,

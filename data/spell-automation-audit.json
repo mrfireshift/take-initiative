@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "3d989eb7e0e64318",
+  "fingerprint": "83ab9b1e9823b643",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -19,8 +19,8 @@
     "currentAutomationLevel": {
       "FULL": 66,
       "MANUAL": 58,
-      "PARTIAL": 238,
-      "TRACK_ONLY": 115
+      "PARTIAL": 242,
+      "TRACK_ONLY": 111
     },
     "coverageStatus": {
       "ACCEPTED": 72,
@@ -41,7 +41,7 @@
     "targetUiExposure": {
       "UNIFIED": 477
     },
-    "trackableOptions": 363,
+    "trackableOptions": 360,
     "trackable": 360,
     "withAreaRules": 141,
     "areaRuleEntries": 146,
@@ -102,11 +102,11 @@
     "smokeCategories": {
       "ACTIVE_ACTION": 51,
       "AREA_GEOMETRY": 141,
-      "CAST": 273,
-      "CLEANUP": 118,
+      "CAST": 278,
+      "CLEANUP": 119,
       "CONCENTRATION": 218,
       "PERSISTENCE": 360,
-      "TURN_TRIGGER": 101
+      "TURN_TRIGGER": 108
     },
     "unifiedCatalogExposed": 477,
     "integrationDisconnected": 0,
@@ -1037,6 +1037,7 @@
             "slot",
             "targets",
             "placement",
+            "outcomes",
             "automation"
           ]
         },
@@ -1100,7 +1101,8 @@
       "smokeCategories": [
         "CAST",
         "CONCENTRATION",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -1114,7 +1116,8 @@
       "coverage": [
         "tracking",
         "TS",
-        "status:Spaventato"
+        "status:Spaventato",
+        "turni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -1141,7 +1144,8 @@
         "smokeCategories": [
           "CAST",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
@@ -1151,31 +1155,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "condition:add",
-            "concentration:register",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -1194,7 +1194,8 @@
         "smokeCategories": [
           "CAST",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -1529,29 +1530,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "spell:upsert",
-            "condition:add",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -7806,29 +7805,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "spell:upsert",
-            "condition:add",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -7926,29 +7923,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "spell:upsert",
-            "condition:add",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -10701,7 +10696,7 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "cast-record"
           ]
         },
         "contract": {
@@ -11235,32 +11230,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "condition:add",
-            "condition:add",
-            "concentration:register",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -11424,12 +11414,13 @@
       "saveScope": "singolo",
       "inAuditScope": false,
       "exclusionReason": "casting time maggiore di 1 azione",
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CAST",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -11442,7 +11433,8 @@
         "fasi/azioni"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "TS"
       ],
       "assessment": "escluso: casting time",
       "priority": "—",
@@ -11456,13 +11448,14 @@
         "areaRuleIds": [],
         "areaKinds": [],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CAST",
           "PERSISTENCE"
         ]
       },
@@ -11473,26 +11466,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
-            "targets"
+            "targets",
+            "outcomes",
+            "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "spell:upsert"
-          ],
-          "mutationMode": "tracking",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -11509,6 +11503,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CAST",
           "PERSISTENCE"
         ]
       },
@@ -14824,7 +14819,8 @@
       "smokeCategories": [
         "CAST",
         "CONCENTRATION",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -14839,7 +14835,8 @@
       "coverage": [
         "tracking",
         "TS",
-        "status:Affascinato"
+        "status:Affascinato",
+        "turni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -14864,7 +14861,8 @@
         "smokeCategories": [
           "CAST",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
@@ -14874,31 +14872,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "condition:add",
-            "concentration:register",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -14917,7 +14911,8 @@
         "smokeCategories": [
           "CAST",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -14959,7 +14954,8 @@
       "smokeCategories": [
         "CAST",
         "CONCENTRATION",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -14974,7 +14970,8 @@
       "coverage": [
         "tracking",
         "TS",
-        "status:Affascinato"
+        "status:Affascinato",
+        "turni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -14999,7 +14996,8 @@
         "smokeCategories": [
           "CAST",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
@@ -15009,31 +15007,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "condition:add",
-            "concentration:register",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -15052,7 +15046,8 @@
         "smokeCategories": [
           "CAST",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -15094,7 +15089,8 @@
       "smokeCategories": [
         "CAST",
         "CONCENTRATION",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -15110,7 +15106,8 @@
       "coverage": [
         "tracking",
         "TS",
-        "status:Affascinato"
+        "status:Affascinato",
+        "turni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -15137,7 +15134,8 @@
         "smokeCategories": [
           "CAST",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
@@ -15147,31 +15145,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "condition:add",
-            "concentration:register",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -15190,7 +15184,8 @@
         "smokeCategories": [
           "CAST",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -15425,31 +15420,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "condition:add",
-            "concentration:register",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -15683,7 +15674,9 @@
             "slot",
             "targets",
             "placement",
-            "outcomes"
+            "outcomes",
+            "hp",
+            "damage"
           ]
         },
         "cast": {
@@ -16008,7 +16001,8 @@
         "riferimento TS"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "TS"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -16022,7 +16016,7 @@
         "areaRuleIds": [],
         "areaKinds": [],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 1,
         "activeActionIds": [],
@@ -16040,29 +16034,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "spell:upsert",
-            "condition:add",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -17985,7 +17977,9 @@
             "slot",
             "targets",
             "placement",
-            "outcomes"
+            "outcomes",
+            "hp",
+            "damage"
           ]
         },
         "cast": {
@@ -18102,7 +18096,9 @@
             "slot",
             "targets",
             "placement",
-            "outcomes"
+            "outcomes",
+            "hp",
+            "damage"
           ]
         },
         "cast": {
@@ -24291,12 +24287,14 @@
       "saveScope": "singolo",
       "inAuditScope": false,
       "exclusionReason": "casting time maggiore di 1 azione",
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CAST",
+        "CLEANUP",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -24310,7 +24308,8 @@
         "ingresso/attraversamento"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "TS"
       ],
       "assessment": "escluso: casting time",
       "priority": "—",
@@ -24326,13 +24325,15 @@
         "areaRuleIds": [],
         "areaKinds": [],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CAST",
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -24343,26 +24344,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
-            "targets"
+            "targets",
+            "outcomes",
+            "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "spell:upsert"
-          ],
-          "mutationMode": "tracking",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -24379,6 +24381,8 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CAST",
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -24530,7 +24534,8 @@
       "smokeCategories": [
         "CAST",
         "CONCENTRATION",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -24544,7 +24549,8 @@
       "coverage": [
         "tracking",
         "TS",
-        "status:Spaventato"
+        "status:Spaventato",
+        "turni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -24571,7 +24577,8 @@
         "smokeCategories": [
           "CAST",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
@@ -24581,31 +24588,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "condition:add",
-            "concentration:register",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -24624,7 +24627,8 @@
         "smokeCategories": [
           "CAST",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -26241,8 +26245,6 @@
             "targets",
             "placement",
             "outcomes",
-            "hp",
-            "damage",
             "automation"
           ]
         },
@@ -26397,8 +26399,6 @@
             "targets",
             "placement",
             "outcomes",
-            "hp",
-            "damage",
             "automation"
           ]
         },
@@ -28489,12 +28489,13 @@
       "saveScope": "singolo",
       "inAuditScope": false,
       "exclusionReason": "casting time maggiore di 1 azione",
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CAST",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -28506,7 +28507,8 @@
         "TS:singolo"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "TS"
       ],
       "assessment": "escluso: casting time",
       "priority": "—",
@@ -28520,13 +28522,14 @@
         "areaRuleIds": [],
         "areaKinds": [],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CAST",
           "PERSISTENCE"
         ]
       },
@@ -28537,26 +28540,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
-            "targets"
+            "targets",
+            "outcomes",
+            "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "spell:upsert"
-          ],
-          "mutationMode": "tracking",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -28573,6 +28577,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CAST",
           "PERSISTENCE"
         ]
       },
@@ -31849,7 +31854,7 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "cast-record"
           ]
         },
         "contract": {
@@ -31956,7 +31961,7 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "cast-record"
           ]
         },
         "contract": {
@@ -32013,12 +32018,13 @@
       "saveScope": "singolo",
       "inAuditScope": false,
       "exclusionReason": "esclusione curata dal perimetro operativo",
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CAST",
         "CONCENTRATION",
         "PERSISTENCE"
       ],
@@ -32032,7 +32038,8 @@
         "status:Affascinato/Incapacitato"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "TS"
       ],
       "assessment": "escluso: decisione curata",
       "priority": "—",
@@ -32049,13 +32056,14 @@
         "areaRuleIds": [],
         "areaKinds": [],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CAST",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -32067,28 +32075,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
-            "targets"
+            "targets",
+            "outcomes",
+            "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "concentration:register"
-          ],
-          "mutationMode": "tracking",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -32105,6 +32112,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CAST",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -34088,6 +34096,7 @@
       ],
       "coverage": [
         "tracking",
+        "TS",
         "turni"
       ],
       "assessment": "coperto",
@@ -34102,7 +34111,7 @@
         "areaRuleIds": [],
         "areaKinds": [],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 1,
         "activeActionIds": [],
@@ -34122,31 +34131,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "condition:add",
-            "concentration:register",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -34815,6 +34820,7 @@
           "zone"
         ],
         "triggerIds": [
+          "cloudkill-drift-on-source-turn-start",
           "cloudkill-save-on-entry",
           "cloudkill-save-on-turn-start"
         ],
@@ -35580,7 +35586,9 @@
             "slot",
             "targets",
             "placement",
-            "outcomes"
+            "outcomes",
+            "hp",
+            "damage"
           ]
         },
         "cast": {
@@ -44396,7 +44404,8 @@
       "smokeCategories": [
         "CAST",
         "CONCENTRATION",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -44410,7 +44419,8 @@
       "coverage": [
         "tracking",
         "TS",
-        "status:Prono/Incapacitato"
+        "status:Prono/Incapacitato",
+        "turni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -44439,7 +44449,8 @@
         "smokeCategories": [
           "CAST",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
@@ -44449,32 +44460,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "condition:add",
-            "condition:add",
-            "concentration:register",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -44493,7 +44499,8 @@
         "smokeCategories": [
           "CAST",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -45830,6 +45837,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CAST",
         "CONCENTRATION",
         "PERSISTENCE",
         "TURN_TRIGGER"
@@ -45844,6 +45852,7 @@
       ],
       "coverage": [
         "tracking",
+        "TS",
         "turni",
         "varianti"
       ],
@@ -45859,13 +45868,14 @@
         "areaRuleIds": [],
         "areaKinds": [],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 9,
         "activeActionIds": [],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CAST",
           "CONCENTRATION",
           "PERSISTENCE",
           "TURN_TRIGGER"
@@ -45878,11 +45888,12 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
@@ -45890,20 +45901,15 @@
             "slot",
             "variant",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "condition:add",
-            "concentration:register",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -45920,6 +45926,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CAST",
           "CONCENTRATION",
           "PERSISTENCE",
           "TURN_TRIGGER"
@@ -48744,8 +48751,6 @@
             "targets",
             "placement",
             "outcomes",
-            "hp",
-            "damage",
             "automation"
           ]
         },
@@ -48875,6 +48880,8 @@
             "targets",
             "placement",
             "outcomes",
+            "hp",
+            "damage",
             "automation"
           ]
         },
@@ -52060,7 +52067,8 @@
         "TS:singolo"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "TS"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -52074,7 +52082,7 @@
         "areaRuleIds": [],
         "areaKinds": [],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 1,
         "activeActionIds": [],
@@ -52093,31 +52101,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "condition:add",
-            "concentration:register",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -52180,7 +52184,8 @@
         "TS:singolo"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "TS"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -52194,7 +52199,7 @@
         "areaRuleIds": [],
         "areaKinds": [],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 1,
         "activeActionIds": [],
@@ -52212,29 +52217,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "spell:upsert",
-            "condition:add",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -53832,8 +53835,6 @@
             "targets",
             "placement",
             "outcomes",
-            "hp",
-            "damage",
             "automation"
           ]
         },
@@ -56041,7 +56042,9 @@
             "caster",
             "targets",
             "placement",
-            "outcomes"
+            "outcomes",
+            "hp",
+            "damage"
           ]
         },
         "cast": {
@@ -56983,6 +56986,7 @@
       ],
       "coverage": [
         "tracking",
+        "TS",
         "movimento"
       ],
       "assessment": "coperto",
@@ -56997,7 +57001,7 @@
         "areaRuleIds": [],
         "areaKinds": [],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 1,
         "activeActionIds": [],
@@ -57016,31 +57020,27 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
             "slot",
             "targets",
+            "outcomes",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "condition:add",
-            "concentration:register",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -57652,7 +57652,8 @@
         "AREA_GEOMETRY",
         "CAST",
         "CLEANUP",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -57669,7 +57670,8 @@
         "aree:zone",
         "lifecycle",
         "TS",
-        "movimento"
+        "movimento",
+        "turni"
       ],
       "assessment": "escluso: decisione curata",
       "priority": "—",
@@ -57686,7 +57688,10 @@
         "areaKinds": [
           "zone"
         ],
-        "triggerIds": [],
+        "triggerIds": [
+          "zone-of-truth-save-on-entry",
+          "zone-of-truth-save-on-turn-start"
+        ],
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
@@ -57697,7 +57702,8 @@
           "AREA_GEOMETRY",
           "CAST",
           "CLEANUP",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
@@ -57749,7 +57755,8 @@
           "AREA_GEOMETRY",
           "CAST",
           "CLEANUP",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {

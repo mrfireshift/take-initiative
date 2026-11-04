@@ -8,6 +8,7 @@ import {
   changeSpellPanelVariant,
   createSpellPanelSession,
   updateSpellPanelSession,
+  withAssumedSaveOutcomes,
   SPELL_UNIFIED_PANEL_LANES,
 } from "./spellUnifiedPanelCore.js";
 import {
@@ -254,7 +255,7 @@ const AREA_FEEDBACK_MESSAGES = Object.freeze({
   "targets-required": "Seleziona almeno un bersaglio.",
   "target-limit-exceeded": "Il numero di bersagli supera il limite dichiarato.",
   "teleport-destination-required": "Scegli un punto di arrivo valido.",
-  "teleport-destination-out-of-range": "La destinazione supera la portata di Porta Dimensionale.",
+  "teleport-destination-out-of-range": "La destinazione supera la portata dell'incantesimo.",
   "passenger-not-allowed": "Questo incantesimo non consente un passeggero.",
   "passenger-limit-exceeded": "È consentito un solo passeggero.",
   "passenger-is-caster": "Il caster non può essere selezionato come passeggero.",
@@ -334,6 +335,9 @@ function initialState(contract, catalogEntries, sourceId, route = {}) {
     casters: [],
     // Which slot the cast spends: "" the rules' pick, "pact" Pact Magic, "none" no slot (spellSlotSpendCore.js).
     slotSource: route?.slotSource || "",
+    // A quick launch: the saves of this spell start as failed. Switching spell in the panel drops it.
+    assumedSaveOutcome: route?.assumedSaveOutcome || "",
+    assumedSaveSpellId: route?.spellId || "",
     targetCandidates: [],
     teleportPassengerCandidateIds: [],
     concentrationSummary: [],
@@ -609,9 +613,12 @@ export function bootSpellUnifiedPanel(
 
   const render = () => {
     if (destroyed) return null;
+    const assumedSaveOutcome = state.contract?.spell?.id === state.assumedSaveSpellId ? state.assumedSaveOutcome : "";
+    state.session = withAssumedSaveOutcomes(state.session, state.contract, assumedSaveOutcome);
     const model = buildUnifiedPanelViewModel({
       contract: state.contract,
       session: state.session,
+      assumedSaveOutcome,
       catalogEntries: state.catalogEntries,
       catalogState: {
         ...state.catalogState,

@@ -18,6 +18,9 @@ import { preserveConditionTimingMetadata } from "./conditionTimingCore.js";
 import {
   compactSpellEffectLabel,
   effectSummaryPartsFor,
+  spellEffectPillLabel,
+  spellEffectRemovableFromCard,
+  spellEffectStandsAlone,
 } from "./effectLabelCore.js";
 import { normalizeDeferredEffects } from "./spellLifecycleContracts.js";
 import { normalizeEffectSaveReminders } from "./effectSaveReminderCore.js";
@@ -214,6 +217,7 @@ function __normalizeConditionInstance(value, fallbackId) {
   if (value.parentFeatureId) instance.parentFeatureId = String(value.parentFeatureId);
   if (value.parentInstanceId) instance.parentInstanceId = String(value.parentInstanceId);
   if (value.type) instance.type = String(value.type);
+  if (value.spellId) instance.spellId = String(value.spellId);
   if (value.effectId) instance.effectId = String(value.effectId);
   if (!__isTelekinesisRestraint(value)
     && (value.effectKind === "buff" || value.effectKind === "debuff")) {
@@ -1493,9 +1497,18 @@ export async function __cleanupLegacyConditionLabels() {
 export function buildConditionChips(cond = {}, opts = {}) {
   const cap = Array.isArray(opts.cap) ? opts.cap : [];
   const compact = !!opts.compact;
-  // Spell buffs/debuffs show inside their spell chip; a consumable or a gift (effectId "buff:…") has no spell.
+  // Spell buffs/debuffs show inside their spell chip; a consumable or a gift (effectId "buff:…") has no spell, and a
+  // spell's effect with no chip on this creature has nothing to show inside.
+  const spellInstanceIds = Array.isArray(opts.spellInstanceIds) ? opts.spellInstanceIds : [];
+  const standsAlone = (group) => group.instances.some((instance) => spellEffectStandsAlone(instance, spellInstanceIds));
   const groups = __groupConditionInstances(cond).filter((group) => !group.effectKind
-    || group.instances.some((instance) => String(instance?.effectId || "").startsWith("buff:")));
+    || group.instances.some((instance) => String(instance?.effectId || "").startsWith("buff:"))
+    || standsAlone(group)).map((group) => (standsAlone(group) && !group.instances[0]?.displayLabel
+    ? {
+      ...group,
+      label: `${group.theme?.emoji ? `${group.theme.emoji} ` : ""}${spellEffectPillLabel(group.name)}${__compactExpiryLabel(group.instances[0])}`,
+    }
+    : group));
   const pending = groups.slice();
   const ordered = [];
 
@@ -1530,7 +1543,7 @@ export function buildConditionChips(cond = {}, opts = {}) {
       overflow: "hidden",
       textOverflow: "ellipsis",
     });
-    if (!chip.title) chip.title = String(group.label || "");
+    if (!chip.title) chip.title = standsAlone(group) ? formatConditionInstance(group.instances[0]) : String(group.label || "");
     chip.appendChild(chipLabel);
     // A defense granted by the effect (Imm. freddo…) and a composed buff's notes are micropills inside the pill.
     if (opts.showEffectSummaryParts !== false) {
@@ -1557,7 +1570,8 @@ export function buildConditionChips(cond = {}, opts = {}) {
     }
     const borderCol = /^#[0-9a-f]{6}$/iu.test(String(group.theme?.accent || ""))
       ? group.theme.accent
-      : COND_BORDER[group.name] || "rgba(255, 255, 255, 1)";
+      : COND_BORDER[group.name]
+        || (standsAlone(group) ? (group.effectKind === "buff" ? "#86efac" : "#fca5a5") : "rgba(255, 255, 255, 1)");
     const background = /^#[0-9a-f]{6}$/iu.test(String(group.theme?.background || ""))
       ? group.theme.background
       : "rgba(0,0,0,.72)";
@@ -1595,6 +1609,7 @@ export function buildConditionChips(cond = {}, opts = {}) {
     // A derived condition (Incapacitato from Stordito) ends with its parent: its × removed nothing.
     const canRemoveCondition = !hasClassFeatureInstance
       && !group.instances.every((instance) => instance?.derived === true)
+      && !(standsAlone(group) && !group.instances.every(spellEffectRemovableFromCard))
       && typeof opts.onRemove === "function";
     if (canTerminateClassFeature || canRemoveCondition) {
       const terminate = document.createElement("button");

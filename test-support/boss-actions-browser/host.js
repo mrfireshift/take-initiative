@@ -13,9 +13,9 @@ import { openTrackerPopover, toggleClassicTrackerSide, moveClassicTrackerPopover
 if (new URLSearchParams(location.search).get("scenario")?.startsWith("tracker")) import("/src/sync-open.js").catch((error) => console.warn("sync-open", error));
 import "/src/popoverDragHost.js";
 import { SPELL_AREA_PLACEMENT_CHANNEL } from "/src/spellAreaPlacementCore.js";
-import { buildConeArea, buildCircleArea, buildFootprintEmanationArea, buildLineArea, areaHitsBounds } from "/src/aoeGeometryCore.js";
-import { constrainedSpellAreaEnd } from "/src/spellAreaPlacementCore.js";
-import { getSpellAreaRuleById } from "/src/spellAreaRules.js";
+import { buildArea, buildConeArea, buildCircleArea, buildFootprintEmanationArea, buildLineArea, buildSquareArea, areaContainsBounds, areaHitsBounds } from "/src/aoeGeometryCore.js";
+import { centeredSquarePlacementBounds, constrainedSpellAreaEnd, nearestGridCellCenter, nearestGridCellSideCenter } from "/src/spellAreaPlacementCore.js";
+import { getSpellAreaRuleById, getSpellAreaRuleForPlacement } from "/src/spellAreaRules.js";
 
 const META = "com.thebigpicture.initiative/meta";
 const STATE = "com.thebigpicture.initiative/state";
@@ -99,27 +99,36 @@ const toolbar = document.getElementById("toolbar");
 const confirmButton = Object.assign(document.createElement("button"), { type: "button", textContent: "Conferma sagoma", hidden: true });
 const cancelButton = Object.assign(document.createElement("button"), { type: "button", textContent: "Annulla sagoma", hidden: true });
 toolbar.append(confirmButton, cancelButton);
+// The rule of the area being placed, with its variant and the size of its slot, as the real tool reads it.
+const ruleOf = (current) => getSpellAreaRuleForPlacement(current.ruleId, current.ruleChoice || "", current.context || null) || getSpellAreaRuleById(current.ruleId);
 function coneFor(origin, toward) {
-  const rule = getSpellAreaRuleById(placement.ruleId);
+  const rule = ruleOf(placement);
   const cells = Math.round(rule.geometry.size.value / 1.5);
   const dx = toward.x - origin.x, dy = toward.y - origin.y, length = Math.hypot(dx, dy) || 1;
   const end = { x: origin.x + (dx / length) * cells * GRID, y: origin.y + (dy / length) * cells * GRID };
-  return { end, area: buildConeArea(origin, end, GRID, { x: 0, y: 0 }) };
+  // The grid corner next to the start, like the real tool (the cell scan runs around it).
+  return { end, area: buildConeArea(origin, end, GRID, { x: Math.floor(origin.x / GRID) * GRID, y: Math.floor(origin.y / GRID) * GRID }) };
 }
 // Circle: one click on the centre. Emanation: centred on the caster token as soon as the tool starts.
 function circleFor(rawCentre, footprint = null) {
   // Like the real tool, a circle is centred on a grid intersection.
   const centre = { x: Math.round(rawCentre.x / GRID) * GRID, y: Math.round(rawCentre.y / GRID) * GRID };
   placement.origin = centre;
-  const rule = getSpellAreaRuleById(placement.ruleId);
+  const rule = ruleOf(placement);
   const cells = Math.round(rule.geometry.size.value / 1.5);
   const end = { x: centre.x + cells * GRID, y: centre.y };
+  if (rule.geometry.ring === true) {
+    const ringInnerSquares = Math.round(rule.geometry.innerSize.value / 1.5);
+    return { end, ringInnerSquares, area: buildArea("circle", centre, end, GRID, centre, { ring: true, ringInnerSquares }) };
+  }
   // An emanation radiates from the cells the boss token occupies (as the real tool does).
   return { end, area: footprint ? buildFootprintEmanationArea(centre, footprint, cells, GRID, { x: 0, y: 0 }) : buildCircleArea(centre, end, GRID) };
 }
-const placementShape = () => getSpellAreaRuleById(placement.ruleId)?.geometry.shape;
+const placementShape = () => ruleOf(placement)?.geometry.shape;
+// The grid corner nearest to a point: the anchor the real tool gives its cell snaps.
+const cornerNear = (point) => ({ x: Math.round(point.x / GRID) * GRID, y: Math.round(point.y / GRID) * GRID });
 function lineFor(origin, toward) {
-  const rule = getSpellAreaRuleById(placement.ruleId);
+  const rule = ruleOf(placement);
   const sizeCells = Math.round(rule.geometry.size.value / 1.5), widthCells = Math.round(rule.geometry.width.value / 1.5);
   const end = placement.preset ? placement.preset.end : constrainedSpellAreaEnd({ shape: "line", start: origin, pointer: toward, dpi: GRID, sizeCells, upTo: rule.geometry.lengthUpTo === true });
   // The grid corner next to the start, like the real tool (the cell scan runs around it).
@@ -180,36 +189,74 @@ function placementDrag(from, to) {
 function placementClick(event) {
   const point = { x: event.clientX, y: event.clientY };
   if (placementShape() === "circle") {
-    if (getSpellAreaRuleById(placement.ruleId).placement.origin === "caster") return;
+    if (ruleOf(placement).placement.origin === "caster") return;
     if (placement.batch) return placementDrag(point, point);
     placement.origin = point; Object.assign(placement, circleFor(point));
   } else if (placementShape() === "square") {
     // A point cell (the boss's teleport destination): its centre, as the real tool reports it.
     const centre = { x: (Math.floor(point.x / GRID) + 0.5) * GRID, y: (Math.floor(point.y / GRID) + 0.5) * GRID };
-    Object.assign(placement, { origin: centre, end: centre, area: { cells: [{ x: centre.x - GRID / 2, y: centre.y - GRID / 2, width: GRID, height: GRID }] } });
+    const sideCells = Math.round((ruleOf(placement).geometry.size?.value || 1.5) / 1.5);
+    const rule = ruleOf(placement);
+    if (sideCells > 1) {
+      // A cube (Faerie Fire, Entangle): centred on its point, as the real tool does.
+      const bounds = centeredSquarePlacementBounds({ x: Math.round(point.x / GRID) * GRID, y: Math.round(point.y / GRID) * GRID }, GRID, sideCells);
+      Object.assign(placement, { origin: bounds.start, end: bounds.end, area: buildSquareArea(bounds.start, bounds.end, GRID, bounds.start) });
+    } else if (rule.kind === "zone") {
+      // A one-cell zone (Flaming Sphere, Healing Spirit): from the corner of its cell, as the real tool snaps a square.
+      const start = { x: Math.floor(point.x / GRID) * GRID, y: Math.floor(point.y / GRID) * GRID };
+      const end = { x: start.x + GRID, y: start.y + GRID };
+      Object.assign(placement, { origin: start, end, area: buildSquareArea(start, end, GRID, start) });
+    } else Object.assign(placement, { origin: centre, end: centre, area: { cells: [{ x: centre.x - GRID / 2, y: centre.y - GRID / 2, width: GRID, height: GRID }] } });
     if (placement.autoConfirm) { void finishPlacement("confirmed"); return; }
   } else if (placementShape() === "line") {
     if (placement.preset) return;
     // Like the real tool, a 5 ft line starts from a cell centre.
     if (!placement.origin) placement.origin = { x: (Math.floor(point.x / GRID) + 0.5) * GRID, y: (Math.floor(point.y / GRID) + 0.5) * GRID };
     else Object.assign(placement, lineFor(placement.origin, point));
+  } else if (placementShape() === "rectangle") {
+    // Gust of Wind, Thunderwave: from the centre of the cell next to the caster, as the real tool does.
+    if (!placement.origin) placement.origin = nearestGridCellCenter(point, cornerNear(point), GRID).position;
+    else {
+      const rule = ruleOf(placement);
+      const sizeCells = Math.round(rule.geometry.size.value / 1.5);
+      const end = constrainedSpellAreaEnd({ shape: "rectangle", start: placement.origin, pointer: point, dpi: GRID, sizeCells });
+      Object.assign(placement, { end, area: buildArea("rectangle", placement.origin, end, GRID, { x: Math.floor(placement.origin.x / GRID) * GRID, y: Math.floor(placement.origin.y / GRID) * GRID }, { widthSquares: Math.round(rule.geometry.width.value / 1.5) }) });
+    }
   } else if (!placement.origin) placement.origin = point;
-  else Object.assign(placement, coneFor(placement.origin, point));
+  else {
+    // A cone: from the side of the origin's cell that faces its direction, as the real tool does.
+    const cell = nearestGridCellCenter(placement.origin, cornerNear(placement.origin), GRID).position;
+    const side = nearestGridCellSideCenter(cell, cornerNear(cell), GRID, { x: point.x - cell.x, y: point.y - cell.y }).position;
+    placement.origin = side;
+    Object.assign(placement, coneFor(side, point));
+  }
   drawPlacement();
 }
-const hitIds = (current, area) => fakeHost.state.items
-  .filter((item) => item.preview && item.metadata?.[META]?.inInitiative && item.id !== current.casterId)
-  .filter((item) => areaHitsBounds(area, { min: { x: item.position.x - item.preview.size / 2, y: item.position.y - item.preview.size / 2 }, max: { x: item.position.x + item.preview.size / 2, y: item.position.y + item.preview.size / 2 } }))
-  .map((item) => item.id);
+const hitIds = (current, area) => {
+  const rule = ruleOf(current);
+  const contained = rule?.zonePolicy?.membershipTargeting?.containment === "fully-inside";
+  // The caster counts when the area can take it, as for the real tool: a zone it casts around itself has it as a member from
+  // the start, not as a creature that walks in.
+  return fakeHost.state.items
+    .filter((item) => item.preview && item.metadata?.[META]?.inInitiative && (item.id !== current.casterId || rule?.targeting?.includeCaster === true))
+    .filter((item) => {
+      const bounds = { min: { x: item.position.x - item.preview.size / 2, y: item.position.y - item.preview.size / 2 }, max: { x: item.position.x + item.preview.size / 2, y: item.position.y + item.preview.size / 2 } };
+      return contained ? areaContainsBounds(area, bounds) : areaHitsBounds(area, bounds);
+    })
+    .map((item) => item.id);
+};
 async function finishPlacement(status) {
   if (!placement) return;
   const current = placement; placement = null; overlay.replaceChildren(); confirmButton.hidden = cancelButton.hidden = true;
-  const type = getSpellAreaRuleById(current.ruleId).geometry.shape;
+  const type = ruleOf(current).geometry.shape;
   let preview = null;
   if (status === "confirmed" && current.batch) {
     const areas = current.shapes.map((shape) => ({ start: shape.origin, end: shape.end, targetIds: hitIds(current, shape.area) }));
     preview = { type, start: areas[0].start, end: areas[0].end, targetIds: [...new Set(areas.flatMap((area) => area.targetIds))], areas };
-  } else if (status === "confirmed") preview = { type, start: current.origin, end: current.end, dpi: GRID, targetIds: hitIds(current, current.area) };
+  } else if (status === "confirmed") preview = { type, start: current.origin, end: current.end, dpi: GRID, targetIds: hitIds(current, current.area),
+    // The grid corner next to the start: with no corner the zone's cells would shift half a cell from the placed ones.
+    ...(type === "circle" ? {} : { gridOrigin: { x: Math.floor(current.origin.x / GRID) * GRID, y: Math.floor(current.origin.y / GRID) * GRID } }),
+    ...(Number.isInteger(current.ringInnerSquares) ? { ringInnerSquares: current.ringInnerSquares } : {}) };
   if (preview && current.keep) {
     await OBR.scene.items.addItems([
       { id: current.keep.id, name: current.keep.name, type: "PATH", layer: "DRAWING", metadata: current.keep.metadata, keptArea: { cells: current.area.cells } },
@@ -227,7 +274,7 @@ window.addEventListener("keydown", (event) => { if (event.key === "Escape" && pl
 OBR.broadcast.onMessage(SPELL_AREA_PLACEMENT_CHANNEL, ({ data }) => {
   if (data?.type === "start") {
     void OBR.broadcast.sendMessage(SPELL_AREA_PLACEMENT_CHANNEL, { type: "accepted", requestId: data.requestId, ruleId: data.ruleId }, { destination: "LOCAL" });
-    placement = { requestId: data.requestId, ruleId: data.ruleId, casterId: data.casterId, origin: null, area: null, end: null, theme: String(data.context?.areaTheme || "") };
+    placement = { requestId: data.requestId, ruleId: data.ruleId, ruleChoice: data.ruleChoice || "", context: data.context || null, casterId: data.casterId, origin: null, area: null, end: null, theme: String(data.context?.areaTheme || "") };
     if (Number(data.context?.areaBatch?.count) >= 2) Object.assign(placement, { batch: { count: Number(data.context.areaBatch.count), minDistanceFeet: Number(data.context.areaBatch.minDistanceFeet) || 0, innerRadiusFeet: Number(data.context.areaBatch.innerRadiusFeet) || 0 }, shapes: [] });
     if (data.context?.keepOnMap?.id) placement.keep = structuredClone(data.context.keepOnMap);
     if (data.context?.autoConfirmPoint === true) placement.autoConfirm = true;
@@ -237,7 +284,7 @@ OBR.broadcast.onMessage(SPELL_AREA_PLACEMENT_CHANNEL, ({ data }) => {
       placement.preset = structuredClone(data.context.presetLine); placement.origin = placement.preset.start;
       Object.assign(placement, lineFor(placement.origin, placement.preset.end)); drawPlacement();
     }
-    if (getSpellAreaRuleById(data.ruleId)?.placement.origin === "caster") {
+    if (ruleOf(placement)?.placement.origin === "caster") {
       const caster = fakeHost.state.items.find((item) => item.id === data.casterId);
       const cellsOf = (size) => Math.max(1, Math.round(size / GRID));
       placement.origin = { ...caster.position };

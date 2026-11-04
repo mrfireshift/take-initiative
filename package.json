@@ -26,6 +26,8 @@
     "audit:class-features": "node scripts/audit-class-features.mjs",
     "audit:barbaro": "node scripts/audit-barbaro-features.mjs",
     "audit:spells": "node scripts/audit-spell-automation.mjs",
+    "polish:register": "node --experimental-test-module-mocks scripts/spell-polish.mjs register",
+    "polish:sheets": "node --experimental-test-module-mocks scripts/spell-polish.mjs sheets",
     "perf:harness": "node --experimental-test-module-mocks scripts/perf-harness.mjs",
     "perf:bundle": "node scripts/perf-bundle.mjs",
     "check:spells": "node scripts/check-spell-catalog.mjs",

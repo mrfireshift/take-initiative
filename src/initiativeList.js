@@ -8883,12 +8883,20 @@ async function __terminateSpellOnTrackerCard(
 
   const operations = [];
   if (spell?.conc && casterId) {
-    operations.push({
-      type: "concentration:break-targets",
-      casterIds: [casterId],
-      reference: instanceId || spellName,
-      targetIds: [itemId],
-    });
+    // A zone's concentration has no targets of its own (they come and go with the zone): the x on its owner's pill ends
+    // the spell, as the panel's Termina does.
+    operations.push(spell?.castContext?.staticZoneOwner === true
+      ? {
+        type: "concentration:break",
+        casterIds: [casterId],
+        reference: instanceId || spellName,
+      }
+      : {
+        type: "concentration:break-targets",
+        casterIds: [casterId],
+        reference: instanceId || spellName,
+        targetIds: [itemId],
+      });
   }
   operations.push(instanceId
     ? { type: "spell:remove-instance", targetIds: [itemId], instanceId }

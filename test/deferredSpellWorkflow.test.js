@@ -83,14 +83,17 @@ test("Sfera al Vetriolo persiste un reminder differito indipendente e lo annunci
   assert.equal(notices[0].kind, "effect-reminder");
   assert.equal(notices[0].timing, "turn-end");
   assert.equal(notices[0].saveLabel, "5d4 danni da acido");
-  assert.equal(notices[0].resolution.mode, "consume");
+  // Polish, lot 2: the reminder applies the damage and takes the label away when it is resolved. The turn end must not
+  // take it first: at the bench the label went before the reminder was planned, and the damage was lost.
+  assert.equal(notices[0].resolution.mode, "manual-damage");
+  assert.equal(notices[0].resolution.effect.removeOnResolve, true);
 
   const ended = buildEffectsMutationPlan(applied.states, [{
     type: "effects:tick-boundaries",
     targetIds: ["target"],
     boundaries: [{ phase: "end", actorId: "target", turnKey: "1:1:target" }],
   }]);
-  assert.deepEqual(ended.states.find((state) => state.id === "target").conditions, []);
+  assert.equal(ended.states.find((state) => state.id === "target").conditions.length, 1);
 });
 
 test("chiudere un reminder differito è una mutazione consumabile e il marker impedisce il replay", () => {

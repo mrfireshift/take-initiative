@@ -1,9 +1,13 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { ID } from "./constants.js";
+import { EFFECT_SAVE_REMINDER_NOTICE_CHANNEL, ID } from "./constants.js";
 import {
   concentrationDamageByItemId,
   concentrationSaveWarningsForItems,
 } from "./concentrationSaveReminderCore.js";
+import {
+  effectSaveReminderNoticesForDamage,
+  effectSaveReminderSourceIds,
+} from "./effectSaveReminderCore.js";
 
 const CONCENTRATION_WARNING_CHANNEL = `${ID}/concentration-warning`;
 
@@ -49,6 +53,32 @@ export async function broadcastConcentrationSaveWarnings(changes = [], options =
   });
   if (!warnings.length) return [];
   return broadcastConcentrationWarnings(warnings, { ...options, eventId, now });
+}
+
+// The saves an effect asks for when its creature takes damage (Dominate, Hideous Laughter): after the commit of a damage
+// that comes from the spell panel or from a zone's reminder; the consoles send their own. Only a notice: nothing is
+// written here, the GM's answer takes the usual road.
+export async function broadcastEffectSaveDamageNotices(changes = [], options = {}) {
+  const damageById = concentrationDamageByItemId(changes);
+  if (!damageById.size) return [];
+  const getItems = options.getItems
+    || ((itemIds) => OBR.scene.items.getItems(itemIds));
+  const items = await getItems([...damageById.keys()]);
+  const sourceIds = effectSaveReminderSourceIds(items)
+    .filter((itemId) => !damageById.has(itemId));
+  const notices = effectSaveReminderNoticesForDamage({
+    items: sourceIds.length ? items.concat(await getItems(sourceIds)) : items,
+    damageById,
+    eventId: String(options.eventId || "").trim()
+      || `${Date.now()}-${++concentrationDamageSequence}`,
+  });
+  if (!notices.length) return [];
+  const send = options.send || (await import("./options/reminderProjectionBroadcast.js")).sendProjectedReminderPayload;
+  await send(EFFECT_SAVE_REMINDER_NOTICE_CHANNEL, {
+    type: "show-effect-save-notices",
+    notices,
+  });
+  return notices;
 }
 
 async function hiddenConcentratorIds(warnings, knownItems = null) {

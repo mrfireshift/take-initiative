@@ -85,7 +85,8 @@ test("il tracker include le durate persistenti e il solo istantaneo con effetto 
   // 359 with Awaken, instantaneous but charmed for 30 days (lotto L2); 361 with Ice Storm and Earth Tremor, whose
   // difficult terrain outlasts the cast (lotto L3).
   // 362 with Goodberry, whose berries last 24 hours (CAP-RESOURCE); 363 with Plant Growth, whose overgrowth stays (CAP-TERRAIN).
-  assert.equal(getTrackableSpellOptions().length, 363);
+  // 360 without Control Flames, Shape Water and Mold Earth, now recorded (lotto P2 of the polish).
+  assert.equal(getTrackableSpellOptions().length, 360);
   assert.equal(trackableIds.has("phb2014-raggio-di-infermita"), true);
   for (const entry of instantaneous) {
     if (entry.id === "phb2014-raggio-di-infermita") continue;
@@ -99,17 +100,20 @@ test("il tracker include le durate persistenti e il solo istantaneo con effetto 
 
 // Dissonant Whispers joins them as a discrete save with damage (lotto L2).
 // 17 with Power Word Heal, resolved on one creature in the area command (CAP-CLEANSE).
-test("HP rapidi riceve le 17 spell PHB con area, trigger spaziale, TS discreto con danno o cura con pulizia", () => {
+// 19 con Duello Obbligato e Corona di Follia, che chiedono l'esito del TS (decisione D6 del polishing).
+test("HP rapidi riceve le 19 spell PHB con area, trigger spaziale, TS discreto con danno o cura con pulizia", () => {
   const ids = getAreaSaveSpellOptions()
     .filter((option) => spell(option.id).source === "phb2014")
     .map((option) => option.id);
 
   assert.deepEqual(ids, [
     "phb2014-braccia-di-hadar",
+    "phb2014-duello-obbligato",
     "phb2014-raffica-di-spine",
     "phb2014-sussurri-dissonanti",
     "phb2014-allucinazione-di-forza",
     "phb2014-cordone-di-frecce",
+    "phb2014-corona-di-follia",
     "phb2014-nube-di-pugnali",
     "phb2014-evoca-raffica",
     "phb2014-fame-di-hadar",

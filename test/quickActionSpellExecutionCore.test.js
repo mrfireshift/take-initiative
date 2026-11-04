@@ -165,12 +165,33 @@ test("le spell save discrete senza input irrisolti diventano direct in modo para
       targetIds: ["target"],
     }).eligible;
   });
+  // 25 with the spells that ask the outcome of their save since decision D6 of the polish.
   assert.deepEqual(candidates.map((spell) => spell.id), [
+    "animal-friendship",
     "bane",
+    "charm-person",
     "compulsion",
+    "dominate-beast",
+    "dominate-monster",
+    "dominate-person",
+    "enthrall",
     "flesh-to-stone",
+    "geas",
+    "hideous-laughter",
     "hold-monster",
     "hold-person",
+    "imprisonment",
+    "mass-suggestion",
+    "modify-memory",
+    "phantasmal-killer",
+    "planar-binding",
+    "suggestion",
+    "xanathar-charme-sui-mostri",
+    "xanathar-incuti-paura",
+    "xanathar-nemici-in-abbondanza",
+    "xanathar-vincolo-della-terra",
+    "phb2014-duello-obbligato",
+    "phb2014-corona-di-follia",
   ]);
 
   for (const spell of candidates) {

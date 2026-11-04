@@ -181,8 +181,8 @@ quanti ne restano e a zero l'incantesimo termina. Immagine speculare e Bacche
 benefiche lo consumano con un'azione attiva (`resource`); per Bacche
 benefiche è una cura `single-heal` con `anyCreature`, senza aura. Cordone di
 frecce e Guardiano della fede lo tengono sull'istanza proprietaria della zona:
-`src/zoneResourceCore.js` lo scala a ogni trigger nel comando ad area (una
-munizione per creatura, il danno inflitto) e a zero toglie anche la zona con
+`src/zoneResourceCore.js` lo scala a ogni trigger, dal comando ad area e dall'avviso
+(una munizione per creatura, il danno inflitto) e a zero toglie anche la zona con
 `static-zone:remove-ended`, nella stessa voce della Cronologia.
 
 CAP-REACTION (lotto 1) mette difese vere nelle pill (`mechanics.damageDefenses`)
@@ -223,8 +223,23 @@ zombi nello stesso comando dei PF; `planAreaDeathSaves` azzera il conteggio.
 Salvare i morenti non cambia i PF: passa da una voce con i soli TS. La pill
 `return-from-death` tiene il valore in `mechanics.returnFromDeathPenalty` e nel
 nome; `planGroupRestReturnFromDeath` la sostituisce nel comando del riposo lungo.
-Una pill di un incantesimo istantaneo non deve avere `effectKind`: la card mostra
-buff e debuff solo dentro la pill del loro incantesimo.
+Sulla card un buff o un debuff sta dentro la pill del suo incantesimo sulla stessa
+creatura. Senza quella pill, e sempre per il terreno difficile, ha una pill sua:
+lo decide `spellEffectStandsAlone` in `effectLabelCore.js`, che guarda solo gli effetti
+d'incantesimo (`type: "spell"` o `spellId`). Con un `parentEffectId` e senza
+`manualRemoval` non ha la ×, perché finisce con la zona o con l'incantesimo.
+
+Il pannello dice il TS del lancio da `initialSave` della zona, da `ability` del workflow o,
+in mancanza, da `spellCastSaveAbility`. Propone i dadi da `damageByOutcome` o, quando
+entrambi gli esiti tirano gli stessi dadi, da `SPELL_CAST_DAMAGE_DICE`; un trucchetto
+ha `cantrip: true` e il suggerimento di `spellCantripDamageHint`.
+
+Un incantesimo con TS al lancio che chiede l'esito sta in `MULTI_TARGET_SAVE_SPELL_IDS` con il suo `workflowRule`. Le sue
+condizioni stanno in `AREA_SAVE_AUTOMATION_RULES`, oppure in `AUTOMATION` se è in `SAVE_RULES_FROM_AUTOMATION`; i suoi
+effetti in `SPELL_EFFECTS`, indicati da `AREA_SAVE_EFFECT_RULES`. Senza concentrazione, un effetto dichiara la propria
+`expiry`, altrimenti resta legato alla sola pill. Il lancio rapido considera fallito il TS: applica subito se
+`getQuickActionDirectSaveEligibility` lo permette, altrimenti apre il pannello con `assumedSaveOutcome` e
+`withAssumedSaveOutcomes` riempie gli esiti mancanti, senza mai sovrascrivere una scelta.
 
 `spellForCastContext` dà l'incantesimo come lo ha questo lancio: `durationBySlot`
 può togliere la concentrazione da uno slot in su (`concentrationBelowSlot`) e la

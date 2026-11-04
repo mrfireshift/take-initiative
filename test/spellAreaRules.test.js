@@ -546,7 +546,8 @@ test("i tre lotti di danno a fine turno dichiarano tutti i trigger auditati", ()
   }
 
   const flamingSphere = getSpellAreaRuleById("flaming-sphere:cast");
-  assert.equal(flamingSphere.geometry.shape, "circle");
+  // Polish, lot 2: one cell (1,5 m of diameter), with the creatures within 1,5 m of it: 3 x 3 cells, as the text says.
+  assert.equal(flamingSphere.geometry.shape, "square");
   assert.equal(flamingSphere.geometry.size.value, 1.5);
   assert.deepEqual(flamingSphere.zonePolicy.movement, {
     mode: "bonus-action",
@@ -629,15 +630,17 @@ test("il lotto standard di inizio turno dichiara ingresso, TS e danni", () => {
 
   for (const [spellId, triggerContracts] of Object.entries(expected)) {
     const rule = getSpellAreaRuleById(`${spellId}:cast`);
+    // Polish, lot 2: Cloudkill also reminds its drift, with no save and no damage.
+    const saveTriggers = rule.zonePolicy.triggers.filter((trigger) => trigger.resolution !== "informational");
     assert.deepEqual(
-      rule.zonePolicy.triggers.map((trigger) =>
+      saveTriggers.map((trigger) =>
         `${trigger.event}:${trigger.resolution}:${trigger.damage.dice}`
       ),
       triggerContracts,
       spellId,
     );
     assert.ok(
-      rule.zonePolicy.triggers.every((trigger) =>
+      saveTriggers.every((trigger) =>
         trigger.failureEffect && trigger.frequency === "once-per-turn"
       ),
       spellId,
@@ -916,8 +919,9 @@ test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () =>
   // Disintegrate, Finger of Death, Power Word Kill and Feeblemind (CAP-HP-BRANCH); 25 and 160 with Heal, Power
   // Word Heal, Lesser Restoration and Dispel Magic (CAP-CLEANSE); 26 and 161 with Magic Missile; 27 and 162 with
   // Negative Energy Flood (CAP-TEMP); 33 and 168 with the six spells of CAP-STABILIZE; 170 with the two of lotto G1 of CAP-TERRAIN.
-  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 33);
-  assert.equal(AREA_POPOVER_SPELL_IDS.length, 170);
+  // 54 and 191 with the 21 spells of decision D6 of the polish.
+  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 54);
+  assert.equal(AREA_POPOVER_SPELL_IDS.length, 191);
   assert.equal(AREA_SAVE_SPELL_IDS.includes("phb2014-fame-di-hadar"), false);
   assert.equal(
     AREA_PLACEMENT_ONLY_SPELL_IDS.includes("phb2014-fame-di-hadar"),

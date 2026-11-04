@@ -198,11 +198,11 @@ export function spellOverviewGroupCanTerminate(group, staticZoneCount = 0) {
     || (!!group?.concentrating && !!String(group?.casterId || "").trim());
 }
 
-export function spellTurnsLabel(turns = [], counters = []) {
+export function spellTurnsLabel(turns = [], counters = [], concentrating = false) {
   const exact = Array.from(new Set(counters.filter((value) => /[IF]\s[CB]/.test(value))));
   if (exact.length) return exact.join(" / ");
   const values = turns.filter(Number.isFinite);
-  if (!values.length) return "Durata non indicata";
+  if (!values.length) return concentrating ? "" : "Durata non indicata";
   if (values.some((value) => value > 10)) return "";
   const min = Math.min(...values);
   const max = Math.max(...values);

@@ -1297,6 +1297,26 @@ test("gli altri effetti si aprono in un cassetto a destra della card, in colonne
   assert.equal(appendCompactEffectsDrawer(documentRef.createElement("article"), [], { documentRef }), null);
 });
 
+test("nel cassetto i dettagli di un effetto compaiono una volta sola", () => {
+  const documentRef = createTestDocument();
+  const drawer = appendCompactEffectsDrawer(documentRef.createElement("article"), [{
+    key: "trama",
+    kind: "spell",
+    label: "Trama ipnotica (10)",
+    spellInstanceId: "s1",
+    summaryParts: [{ id: "speed", label: "Vel 0" }],
+  }], { documentRef });
+  const parts = [];
+  const walk = (node) => {
+    for (const child of node.children || []) {
+      if (child.dataset?.summaryPartId) parts.push(child.textContent);
+      walk(child);
+    }
+  };
+  walk(drawer);
+  assert.deepEqual(parts, ["Vel 0"]);
+});
+
 test("U11: nel cassetto la × toglie condizioni e incantesimi, non sulla pill della card", async () => {
   const documentRef = createTestDocument();
   const removed = [];

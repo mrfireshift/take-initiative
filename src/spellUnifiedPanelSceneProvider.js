@@ -1144,7 +1144,7 @@ function overviewProjection(group, currentTurnKey = "", currentActorId = "") {
     instanceId: text(group.instanceId),
     targetNames: context.targetNames,
     targetIds: context.targetIds,
-    durationLabel: spellTurnsLabel(group.turns || [], group.counters || []),
+    durationLabel: spellTurnsLabel(group.turns || [], group.counters || [], group.concentrating === true),
     concentrating: group.concentrating === true,
     prepared: actions.some((action) => action.type === "resolve"),
     actions,

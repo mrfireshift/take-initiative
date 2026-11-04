@@ -15,7 +15,7 @@ import {
   isCurrentSceneEpoch,
   subscribeSceneEpoch,
 } from "./sceneEpoch.js";
-import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
+import { broadcastConcentrationSaveWarnings, broadcastEffectSaveDamageNotices } from "./concentrationSaveReminder.js";
 import { buildSpellCausality } from "./combatLogCausalityCore.js";
 import { DEATH_SAVE_OUTCOME_LABELS } from "./deathSaveCore.js";
 
@@ -452,6 +452,15 @@ async function completeReminderResolution({
     }).catch((error) => {
       console.warn("[reminder-resolution] concentration warning:", error?.message || error);
     }));
+    // The saves the damage itself asks for (a zone's damage on a dominated creature, Hideous Laughter).
+    derivedTasks.push(broadcastEffectSaveDamageNotices([{
+      itemId: plan.targetId,
+      damage: plan.damage?.amount ?? 0,
+    }], {
+      eventId: `reminder-resolution:${plan.activationId}:effect`,
+    }).catch((error) => {
+      console.warn("[reminder-resolution] effect save notices:", error?.message || error);
+    }));
   }
   await Promise.all(derivedTasks);
   if (plan.operations.some((operation) => {
@@ -483,6 +492,8 @@ async function completeReminderResolution({
       ? "Promemoria chiuso."
       : plan.turbineChain?.capture === true
         ? "Risolto: Fallito · Trattenuto."
+      : plan.zoneResourceNote
+        ? `Risolto: ${outcomeLabel}. ${plan.zoneResourceNote}`
       : `Risolto: ${outcomeLabel}.`,
     mutation,
     plan,

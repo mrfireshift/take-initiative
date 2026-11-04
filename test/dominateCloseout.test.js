@@ -105,7 +105,8 @@ function stateOf(states, id) {
   return states.find((state) => state.id === id);
 }
 
-test("Dominare conserva il RAW locale, lo scaling e il contratto manuale del cast", () => {
+// Il TS al lancio chiede il suo esito dalla decisione D6 del polishing; il lancio rapido lo considera fallito.
+test("Dominare conserva il RAW locale, lo scaling e il contratto del cast", () => {
   const expected = {
     "dominate-beast": {
       level: 4,
@@ -172,9 +173,9 @@ test("Dominare conserva il RAW locale, lo scaling e il contratto manuale del cas
       mode: "caster-range",
       maxMeters: 18,
     }, id);
-    assert.equal(panel.presentation.inputs.outcomes.required, false, id);
-    assert.equal(panel.presentation.inputs.outcomes.visible, false, id);
-    assert.deepEqual(panel.presentation.controls, ["caster", "slot-level", "targets"], id);
+    assert.equal(panel.presentation.inputs.outcomes.required, true, id);
+    assert.equal(panel.presentation.inputs.outcomes.visible, true, id);
+    assert.deepEqual(panel.presentation.controls, ["caster", "slot-level", "targets", "save-workflow", "save-outcomes"], id);
     assert.equal(panel.execution.activeResolution, false, id);
     assert.equal(panel.execution.undo.capable, true, id);
   }

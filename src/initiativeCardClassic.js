@@ -1,4 +1,5 @@
 import { quickHPStateOf } from "./quickHpCore.js";
+import { spellEffectStandsAlone } from "./effectLabelCore.js";
 
 function classicDocument(documentRef) {
   if (!documentRef?.createElement) {
@@ -24,12 +25,13 @@ export function classicCardSpells(entry) {
   return spells;
 }
 
-function hasVisibleCardConditions(cardEffectData = {}) {
+function hasVisibleCardConditions(cardEffectData = {}, spellInstanceIds = []) {
   const instances = Array.isArray(cardEffectData.instances)
     ? cardEffectData.instances
     : [];
   if (instances.some((instance) =>
-    instance?.effectKind !== "buff" && instance?.effectKind !== "debuff"
+    (instance?.effectKind !== "buff" && instance?.effectKind !== "debuff")
+    || spellEffectStandsAlone(instance, spellInstanceIds)
   )) {
     return true;
   }
@@ -103,7 +105,9 @@ export function deriveClassicCardPresentation(
     ? (hasLegendary ? 16 : 7)
     : 0;
   const hasCardEffects = !entry?.__groupCollapsed && (
-    hasVisibleCardConditions(cardEffectData)
+    hasVisibleCardConditions(cardEffectData, (Array.isArray(entry?.spells) ? entry.spells : [])
+      .map((spell) => String(spell?.instanceId || "").trim())
+      .filter(Boolean))
     || (Array.isArray(entry?.spells) && entry.spells.length > 0)
     || !!entry?.isConcentrating
   );

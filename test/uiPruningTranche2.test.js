@@ -68,7 +68,8 @@ test("la tranche 2 mantiene solo blocker e conseguenze operative", () => {
   assert.match(activeResolution, /Seleziona l'esito del TS/);
   assert.match(activeResolution, /Seleziona un bersaglio prima di continuare/);
   assert.doesNotMatch(activeResolution, /: "Scegli una creatura\."/);
-  assert.match(panelViewCore, /hint: selectedFormula\s*\n\s*\? ""/);
+  // With the dice in the label the field has no hint, except how a cantrip's dice grow (lotto P2 of the polish).
+  assert.match(panelViewCore, /hint: shownFormula\s*\n\s*\? spellCantripDamageHint\(spellId\)/);
   assert.doesNotMatch(panelViewCore, /Inserisci il totale del tiro \$\{selectedFormula\}/);
   assert.doesNotMatch(panelViewCore, /Valore da applicare ai bersagli\./);
   assert.match(turnNotice, /const saveInstruction = \[/);

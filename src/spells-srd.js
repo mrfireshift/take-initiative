@@ -576,15 +576,6 @@ const TARGETING_OVERRIDES = Object.freeze({
   "heat-metal": Object.freeze({
     spatial: Object.freeze({ mode: "caster-range", maxMeters: 18 }),
   }),
-  "dominate-beast": Object.freeze({
-    spatial: Object.freeze({ mode: "caster-range", maxMeters: 18 }),
-  }),
-  "dominate-monster": Object.freeze({
-    spatial: Object.freeze({ mode: "caster-range", maxMeters: 18 }),
-  }),
-  "dominate-person": Object.freeze({
-    spatial: Object.freeze({ mode: "caster-range", maxMeters: 18 }),
-  }),
   "contagion": Object.freeze({
     spatial: Object.freeze({
       mode: "manual",
@@ -593,19 +584,23 @@ const TARGETING_OVERRIDES = Object.freeze({
     }),
   }),
   "aid": Object.freeze({ maximum: 3 }),
+  // One creature, or two within 1,5 m of each other (the distance stays at the table).
+  "acid-splash": Object.freeze({ maximum: 2 }),
   // "Any number of creatures" (2014 texts).
   "beacon-of-hope": Object.freeze({ unbounded: true }),
-  "enthrall": Object.freeze({ unbounded: true }),
   "feather-fall": Object.freeze({ maximum: 5 }),
   "prayer-of-healing": Object.freeze({ maximum: 6 }),
   "mass-healing-word": Object.freeze({ maximum: 6 }),
   "water-breathing": Object.freeze({ maximum: 10 }),
   "water-walk": Object.freeze({ maximum: 10 }),
   "telepathic-bond": Object.freeze({ maximum: 8 }),
-  "mass-suggestion": Object.freeze({ maximum: 12 }),
   "xanathar-colpo-del-vento-dacciaio": Object.freeze({ maximum: 5 }),
-  "tasha-fortezza-della-mente": Object.freeze({ maximum: 5 }),
-  "xanathar-sonnellino": Object.freeze({ maximum: 3 }),
+  // One more creature for each slot level above the base one (texts of 2014 and of the supplements).
+  "longstrider": Object.freeze({ baseMaximum: 1, additionalPerSlotAbove: 1, baseSlot: 1 }),
+  "enhance-ability": Object.freeze({ baseMaximum: 1, additionalPerSlotAbove: 1, baseSlot: 2 }),
+  "fly": Object.freeze({ baseMaximum: 1, additionalPerSlotAbove: 1, baseSlot: 3 }),
+  "tasha-fortezza-della-mente": Object.freeze({ baseMaximum: 1, additionalPerSlotAbove: 1, baseSlot: 3 }),
+  "xanathar-sonnellino": Object.freeze({ baseMaximum: 3, additionalPerSlotAbove: 1, baseSlot: 3 }),
   "xanathar-metamorfosi-di-massa": Object.freeze({ maximum: 10 }),
   "magic-missile": Object.freeze({
     baseMaximum: 3,
@@ -760,6 +755,8 @@ const SPELL_EXPIRY = Object.freeze({
   "sending": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
   "shield": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
   "power-word-stun": Object.freeze({ mode: "manual" }),
+  // 2014: until it is dispelled.
+  "imprisonment": Object.freeze({ mode: "manual" }),
   "teleportation-circle": Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
   "transport-via-plants": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
   "true-strike": Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
@@ -1118,7 +1115,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "healing-blocked",
       kind: "debuff",
       label: "Niente recupero PF",
-      detail: "Il bersaglio non può recuperare punti ferita.",
+      detail: "Il bersaglio non può recuperare punti ferita. Un non morto ha anche svantaggio ai tiri per colpire contro il caster fino alla fine del prossimo turno del caster.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "chill-touch-healing-blocked", label: "No recupero PF" }),
       ]),
@@ -1442,6 +1439,7 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "debuff",
       label: "Svant. Percezione verso altri",
       detail: "Svantaggio alle prove di Saggezza (Percezione) per notare creature diverse dal caster, finché l'incantesimo dura o finché non può più sentirlo.",
+      expiry: Object.freeze({ mode: "rounds", remaining: 10 }),
       summaryParts: Object.freeze([
         Object.freeze({ id: "enthrall-perception-disadvantage", label: "Svant. Percezione" }),
       ]),
@@ -1518,6 +1516,7 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "debuff",
       label: "Segue la suggestione",
       detail: "Segue il corso d'azione suggerito dal caster per 24 ore o finché non lo ha completato. Per questa creatura termina se il caster o un suo compagno la danneggia: rimuovere l'etichetta.",
+      expiry: Object.freeze({ mode: "rounds", remaining: 14400 }),
       summaryParts: Object.freeze([
         Object.freeze({ id: "mass-suggestion-follows", label: "Segue il suggerimento" }),
         Object.freeze({ id: "mass-suggestion-ends-on-ally-damage", label: "Danno dal caster o alleati: fine" }),
@@ -1614,6 +1613,12 @@ const SPELL_EFFECTS = Object.freeze({
 });
 
 const SPELL_SUMMARY_DEFINITIONS = Object.freeze({
+  "hypnotic-pattern": Object.freeze({
+    id: "hypnotic-pattern",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "hypnotic-pattern-speed-zero", label: "Vel 0" }),
+    ]),
+  }),
   // CAP-TERRAIN, lotto G1 (decision T3): what the wall does to what crosses it, to read at the table.
   "xanathar-muro-dacqua": Object.freeze({
     id: "xanathar-muro-dacqua",
@@ -2298,6 +2303,35 @@ function scopedParentRemovalRule(rule, spell) {
   return Object.freeze({ ...rule, parentRemoval: "target" });
 }
 
+// D6: these spells keep their conditions in AUTOMATION, where the other surfaces read them; who fails the save gets them.
+const SAVE_RULES_FROM_AUTOMATION = new Set([
+  "animal-friendship",
+  "charm-person",
+  "dominate-beast",
+  "dominate-monster",
+  "dominate-person",
+  "hideous-laughter",
+  "phantasmal-killer",
+  "xanathar-charme-sui-mostri",
+  "xanathar-incuti-paura",
+]);
+
+function automationSaveRules(spell) {
+  if (!SAVE_RULES_FROM_AUTOMATION.has(spell?.id)) return null;
+  const automation = AUTOMATION[spell.id];
+  const expiry = spell.concentration
+    ? CONCENTRATION_EXPIRY
+    : Object.freeze({ mode: "rounds", remaining: spell.defaultTurns });
+  return Object.freeze({
+    trackOutcomes: Object.freeze(["failed"]),
+    failed: Object.freeze(automation.conditions.map((condition) => Object.freeze({
+      condition,
+      expiry,
+      ...(automation.conditionOptions?.[condition] || {}),
+    }))),
+  });
+}
+
 function areaSaveAutomationForSpell(spell, choiceValue = "") {
   if (!spell) return null;
   const areaChoices = Array.isArray(AREA_SAVE_RULE_CHOICES[spell.id])
@@ -2308,7 +2342,7 @@ function areaSaveAutomationForSpell(spell, choiceValue = "") {
     || null;
   const base = selectedAreaChoice?.replaceBase === true
     ? null
-    : SAVE_AUTOMATION[spell.id] || null;
+    : SAVE_AUTOMATION[spell.id] || automationSaveRules(spell) || null;
   const declared = selectedAreaChoice
     ? selectedAreaChoice.automation || null
     : AREA_SAVE_AUTOMATION_RULES[spell.id] || null;
@@ -2413,7 +2447,15 @@ const ALL_SPELLS = [
   });
 });
 
-const TRACKABLE_SPELLS = ALL_SPELLS.filter((spell) =>
+// Lotto P2 of docs/PIANO_POLISH_INCANTESIMI.md: they change the surroundings, with no creature to carry a pill. Their cast
+// is recorded instead of promising an Apply that leaves no trace.
+const ENVIRONMENT_CANTRIP_IDS = new Set([
+  "xanathar-controllare-fiamme",
+  "xanathar-modellare-acqua",
+  "xanathar-modellare-terra",
+]);
+
+const TRACKABLE_SPELLS = ALL_SPELLS.filter((spell) => !ENVIRONMENT_CANTRIP_IDS.has(spell.id)).filter((spell) =>
   spell.trackable === true ||
   spell.source === "legacy" ||
   !["instantaneous", "istantanea"].includes(String(spell.duration).toLocaleLowerCase())

@@ -263,6 +263,18 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
     }));
   }
 
+  const castSaveLabel = String(targets.outcomes.save?.label || "").trim();
+  if (castSaveLabel) {
+    section.append(createNode(documentRef, "div", {
+      className: "unified-target-spatial",
+      attributes: { "data-cast-save": String(targets.outcomes.save.ability || "") },
+      text: [
+        `Tiro salvezza: ${castSaveLabel}${targets.outcomes.save.onlyIfUnwilling ? ", se non è consenziente" : ""}.`,
+        targets.outcomes.assumedFailed ? "Lancio rapido: tutti falliti, segna chi lo supera." : "",
+      ].filter(Boolean).join(" "),
+    }));
+  }
+
   const attackOutcomeButtons = renderAttackOutcomeButtons(
     documentRef,
     targets.outcomes.attack,

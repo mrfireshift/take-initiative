@@ -446,8 +446,9 @@ test("R8: Slot downgrade non tronca automaticamente i target ma invalida la sess
 test("Regression Control: Banishment e Bane conservano contratti e target scaling invariati", () => {
   const banishment = getSpellSaveWorkflowRule("banishment");
   assert.equal(banishment.ability, "cha");
+  // 2014: one more creature for each slot level above the 4th (lotto P2 of the polish).
   assert.equal(getSpellSaveTargetMaximum("banishment", 4), 1);
-  assert.equal(getSpellSaveTargetMaximum("banishment", 5), 1);
+  assert.equal(getSpellSaveTargetMaximum("banishment", 5), 2);
 
   const bane = getSpellSaveWorkflowRule("bane");
   assert.equal(bane.ability, "cha");

@@ -576,7 +576,7 @@ export function renderReviewFooter(documentRef, model, callbacks = {}) {
         id: inputId,
         label: field.label,
         control: input,
-        hint: "",
+        hint: field.hint || "",
         invalid: field.invalid,
         className: "unified-review-effect-input",
       }));

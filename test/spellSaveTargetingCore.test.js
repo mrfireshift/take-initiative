@@ -311,8 +311,9 @@ test("Esilio dichiara limite, gittata e contesto del piano per bersaglio", () =>
   const context = rule.targeting.context;
 
   assert.equal(rule.ability, "cha");
+  // 2014: one more creature for each slot level above the 4th (lotto P2 of the polish).
   assert.equal(getSpellSaveTargetMaximum(rule, 4), 1);
-  assert.equal(getSpellSaveTargetMaximum(rule, 6), 1);
+  assert.equal(getSpellSaveTargetMaximum(rule, 6), 3);
   assert.deepEqual(rule.targeting.spatial, {
     mode: "caster-range",
     maxMeters: 18,

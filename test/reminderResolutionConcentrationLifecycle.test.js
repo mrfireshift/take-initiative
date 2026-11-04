@@ -92,6 +92,7 @@ mock.module("../src/effectsMutations.js", {
 
 mock.module("../src/concentrationSaveReminder.js", {
   exports: {
+    broadcastEffectSaveDamageNotices: async () => [],
     broadcastConcentrationSaveWarnings: async (changes, options) => {
       warningCalls.push({ changes: clone(changes), options: clone(options) });
       return [{

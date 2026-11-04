@@ -9,6 +9,7 @@ import {
   resolveSpellSlotLevel,
 } from "./spellCastContextCore.js";
 import { getSpellCastPhasePlan } from "./spellCastPhaseCore.js";
+import { getSpellCastResolutionRule } from "./spellCastResolutionRules.js";
 import { getSpellDefinition } from "./spells-srd.js";
 import {
   buildSpellUnifiedLifecycleRequest,
@@ -58,6 +59,8 @@ function spellReviewRoute({ normalized, spell, session, initialTargetIds }) {
     quickActionId: normalized.id,
     // A free action (a ritual, a spell a feat casts) opens the panel already set to spend no slot.
     ...(normalized.cost === "free" ? { slotSource: "none" } : {}),
+    // The quick launch takes the saves as failed, in the panel too when it needs something else (an area, the damage).
+    ...(normalized.launchMode === "auto" ? { assumedSaveOutcome: QUICK_ACTION_INITIAL_SAVE_OUTCOME } : {}),
   };
   const query = buildSpellUnifiedPanelRouteQuery(request);
   return {
@@ -211,11 +214,14 @@ export function getQuickActionDirectSaveEligibility({
     return reject("primary-target-review-required");
   }
   if (hasRequiredInput(inputs, "targetContext")) return reject("target-context-review-required");
+  // Phantasmal Killer's damage comes from its reminder at the end of the target's turn: the cast has none to ask.
+  const reminderDamageOnly = execution.deferredHP === true
+    && getSpellCastResolutionRule(contract?.spell)?.deferredHP === "turn-end-save";
   if (
-    execution.hasHP === true
+    (execution.hasHP === true && !reminderDamageOnly)
     || execution.castHasHP === true
     || execution.phaseHasHP === true
-    || execution.deferredHP === true
+    || (execution.deferredHP === true && !reminderDamageOnly)
     || hasRequiredInput(inputs, "hp")
     || hasRequiredInput(inputs, "damage")
     || hasRequiredInput(inputs, "primaryDamage")

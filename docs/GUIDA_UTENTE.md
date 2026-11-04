@@ -238,7 +238,9 @@ quel personaggio.
   infligge, e svanisce con la zona quando li ha finiti.
 - Il danno dei lanci nel pannello incantesimi (Palla di fuoco, Dardo
   incantato…) mostra l'avviso di concentrazione sui bersagli che si
-  concentrano, come la Console effetti ad area.
+  concentrano, come la Console effetti ad area, e il TS di chi ne fa uno
+  quando subisce danni (Dominare, Risata incontenibile). Lo stesso vale per il
+  danno di un promemoria di zona.
 
 Gli incantesimi concessi da talenti, specie o oggetti restano nelle Azioni
 rapide.
@@ -604,6 +606,31 @@ Dal pannello puoi:
 - usare le varianti e le automazioni disponibili;
 - preparare un incantesimo che verrà risolto in seguito;
 - visualizzare, attivare e terminare gli incantesimi presenti sul campo.
+
+Tra i bersagli il pannello dice quale tiro salvezza chiede il lancio («Tiro
+salvezza: Destrezza»). L'etichetta del campo danni propone i dadi, già cresciuti
+con lo slot scelto («Danno · 10d6»). Se gli esiti tirano dadi diversi, sotto il
+campo trovi quelli di ciascun esito. Per un trucchetto trovi come crescono i dadi
+col livello del personaggio, che il pannello non conosce.
+
+**Lancio rapido o pannello.** Dalla console 🗡️, dal menu ⚡ e dal libro nella
+scheda il lancio è rapido: con il bersaglio selezionato sulla mappa, il tiro
+salvezza si considera fallito. Se non serve altro, l'incantesimo si applica subito
+(Blocca persone, Charme su persone, Suggestione…). Se serve un'area, un danno o una
+variante, si apre il pannello con ogni bersaglio già su **Fallito**: inserisci ciò
+che manca e segna solo chi lo supera.
+
+Il pannello aperto da **Incantesimi** o dal ⚙ del libro chiede invece l'esito di ogni
+bersaglio. Con un TS superato spende lo slot e non lascia effetti. Chi tira solo se
+non è consenziente, come con Levitazione o Metamorfosi, non ha esito: lo dice la riga
+del tiro salvezza.
+
+Un effetto che resta su una creatura senza la pill del suo incantesimo ha sulla
+card una pill sua, rossa se la penalizza e verde se la aiuta: Regressione mentale,
+«Niente recupero PF» di Tocco gelido, «Velocità dimezzata» di una zona. Il terreno
+difficile si vede sempre, finché il token resta nell'area. Un effetto legato a una
+zona o a un incantesimo non ha la ×: finisce uscendo dall'area o terminando
+l'incantesimo.
 
 ### Registro degli incantesimi attivi
 

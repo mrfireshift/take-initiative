@@ -122,6 +122,8 @@ export function normalizeSpellUnifiedPanelOpenRequest(request = {}) {
     slotSource: ["none", "pact"].includes(text(request.slotSource || payload.slotSource))
       ? text(request.slotSource || payload.slotSource)
       : "",
+    // The outcome every save starts from, when the panel opens from a quick launch.
+    assumedSaveOutcome: text(request.assumedSaveOutcome || payload.assumedSaveOutcome) === "failed" ? "failed" : "",
     casterId,
     ...(monsterActionContext ? { monsterActionContext } : {}),
     passengerId,
@@ -258,6 +260,7 @@ export function routeSpellUnifiedPanelOpenRequest(
     },
     quickActionId: normalized.quickActionId,
     slotSource: normalized.slotSource,
+    assumedSaveOutcome: normalized.assumedSaveOutcome,
     origin: normalized.origin,
   };
 
@@ -323,6 +326,7 @@ export function buildSpellUnifiedPanelRouteQuery(request = {}) {
     ["activeActionId", normalized.activeActionId],
     ["quickAction", normalized.quickActionId],
     ["slotSource", normalized.slotSource],
+    ["assumedSaveOutcome", normalized.assumedSaveOutcome],
     ["slotLevel", normalized.slotLevel],
     ["variant", normalized.variant],
     ["durationTurns", normalized.durationTurns],

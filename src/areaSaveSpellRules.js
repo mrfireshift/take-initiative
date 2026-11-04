@@ -137,6 +137,29 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   "phb2014-parola-del-potere-guarire",
   "lesser-restoration",
   "dispel-magic",
+  // Decision D6 of docs/PIANO_POLISH_INCANTESIMI.md: a save at the cast, on creatures chosen in the panel. The quick launch
+  // applies them at once, the save taken as failed (quickActionSpellExecutionCore.js); the panel asks each outcome.
+  "animal-friendship",
+  "bestow-curse",
+  "charm-person",
+  "dominate-beast",
+  "dominate-monster",
+  "dominate-person",
+  "enthrall",
+  "geas",
+  "hideous-laughter",
+  "imprisonment",
+  "mass-suggestion",
+  "modify-memory",
+  "phantasmal-killer",
+  "planar-binding",
+  "suggestion",
+  "xanathar-charme-sui-mostri",
+  "xanathar-incuti-paura",
+  "xanathar-nemici-in-abbondanza",
+  "xanathar-vincolo-della-terra",
+  "phb2014-corona-di-follia",
+  "phb2014-duello-obbligato",
   // No save: darts that always hit, split among the targets (magicMissileCore.js).
   "magic-missile",
 ]);
@@ -273,6 +296,25 @@ export const AREA_FIELD_NON_POPOVER_REASONS = Object.freeze({
 // bersagli del TS. Gli altri effetti dello stesso spell possono appartenere
 // al caster o all'oggetto sorgente e non vanno copiati sui bersagli dell'area.
 export const AREA_SAVE_EFFECT_RULES = Object.freeze({
+  // D6: the effects these spells declare go to who fails the save.
+  "enthrall": Object.freeze({ failedEffectIds: Object.freeze(["enthrall-perception-disadvantage"]) }),
+  "mass-suggestion": Object.freeze({ failedEffectIds: Object.freeze(["mass-suggestion-compelled"]) }),
+  "suggestion": Object.freeze({ failedEffectIds: Object.freeze(["suggestion-compelled"]) }),
+  "xanathar-nemici-in-abbondanza": Object.freeze({ failedEffectIds: Object.freeze(["cannot-distinguish-allies"]) }),
+  "xanathar-vincolo-della-terra": Object.freeze({ failedEffectIds: Object.freeze(["flying-speed-zero"]) }),
+  "bestow-curse": Object.freeze({
+    failedEffectIds: Object.freeze([
+      "curse-ability-strength",
+      "curse-ability-dexterity",
+      "curse-ability-constitution",
+      "curse-ability-intelligence",
+      "curse-ability-wisdom",
+      "curse-ability-charisma",
+      "curse-attacks-against-caster",
+      "curse-wasted-action",
+      "curse-extra-necrotic-damage",
+    ]),
+  }),
   "bane": Object.freeze({
     failedEffectIds: Object.freeze(["attack-save-penalty"]),
   }),
@@ -400,6 +442,11 @@ const noPersistentEffect = Object.freeze({
 // track=false mantiene condizioni istantanee (es. Prono) indipendenti da una
 // pill spell di un round, che altrimenti le rimuoverebbe troppo presto.
 export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
+  // D6: nothing but the pill of the spell, on who fails the save; the rest stays at the table.
+  "geas": failedAutomation([]),
+  "imprisonment": failedAutomation([]),
+  "modify-memory": failedAutomation([]),
+  "planar-binding": failedAutomation([]),
   // CAP-HP-BRANCH: the 4d6 come with the cast whatever the save; a failure leaves the mind shattered until a
   // save at the end of every 30 days (at the table), Greater Restoration, Heal or Wish.
   "feeblemind": failedAutomation([
@@ -654,7 +701,6 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       {
         expiry: rounds(100),
         manualRemoval: true,
-        endsParentOnRemoval: true,
         summaryParts: Object.freeze([
           Object.freeze({ id: "zone-of-truth-no-lies", label: "No menzogne" }),
         ]),
@@ -706,7 +752,8 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       "vitriolic-sphere-delayed-acid",
       "Subisce 5d4 danni da acido alla fine del prossimo turno.",
       {
-        expiry: nextTurn("turn-end", "target"),
+        // Its reminder removes it when resolved: an expiry on the same turn end could take it first, and the damage with it.
+        expiry: manual,
         independent: true,
         manualRemoval: true,
         summaryParts: Object.freeze([
@@ -719,6 +766,10 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
           anchor: "next-turn",
           reminder: "5d4 danni da acido",
           damage: Object.freeze({ dice: "5d4", type: "acido" }),
+          resolution: Object.freeze({
+            mode: "manual-damage",
+            damage: Object.freeze({ dice: "5d4", type: "acido" }),
+          }),
           provenance: Object.freeze({
             spellId: "xanathar-sfera-al-vetriolo",
             spellName: "Sfera al Vetriolo",

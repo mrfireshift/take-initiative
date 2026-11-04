@@ -46,6 +46,8 @@ import {
 } from "./spellUnifiedActiveAdapter.js";
 import {
   spellSaveDamageFactor,
+  spellCantripDamageHint,
+  spellCastHealingFormula,
   spellSaveDamageFormula,
 } from "./spellCastResolutionRules.js";
 import {
@@ -643,15 +645,18 @@ function normalizeEffectFields(
       spellId,
       selectedOutcome,
       session?.slotLevel,
+      session?.variant,
     );
-    const passedFormula = spellSaveDamageFormula(spellId, "passed", session?.slotLevel);
-    const failedFormula = spellSaveDamageFormula(spellId, "failed", session?.slotLevel);
+    const passedFormula = spellSaveDamageFormula(spellId, "passed", session?.slotLevel, session?.variant);
+    const failedFormula = spellSaveDamageFormula(spellId, "failed", session?.slotLevel, session?.variant);
+    // Mixed outcomes roll the same dice when the save only halves or spares them.
+    const shownFormula = selectedFormula || (!passedFormula || passedFormula === failedFormula ? failedFormula : "");
     fields.push({
       id: "damage",
       type: "number",
-      label: selectedFormula ? `Danno · ${selectedFormula}` : damageFormula,
-      hint: selectedFormula
-        ? ""
+      label: shownFormula ? `Danno · ${shownFormula}` : damageFormula,
+      hint: shownFormula
+        ? spellCantripDamageHint(spellId)
         : areaDamage
           ? "Tiro unico dell'esplosione; il fattore dipende dall'esito del TS."
           : passedFormula && failedFormula
@@ -681,7 +686,9 @@ function normalizeEffectFields(
     fields.push({
       id: "healing",
       type: "number",
-      label: asText(inputs.healing.dice) ? `Cura · ${asText(inputs.healing.dice)}` : "Cura",
+      label: asText(inputs.healing.dice) || spellCastHealingFormula(spellId, session?.slotLevel)
+        ? `Cura · ${asText(inputs.healing.dice) || spellCastHealingFormula(spellId, session?.slotLevel)}`
+        : "Cura",
       hint: "",
       min: 0,
       value: hpValues.healing ?? "",
@@ -790,6 +797,7 @@ export function buildUnifiedPanelViewModel({
   targetFilters = {},
   concentrationSummary = [],
   activeOverview = [],
+  assumedSaveOutcome = "",
 } = {}) {
   const workflow = buildSpellPanelViewModel(contract, session);
   const presentation = contract?.presentation || {};
@@ -1221,6 +1229,9 @@ export function buildUnifiedPanelViewModel({
         mode: outcomeMode,
         options: outcomeOptions,
         save: saveDescriptor,
+        assumedFailed: asText(assumedSaveOutcome) === "failed"
+          && inputs.outcomes?.required === true
+          && ["save", "attack-and-save"].includes(outcomeMode),
         attack: {
           visible: outcomeMode === "attack-and-save",
           required: outcomeMode === "attack-and-save",

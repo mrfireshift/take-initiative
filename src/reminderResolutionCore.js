@@ -20,6 +20,7 @@ import {
 } from "./deathSaveCore.js";
 // Generated copy of getAreaSaveAutomation (spells-srd.js), so that the turn notice and Quick HP skip the catalog.
 import { lookupAreaSaveAutomation as getAreaSaveAutomation } from "./spellAreaIndex.js";
+import { zoneTriggerResourceSpend } from "./zoneResourceCore.js";
 import {
   resolveTurbineSaveChain,
   turbineSizeFromToken,
@@ -1981,6 +1982,20 @@ export function buildReminderResolutionPlan({
     const tempHpField = quickHPTempHpPatchField(meta, hpChange.afterTempHp, metadataSnapshot(meta, "tempHp"));
     if (tempHpField) metadataFields.tempHp = tempHpField;
   }
+  // CAP-RESOURCE: a zone's trigger answered from its notice spends the counter of the spell too, as from the panel: the
+  // damage Guardian of Faith has left, Cordon of Arrows' ammunition. At zero the spell ends with its zone.
+  const zoneResource = activationKind === "zone"
+    ? zoneTriggerResourceSpend({
+      spellId: text(notice?.spellId || resolution.activation?.spellId || resolutionData.spellId, "", 200),
+      spellName: text(notice?.spellName || resolution.activation?.spellName, "", 120),
+      ownerEntry: spellInstances(itemsById.get(sourceId))
+        .find((entry) => text(entry?.instanceId, "", 200) === text(resolution.activation?.instanceId, "", 200)) || null,
+      casterId: sourceId,
+      targetIds: [targetId],
+      damages: hasDamage ? [damage.amount] : [],
+    })
+    : null;
+  if (zoneResource) operations.push(...zoneResource.operations);
   const commandTargetIds = uniqueIds([
     targetId,
     sourceId,
@@ -2001,6 +2016,7 @@ export function buildReminderResolutionPlan({
     healing,
     hpChange,
     ...(turbine ? { turbineChain } : {}),
+    ...(zoneResource?.note ? { zoneResourceNote: zoneResource.note } : {}),
     operations,
     metadataPatches: [
       {
@@ -2019,6 +2035,7 @@ export function buildReminderResolutionPlan({
     sideEffects: [
       ...(zoneSideEffect ? [zoneSideEffect] : []),
       ...actionSideEffects,
+      ...(zoneResource?.sideEffects || []),
     ],
     targetIds: commandTargetIds,
     sceneMetadataPreconditions: sceneMetadata && Object.prototype.hasOwnProperty.call(sceneMetadata, `${ID}/state`)

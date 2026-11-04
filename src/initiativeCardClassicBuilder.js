@@ -804,6 +804,9 @@ if (hasAny) {
     cap: CONDITIONS,
     compact: true,
     showEffectSummaryParts,
+    spellInstanceIds: (Array.isArray(e.spells) ? e.spells : [])
+      .map((spell) => String(spell?.instanceId || "").trim())
+      .filter(Boolean),
     onRemove: IS_GM && !isLairId(e.id) && !isEpicActionId(e.id)
       ? (group) => __removeConditionOnTrackerCard(cardTokenId, group)
       : null,
