@@ -435,6 +435,13 @@ const AREA_OVERRIDES = Object.freeze({
   "xanathar-boschetto-druidico": {
     note: "La sagoma mostra il cubo minimo, 9 m di lato; il massimo è 27 m. Gli effetti scelti restano al tavolo.",
   },
+  // Lotto P3-9.
+  "tiny-hut": {
+    note: "La cupola resta ferma e finisce quando il caster ne esce: chiudila con Termina. Chi può attraversarla si decide al tavolo.",
+  },
+  "speak-with-plants": {
+    note: "Rendere il terreno normale o difficile si decide al tavolo.",
+  },
   "xanathar-coltello-di-ghiaccio": {
     shape: "circle",
     sizeMeters: 1.5,

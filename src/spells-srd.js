@@ -563,6 +563,30 @@ const TARGET_MODE_OVERRIDES = Object.freeze({
   "silent-image": "self",
   "thaumaturgy": "self",
   "xanathar-pietra-magica": "self",
+  // Lotto P3-9, the same: a sensor, an eye, an object, a rope, a steed that appears, beasts with no token, words in the sky.
+  "animal-messenger": "self",
+  "arcane-eye": "self",
+  "arcane-lock": "self",
+  "clairvoyance": "self",
+  "continual-flame": "self",
+  "giant-insect": "self",
+  "magic-mouth": "self",
+  "major-image": "self",
+  "meld-into-stone": "self",
+  "phantom-steed": "self",
+  "rope-trick": "self",
+  "unseen-servant": "self",
+  "xanathar-scritta-celeste": "self",
+  "xanathar-servitore-minuscolo": "self",
+  // What they conjure is not on the map at the cast.
+  "conjure-animals": "self",
+  "conjure-minor-elementals": "self",
+  "conjure-woodland-beings": "self",
+  "xanathar-evoca-demoni-minori": "self",
+  "tasha-evocare-bestia": "self",
+  "tasha-evoca-bestia-dombra": "self",
+  "tasha-evoca-folletto": "self",
+  "tasha-evoca-non-morto": "self",
   // Xanathar: the creature touched breathes the cone later, with its action; at the cast there is no cone to place.
   "xanathar-soffio-del-drago": "selected",
   "spiritual-weapon": "self",
@@ -694,6 +718,23 @@ const SLOT_DURATION_OVERRIDES = Object.freeze({
   "mass-suggestion": Object.freeze({
     baseSlot: 6,
     turnsBySlot: Object.freeze({ 6: 14400, 7: 144000, 8: 432000, 9: 5270400 }),
+  }),
+  // 2014: 24 hours; 10 days with a 6th-level slot, 30 with a 7th, 180 with an 8th, a year and a day with a 9th.
+  "planar-binding": Object.freeze({
+    baseSlot: 5,
+    turnsBySlot: Object.freeze({ 5: 14400, 6: 144000, 7: 432000, 8: 2592000, 9: 5270400 }),
+  }),
+  // 2014: 24 hours, 48 more for each slot level above the 2nd.
+  "animal-messenger": Object.freeze({
+    baseSlot: 2,
+    turnsBySlot: Object.freeze({ 2: 14400, 3: 43200, 4: 72000, 5: 100800, 6: 129600, 7: 158400, 8: 187200, 9: 216000 }),
+  }),
+  // 2014: concentration up to 10 minutes; from the 6th level until dispelled, with no concentration.
+  "major-image": Object.freeze({
+    baseSlot: 3,
+    turnsBySlot: Object.freeze({ 3: 100 }),
+    concentrationBelowSlot: 6,
+    manualFromSlot: 6,
   }),
   // 2014: 30 days; a year with a 7th or 8th-level slot; until dispelled with a 9th-level one.
   "geas": Object.freeze({

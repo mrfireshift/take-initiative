@@ -8,7 +8,7 @@ import {
   getSpellCastPhasePlan,
   spellPhaseAttackOutcomeRequired,
 } from "./spellCastPhaseCore.js";
-import { getSpellDefinition } from "./spells-srd.js";
+import { getSpellChoiceTiming, getSpellDefinition } from "./spells-srd.js";
 import { spellExecutionHistoryDetails } from "./spellExecutionHistoryCore.js";
 import {
   SPELL_UNIFIED_PANEL_LANES,
@@ -271,10 +271,13 @@ export function buildSpellUnifiedLifecycleRequest({
     subjectMode: phasePlan.subjectMode || contract.presentation.subjectMode,
   });
   const durationPolicy = contract.presentation?.duration?.policy;
+  // A choice can have a duration of its own, and it wins over the spell's: Hex by its slot, the wedding of Ceremony.
+  const choiceTurns = getSpellChoiceTiming(runtimeSpell, selectedChoice, mergedCastContext)?.defaultTurns;
   const durationTurns = durationPolicy === "manual"
     ? integerOrNull(session.durationTurns)
     : integerOrNull(
-      contract.presentation?.duration?.defaultTurns
+      choiceTurns
+      ?? contract.presentation?.duration?.defaultTurns
       ?? runtimeSpell.defaultTurns
       ?? session.durationTurns
       ?? 1,

@@ -105,7 +105,7 @@
     "smokeCategories": {
       "ACTIVE_ACTION": 51,
       "AREA_GEOMETRY": 140,
-      "CAST": 277,
+      "CAST": 276,
       "CLEANUP": 129,
       "CONCENTRATION": 218,
       "PERSISTENCE": 360,
@@ -1886,12 +1886,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -5250,12 +5249,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -8041,12 +8039,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -13867,12 +13864,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -16273,12 +16269,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -16389,12 +16384,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -16836,12 +16830,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -17064,12 +17057,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -17399,12 +17391,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -17625,12 +17616,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -17858,12 +17848,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -18209,12 +18198,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -19471,12 +19459,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -20153,12 +20140,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -23767,12 +23753,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -25490,12 +25475,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -34994,12 +34978,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -36508,7 +36491,6 @@
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
         "AREA_GEOMETRY",
-        "CAST",
         "CLEANUP",
         "PERSISTENCE"
       ],
@@ -36523,8 +36505,7 @@
       "coverage": [
         "tracking",
         "aree:aura",
-        "lifecycle",
-        "TS"
+        "lifecycle"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -36542,7 +36523,7 @@
           "aura"
         ],
         "triggerIds": [],
-        "saveAutomation": true,
+        "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [],
@@ -36550,7 +36531,6 @@
         "movementMechanics": false,
         "smokeCategories": [
           "AREA_GEOMETRY",
-          "CAST",
           "CLEANUP",
           "PERSISTENCE"
         ]
@@ -36573,7 +36553,6 @@
           "visibleInputs": [
             "caster",
             "slot",
-            "targets",
             "placement"
           ]
         },
@@ -36601,7 +36580,6 @@
         "smokeRequired": true,
         "smokeCategories": [
           "AREA_GEOMETRY",
-          "CAST",
           "CLEANUP",
           "PERSISTENCE"
         ]
@@ -47165,12 +47143,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -48407,12 +48384,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -48516,12 +48492,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -48627,12 +48602,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -55653,12 +55627,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {

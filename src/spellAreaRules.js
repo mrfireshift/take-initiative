@@ -829,6 +829,8 @@ const SELF_CAST_AURA_SPELL_IDS = new Set([
   "phb2014-aura-di-vita",
   "phb2014-aura-di-vitalita",
   "phb2014-cerchio-di-potere",
+  // The plants around the caster: no creature to choose.
+  "speak-with-plants",
   "xanathar-vento-di-interdizione",
 ]);
 const CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS = new Set([

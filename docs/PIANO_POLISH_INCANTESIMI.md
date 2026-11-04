@@ -1,6 +1,6 @@
 # Polishing degli incantesimi (piano)
 
-Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1, 2, 3, 4, 5, 6, 7, 8 e D6 fatti)**. Questo piano guida la
+Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1, 2, 3, 4, 5, 6, 7, 8, 9 e D6 fatti)**. Questo piano guida la
 revisione di tutti i 477 incantesimi prima di aggiungere nuove capacità. Per ognuno si controlla:
 
 - **A, l'interpretazione:** il motore fa ciò che dice il testo 2014?
@@ -455,6 +455,38 @@ vendetta con i tre esiti, e il secondo lancio confermato, che ridisegna la zona 
 non tengono il conto); Giara magica e Fiamma perenne dopo due round; Tsunami con Termina dal pannello; Muro di ghiaccio allo slot 7; Glifo, Boschetto e
 Allarme; Modifica bersagli su Sciame di meteore e Tempesta di fuoco; i limiti di bersagli; Imprigionare con i due esiti; i tracciati del lotto. Le pill
 in vista espansa e compatta. Test in `test/spellPolishLot8.test.js`.
+
+#### Lotto 9 (fatto il 4/11): i 40 successivi
+
+I tracciati dal 1° al 4° livello, in ordine: 35 fino al 3° e i primi 5 del 4°.
+
+| Difetto | Incantesimi | Correzione |
+|---|---|---|
+| Non si lanciavano senza spuntare una creatura, che il testo non ha | Occhio arcano, Chiaroveggenza, Serratura arcana, Fiamma perenne, Bocca magica, Immagine maggiore, Trucco della corda, Scritta Celeste, Servitore inosservato, Servitore Minuscolo, Destriero fantomatico, Animale messaggero, Insetto gigante, Fondersi nella pietra | Il lancio non chiede bersagli, la pill sta sul caster |
+| Lo stesso, per chi evoca: ciò che evoca non è sulla mappa al lancio | Evoca animali, Evoca elementali minori, Evoca creature boschive, Evoca Demoni Minori, Evocare Bestia, Evoca Bestia d'Ombra, Evoca Folletto, Evoca Non Morto | Pill e concentrazione sul caster |
+| Non si lanciava proprio: chiedeva una creatura e non offriva righe | Parlare con i vegetali | Aura che si lancia da sola, come Campo anti-magia |
+| **La durata di una scelta non arrivava alla pill** | Sortilegio (restava 1 ora: 8 ore dal 3° slot, 24 dal 5°), Cerimonia (il matrimonio e il rito funebre segnavano 24 ore invece di 7 giorni) | La durata della scelta viene prima di quella dell'incantesimo (`buildSpellUnifiedLifecycleRequest`). `getSpellChoiceTiming` la calcolava già, e un test la controllava, ma nel lancio dal pannello non la leggeva nessuno |
+| La durata non seguiva lo slot | Animale messaggero, e fuori dal lotto Legame planare | 48 ore in più per slot; 10, 30, 180 giorni, un anno e un giorno |
+| Dal 6° slot dura fino a dissoluzione, senza concentrazione | Immagine maggiore | Come Scagliare maledizione (`concentrationBelowSlot`, `manualFromSlot`) |
+| La sagoma non diceva come finisce | Capanna | Nota: la cupola resta ferma e finisce quando il caster ne esce, con Termina |
+
+Errore mio da ricordare: nel lotto 4 ho scritto che le durate di Cerimonia seguivano la variante, e nel lotto 3 ho dato Sortilegio per letto, guardando i dati e
+senza lanciarli con la scelta o lo slot giusti. Anche in questo lotto ho prima chiamato Sortilegio falso allarme, per poi trovarlo sbagliato al banco. **Una durata
+che dipende da slot o scelta si controlla sulla pill, non sulla regola.** Per trovarne altre ho cercato nel testo «ai livelli superiori» di tutto il catalogo: dei
+tredici incantesimi che ne parlano, dodici ora allungano davvero la pill; il tredicesimo è Modificare memoria, dove il numero è l'età del ricordo.
+
+Chiedono ancora una creatura, a ragione: Aura magica dell'arcanista e Anti-individuazione (una creatura o un oggetto: per l'oggetto si spunta il caster), Scurovisione,
+Linguaggi, Inviare, Respirare sott'acqua, Camminare sull'acqua, Riposo inviolato e Parlare con i morti (il cadavere, anche a 0 PF).
+
+Falsi allarmi, da non riaprire: Lama infuocata e Lama d'Ombra hanno i dadi per slot. Inviare non ha limite di gittata. Terreno illusorio resta una zona senza effetti.
+Capanna si lancia già con «Usa senza placement», anche se il contratto segna i bersagli come richiesti: per una zona facoltativa quel dato non blocca.
+
+Per i prossimi lotti: 42 dei 51 tracciati rimasti chiedono ancora una creatura, tra cui le altre evocazioni (Evoca elementale, Evoca folletto, Evoca celestiale e quelle di
+Tasha) e Portale, Semipiano, Reggia meravigliosa.
+
+Provato al banco: i 22 senza bersaglio; Immagine maggiore agli slot 3 e 6; Animale messaggero allo slot 3; Parlare con i vegetali con Termina; Capanna con il caster che
+esce; Terreno illusorio; Sortilegio allo slot 3 con un round che passa; Cerimonia con matrimonio e dedizione; Legame planare allo slot 7; gli incantesimi con bersaglio,
+compreso il cadavere a 0 PF e un Inviare lontano. Le pill in vista espansa e compatta. Test in `test/spellPolishLot9.test.js`.
 
 ### P4, i workflow che la prova non copre ancora (B)
 

@@ -159,10 +159,19 @@ quel personaggio.
   speso.
 - Gli incantesimi senza una creatura nel testo (Luce, Luci danzanti, Mano
   magica, Illusione minore, Prestidigitazione, Taumaturgia, Randello incantato,
-  Pietra Magica, Disco fluttuante, Scritto illusorio, Immagine silenziosa) non
-  chiedono bersagli: la pill sta sul caster. Quelli che durano finché non vengono
-  dissolti (Giara magica, Fiamma perenne, Bocca magica…) non scadono da soli:
-  la pill mostra **M** e la togli a mano.
+  Pietra Magica, Disco fluttuante, Scritto illusorio, Immagine silenziosa, Occhio
+  arcano, Chiaroveggenza, Serratura arcana, Trucco della corda, Destriero
+  fantomatico, Servitore inosservato…) e quelli che evocano (Evoca animali, Evoca
+  elementali minori, Evoca creature boschive, Evoca Demoni Minori, Evocare Bestia,
+  Evoca Folletto, Evoca Non Morto, Evoca Bestia d'Ombra) non chiedono bersagli: la
+  pill sta sul caster. Quelli che durano finché non vengono dissolti (Giara magica,
+  Fiamma perenne, Bocca magica…) non scadono da soli: la pill mostra **M** e la
+  togli a mano. Se il bersaglio può essere una creatura o un oggetto (Aura magica
+  dell'arcanista, Anti-individuazione), per un oggetto spunta il caster.
+- La durata segue lo slot o la scelta quando il testo lo dice: Sortilegio dura 8
+  ore dal 3° slot e 24 dal 5°, Animale messaggero 48 ore in più per slot, Immagine
+  maggiore dal 6° slot non chiede concentrazione e resta fino alla rimozione, il
+  matrimonio di Cerimonia dura 7 giorni.
 - Protezione dai veleni, Protezione dall'energia, Invulnerabilità, Aura di
   Purezza, Aura di Vita, Fortezza della Mente, Morte Apparente, Investitura del
   Ghiaccio, Investitura della Fiamma e Abito Ultraterreno danno difese vere
