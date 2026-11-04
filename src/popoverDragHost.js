@@ -11,7 +11,7 @@ function positionKey(id) {
   return `${POSITION_PREFIX}${String(id || "").replaceAll("/", "_")}`;
 }
 
-export function readStoredPosition(id) {
+function readStoredPosition(id) {
   try {
     const value = JSON.parse(localStorage.getItem(positionKey(id)) || "null");
     if (Number.isFinite(value?.left) && Number.isFinite(value?.top)) return value;
