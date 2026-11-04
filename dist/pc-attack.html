@@ -15,34 +15,37 @@
       --cost-bonus: #fb923c;
       --cost-reaction: #c084fc;
     }
-    .header { padding-left: var(--obrt-space-lg); }
-    /* Who acts: the actor's name, and whether it is its turn (green) or another's (amber). */
+    .glass-shell { position: relative; }
+    /* The header says who acts, on one line: what it does is under the picker. */
+    .header { min-height: 36px; padding-top: var(--obrt-space-xs); padding-bottom: var(--obrt-space-xs); padding-left: var(--obrt-space-lg); }
+    /* The actor's name; an amber pill when it acts on another's turn. */
     .title-row { min-width: 0; display: flex; align-items: center; gap: 6px; }
-    .turn-badge { flex: 0 0 auto; padding: 1px 6px; border-radius: var(--obrt-radius-pill); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: .04em; text-transform: uppercase; }
-    .turn-badge[data-turn="own"] { border: 1px solid rgba(134, 239, 172, .40); background: rgba(21, 128, 61, .32); color: #bbf7d0; }
-    .turn-badge[data-turn="off"] { border: 1px solid rgba(253, 230, 138, .42); background: rgba(161, 98, 7, .30); color: var(--warn-text); }
-    /* The local option of the turn auto-open (pcAttackTurnController.js), next to the close button. */
-    /* Ogni turno as a switch of its own: a 24 px pill, blue when on. */
-    .auto-toggle { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: var(--obrt-hit-min); padding: 0 8px; border: 1px solid var(--line); border-radius: var(--obrt-radius-pill); color: var(--muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); cursor: pointer; }
-    .auto-toggle:hover { background: var(--obrt-hover); }
-    /* Two switches since attacchi dei mostri, lotto 7: characters and allies, monsters (and bosses). */
-    .auto-group { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; }
-    .auto-group[hidden] { display: none; }
-    /* Compact pills, so the actor's name keeps its room: the state is the pill's colour, the checkbox stays for the
-       keyboard and assistive technology (focus ring on the pill). "Ogni turno" is the group's label and tooltip. */
-    .auto-group .auto-toggle { position: relative; padding: 0 7px; }
-    .auto-group .auto-toggle input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-    .auto-group .auto-toggle:has(input:focus-visible) { outline: 2px solid var(--obrt-accent); outline-offset: 1px; }
-    .auto-toggle:has(input:checked) { border-color: rgba(96, 165, 250, .45); background: rgba(30, 64, 175, .22); color: var(--info-text); }
-    .auto-toggle input { width: 14px; height: 14px; margin: 0; accent-color: var(--obrt-accent); cursor: pointer; }
+    .turn-badge { flex: 0 0 auto; padding: 1px 6px; border: 1px solid rgba(253, 230, 138, .42); border-radius: var(--obrt-radius-pill); background: rgba(161, 98, 7, .30); color: var(--warn-text); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); }
+    /* The menu of the header's ⋯: the turn auto-open (pcAttackTurnController.js), local to this browser. */
+    .more-menu { position: absolute; z-index: 20; top: 38px; right: var(--obrt-space-xl); width: 220px; display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); box-shadow: 0 12px 28px rgba(0, 0, 0, .45); }
+    .more-title { margin: 0; font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-semibold); }
+    .more-option { display: flex; align-items: center; gap: 6px; min-height: var(--obrt-hit-min); cursor: pointer; }
+    .more-option input { width: 15px; height: 15px; margin: 0; accent-color: var(--obrt-accent); cursor: pointer; }
+    .more-hint { margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); line-height: 1.3; text-wrap: pretty; }
+    /* Under the header, only when there is somewhere to go: back to the turn's creature, on to the one selected on the map.
+       One line: a long name is cut, and the button's tooltip says it in full. Only the bar of a turn that moved takes a line of its own. */
+    .switch-row { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 5px var(--obrt-space-xl); border-bottom: 1px solid var(--line); }
+    .switch-row:not(:has(> :not([hidden]))) { display: none; }
+    .switch-row:has(> .follow-bar:not([hidden]):not([data-kind="off"])) { flex-wrap: wrap; }
+    .switch-row .small { min-width: 0; min-height: var(--obrt-hit-min); overflow: hidden; padding: 2px 8px; color: var(--info-text); font-size: var(--obrt-type-secondary); text-overflow: ellipsis; white-space: nowrap; }
     /* The header drags the console: six dots say so. */
     .drag-grip { flex: 0 0 auto; order: -1; width: 8px; height: 16px; margin-right: 2px; opacity: .45; background-image: radial-gradient(circle, #fff 1px, transparent 1.4px); background-size: 4px 4px; }
     .header:hover .drag-grip { opacity: .75; }
     /* Riduci: only the header stays. */
-    body[data-minimized="true"] .panel, body[data-minimized="true"] .reaction-row, body[data-minimized="true"] .apply-row, body[data-minimized="true"] .status-bar { display: none !important; }
-    /* An off-turn action with the creature selected on the map, under the turn bar. */
-    .use-selected-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: var(--obrt-space-md); color: var(--muted); font-size: var(--obrt-type-secondary); }
-    .use-selected { min-width: 0; overflow: hidden; border-color: rgba(96, 165, 250, .45); color: var(--info-text); text-overflow: ellipsis; white-space: nowrap; }
+    body[data-minimized="true"] .panel, body[data-minimized="true"] .more-menu, body[data-minimized="true"] .switch-row, body[data-minimized="true"] .reaction-row, body[data-minimized="true"] .apply-row, body[data-minimized="true"] .status-bar { display: none !important; }
+    /* An off-turn action with the creature selected on the map. */
+    .use-selected-row { display: flex; min-width: 0; }
+    .use-selected { min-width: 0; overflow: hidden; border-color: rgba(96, 165, 250, .45); text-overflow: ellipsis; }
+    /* What the action is: under the picker, in full (it wraps, it is never cut). */
+    .action-facts { margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; line-height: 1.3; text-wrap: pretty; }
+    .action-facts:empty { display: none; }
+    .picker:not([hidden]) + .action-facts { margin-top: -4px; }
+    #pc-attack-multiattack { margin-top: -4px; line-height: 1.3; text-wrap: pretty; }
     /* One scroll: the console's view fills the panel, and in the spells and features tabs the list takes the height left. */
     .panel { display: flex; flex-direction: column; }
     .panel > .view { flex: 1 1 auto; min-height: 0; }
@@ -55,6 +58,8 @@
     /* The target card: its caption beside the select, on one line; the area, hint and Quivering Palm below, full width. */
     .target-card { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: var(--obrt-space-md); }
     .target-card > :not(.caption):not(.target-select) { grid-column: 1 / -1; }
+    /* «Creature colpite» has no menu beside it: it takes its line, and «Tiro» with its menu keeps the next one. */
+    .target-card > .caption:has(+ .target-select[hidden]) { grid-column: 1 / -1; }
     .target-select { width: 100%; min-height: var(--obrt-h-control-md); padding: 3px 6px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); }
     .hint { margin: 0; color: var(--warn-text); font-size: var(--obrt-type-secondary); }
     /* Mirror Image on the target: the d20 to aim at a duplicate, and the button that destroys one. */
@@ -150,10 +155,14 @@
     .spell-text { margin: 0; font-size: var(--obrt-type-secondary); line-height: 1.4; white-space: pre-line; }
     .spell-rules { font-size: var(--obrt-type-secondary); line-height: 1.4; }
     /* The turn moved on while an attack is in progress: the console waits for the GM (pcAttackTurnController.js). */
-    .follow-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: var(--obrt-space-md); padding: 6px 10px; border: 1px solid rgba(253, 230, 138, .45); border-radius: var(--obrt-radius-lg); background: rgba(161, 98, 7, .18); color: var(--warn-text); font-size: var(--obrt-type-secondary); }
-    .follow-bar[data-kind="off"] { border-color: rgba(96, 165, 250, .40); background: rgba(30, 64, 175, .20); color: var(--info-text); }
+    .follow-bar { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 8px; padding: 6px 10px; border: 1px solid rgba(253, 230, 138, .45); border-radius: var(--obrt-radius-lg); background: rgba(161, 98, 7, .18); color: var(--warn-text); font-size: var(--obrt-type-secondary); }
+    /* A long name sends the button to the next line, instead of squeezing the sentence into a column. */
+    .follow-bar > span { flex: 1 1 110px; min-width: 0; text-wrap: pretty; }
+    .follow-bar > button { flex: 0 1 auto; max-width: 100%; margin-left: auto; }
+    /* Off turn only its button: the pill in the header says the rest. */
+    .follow-bar[data-kind="off"] { flex: 0 1 auto; flex-wrap: nowrap; min-width: 0; padding: 0; border: 0; border-radius: 0; background: none; }
     .follow-bar.ready { border-color: rgba(96, 165, 250, .55); background: rgba(37, 99, 235, .22); color: var(--info-text); }
-    .follow-bar .follow-ready { min-width: 0; min-height: 30px; padding: 4px 12px; }
+    .follow-bar .follow-ready { min-width: 0; min-height: 30px; overflow: hidden; padding: 4px 12px; text-overflow: ellipsis; white-space: nowrap; }
     .launch-meta { display: flex; flex-wrap: wrap; gap: 4px; }
     .launch-tag { padding: 1px 7px; border: 1px solid var(--line); border-radius: var(--obrt-radius-pill); color: var(--muted); font-size: var(--obrt-type-caption); }
     .launch-tag.warning { border-color: rgba(253, 230, 138, .45); color: var(--warn-text); }
@@ -198,12 +207,15 @@
     .amount:disabled { opacity: .45; }
     .inline-select { height: var(--obrt-hit-min); padding: 0 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); font-size: var(--obrt-type-secondary); }
     .extras-section { display: grid; gap: 4px; padding-top: 6px; border-top: 1px solid var(--line); }
-    .subcaption { margin-top: 2px; color: var(--muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-wide); text-transform: uppercase; }
+    /* No damage above it: nothing to separate. */
+    .extras-section[data-bare="true"] { padding-top: 0; border-top: 0; }
+    /* Below the section's title: what these rows share, in plain words. */
+    .subcaption { margin-top: 2px; color: var(--muted); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-semibold); }
     /* An activation's save: the same colours as the outcome buttons, at the height of the inline selects. */
     .segmented.mini { display: inline-grid; grid-auto-columns: max-content; }
     .segmented.mini button { min-height: var(--obrt-hit-min); padding: 0 8px; font-size: var(--obrt-type-secondary); }
     .effect-hint { color: var(--muted); }
-    .subcaption-detail { letter-spacing: 0; text-transform: none; font-weight: var(--obrt-weight-semibold); }
+    .subcaption-detail { font-weight: var(--obrt-weight-regular); }
     /* Inspiring Smite: one line per creature that receives temporary hit points, on the damage rows' grid: remove in the
        lead column, the creature in the body, its amount under the total. The list spans the whole row (lead + gap on the
        left, gap + amount on the right). */
@@ -275,7 +287,9 @@
     .apply.primary:not(:disabled) { background: var(--obrt-btn-primary-bg); }
     .apply.primary:hover:not(:disabled) { background: var(--obrt-btn-primary-bg-hover); }
     .status-bar { min-height: 40px; }
-    .status:empty::before { color: var(--muted); }
+    /* Nothing to say, nothing to undo: no bar, and the panel keeps its height. */
+    .status:empty::before { content: none; }
+    .status-bar:has(.status:empty):has(#pc-attack-undo[hidden]) { display: none; }
     /* The message's kind (setStatus): done, nothing done, failed; an icon before the same text. */
     .status[data-kind="ok"] { color: #bbf7d0; }
     .status[data-kind="warn"] { color: var(--warn-text); }
@@ -285,7 +299,7 @@
     .status[data-kind="warn"]::before { content: "!"; background: rgba(161, 98, 7, .7); }
     .status[data-kind="error"]::before { content: "✕"; background: rgba(185, 28, 28, .7); }
   </style>
-  <script type="module" crossorigin src="/assets/pcAttack-D9H4KlG-.js"></script>
+  <script type="module" crossorigin src="/assets/pcAttack-CbAKA20I.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
   <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
   <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
@@ -299,59 +313,59 @@
   <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-92LkL4XF.js">
   <link rel="modulepreload" crossorigin href="/assets/pcAttackLauncher-D2XFH1jI.js">
   <link rel="modulepreload" crossorigin href="/assets/effectLabelCore-BVOJN7Do.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-BqV6z-aj.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-B7EH_HXq.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3dCore-BP_RpOao.js">
   <link rel="modulepreload" crossorigin href="/assets/blinkRules-DuD81qsE.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-CdDyG0T-.js">
-  <link rel="modulepreload" crossorigin href="/assets/spells-srd-BdmMqEg8.js">
-  <link rel="modulepreload" crossorigin href="/assets/monsterActionContextCore-CCWOTAyk.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-BaMzWiH-.js">
-  <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-KGToBkJP.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionExecutionCore-ssYjomYt.js">
+  <link rel="modulepreload" crossorigin href="/assets/spells-srd-lyMrQrMw.js">
+  <link rel="modulepreload" crossorigin href="/assets/monsterActionContextCore-BFlQ70bw.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-0MjRgINv.js">
+  <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-DrP3InR2.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionExecutionCore-I4J64gxu.js">
   <link rel="modulepreload" crossorigin href="/assets/bossActionProfileCore-_twrh-vn.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-D9UI-Ijo.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionsViewCore-CmviNugD.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionsViewCore-ChAUBEti.js">
   <link rel="modulepreload" crossorigin href="/assets/sharedHpCore-DSNA-HTg.js">
   <link rel="modulepreload" crossorigin href="/assets/bossLinkResistanceCore-BnYd3cot.js">
-  <link rel="modulepreload" crossorigin href="/assets/perfProbe-B1HrHRn8.js">
-  <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-BGVigHrI.js">
+  <link rel="modulepreload" crossorigin href="/assets/perfProbe-BjxYM0kF.js">
+  <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-CNdk6T0R.js">
   <link rel="modulepreload" crossorigin href="/assets/sceneItemEvents-DPr5kuM4.js">
   <link rel="modulepreload" crossorigin href="/assets/fiveToolsArchiveCore-tLcUxIcx.js">
   <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-D27kjyro.js">
-  <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-CWbcOgwV.js">
-  <link rel="modulepreload" crossorigin href="/assets/history-C8mx96VT.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-C4mRWgRy.js">
-  <link rel="modulepreload" crossorigin href="/assets/conditions-CSDvFIFY.js">
+  <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-BReBSU1f.js">
+  <link rel="modulepreload" crossorigin href="/assets/history-B0qfRjCp.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-C71GlvT-.js">
+  <link rel="modulepreload" crossorigin href="/assets/conditions-CZaPVRXW.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeStyle-BBl-cwqV.js">
   <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-2NI10rhQ.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellAreaRules-nKrWLyVV.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellAreaRules-DxlXH_HW.js">
   <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-Bl62c76W.js">
   <link rel="modulepreload" crossorigin href="/assets/customAuraCore-Cig87-uH.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-C12cQzxZ.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-Crba4USP.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-DCdG23n7.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-BV2hOuYl.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3d-BGQCMQY5.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-BMGuGmxK.js">
-  <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-BG5q6WAP.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-98tGpmw6.js">
+  <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-BLCHCy8a.js">
   <link rel="modulepreload" crossorigin href="/assets/speedCheckCore-BCfPg9NS.js">
-  <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-C4oGua0K.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-DziJ4PPG.js">
+  <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-nvvJ1_wm.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-9maDv-1G.js">
   <link rel="modulepreload" crossorigin href="/assets/spellbookCore-B67x6sIA.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellbookCatalog-fsLLtWg2.js">
-  <link rel="modulepreload" crossorigin href="/assets/reactionTrackerCore-CVCMh66l.js">
-  <link rel="modulepreload" crossorigin href="/assets/pcAttackPickerCore-DbqVW_px.js">
-  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-C0JPUO49.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellbookCatalog-Cdo2o83q.js">
+  <link rel="modulepreload" crossorigin href="/assets/reactionTrackerCore-DlpWjwF2.js">
+  <link rel="modulepreload" crossorigin href="/assets/pcAttackPickerCore-9c8IcjpZ.js">
+  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-5rQOOTQS.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenTrackerCore-6TeJmD1_.js">
   <link rel="modulepreload" crossorigin href="/assets/sharedHpViewCore-DEOsUkjK.js">
   <link rel="modulepreload" crossorigin href="/assets/bossActionProfileStore-DAA2OSAg.js">
   <link rel="modulepreload" crossorigin href="/assets/bossCollapseCore-CpsF5LGQ.js">
   <link rel="modulepreload" crossorigin href="/assets/spellCastPhaseCore-CFLjxkuS.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-Dh_hV9Vh.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-BV2fUEf7.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-CvWW5oD2.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-98jSSbOH.js">
   <link rel="modulepreload" crossorigin href="/assets/bossAuraCore-CVeKXAnH.js">
-  <link rel="modulepreload" crossorigin href="/assets/attackReactionsView-CVgyI7xj.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellSlotSpendCore-CuscbzZa.js">
+  <link rel="modulepreload" crossorigin href="/assets/attackReactionsView-C5yLpboB.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellSlotSpendCore-CfORk_r5.js">
   <link rel="modulepreload" crossorigin href="/assets/fiveToolsArchiveStore-Cj7qoUOG.js">
-  <link rel="modulepreload" crossorigin href="/assets/monsterStatblockTextLoader-cY-JMDSD.js">
+  <link rel="modulepreload" crossorigin href="/assets/monsterStatblockTextLoader-dZo0wB75.js">
   <link rel="modulepreload" crossorigin href="/assets/rulesTextView-Cgrjw5AW.js">
   <link rel="modulepreload" crossorigin href="/assets/privatePackCore-BvP_zfiY.js">
   <link rel="modulepreload" crossorigin href="/assets/classFeatureDescriptions-8-O96-Fm.js">
@@ -360,15 +374,23 @@
 <body>
   <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/pc-attack">
     <header class="header" data-drag-handle draggable="true" title="Trascina per spostare">
-      <div class="header-text"><div class="title-row"><h1 class="title" id="pc-attack-title">Attacco</h1><span class="turn-badge" id="pc-attack-turn" hidden></span></div><div class="subtitle" id="pc-attack-subtitle"></div></div>
+      <div class="header-text"><div class="title-row"><h1 class="title" id="pc-attack-title">Attacco</h1><span class="turn-badge" id="pc-attack-turn" hidden></span></div></div>
       <span class="drag-grip" aria-hidden="true"></span>
-      <span class="auto-group" id="pc-attack-auto-open-row" role="group" aria-label="Apri da sola a ogni turno (questo browser)" title="Apri la console da sola a ogni turno (questo browser)" hidden><label class="auto-toggle" title="A ogni turno di un personaggio o alleato con attacchi"><input type="checkbox" id="pc-attack-auto-open" /><span>PG</span></label><label class="auto-toggle" title="A ogni turno di un mostro con attacchi; ai boss si apre la console Boss"><input type="checkbox" id="pc-attack-auto-open-monsters" /><span>Mostri</span></label></span>
+      <span id="pc-attack-auto-open-row" hidden><button class="icon-button" id="pc-attack-more" type="button" title="Altre opzioni" aria-label="Altre opzioni" aria-haspopup="true" aria-expanded="false">⋯</button></span>
       <button class="icon-button" id="pc-attack-minimize" type="button" title="Riduci" aria-label="Riduci" aria-expanded="true">&minus;</button>
       <button class="icon-button" id="pc-attack-close" type="button" title="Chiudi" aria-label="Chiudi">&times;</button>
     </header>
-    <main class="panel">
+    <div class="more-menu" id="pc-attack-more-menu" role="group" aria-label="Apri da sola a ogni turno" hidden>
+      <p class="more-title">Apri da sola a ogni turno</p>
+      <label class="more-option" title="A ogni turno di un personaggio o alleato con attacchi"><input type="checkbox" id="pc-attack-auto-open" /><span>Personaggi e alleati</span></label>
+      <label class="more-option" title="A ogni turno di un mostro con attacchi; ai boss si apre la console Boss"><input type="checkbox" id="pc-attack-auto-open-monsters" /><span>Mostri</span></label>
+      <p class="more-hint">Ai boss si apre la console Boss. Vale solo in questo browser.</p>
+    </div>
+    <div class="switch-row" id="pc-attack-switch-row">
       <div class="follow-bar" id="pc-attack-follow" role="status" hidden></div>
-      <div class="use-selected-row" id="pc-attack-use-selected-row" hidden><span class="use-selected-note">Selezionato sulla mappa</span><button class="small use-selected" id="pc-attack-use-selected" type="button" hidden>⇄ Agisci</button></div>
+      <div class="use-selected-row" id="pc-attack-use-selected-row" hidden><button class="small use-selected" id="pc-attack-use-selected" type="button" hidden>⇄ Agisci</button></div>
+    </div>
+    <main class="panel">
       <section class="view" id="pc-attack-form" aria-label="Attacco" hidden>
         <section class="picker" id="pc-attack-picker" aria-label="Scelta dell'attacco" hidden>
           <div class="segmented picker-tabs" id="pc-attack-picker-tabs" role="group" aria-label="Tipo di attacco"></div>
@@ -380,6 +402,7 @@
           <input class="picker-search" id="pc-attack-picker-search" type="search" autocomplete="off" spellcheck="false" aria-label="Cerca nell'elenco" hidden />
           <div class="picker-list" id="pc-attack-picker-list" role="group" aria-label="Incantesimi" hidden></div>
         </section>
+        <p class="action-facts" id="pc-attack-subtitle"></p>
         <p class="caster-state" id="pc-attack-caster" hidden></p>
         <p class="caster-state" id="pc-attack-multiattack" hidden></p>
         <section class="grapple" id="pc-attack-grapple" aria-label="Presa" hidden></section>
@@ -397,6 +420,8 @@
         <section class="card target-card" aria-label="Bersaglio">
           <span class="caption" id="pc-attack-target-caption">Bersaglio</span>
           <select class="target-select" id="pc-attack-target" aria-label="Bersaglio"></select>
+          <span class="caption" id="pc-attack-mode-caption" hidden>Tiro</span>
+          <select class="target-select" id="pc-attack-mode" aria-label="Tiro" hidden></select>
           <div class="area" id="pc-attack-area" hidden>
             <div class="area-head">
               <span class="area-note" id="pc-attack-area-note"></span>
@@ -425,11 +450,10 @@
           </div>
         </section>
         <section class="block" aria-label="Esito" id="pc-attack-outcome-block">
-          <select class="target-select" id="pc-attack-mode" aria-label="Tiro" hidden></select>
           <div class="segmented" id="pc-attack-outcomes" role="group" aria-label="Esito dell'attacco"></div>
         </section>
         <section class="card" aria-label="Danno">
-          <div class="card-head"><span class="caption">Danno</span></div>
+          <div class="card-head" id="pc-attack-damage-head"><span class="caption">Danno</span></div>
           <div class="cantrip-row" id="pc-attack-cantrip-row" hidden>
             <select class="target-select" id="pc-attack-cantrip" aria-label="Trucchetto"></select>
             <div class="spell-controls" id="pc-attack-spell-controls" hidden></div>
@@ -445,7 +469,7 @@
             <span class="subcaption" id="pc-attack-activations-caption" hidden>Attivazioni</span>
             <div class="component-list" id="pc-attack-activations"></div>
             <div class="component-list" id="pc-attack-extras"></div>
-            <button class="add-extra" id="pc-attack-add-extra" type="button">+ Componente</button>
+            <button class="add-extra" id="pc-attack-add-extra" type="button">+ Danno extra</button>
           </div>
         </section>
         </div>
