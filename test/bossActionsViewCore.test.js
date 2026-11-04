@@ -27,6 +27,14 @@ test("target choices contain tracked real creatures and exclude source, attachme
   assert.equal(core.isBossActionSourceItem?.(creature("__EPIC__:boss:1")), false);
 });
 
+test("a target's name and hit points: apart for a menu, together for a label", () => {
+  const goblin = { id: "g", name: "Goblin", metadata: { [META_KEY]: { hp: 4, hpMax: 7 } } };
+  assert.deepEqual(core.bossTargetParts?.(goblin), { name: "Goblin", hp: "4/7 PF" });
+  assert.equal(core.bossTargetLabel?.(goblin), "Goblin · 4/7 PF");
+  assert.deepEqual(core.bossTargetParts?.({ id: "g" }), { name: "g", hp: "" }, "no hit points to show, no name to invent");
+  assert.equal(core.bossTargetLabel?.({ id: "g" }), "g");
+});
+
 test("ability groups preserve unknown abilities as manual references", () => {
   const unusual = { id: "passive", name: "Ice form", category: "future-category", rawText: "Never automate this." };
   const groups = core.bossActionGroups?.({ abilities: [icekiss, unusual, blizzard, { id: "trait", category: "trait" }] });

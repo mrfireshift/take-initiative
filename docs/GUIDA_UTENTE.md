@@ -503,7 +503,7 @@ Al turno del mostro la console mostra:
   fine turno della creatura, che superato le toglie; un'azione come la
   Presenza terrificante rende immune per 24 ore chi la supera;
 - gli **effetti al colpo** (il veleno del ragno gigante, la paralisi del
-  ghoul, la presa del coccodrillo): su Colpito o Critico, il riquadro **Effetto
+  ghoul, la presa del coccodrillo): su Colpito o Critico, la sezione **Effetto
   del colpo** chiede l'esito del TS del bersaglio e il suo danno, applica le
   condizioni, «Afferrato» con la CD di fuga e Prono; la spinta si fa a mano;
 - **Ricarica 5–6**: dopo l'uso la riga sotto il selettore scrive «usata»; non blocca mai,
@@ -519,13 +519,14 @@ Al turno del mostro la console mostra:
 Le **difese** dello statblock valgono quando il mostro è il bersaglio, nella
 console attacchi e nella console boss: il danno di quel tipo si dimezza o si
 azzera. L'anteprima dice cosa ha fatto ogni difesa al danno digitato: sul
-pulsante della difesa, `Res. taglienti: 10 → 5`, nella console attacchi sopra il
-totale e sempre in vista; nelle aree e nei gruppi, sotto ogni creatura,
-`−30 · Res. fuoco: 60 → 30`. Anche le difese limitate alle armi non magiche,
-come «Res. taglienti (non magici né d'argento)», si applicano da sole, perché il
+pulsante della difesa, `Res. taglienti: 10 → 5`, nella console attacchi sotto il
+totale, accanto a **Registra** e sempre in vista; nelle aree e nei gruppi, sotto
+ogni creatura, `−30 · Res. fuoco: 60 → 30`. Anche le difese limitate alle armi
+non magiche, come `Res. taglienti non magici: 10 → 5` nella console attacchi,
+con il materiale nel suggerimento del pulsante, si applicano da sole, perché il
 plugin non sa di che arma si tratta. Per un'arma magica, del materiale giusto o
 per Frusta di Spine, un clic
-sul pulsante la ignora in quell'attacco; all'attacco dopo vale di nuovo. Le aree
+sul pulsante con la **✕** la ignora in quell'attacco; all'attacco dopo vale di nuovo. Le aree
 della console non hanno il pulsante e la difesa vale sempre: in pratica conta
 solo per la Freccia perforante dell'Arciere arcano e per l'azione ad area di un
 mostro contro un altro mostro. Nei danni degli incantesimi ad area il

@@ -200,10 +200,18 @@ export function bossDamageTypeLabel(type) {
   return DAMAGE_TYPE_LABELS[type] || String(type || "");
 }
 
-export function bossTargetLabel(item) {
+// A creature's name and hit points apart, for a menu that keeps its hit points on the right.
+export function bossTargetParts(item) {
   const meta = item?.metadata?.[META_KEY] || {};
-  const name = String(item?.name || item?.id || "");
-  return Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax) ? `${name} · ${meta.hp}/${meta.hpMax} PF` : name;
+  return {
+    name: String(item?.name || item?.id || ""),
+    hp: Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax) ? `${meta.hp}/${meta.hpMax} PF` : "",
+  };
+}
+
+export function bossTargetLabel(item) {
+  const { name, hp } = bossTargetParts(item);
+  return hp ? `${name} · ${hp}` : name;
 }
 
 // Describes what the commit writes and what the GM still resolves; derived from validated data only.

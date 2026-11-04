@@ -22,8 +22,8 @@ const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-picker-search", 
   "pc-attack-auto-open-row", "pc-attack-auto-open", "pc-attack-attack-view", "pc-attack-launch", "pc-attack-caster", "pc-attack-follow", "pc-attack-picker-list",
   "pc-attack-launch-button", "pc-attack-spell-details", "pc-attack-spell-details-body", "pc-attack-use-selected",
   "pc-attack-grapple", "pc-attack-maneuver", "pc-attack-maneuver-target", "pc-attack-maneuver-hint", "pc-attack-maneuver-effects", "pc-attack-maneuver-contest",
-  "pc-attack-maneuver-outcomes", "pc-attack-maneuver-note", "pc-attack-multiattack", "pc-attack-monster-note", "pc-attack-auto-open-monsters", "pc-attack-damage-head", "pc-attack-mode-caption", "pc-attack-spell-controls", "pc-attack-more", "pc-attack-more-menu"];
-const BUTTONS = new Set(["pc-attack-more", "pc-attack-close", "pc-attack-apply", "pc-attack-launch-button", "pc-attack-use-selected", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
+  "pc-attack-maneuver-outcomes", "pc-attack-maneuver-note", "pc-attack-multiattack", "pc-attack-monster-note", "pc-attack-auto-open-monsters", "pc-attack-mode-caption", "pc-attack-picker-caption", "pc-attack-target-dropdown", "pc-attack-target-button", "pc-attack-target-menu", "pc-attack-maneuver-button", "pc-attack-maneuver-menu", "pc-attack-spell-controls", "pc-attack-more", "pc-attack-more-menu"];
+const BUTTONS = new Set(["pc-attack-target-button", "pc-attack-maneuver-button", "pc-attack-more", "pc-attack-close", "pc-attack-apply", "pc-attack-launch-button", "pc-attack-use-selected", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"]);
 function createDocument() {
   const doc = {
@@ -115,6 +115,8 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
     // The turn moves on in the scene: the next presentation reads it.
     turn: async (next) => { turnState = next; for (const listener of listeners.metadata) listener({ "com.thebigpicture.initiative/state": next }); await tick(); await tick(); },
     select: async (ids) => { selection = ids; for (const listener of listeners.player) listener({ selection: ids }); await tick(); },
+    // Something changed on the tokens: the console reads them again.
+    itemsChanged: async () => { for (const listener of listeners.items) listener(items); await tick(); await tick(); await tick(); },
     outcome: (value) => $("pc-attack-outcomes").querySelector(`[data-outcome="${value}"]`),
     inputs: () => $("pc-attack-damage").querySelectorAll("input"),
     listenerCount: () => listeners.player.size + listeners.items.size };
@@ -363,7 +365,7 @@ test("a saving throw cantrip: TS outcomes, the save in the subtitle, Toll the De
   assert.equal(picker.children[1].textContent, "Rintocco dei Morti · TS Saggezza");
   picker.value = "xanathar-rintocco-dei-morti"; await picker.emit("change");
   assert.equal(f.controller.getDraft().outcome, "", "an attack outcome does not carry over to a save");
-  assert.deepEqual(f.$("pc-attack-outcomes").children.map((button) => button.textContent), ["TS fallito", "TS superato"]);
+  assert.deepEqual(f.$("pc-attack-outcomes").children.map((button) => button.textContent), ["Fallito", "Superato"], "the save is named once, above them");
   assert.equal(f.$("pc-attack-subtitle").textContent, "Rintocco dei Morti · Trucchetto · TS Saggezza (CD 14)");
   assert.match(textOf(f.$("pc-attack-damage")), /Necrotici 2d8/);
   assert.equal(f.$("pc-attack-cantrip-note").hidden, true, "Toll the Dead has no note");
@@ -660,7 +662,8 @@ test("an area cantrip: the creatures near the caster proposed, a save for each, 
   assert.deepEqual(f.nearbyCalls, [{ sourceId: "aria", centerId: "aria", radiusFeet: 5 }]);
   assert.equal(f.$("pc-attack-area").hidden, false);
   assert.equal(f.$("pc-attack-target").hidden, true);
-  assert.equal(f.$("pc-attack-target-caption").textContent, "Creature colpite");
+  assert.equal(f.$("pc-attack-target-dropdown").hidden, true, "no target to choose: its menu goes too");
+  assert.deepEqual([f.$("pc-attack-target-caption").textContent, f.$("pc-attack-target-caption").className], ["Creature colpite", "caption"], "a title on its own line");
   assert.equal(f.$("pc-attack-outcomes").hidden, true, "no single outcome: a save for each creature");
   assert.match(f.$("pc-attack-area-note").textContent, /Entro 1,5 m da Aria, alleati compresi/);
   assert.deepEqual(["ghoul", "imp"].map((id) => areaField(areaRow(f, id), "on").checked), [true, false], "proposed from the map");
@@ -1300,8 +1303,10 @@ test("the lists: the favourites first, a search in long lists, the features to r
   assert.match(textOf(list.querySelectorAll("button")[0]), /^ ?Aiuto .*2°/, "a favourite names its level");
   const search = g.$("pc-attack-picker-search");
   assert.equal(search.hidden, false, "more than twelve: a search");
+  assert.equal(list.dataset.short, "false", "a long list keeps room for itself");
   search.value = "cura"; await search.emit("input");
   assert.deepEqual(list.querySelectorAll("button").filter((row) => !row.hidden).map((row) => row.dataset.name), ["Cura ferite"]);
+  assert.equal(list.dataset.short, "false", "and keeps it during a search, not to jump");
   search.value = ""; await search.emit("input");
   assert.ok(list.querySelectorAll("button").every((row) => !row.hidden), "cleared: every spell again");
   await openFeatures(f);
@@ -1309,8 +1314,11 @@ test("the lists: the favourites first, a search in long lists, the features to r
   const others = () => f.$("pc-attack-picker-list").querySelectorAll("button").filter((row) => row.dataset.group === "other");
   assert.ok(others().length > 0 && others().every((row) => row.hidden), "the features to read are folded");
   assert.equal(other.dataset.count, String(others().length));
+  const lines = () => [...f.$("pc-attack-picker-list").querySelectorAll("button"), ...f.$("pc-attack-picker-list").querySelectorAll(".picker-level")].filter((row) => !row.hidden).length;
+  assert.equal(f.$("pc-attack-picker-list").dataset.short, String(lines() <= 5), "a short list is as tall as its rows");
   await other.click(); await tick();
   assert.ok(others().every((row) => !row.hidden), "open on a click");
+  assert.equal(f.$("pc-attack-picker-list").dataset.short, String(lines() <= 5));
 });
 
 test("the attacks' and cantrips' dropdown: each entry with its cost on the right; Esc closes the menu, not the console", async () => {
@@ -1320,6 +1328,7 @@ test("the attacks' and cantrips' dropdown: each entry with its cost on the right
   assert.equal(f.$("pc-attack-picker-dropdown").hidden, false);
   assert.equal(f.$("pc-attack-picker-select").hidden, true, "the select stays behind it");
   assert.match(textOf(button), /Fiamma sacra .*Azione/);
+  assert.equal(f.$("pc-attack-picker-caption").textContent, "Trucchetto");
   await button.click(); await tick();
   assert.equal(menu.hidden, false);
   const rows = menu.querySelectorAll("button");
@@ -1332,6 +1341,95 @@ test("the attacks' and cantrips' dropdown: each entry with its cost on the right
   await menu.querySelectorAll("button")[1].click(); await tick();
   assert.equal(menu.hidden, true);
   assert.match(textOf(f.$("pc-attack-picker-dropdown-button")), /Luce/, "the entry chosen");
+});
+
+test("the target's menu: the name on the left, its hit points on the right; the select behind it holds the choice", async () => {
+  const f = fixture(); await f.controller.ready; await tick();
+  const button = f.$("pc-attack-target-button"), menu = f.$("pc-attack-target-menu"), name = () => button.querySelector(".picker-row-name").textContent;
+  assert.equal(f.$("pc-attack-target-dropdown").hidden, false);
+  assert.equal(f.$("pc-attack-target").hidden, true, "the select stays behind it");
+  assert.equal(name(), "—");
+  assert.equal(button.querySelector(".picker-row-hp"), null, "no hit points before a creature is chosen");
+  await button.click(); await tick();
+  assert.deepEqual([menu.hidden, button.getAttribute("aria-expanded")], [false, "true"]);
+  const rows = menu.querySelectorAll("button");
+  assert.deepEqual(rows.map((row) => row.dataset.targetId), ["", "ghoul", "imp"]);
+  assert.deepEqual([rows[1].querySelector(".picker-row-name").textContent, rows[1].querySelector(".picker-row-hp").textContent, rows[1].title], ["Ghoul", "30/30 PF", "Ghoul · 30/30 PF"]);
+  assert.equal(f.documentRef.activeElement, rows[0], "the focus on the row in use");
+  await rows[1].click(); await tick();
+  assert.equal(menu.hidden, true);
+  assert.equal(f.documentRef.activeElement, button, "the focus back on its button");
+  assert.deepEqual([f.$("pc-attack-target").value, f.controller.getDraft().targetId], ["ghoul", "ghoul"]);
+  assert.deepEqual([name(), button.querySelector(".picker-row-hp").textContent, button.title], ["Ghoul", "30/30 PF", "Ghoul · 30/30 PF"]);
+  assert.equal(menu.querySelector('[aria-pressed="true"]').dataset.targetId, "ghoul");
+  // The map still chooses it.
+  await f.select(["imp"]);
+  assert.equal(name(), "Imp");
+  // And none: back to the empty row.
+  await button.click(); await tick();
+  await menu.querySelector('[data-target-id=""]').click(); await tick();
+  assert.equal(f.controller.getDraft().targetId, null);
+  assert.equal(name(), "—");
+});
+
+test("the target's menu with the keyboard, a click elsewhere and a live update", async () => {
+  const f = fixture(); await f.controller.ready; await tick();
+  const button = f.$("pc-attack-target-button"), menu = f.$("pc-attack-target-menu"), rows = () => menu.querySelectorAll("button");
+  const clickOn = async (target) => { for (const callback of f.documentRef.listeners.click) await callback({ target }); await tick(); };
+  f.$("pc-attack-target-dropdown").append(button, menu);
+  await button.emit("keydown", { key: "ArrowDown" }); await tick();
+  assert.equal(menu.hidden, false, "the arrow opens it");
+  await menu.emit("keydown", { key: "ArrowDown" });
+  assert.equal(f.documentRef.activeElement, rows()[1], "and moves through its rows");
+  await menu.emit("keydown", { key: "ArrowUp" });
+  assert.equal(f.documentRef.activeElement, rows()[0]);
+  await menu.emit("keydown", { key: "ArrowDown" });
+  // Hit points change while it is open: it stays open, the row is up to date, the focus does not move.
+  f.items[1].metadata[META].hp = 12;
+  await f.itemsChanged();
+  assert.equal(menu.hidden, false, "a live update leaves it open");
+  assert.equal(rows()[1].querySelector(".picker-row-hp").textContent, "12/30 PF");
+  assert.equal(f.documentRef.activeElement, rows()[1]);
+  const same = rows()[1];
+  await f.select([]);
+  assert.equal(rows()[1], same, "with nothing new to show its rows are not built again");
+  await clickOn(rows()[1]);
+  assert.equal(menu.hidden, false, "a click inside is its own");
+  await clickOn(f.$("pc-attack-title"));
+  assert.equal(menu.hidden, true, "a click elsewhere closes it");
+  await button.click(); await tick();
+  await f.keydown("Escape", rows()[0]);
+  assert.equal(menu.hidden, true, "Esc closes the menu");
+  assert.equal(f.documentRef.activeElement, button);
+  assert.deepEqual(f.closed, [], "and not the console");
+  await f.keydown("Escape");
+  assert.equal(f.closed.length, 1, "the next Esc closes it");
+});
+
+test("a maneuver's target menu: the same rows, the choice in the maneuver's own draft", async () => {
+  const f = fixture({ actions: [sword] }); await f.controller.ready; await tick();
+  await pick(f, "maneuver::grapple");
+  const button = f.$("pc-attack-maneuver-button"), menu = f.$("pc-attack-maneuver-menu");
+  await button.click(); await tick();
+  assert.equal(menu.hidden, false);
+  await menu.querySelector('[data-target-id="imp"]').click(); await tick();
+  assert.equal(menu.hidden, true);
+  assert.equal(f.$("pc-attack-maneuver-target").value, "imp");
+  assert.deepEqual([button.querySelector(".picker-row-name").textContent, button.querySelector(".picker-row-hp").textContent], ["Imp", "10/10 PF"]);
+  await maneuverButton(f, "pc-attack-maneuver-outcomes", "outcome", "success").click();
+  assert.equal(f.$("pc-attack-total").textContent, "Imp sarà Afferrato.");
+  await f.$("pc-attack-launch-button").click(); await tick();
+  assert.equal(f.calls[0].maneuver.targetId, "imp");
+});
+
+test("the defense's chip on one line: the materials it does not cover in its tooltip", async () => {
+  const f = fixture({ metas: { ghoul: { initiativeCard: { damageDefenses: { resistances: ["slashing"], immunities: [], vulnerabilities: [] }, monster: { source: "manual", nonmagicalDefenses: { types: ["slashing"], except: ["silvered"] } } } } } });
+  await f.controller.ready; await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  await typeAmounts(f, ["10", "0"]);
+  const chip = f.$("pc-attack-defenses").querySelector("button");
+  assert.equal(chip.textContent, "Res. taglienti non magici: 10 → 5");
+  assert.match(chip.title, /non magici né d'argento/);
 });
 
 test("Riduci folds the console to its header and back; a creature selected offers its off-turn action by name", async () => {
@@ -1702,16 +1800,14 @@ test("Chromatic Orb: before the type is picked its damage has no type, no defens
   assert.equal(f.$("pc-attack-defenses").querySelector("button").textContent, "Res. acido: 12 → 6");
 });
 
-test("an area without damage: no «Danno» to title, its button stays; a save per row, named once above", async () => {
+test("an area without damage: no extras to title, its button stays; a save per row, named once above", async () => {
   const action = sanitizeQuickAction({ id: "presence", label: "Presenza terrificante", kind: "attack", components: [], save: "wis", saveDC: 19, area: { shape: "sphere", sizeFeet: 120 }, onFail: { condition: "Spaventato" } });
   const f = fixture({ action, attacker: { initiativeCard: { monster: { source: "manual" } } }, turnState: ownTurn }); await f.controller.ready; await tick();
-  assert.equal(f.$("pc-attack-damage-head").hidden, true);
   assert.equal(f.$("pc-attack-extras-caption").hidden, true);
   assert.equal(f.$("pc-attack-add-extra").hidden, false, "damage the stat block's text did not give can still be added");
   assert.deepEqual(["failed", "passed", "immune"].map((outcome) => areaField(areaRow(f, "ghoul"), outcome).textContent), ["Fallito", "Superato", "Immune"]);
   await f.$("pc-attack-add-extra").click();
-  assert.equal(f.$("pc-attack-damage-head").hidden, false, "with an extra, there is damage to title");
-  assert.equal(f.$("pc-attack-extras-caption").hidden, false);
+  assert.equal(f.$("pc-attack-extras-caption").hidden, false, "with an extra, there is damage to title");
 });
 
 test("Usa reazione on Uncanny Dodge marks the reaction; out of combat or with the reaction used the button waits", async () => {

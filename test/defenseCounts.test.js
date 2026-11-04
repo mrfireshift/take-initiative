@@ -59,6 +59,8 @@ test("le parole del conto: la difesa, il danno digitato, cosa ne resta", () => {
   assert.equal(damageDefenseCount({ type: "bludgeoning", defense: "vulnerability", before: 10, after: 20 }), "Vuln. contundenti: 10 → 20");
   assert.equal(damageDefenseCount({ type: "slashing", defense: "resistance", nonmagical: "non magici né d'argento", before: 10, after: 5 }),
     "Res. taglienti (non magici né d'argento): 10 → 5");
+  assert.equal(damageDefenseCount({ type: "slashing", defense: "resistance", nonmagical: "non magici né d'argento", short: true, before: 10, after: 5 }),
+    "Res. taglienti non magici: 10 → 5", "a chip on one line: the materials in its tooltip");
   assert.equal(damageDefenseCount({ type: "slashing", defense: "resistance", ignored: true, before: 10, after: 10 }), "Res. taglienti", "ignored: the tag alone");
   assert.equal(damageDefenseCount({ type: "slashing", defense: "resistance" }), "Res. taglienti", "nothing typed: the tag alone");
 });

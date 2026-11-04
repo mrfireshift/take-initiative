@@ -20,7 +20,7 @@ import { pcAttackHasPotentCantrip } from "./pcAttackRiderCatalog.js";
 import { getPcAttackCantrip, pcAttackCantripBeams, PC_ATTACK_SAVE_LABELS } from "./pcAttackCantripCatalog.js";
 import { totalCharacterLevel } from "./abilityModifiersCore.js";
 import { pcAttackCriticalDice } from "./pcAttackRiderCatalog.js";
-import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossTargetLabel } from "./bossActionsViewCore.js";
+import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossTargetLabel, bossTargetParts } from "./bossActionsViewCore.js";
 import { DAMAGE_TYPES, damageDefenseCount, damageTypeLabel, damageDefensesForItem } from "./damageDefensesCore.js";
 import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_HEIGHT, PC_ATTACK_POPOVER_ID, PC_ATTACK_SPELL_LAUNCH_CHANNEL, PC_ATTACK_WIDTH } from "./pcAttackLauncher.js";
 import { loadSpellbookSpellReference, spellbookSpellDetails, spellbookSpellReferenceLoaded } from "./spellbookCatalog.js";
@@ -246,30 +246,43 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const cantripRow=$("pc-attack-cantrip-row"),cantripSelect=$("pc-attack-cantrip"),cantripNote=$("pc-attack-cantrip-note");
   const spellControls=$("pc-attack-spell-controls");
   const picker=$("pc-attack-picker"),pickerTabs=$("pc-attack-picker-tabs"),pickerSelect=$("pc-attack-picker-select"),pickerList=$("pc-attack-picker-list");
+  const pickerCaption=$("pc-attack-picker-caption");
   // The long lists' search.
   const pickerSearch=$("pc-attack-picker-search");
+  // A menu the console draws (the picker's, a target's): its button opens it, Esc or a click elsewhere closes it, the
+  // arrows move through its rows.
+  function drawnMenu(container,button,menu) {
+    let open=false;
+    function setOpen(next,{focus=false}={}) {
+      if(!menu || !button) return;
+      open=!!next && !busy;
+      menu.hidden=!open;
+      button.setAttribute("aria-expanded",String(open));
+      if(open) {
+        (menu.querySelector('[aria-pressed="true"]') || menu.querySelector("button"))?.focus?.();
+        // Low in a panel that scrolls, the whole menu comes into view.
+        menu.scrollIntoView?.({block:"nearest"});
+      } else if(focus) button.focus?.();
+    }
+    button?.addEventListener("click",()=>setOpen(!open));
+    button?.addEventListener("keydown",event=>{if(event.key==="ArrowDown"){event.preventDefault?.();setOpen(true);}});
+    menu?.addEventListener("keydown",event=>{
+      if(!["ArrowDown","ArrowUp"].includes(event.key)) return;
+      event.preventDefault?.();
+      const rows=[...menu.querySelectorAll("button")],at=rows.indexOf(documentRef.activeElement);
+      rows[Math.max(0,Math.min(rows.length-1,at+(event.key==="ArrowDown"?1:-1)))]?.focus?.();
+    });
+    documentRef.addEventListener?.("click",event=>{if(open && !event.target?.closest?.(container))setOpen(false);});
+    return {isOpen:()=>open,setOpen};
+  }
   // The attacks and cantrips in a menu of its own: the entry in use on its button, the cost of each on the right.
   const pickerDropdown=$("pc-attack-picker-dropdown"),dropdownButton=$("pc-attack-picker-dropdown-button"),pickerMenu=$("pc-attack-picker-menu");
-  let menuOpen=false;
-  function setMenuOpen(open,{focus=false}={}) {
-    if(!pickerMenu || !dropdownButton) return;
-    menuOpen=!!open && !busy;
-    pickerMenu.hidden=!menuOpen;
-    dropdownButton.setAttribute("aria-expanded",String(menuOpen));
-    if(menuOpen) (pickerMenu.querySelector('[aria-pressed="true"]') || pickerMenu.querySelector("button"))?.focus?.();
-    else if(focus) dropdownButton.focus?.();
-  }
-  dropdownButton?.addEventListener("click",()=>setMenuOpen(!menuOpen));
-  dropdownButton?.addEventListener("keydown",event=>{if(event.key==="ArrowDown"){event.preventDefault?.();setMenuOpen(true);}});
-  // Up and down move through the menu's entries.
-  pickerMenu?.addEventListener("keydown",event=>{
-    if(!["ArrowDown","ArrowUp"].includes(event.key)) return;
-    event.preventDefault?.();
-    const rows=[...pickerMenu.querySelectorAll("button")],at=rows.indexOf(documentRef.activeElement);
-    rows[Math.max(0,Math.min(rows.length-1,at+(event.key==="ArrowDown"?1:-1)))]?.focus?.();
-  });
-  // A click elsewhere closes it.
-  documentRef.addEventListener?.("click",event=>{if(menuOpen && !event.target?.closest?.("#pc-attack-picker-dropdown"))setMenuOpen(false);});
+  const pickerControl=drawnMenu("#pc-attack-picker-dropdown",dropdownButton,pickerMenu),setMenuOpen=pickerControl.setOpen;
+  // The target's menus, in the attack and in a maneuver: the creature on the button, its hit points on the right.
+  const targetDropdown=$("pc-attack-target-dropdown"),targetButton=$("pc-attack-target-button"),targetMenu=$("pc-attack-target-menu");
+  const targetControl=drawnMenu("#pc-attack-target-dropdown",targetButton,targetMenu);
+  const maneuverButton=$("pc-attack-maneuver-button"),maneuverMenu=$("pc-attack-maneuver-menu");
+  const maneuverControl=drawnMenu("#pc-attack-maneuver-dropdown",maneuverButton,maneuverMenu);
   const autoOpenRow=$("pc-attack-auto-open-row"),autoOpenBox=$("pc-attack-auto-open"),autoOpenMonstersBox=$("pc-attack-auto-open-monsters");
   // The header's ⋯: the console's own options, the turn auto-open. A click elsewhere or Esc closes it.
   const moreButton=$("pc-attack-more"),moreMenu=$("pc-attack-more-menu");
@@ -306,7 +319,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // Off-turn actions (a reaction, an opportunity attack): the selected creature in the console, then back to the turn's.
   const useSelectedButton=$("pc-attack-use-selected"),useSelectedRow=$("pc-attack-use-selected-row");
   let offPing=null,offAutoOpen=null;
-  const extrasCaption=$("pc-attack-extras-caption"),damageHead=$("pc-attack-damage-head"),modeCaption=$("pc-attack-mode-caption");
+  const extrasCaption=$("pc-attack-extras-caption"),modeCaption=$("pc-attack-mode-caption");
   const modeSelect=$("pc-attack-mode"),outcomeBlock=$("pc-attack-outcome-block"),targetCaption=$("pc-attack-target-caption");
   const areaBox=$("pc-attack-area"),areaNote=$("pc-attack-area-note"),areaList=$("pc-attack-area-list");
   const areaPropose=$("pc-attack-area-propose"),areaAllFailed=$("pc-attack-area-all-failed"),areaAllPassed=$("pc-attack-area-all-passed");
@@ -331,6 +344,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const node=(tag,text="",className="")=>{const element=documentRef.createElement(tag);element.textContent=text;if(className)element.className=className;return element;};
   // kind: "ok" (done), "warn" (cancelled, nothing done), "error"; none for plain information. The text is unchanged.
   const setStatus=(message,kind="")=>{status.textContent=message;status.dataset.kind=message?kind:"";};
+  // A save's buttons: the save is named once, above them.
+  const SAVE_BUTTON_LABELS=Object.freeze({failed:"Fallito",passed:"Superato",immune:"Immune"});
+  const outcomeButtonLabel=outcome=>SAVE_BUTTON_LABELS[outcome] || PC_ATTACK_OUTCOME_LABELS[outcome];
   const mirrorBox=$("pc-attack-mirror-image"),mirrorNote=$("pc-attack-mirror-image-note"),mirrorHit=$("pc-attack-mirror-image-hit");
   let mirrorBusy=false;
   const reactionsBox=$("pc-attack-reactions");
@@ -510,13 +526,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const input=node("input","","amount");input.type="number";input.min="0";input.step="1";input.inputMode="numeric";input.value=value;
     input.setAttribute("aria-label",label);input.title="Il totale tirato";return input;
   };
-  // Every damage row shares one grid: lead (checkbox, remove or nothing), name over a secondary line, amount.
+  // Every damage row shares one grid: lead (checkbox, remove or nothing), name with its dice, amount.
   const componentRow=(lead,body,amount)=>{
     const row=node("div","","component-row");
     const leadCell=node(lead?.type==="checkbox"?"label":"div","","component-lead");if(lead)leadCell.append(lead);
     row.append(leadCell,body,amount);return row;
   };
-  const separator=()=>node("span","·","separator");
   // One row per rider of this attacker. Availability, reason and dice change in place (updateRiders),
   // so a selection or turn change never steals the caret from an amount field.
   function renderRiders() {
@@ -534,7 +549,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const type=option.types.length>1?typeSelect(option.types,state.type,{format:damageTypeLabel,className:"inline-select"}):node("span",damageTypeLabel(option.types[0]));
       if(option.types.length>1){type.dataset.riderField="type";type.setAttribute("aria-label",`Tipo di danno di ${option.label}`);
         type.addEventListener("change",()=>{state.type=type.value;renderState();});}
-      meta.append(dice,separator(),type);
+      meta.append(dice,type);
       const reason=node("span","","component-reason");reason.dataset.riderField="reason";
       body.append(title,meta,reason);
       // Smites: the slot level (spent with the attack; each level shows what is left), the undead/fiend bonus, the on-hit pill.
@@ -650,7 +665,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         const group=node("div","","segmented mini");group.setAttribute("role","group");group.setAttribute("aria-label",`Tiro salvezza contro ${option.label}`);
         group.dataset.activationField="save";
         for(const outcome of ["failed","passed"]) {
-          const button=node("button",PC_ATTACK_OUTCOME_LABELS[outcome]);button.type="button";button.dataset.outcome=outcome;button.dataset.activationField=`save-${outcome}`;
+          const button=node("button",outcomeButtonLabel(outcome));button.type="button";button.dataset.outcome=outcome;button.dataset.activationField=`save-${outcome}`;
           button.addEventListener("click",()=>{state.saveOutcome=outcome;updateActivations();renderState();});
           group.append(button);
         }
@@ -865,7 +880,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         const outcomesBox=node("div","","segmented mini");outcomesBox.setAttribute("role","group");outcomesBox.setAttribute("aria-label",`Tiro salvezza di ${item.name || item.id}`);
         for(const outcome of outcomes) {
           // One save for all: the note above names it, each row says only how it went.
-          const button=node("button",{failed:"Fallito",passed:"Superato",immune:"Immune"}[outcome] || PC_ATTACK_OUTCOME_LABELS[outcome]);button.type="button";button.dataset.outcome=outcome;button.dataset.areaField=outcome;
+          const button=node("button",outcomeButtonLabel(outcome));button.type="button";button.dataset.outcome=outcome;button.dataset.areaField=outcome;
           button.addEventListener("click",()=>{const member=draft.area.members[item.id] ||= {on:false,outcome:""};member.on=true;member.outcome=outcome;renderArea();renderState();});
           outcomesBox.append(button);
         }
@@ -907,7 +922,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!palm) return;
     if(palmDraft.targetId!==target.id) palmDraft={targetId:target.id,outcome:"",amount:"",id:newAttackId()};
     palmNote.textContent=`vibrazioni attive · TS Costituzione${palm.dc?` CD ${palm.dc}`:""}`;
-    palmOutcomes.replaceChildren(...[["failed","TS fallito · 0 PF"],["passed",`TS superato · ${palm.dice}`],["none","Senza effetto"]].map(([value,label])=>{
+    palmOutcomes.replaceChildren(...[["failed",`${outcomeButtonLabel("failed")} · 0 PF`],["passed",`${outcomeButtonLabel("passed")} · ${palm.dice}`],["none","Senza effetto"]].map(([value,label])=>{
       const button=node("button",label);button.type="button";button.dataset.outcome=value;
       button.setAttribute("aria-pressed",String(palmDraft.outcome===value));button.disabled=busy;
       button.addEventListener("click",()=>{palmDraft.outcome=value;renderPalm();});
@@ -936,7 +951,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const body=node("div","","component-body");
     const title=node("span","","component-title");title.append("Trucchetto con l'arma");
     const meta=node("div","","component-meta");meta.dataset.wovenField="meta";
-    const pickerLine=node("div","","component-options");pickerLine.append(picker);
+    const pickerLine=node("div","","component-options inline");pickerLine.append(picker);
     body.append(title,pickerLine,meta);
     const amount=amountInput(state.amount,`Danni di ${option?.name || "trucchetto"}`);amount.dataset.wovenField="amount";
     amount.hidden=!option?.dice?.hit;amount.disabled=busy;
@@ -948,7 +963,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const target=node("select","","inline-select");target.dataset.wovenField="secondary";target.setAttribute("aria-label","Seconda creatura");
       target.addEventListener("change",()=>{state.secondaryTargetId=target.value;renderState();updateWoven();});
       const secondMeta=node("div","","component-meta");secondMeta.dataset.wovenField="secondaryMeta";
-      const secondLine=node("div","","component-options");secondLine.append(target);
+      const secondLine=node("div","","component-options inline");secondLine.append(target);
       secondBody.append(secondTitle,secondLine,secondMeta);
       const secondAmount=amountInput(state.secondaryAmount,"Danni della seconda creatura");secondAmount.dataset.wovenField="secondaryAmount";
       secondAmount.disabled=busy;
@@ -1049,6 +1064,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const asList=["spells","features"].includes(current.tab) && !!pickerList;
     // A row or the menu's button names the entry; a tab with a single entry has neither.
     pickerNamesEntry=asList || inTab.length>=2;
+    if(pickerCaption) pickerCaption.textContent=current.tab==="cantrips"?"Trucchetto":"Attacco";
     // A leveled spell cast left open (rays or darts still to register) says so in its entry.
     const inProgress=entry=>entry.mode==="attack" && entry.tab==="spells"
       && !!pcAttackOpenSpellCast({sourceItem:presentation.item,spellId:entry.spellId,turnState:presentation.turnState});
@@ -1190,11 +1206,17 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!pickerList) return;
     const query=pickerSearch && !pickerSearch.hidden?searchKey(pickerQuery):"";
     const shown=new Set();
+    let lines=0;
     for(const row of pickerList.querySelectorAll("button")) {
       row.hidden=query?!searchKey(row.dataset.name).includes(query):row.dataset.group==="other" && pickerList.dataset.otherOpen!=="true";
-      if(!row.hidden) shown.add(row.dataset.group);
+      if(!row.hidden){shown.add(row.dataset.group);lines+=1;}
     }
-    for(const header of pickerList.querySelectorAll(".picker-level")) header.hidden=!!query && !shown.has(header.dataset.group);
+    for(const header of pickerList.querySelectorAll(".picker-level")) {
+      header.hidden=!!query && !shown.has(header.dataset.group);
+      if(!header.hidden) lines+=1;
+    }
+    // Up to five lines fit in the list's 132 px: it is as tall as they are. A search keeps the list's height, not to jump.
+    if(!query) pickerList.dataset.short=String(lines<=5);
   }
   pickerSearch?.addEventListener("input",()=>{pickerQuery=pickerSearch.value;filterPicker();});
   // Another cantrip or spell of the same action changes in place; another action loads it with a fresh draft
@@ -1510,6 +1532,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         ()=>{maneuverDraft.outcome=outcome;renderManeuver(entry);},{outcome})));
       maneuverNote.textContent=PC_MANEUVER_NOTES[kind] || "";
     }
+    renderTargetMenu(maneuverControl,maneuverButton,maneuverMenu,maneuverDraft.targetId,busy || invalidated,id=>{maneuverTarget.value=id;chooseManeuverTarget();});
     const target=targetById(maneuverDraft.targetId);
     const blocker=pcManeuverBlocker({kind,sourceItem:presentation.item,targetItem:target,outcome:maneuverDraft.outcome,effect:maneuverDraft.effect});
     if(applyRow) applyRow.hidden=false;
@@ -1838,11 +1861,41 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     } catch(error) {setStatus(String(error?.message || error),"error");}
     finally {reactionsBusy=false;renderTargetReactions();scheduleRefresh();}
   }
+  // A target's menu: the creature on its button, one row each with its hit points on the right. The select behind it stays
+  // the one place the choice is read from. Built again only when something in it changes: a live update leaves it open.
+  function renderTargetMenu(control,button,menu,value,disabled,choose) {
+    if(!button || !menu) return;
+    const choices=[{id:"",name:"—",hp:"",title:""},...presentation.targets.map(item=>({id:item.id,...bossTargetParts(item),title:bossTargetLabel(item)}))];
+    const signature=JSON.stringify(choices);
+    if(menu.dataset.signature!==signature) {
+      const focused=control.isOpen()?documentRef.activeElement?.dataset?.targetId:undefined;
+      menu.dataset.signature=signature;
+      menu.replaceChildren(...choices.map(choice=>{
+        const row=node("button","","picker-row");row.type="button";row.dataset.targetId=choice.id;row.title=choice.title;
+        row.append(node("span",choice.name,"picker-row-name"),...(choice.hp?[node("span",choice.hp,"picker-row-hp")]:[]));
+        row.addEventListener("click",()=>{control.setOpen(false,{focus:true});choose(choice.id);});
+        return row;
+      }));
+      if(focused!==undefined) menu.querySelector(`[data-target-id="${focused}"]`)?.focus?.();
+    }
+    const chosen=choices.find(choice=>choice.id===(value || "")) || choices[0];
+    // A click in flight on the button keeps what it pressed: its content changes only when the choice does.
+    if(button.dataset.signature!==JSON.stringify(chosen)) {
+      button.dataset.signature=JSON.stringify(chosen);
+      button.replaceChildren(node("span",chosen.name,"picker-row-name"),...(chosen.hp?[node("span",chosen.hp,"picker-row-hp")]:[]),node("span","","picker-dropdown-caret"));
+      button.title=chosen.title;
+    }
+    button.disabled=disabled;
+    if(disabled) control.setOpen(false);
+    for(const row of menu.querySelectorAll("button")){row.setAttribute("aria-pressed",String(row.dataset.targetId===chosen.id));row.disabled=disabled;}
+  }
   function renderTarget() {
-    // An area attack replaces the target with the creatures of its area.
+    // An area attack replaces the target with the creatures of its area: their title, on a line of its own.
     const area=isArea();
-    if(targetCaption) targetCaption.textContent=area?"Creature colpite":"Bersaglio";
-    targetSelect.hidden=area;
+    if(targetCaption){targetCaption.textContent=area?"Creature colpite":"Bersaglio";targetCaption.className=area?"caption":"form-label";}
+    targetSelect.hidden=area || !!targetDropdown;
+    if(targetDropdown) targetDropdown.hidden=area;
+    if(area) targetControl.setOpen(false);
     renderArea();
     renderMirrorImage();
     renderTargetReactions();
@@ -1852,6 +1905,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     targetSelect.replaceChildren(...options);
     targetSelect.value=draft.targetId || "";
     targetSelect.disabled=busy;
+    renderTargetMenu(targetControl,targetButton,targetMenu,draft.targetId,busy,id=>{targetSelect.value=id;chooseTarget();});
     // Nothing selected is the normal start: the fixed row asks for the target. A hint only says what is wrong with the selection.
     const message=draft.targetId || selection.status==="none"?"":pcAttackSelectionHint(selection.status);
     hint.textContent=message;hint.hidden=!message;
@@ -1873,7 +1927,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     outcomes.hidden=isArea();
     if(outcomeBlock) outcomeBlock.hidden=isArea();
     outcomes.replaceChildren(...pcAttackOutcomesFor(resolved()).map(outcome=>{
-      const button=node("button",PC_ATTACK_OUTCOME_LABELS[outcome]);button.type="button";button.dataset.outcome=outcome;
+      const button=node("button",outcomeButtonLabel(outcome));button.type="button";button.dataset.outcome=outcome;
       button.setAttribute("aria-pressed",String(draft.outcome===outcome));button.disabled=busy;
       button.addEventListener("click",()=>{draft.outcome=outcome;renderOutcomes();renderDamage();updateWoven();updateRiders();updateActivations();renderState();focusDamage();});
       return button;
@@ -1966,13 +2020,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // Activations follow the outcome and the riders chosen (Wrath of the Order, Wails from the Grave).
     updateActivations();
     if(extrasCaption){extrasCaption.textContent=preRollOnMiss?"Prima del tiro":resolved()?.cantrip?.save?"Extra al danno":"Extra al colpo";extrasCaption.hidden=false;}
-    if(damageHead) damageHead.hidden=false;
-    extrasSection.dataset.bare="false";
     const view=preview();
-    // In the fixed row, above the total it explains: each defense with what it did to the damage typed. A monster's save on
+    // In the fixed row, under the total it explains: each defense with what it did to the damage typed. A monster's save on
     // the hit counts in the total and cannot be ignored here: its defense is only said.
     defensesBox.replaceChildren(...view.defenses.map(row=>{
-      const chip=node("button",damageDefenseCount({...row,...(view.defenseCounts || []).find(entry=>entry.type===row.type)}),"defense-chip");chip.type="button";
+      const chip=node("button",damageDefenseCount({...row,...(view.defenseCounts || []).find(entry=>entry.type===row.type),short:true}),"defense-chip");chip.type="button";
       chip.setAttribute("aria-pressed",String(!row.ignored));
       chip.title=row.ignored?"Difesa ignorata: clic per applicarla":row.nonmagical?`Vale solo contro danni ${row.nonmagical}: con un'arma che la supera, clic per ignorarla in questo attacco`:"Clic per ignorarla in questo attacco";
       chip.disabled=busy;
@@ -2002,8 +2054,6 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // stat block's text did not give the console can still be added by hand.
     const bare=!resolved()?.components?.length && !draft.extras.length;
     if(extrasCaption){extrasCaption.textContent="Extra al danno";extrasCaption.hidden=bare;}
-    if(damageHead) damageHead.hidden=bare;
-    extrasSection.dataset.bare=String(bare);
     defensesBox.replaceChildren();
     const view=areaPreview();
     // The total says only the sum: each creature's row says what it takes and what its defenses did.
@@ -2082,7 +2132,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         children.push(node("p",`${hitSaveLabel({save:save.ability,saveDC:save.dc})}${bonus!==null?` · ${target?.name || "bersaglio"} TS ${bonus>=0?"+":""}${bonus}`:""}`,"launch-details"));
         const outcomes=node("div","","segmented mini");outcomes.setAttribute("role","group");outcomes.setAttribute("aria-label","Tiro salvezza al colpo");
         for(const outcome of ["failed","passed"]) {
-          const button=node("button",outcome==="failed"?"TS fallito":"TS superato");button.type="button";button.dataset.hitOutcome=outcome;
+          const button=node("button",outcomeButtonLabel(outcome));button.type="button";button.dataset.hitOutcome=outcome;
           button.addEventListener("click",()=>{hit.saveOutcome=outcome;renderHitEffect();renderState();});
           outcomes.append(button);
         }
@@ -2222,7 +2272,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     lifecycle.dispose();
   }
 
-  targetSelect.addEventListener("change",()=>{draft.targetId=targetSelect.value || null;draft.ignored=[];renderLive();renderMirrorImage();});
+  function chooseTarget() {draft.targetId=targetSelect.value || null;draft.ignored=[];renderLive();renderMirrorImage();}
+  targetSelect.addEventListener("change",chooseTarget);
   // Another cantrip: other damage (fresh amount), range and notes; the target, outcome and extras stay.
   function selectSpell(spellId) {
     draft.spellId=spellId;
@@ -2395,7 +2446,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     await refresh(operation);
     render();
   },{commit:true}));
-  maneuverTarget?.addEventListener("change",()=>{maneuverDraft.targetId=maneuverTarget.value;const entry=currentEntry();if(entry?.mode==="maneuver")renderManeuver(entry);});
+  function chooseManeuverTarget() {maneuverDraft.targetId=maneuverTarget.value;const entry=currentEntry();if(entry?.mode==="maneuver")renderManeuver(entry);}
+  maneuverTarget?.addEventListener("change",chooseManeuverTarget);
   palmAmount?.addEventListener("input",()=>{palmDraft.amount=palmAmount.value.trim();renderPalm();});
   palmApply?.addEventListener("click",()=>perform(async operation=>{
     const target=targetById(palmDraft.targetId);
@@ -2539,7 +2591,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   $("pc-attack-close").addEventListener("click",()=>closeConsole());
   documentRef.addEventListener?.("keydown",event=>{
     // Esc closes the console, after asking when an attack holds decisions not registered yet.
-    if(event.key==="Escape" && menuOpen){setMenuOpen(false,{focus:true});return;}
+    const openMenu=[pickerControl,targetControl,maneuverControl].find(control=>control.isOpen());
+    if(event.key==="Escape" && openMenu){openMenu.setOpen(false,{focus:true});return;}
     if(event.key==="Escape" && moreOpen()){setMoreOpen(false,{focus:true});return;}
     if(event.key==="Escape"){
       if(busy) return;

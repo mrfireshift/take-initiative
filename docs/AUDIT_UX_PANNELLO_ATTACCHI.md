@@ -4,7 +4,7 @@ Micro-audit del 04/11/2026 su `pc-attack.html` e `src/pc-attack.js`, chiesto dal
 
 Restano fermi i colori del costo in stile Baldur's Gate, il rosso solo per il danno e niente conteggi sui tab, già decisi dall'utente.
 
-Stato: D1-D3 approvate come consigliate il 04/11/2026. Lotti 1 e 2 fatti, gli altri da fare.
+Stato: D1-D3 approvate come consigliate il 04/11/2026. Lotti 1, 2 e 3 fatti, gli altri da fare.
 
 ## Misure
 
@@ -95,7 +95,7 @@ Tutti riguardano l'aspetto: danni, PF e registrazione non si toccano.
 
 1. **Errori e parole.** I tre errori, le etichette, «Pronto.», i messaggi ripetuti. Fatto.
 2. **Testata.** Via sottotitolo e `Turno`, dati sotto il selettore, menu ⋯, una riga sola per i cambi di creatura. Fatto. In più, un solo pulsante quando la creatura selezionata è quella di turno.
-3. **Griglia e densità.** Un bordo sinistro, etichetta e controllo, righe a una linea, niente riquadri, difesa accanto al totale, menu del bersaglio con i PF a destra. `TS fallito` e `TS superato` del bersaglio singolo diventano `Fallito` e `Superato`: il TS ora è scritto sopra, sotto il selettore.
+3. **Griglia e densità.** Un bordo sinistro, etichetta e controllo, righe a una linea, niente riquadri, difesa accanto al totale, menu del bersaglio con i PF a destra. `TS fallito` e `TS superato` del bersaglio singolo diventano `Fallito` e `Superato`: il TS ora è scritto sopra, sotto il selettore. Fatto. In più, tab sottolineate e altezze 24, 32 e 36. Restano nativi il menu `Tiro` e quelli piccoli di slot e tipo di danno.
 4. **Aree.** Danno prima dell'elenco, righe compatte, PF sempre visibili.
 5. **Pill, icone e colori.** Una forma per gli usi, una famiglia di frecce, emoji, colori per significato, note brevi di Immagine speculare e Scudo.
 6. **Altezza della finestra.** Dopo il lotto 3.
@@ -122,3 +122,12 @@ Approvate il 04/11/2026.
 - [ ] **Menu ⋯:** si apre e si chiude dal suo pulsante, con un clic fuori e con Esc; il secondo Esc chiude la console. Le due caselle cambiano le stesse opzioni del pannello Opzioni, e al turno dopo la console si apre o no di conseguenza.
 - [ ] **Cambi di creatura:** fuori turno con un'altra creatura selezionata, **⇄ Torna a…** e **⇄ Agisci con…** stanno su una riga. Selezionando quella di turno ne resta uno.
 - [ ] **Turno che cambia durante un attacco:** a esito scelto, la barra gialla offre **Passa a…**; dopo **Registra** diventa blu.
+
+## Prova in stanza del lotto 3
+
+- [ ] **Menu del bersaglio:** nome a sinistra e PF a destra, sul pulsante e nelle righe. Si sceglie con il mouse e con frecce e Invio; Esc lo chiude e il secondo Esc chiude la console. Selezionando un token sulla mappa il pulsante lo segue.
+- [ ] **PF che cambiano:** con il menu aperto, cambia i PF di un token dal tracker: il menu resta aperto e la riga si aggiorna.
+- [ ] **Registra:** il danno va al bersaglio scelto dal menu. Vale anche per Lotta e Spinta.
+- [ ] **Difesa:** con un bersaglio resistente la pill sta sotto il totale, accanto a **Registra**; un clic sulla ✕ la ignora, un altro la riapplica.
+- [ ] **Molti token:** con più di dieci creature il menu scorre e non esce dalla finestra.
+- [ ] **Liste corte e lunghe:** la lista Capacità è alta quanto le sue voci; un elenco lungo di incantesimi scorre senza spingere i Dettagli fuori dalla finestra.

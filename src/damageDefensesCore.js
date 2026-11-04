@@ -144,8 +144,10 @@ export function markNonmagicalDefenses(rows, card) {
   return rows.map((row) => (marker.types.includes(row.type) ? { ...row, nonmagical: nonmagicalDefenseText(marker.except) } : row));
 }
 
-export function damageDefenseTag({ type, defense, nonmagical = "" }) {
-  return `${DAMAGE_DEFENSE_LABELS[defense] || defense} ${damageTypeLabel(type)}${nonmagical ? ` (${nonmagical})` : ""}`;
+// short: the words of a chip on one line, "non magici" without its materials (its tooltip says them).
+export function damageDefenseTag({ type, defense, nonmagical = "", short = false }) {
+  const limit = !nonmagical ? "" : short ? " non magici" : ` (${nonmagical})`;
+  return `${DAMAGE_DEFENSE_LABELS[defense] || defense} ${damageTypeLabel(type)}${limit}`;
 }
 
 // The same tag with what the defense did to the damage typed ("Res. taglienti: 10 → 5"): the tag alone while nothing is
