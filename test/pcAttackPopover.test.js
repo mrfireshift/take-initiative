@@ -7,7 +7,7 @@ const sheetOpened = [];
 const sdk = { onReady() {}, broadcast: { onMessage: () => () => {}, sendMessage: async () => {} }, scene: { items: { getItems: async () => [] } },
   popover: { close: async () => {}, open: async (options) => { sheetOpened.push(options); } } };
 mock.module("@owlbear-rodeo/sdk", { exports: { default: sdk, buildLabel() {}, buildImage() {}, buildPath() {}, buildShape() {}, buildText() {}, Command: class {} } });
-const { bootPcAttack, resultSummary, areaSummary } = await import("../src/pc-attack.js");
+const { bootPcAttack, defaultCantripId, resultSummary, areaSummary } = await import("../src/pc-attack.js");
 const { sanitizeQuickAction } = await import("../src/quickActionsCore.js");
 const { pcAttackPickerEntries } = await import("../src/pcAttackPickerCore.js");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
@@ -22,7 +22,7 @@ const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-picker-search", 
   "pc-attack-auto-open-row", "pc-attack-auto-open", "pc-attack-attack-view", "pc-attack-launch", "pc-attack-caster", "pc-attack-follow", "pc-attack-picker-list",
   "pc-attack-launch-button", "pc-attack-spell-details", "pc-attack-spell-details-body", "pc-attack-use-selected",
   "pc-attack-grapple", "pc-attack-maneuver", "pc-attack-maneuver-target", "pc-attack-maneuver-hint", "pc-attack-maneuver-effects", "pc-attack-maneuver-contest",
-  "pc-attack-maneuver-outcomes", "pc-attack-maneuver-note", "pc-attack-multiattack", "pc-attack-monster-note", "pc-attack-auto-open-monsters"];
+  "pc-attack-maneuver-outcomes", "pc-attack-maneuver-note", "pc-attack-multiattack", "pc-attack-monster-note", "pc-attack-auto-open-monsters", "pc-attack-damage-head", "pc-attack-mode-caption", "pc-attack-spell-controls"];
 const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-launch-button", "pc-attack-use-selected", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"]);
 function createDocument() {
@@ -132,6 +132,10 @@ test("the console shows the attack and asks for a target first", async () => {
   assert.match(textOf(f.$("pc-attack-damage")), /taglienti .*1d8\+3 .*radiosi .*2d8/i);
   assert.equal(f.$("pc-attack-apply").disabled, true);
   assert.equal(f.$("pc-attack-total").textContent, "Scegli il bersaglio.");
+  assert.equal(f.$("pc-attack-target-hint").hidden, true, "nothing selected is the normal start: the fixed row asks, once");
+  assert.equal(f.$("pc-attack-target").children[0].textContent, "—");
+  await f.select(["ghoul", "imp"]);
+  assert.match(f.$("pc-attack-target-hint").textContent, /Più token selezionati/, "what is wrong with the selection is still said");
   assert.equal(f.$("pc-attack-target-hint").hidden, false);
 });
 
@@ -465,7 +469,7 @@ test("activations on a hit: the maneuver's die, dice left and DC; one maneuver p
   assert.equal(f.$("pc-attack-activations-caption").hidden, false);
   const menacing = activationRow(f, "attacco-minaccioso"), distracting = activationRow(f, "colpo-distraente");
   assert.equal(activationField(menacing, "meta").textContent, "1d10", "not ticked: its die alone");
-  assert.match(textOf(f.$("pc-attack-activations-caption")), /Attivazioni · Dadi di Superiorità 5\/5/, "the resource they share, once");
+  assert.match(textOf(f.$("pc-attack-activations-caption")), /Manovre · Dadi di Superiorità 5\/5/, "the resource they share, once");
   assert.equal(activationField(menacing, "options").hidden, true, "options only once ticked");
   assert.equal(activationField(menacing, "amount").placeholder, "1d10", "the die as the amount's placeholder");
   const check = async (row) => { const box = activationField(row, "on"); box.checked = true; await box.emit("change"); };
@@ -731,6 +735,7 @@ test("the arrows of the Arcane Archer: Seeking replaces the roll with a save; Pi
   const f = fixture({ action: bow, attacker: archer, turnState: ownTurn }); await f.controller.ready;
   const mode = f.$("pc-attack-mode");
   assert.equal(mode.hidden, false);
+  assert.equal(f.$("pc-attack-mode-caption").hidden, false, "«Tiro» beside it");
   assert.deepEqual(mode.children.map((option) => option.textContent),
     ["Tiro per colpire", "Freccia Cercatrice · TS Destrezza CD 12", "Freccia Perforante · linea, TS Destrezza CD 12"]);
   await f.select(["ghoul"]);
@@ -761,6 +766,7 @@ test("Bursting Arrow in the console: the creatures around the target proposed an
     enabledClassFeatureIds: ["guerriero-arciere-arcano-tiro-arcano", "guerriero-arciere-arcano-tiro-arcano-freccia-esplosiva"] } };
   const f = fixture({ action: bow, attacker: archer, turnState: ownTurn, nearby: () => ["imp", "ghoul"] }); await f.controller.ready;
   assert.equal(f.$("pc-attack-mode").hidden, true, "no arrow replaces the roll");
+  assert.equal(f.$("pc-attack-mode-caption").hidden, true);
   await f.select(["ghoul"]);
   await f.outcome("hit").click();
   const row = rowById(f, "guerriero-arciere-arcano-tiro-arcano-freccia-esplosiva");
@@ -1137,7 +1143,7 @@ test("the Capacità tab lists the features by group with their activation and us
   assert.equal(f.$("pc-attack-title").textContent, "Aria");
   assert.match(f.$("pc-attack-subtitle").textContent, /^Ira · /, "the feature without the catalog's emoji");
   assert.match(f.$("pc-attack-subtitle").textContent, /Capacità di classe/);
-  assert.match(textOf(f.$("pc-attack-launch")), /Azione bonus.*su di sé/);
+  assert.match(textOf(f.$("pc-attack-launch")), /Azione bonus.*Su di sé/);
   assert.match(textOf(f.$("pc-attack-total")), /Ire 2\/3/, "the uses left beside the button");
   assert.ok(f.$("pc-attack-launch").querySelector("details"), "its text in the accordion");
   assert.equal(f.$("pc-attack-launch-button").textContent, "Attiva");
@@ -1201,7 +1207,7 @@ test("a paladin's aura is usable and toggles: Attiva with its radius, then Disat
   const off = fixture({ card: paladinCard, attacker: { initiativeCard: paladinCard }, featureState: paladinState(), featureRuntime: runtime.runtime });
   await off.controller.ready; await tick(); await openFeatures(off);
   await featureRow(off, /Aura di Protezione/).click(); await tick();
-  assert.match(textOf(off.$("pc-attack-launch")), /aura 9 m/);
+  assert.match(textOf(off.$("pc-attack-launch")), /Aura 9 m/);
   assert.equal(off.$("pc-attack-launch-button").textContent, "Attiva");
   await off.$("pc-attack-launch-button").click(); await tick();
   assert.deepEqual(runtime.calls.at(-1), ["activateClassFeature", { sourceId: "aria", featureId: "paladino-aura-di-protezione" }]);
@@ -1597,6 +1603,81 @@ test("off turn with the reaction already used: a warning instead of the checkbox
   assert.equal(f.calls.at(-1).useReaction, undefined);
 });
 
+test("off turn, the attack that spends the reaction: no warning right after it, the next attack's outcome brings it back", async () => {
+  const f = fixture({ actions: [sword], turnState: { order: ["ghoul", "aria"], current: 0, round: 1 } }); await f.controller.ready; await tick();
+  const register = f.runtime.executePcAttack;
+  f.runtime.executePcAttack = async (request) => {
+    const result = await register(request);
+    f.items[0].metadata[META].conditions = { version: 2, instances: [{ id: "r1", condition: "Reazione usata" }] };
+    return { ...result, reaction: { spent: true } };
+  };
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  await typeAmounts(f, ["8", "9"]);
+  assert.equal(f.$("pc-attack-reaction").hidden, false, "the checkbox, before the attack");
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.equal(f.calls[0].useReaction, true);
+  assert.match(f.$("pc-attack-status").textContent, /Reazione segnata\./);
+  assert.equal(f.$("pc-attack-reaction").hidden, true, "the status line has just said so");
+  await f.outcome("hit").click();
+  assert.equal(f.$("pc-attack-reaction").hidden, false);
+  assert.match(textOf(f.$("pc-attack-reaction")), /Reazione già usata in questo round/);
+});
+
+test("a cantrip action naming no spell opens on one the actor knows: the selector, the header and the damage agree", async () => {
+  const f = fixture({ card: clericCard, attacker: clericMeta, actionId: "cantrip" }); await f.controller.ready; await tick();
+  assert.equal(f.controller.getDraft().spellId, "sacred-flame", "not the first of all the cantrips");
+  assert.match(f.$("pc-attack-subtitle").textContent, /^Fiamma sacra/i);
+  assert.equal(f.$("pc-attack-picker-select").value, "cantrip::sacred-flame");
+  assert.match(textOf(f.$("pc-attack-damage")), /Radiosi/);
+  const offered = sanitizeQuickAction({ id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["fire-bolt", "ray-of-frost"] } });
+  const entries = [{ actionId: "cantrip", spellId: "ray-of-frost" }];
+  assert.equal(defaultCantripId(offered, null, entries), "ray-of-frost");
+  assert.equal(defaultCantripId(offered, null, []), "fire-bolt", "without a picker, as before");
+  const used = { metadata: { [META]: { pcAttackState: { lastAttack: { spellId: "fire-bolt" } } } } };
+  assert.equal(defaultCantripId(offered, used, []), "fire-bolt", "the last one used, when offered");
+  assert.equal(defaultCantripId(offered, used, entries), "ray-of-frost", "not when the actor no longer knows it");
+});
+
+test("a spell's details say «Ai livelli superiori» once", async () => {
+  const f = fixture({ card: clericCard, attacker: clericMeta }); await f.controller.ready; await tick();
+  await pickerTabs(f)[2].click(); await tick();
+  await tick(); await tick();
+  const text = textOf(f.$("pc-attack-launch"));
+  assert.match(text, /Ai livelli superiori\./, "the blessing has them");
+  assert.doesNotMatch(text, /Ai livelli superiori\.\s*Ai livelli superiori/);
+});
+
+test("Chromatic Orb: before the type is picked its damage has no type, no defense and no count", async () => {
+  const action = sanitizeQuickAction({ id: "orb", label: "Incantesimo d'attacco", kind: "attack", source: { kind: "spell", spellIds: ["phb2014-globo-cromatico"] } });
+  const f = fixture({ action, attacker: { initiativeCard: { characterBuild: [{ classId: "mago", level: 5 }] }, classFeatureState: { resources: { "spell-slot-1": { current: 3 } } } },
+    defenses: { resistances: ["acid"], immunities: [], vulnerabilities: [] }, turnState: ownTurn });
+  await f.controller.ready; await tick();
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  await typeAmounts(f, ["12"]);
+  assert.match(textOf(f.$("pc-attack-damage")), /Danno/);
+  assert.doesNotMatch(textOf(f.$("pc-attack-damage")), /Acido/);
+  assert.equal(f.$("pc-attack-defenses").children.length, 0, "no type, no defense yet");
+  assert.match(textOf(f.$("pc-attack-total")), /Scegli il tipo di danno/);
+  const type = f.$("pc-attack-spell-controls").querySelector('[aria-label="Tipo di danno"]');
+  type.value = "acid"; await type.emit("change");
+  assert.match(textOf(f.$("pc-attack-damage")), /Acido/);
+  assert.equal(f.$("pc-attack-defenses").querySelector("button").textContent, "Res. acido: 12 → 6");
+});
+
+test("an area without damage: no «Danno» to title, its button stays; a save per row, named once above", async () => {
+  const action = sanitizeQuickAction({ id: "presence", label: "Presenza terrificante", kind: "attack", components: [], save: "wis", saveDC: 19, area: { shape: "sphere", sizeFeet: 120 }, onFail: { condition: "Spaventato" } });
+  const f = fixture({ action, attacker: { initiativeCard: { monster: { source: "manual" } } }, turnState: ownTurn }); await f.controller.ready; await tick();
+  assert.equal(f.$("pc-attack-damage-head").hidden, true);
+  assert.equal(f.$("pc-attack-extras-caption").hidden, true);
+  assert.equal(f.$("pc-attack-add-extra").hidden, false, "damage the stat block's text did not give can still be added");
+  assert.deepEqual(["failed", "passed", "immune"].map((outcome) => areaField(areaRow(f, "ghoul"), outcome).textContent), ["Fallito", "Superato", "Immune"]);
+  await f.$("pc-attack-add-extra").click();
+  assert.equal(f.$("pc-attack-damage-head").hidden, false, "with an extra, there is damage to title");
+  assert.equal(f.$("pc-attack-extras-caption").hidden, false);
+});
+
 test("Usa reazione on Uncanny Dodge marks the reaction; out of combat or with the reaction used the button waits", async () => {
   const rogue = { characterBuild: [{ classId: "ladro", level: 5 }], abilityModifiers: { dex: 4 }, quickActions: [sword] };
   const state = { enabledIds: [], active: {}, activeFeatureIds: [], resources: {} };
@@ -1661,7 +1742,7 @@ test("Lotta: the target from the map, the contest's outcome, Registra; the next 
 test("Spinta: the effect is required; a push says the token is moved by hand", async () => {
   const f = fixture({ actions: [sword] }); await f.controller.ready; await tick();
   await pick(f, "maneuver::shove");
-  assert.equal(f.$("pc-attack-maneuver-hint").hidden, false, "no target yet");
+  assert.equal(f.$("pc-attack-maneuver-hint").hidden, true, "no target yet: the fixed row asks");
   f.$("pc-attack-maneuver-target").value = "ghoul"; await f.$("pc-attack-maneuver-target").emit("change");
   await maneuverButton(f, "pc-attack-maneuver-outcomes", "outcome", "success").click();
   assert.equal(f.$("pc-attack-total").textContent, "Scegli se spingerlo via o buttarlo Prono.");

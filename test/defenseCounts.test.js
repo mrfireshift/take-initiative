@@ -104,6 +104,18 @@ test("console attacchi: il danno al colpo di un mostro e la seconda creatura dic
   assert.equal(flame(creature("imp")).secondary.defenseCounts, undefined);
 });
 
+test("console attacchi: un incantesimo a più tipi non ha difese finché non si sceglie il tipo", () => {
+  const orb = sanitizeQuickAction({ id: "orb", label: "Incantesimo d'attacco", kind: "attack", source: { kind: "spell", spellIds: ["phb2014-globo-cromatico"] } });
+  const mage = creature("mage", { characterBuild: [{ classId: "mago", level: 5 }] }, "pc");
+  const preview = (spellCast) => pcAttackPreview({ action: orb, spellId: "phb2014-globo-cromatico", sourceItem: mage, targetItem: defending("orc", { resistances: ["acid"] }), outcome: "hit", amounts: { c1: 12 }, spellCast });
+  const unpicked = preview({ castId: "c1" });
+  assert.deepEqual([unpicked.defenses, unpicked.defenseCounts], [[], []], "acid is only the type it holds meanwhile");
+  const acid = preview({ castId: "c1", damageType: "acid" });
+  assert.deepEqual(acid.defenses.map((row) => row.type), ["acid"]);
+  assert.deepEqual(acid.defenseCounts.map((row) => [row.before, row.after]), [[12, 6]]);
+  assert.deepEqual(preview({ castId: "c1", damageType: "cold" }).defenses, [], "another type: no defense");
+});
+
 test("console attacchi, area: ogni creatura dice cosa subisce e perché", () => {
   const breath = sanitizeQuickAction({ id: "breath", label: "Soffio", kind: "attack", range: "ranged", components: [{ type: "fire", formula: "18d6" }],
     save: "dex", saveDC: 21, saveHalf: true, area: { shape: "cone", sizeFeet: 60 } });

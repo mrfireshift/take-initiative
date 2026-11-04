@@ -286,7 +286,7 @@ gestire al tavolo.
   dopo i suoi round o alla fine del prossimo turno giusto. Chi supera
   un'azione con immunità prende la pillola «Immune · azione».
 - **Gli effetti al colpo.** Su Colpito o Critico, sotto i danni dell'arma, il
-  riquadro **Al colpo**: il TS del bersaglio con il suo bonus, il danno di
+  riquadro **Effetto del colpo**: il TS del bersaglio con il suo bonus, il danno di
   quel TS (metà o niente se superato) e le sue condizioni; «Afferrato (fuga
   CD N)», con Trattenuto finché dura la presa; Prono; la spinta da fare a
   mano (resta nel Combat Log come passo manuale). Tutto nello stesso comando

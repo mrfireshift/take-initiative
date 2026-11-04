@@ -31,6 +31,7 @@ plugin.
 | [Piani: attacchi dei mostri](PIANO_ATTACCHI_MOSTRI_FASE_5.md) | Fasi 1–5 della console sui mostri (anche [1](PIANO_ATTACCHI_MOSTRI_FASE_1.md), [2](PIANO_ATTACCHI_MOSTRI_FASE_2.md), [3](PIANO_ATTACCHI_MOSTRI_FASE_3.md), [4](PIANO_ATTACCHI_MOSTRI_FASE_4.md)): decisioni, deviazioni, misure di copertura. |
 | [Misura: console sui mostri](MISURA_CONSOLE_MOSTRI.md) | Passi della sessione in room per il costo della console ai turni dei mostri; confronto con `scripts/perf-compare.mjs`. |
 | [Piano: velocità dei mostri](PIANO_VELOCITA_MOSTRI.md) | Il tracker movimento aperto ai non PG con le velocità dello statblock: decisioni, lotti, misure, e la [prova in stanza](PROVA_STANZA_VELOCITA_MOSTRI.md). |
+| [Audit del pannello attacchi](AUDIT_UX_PANNELLO_ATTACCHI.md) | Misure, problemi e verdetto su pill, badge, etichette e icone, lotti e decisioni. |
 | [Sviluppo e release](SVILUPPO.md) | Script, test, generatori e gate di rilascio. |
 
 Il [Backlog](../BACKLOG.md) descrive il lavoro ancora incompleto e non è una

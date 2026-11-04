@@ -76,11 +76,14 @@ function emptyDraft(action,targetId=null,spellId="",attackMode="") {
     // A leveled attack spell (lotto L4): the cast this registration belongs to, its slot, the type picked, matching d8.
     spell:{castId:newCastId(),slotLevel:null,pact:false,damageType:"",doubles:false,fresh:false}};
 }
-// The cantrip a cantrip action opens with: the one this attacker used last, when this action still offers it.
-export function defaultCantripId(action,sourceItem) {
+// The cantrip a cantrip action opens with: the one this attacker used last, when this action still offers it. An action
+// that names no spell offers them all, the picker only those the actor knows: the console opens on one the picker shows.
+export function defaultCantripId(action,sourceItem,pickerEntries=[]) {
   const offered=[...pcAttackCantripIds(action),...pcAttackSpellIds(action)];
+  const listed=(Array.isArray(pickerEntries)?pickerEntries:[]).filter(entry=>entry.actionId===action?.id && offered.includes(entry.spellId)).map(entry=>entry.spellId);
+  const choices=listed.length?listed:offered;
   const last=sourceItem?.metadata?.[`${ID}/meta`]?.pcAttackState?.lastAttack?.spellId;
-  return offered.includes(last) ? last : offered[0] || "";
+  return choices.includes(last) ? last : choices[0] || "";
 }
 // The map selection drives the target until the GM has decided something for this attack.
 const draftLocked=draft=>!!draft.outcome || Object.values(draft.amounts).some(value=>value!=="")
@@ -238,7 +241,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const reactionRow=$("pc-attack-reaction");
   // ownTurnSeen: the console showed this actor on its own turn. An attack chosen there and registered after the turn
   // moved on is not an opportunity attack: the reaction box then starts unticked.
-  let useReaction=true,reactionSignature="",ownTurnSeen=false;
+  // reactionSpentBy: the actor whose reaction the last registered attack spent.
+  let useReaction=true,reactionSignature="",ownTurnSeen=false,reactionSpentBy="";
   const cantripRow=$("pc-attack-cantrip-row"),cantripSelect=$("pc-attack-cantrip"),cantripNote=$("pc-attack-cantrip-note");
   const spellControls=$("pc-attack-spell-controls");
   const picker=$("pc-attack-picker"),pickerTabs=$("pc-attack-picker-tabs"),pickerSelect=$("pc-attack-picker-select"),pickerList=$("pc-attack-picker-list");
@@ -289,7 +293,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // Off-turn actions (a reaction, an opportunity attack): the selected creature in the console, then back to the turn's.
   const useSelectedButton=$("pc-attack-use-selected"),useSelectedRow=$("pc-attack-use-selected-row");
   let offPing=null,offAutoOpen=null;
-  const extrasCaption=$("pc-attack-extras-caption");
+  const extrasCaption=$("pc-attack-extras-caption"),damageHead=$("pc-attack-damage-head"),modeCaption=$("pc-attack-mode-caption");
   const modeSelect=$("pc-attack-mode"),outcomeBlock=$("pc-attack-outcome-block"),targetCaption=$("pc-attack-target-caption");
   const areaBox=$("pc-attack-area"),areaNote=$("pc-attack-area-note"),areaList=$("pc-attack-area-list");
   const areaPropose=$("pc-attack-area-propose"),areaAllFailed=$("pc-attack-area-all-failed"),areaAllPassed=$("pc-attack-area-all-passed");
@@ -658,7 +662,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const resourceText=option=>option.resources.map(entry=>entry.unlimited || entry.current===null?entry.name:`${entry.name} ${entry.current}/${entry.maximum ?? "?"}`);
     const listed=options.filter(option=>draft.outcome!=="miss" || option.preRoll).map(option=>resourceText(option).join(" · "));
     const common=activationsCaption && !activationsCaption.hidden && listed.length>1 && listed[0] && listed.every(text=>text===listed[0])?listed[0]:"";
-    if(activationsCaption) activationsCaption.replaceChildren(node("span","Attivazioni"),...(common?[node("span",` · ${common}`,"subcaption-detail")]:[]));
+    // The section's title says what they are for; this says only what they share: the maneuvers and their dice.
+    const maneuvers=!!activationsCaption && !activationsCaption.hidden && listed.length>0 && options.every(option=>option.group==="manovra");
+    if(activationsCaption) {
+      activationsCaption.replaceChildren(...(maneuvers?[node("span","Manovre")]:[]),...(common?[node("span",`${maneuvers?" · ":""}${common}`,"subcaption-detail")]:[]));
+      if(!maneuvers && !common) activationsCaption.hidden=true;
+    }
     const critical=dice=>draft.outcome==="critical" && dice?`${dice} · critico ${pcAttackCriticalDice(dice)}`:dice;
     for(const option of options) {
       const row=activationsBox.querySelector(`[data-activation-id="${option.id}"]`);
@@ -775,6 +784,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!modeSelect) return;
     const options=modeOptions();
     modeSelect.hidden=!options.length;
+    if(modeCaption) modeCaption.hidden=!options.length;
     if(!options.length) return;
     modeSelect.replaceChildren(...[{id:"",label:"Tiro per colpire",available:true},...options].map(option=>{
       const entry=node("option",option.id?`${option.label} · ${option.kind==="area"?"linea, ":""}TS ${option.save.label}${option.save.dc?` CD ${option.save.dc}`:""}`:option.label);
@@ -841,7 +851,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         const label=node("span","","area-name");label.dataset.areaField="name";
         const outcomesBox=node("div","","segmented mini");outcomesBox.setAttribute("role","group");outcomesBox.setAttribute("aria-label",`Tiro salvezza di ${item.name || item.id}`);
         for(const outcome of outcomes) {
-          const button=node("button",outcome==="immune"?"Immune":PC_ATTACK_OUTCOME_LABELS[outcome]);button.type="button";button.dataset.outcome=outcome;button.dataset.areaField=outcome;
+          // One save for all: the note above names it, each row says only how it went.
+          const button=node("button",{failed:"Fallito",passed:"Superato",immune:"Immune"}[outcome] || PC_ATTACK_OUTCOME_LABELS[outcome]);button.type="button";button.dataset.outcome=outcome;button.dataset.areaField=outcome;
           button.addEventListener("click",()=>{const member=draft.area.members[item.id] ||= {on:false,outcome:""};member.on=true;member.outcome=outcome;renderArea();renderState();});
           outcomesBox.append(button);
         }
@@ -1253,7 +1264,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const active=state.active?.[entry.featureId] || [];
     const definition=getClassFeatureDefinition(entry.featureId);
     const targeting=definition?.targeting?.mode;
-    const target=form.auraMeters?`aura ${form.auraMeters} m`:targeting==="aura"?"aura":targeting==="single-target"?"bersaglio":entry.mode==="activate"?"su di sé":"";
+    const target=form.auraMeters?`Aura ${form.auraMeters} m`:targeting==="aura"?"Aura":targeting==="single-target"?"Su un bersaglio":entry.mode==="activate"?"Su di sé":"";
     const remaining=active[0]?.remainingRounds;
     const firstPool=(state.resources?.[entry.featureId] || [])[0];
     const spent=["activate","toggle"].includes(form.kind) && !active.length && firstPool && !firstPool.unlimited && firstPool.current===0;
@@ -1417,7 +1428,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(line) nodes.push(node("p",line,"launch-details"));
     if(details?.description) nodes.push(rulesTextBlock(details.description,{document:documentRef,className:"spell-rules",paragraphClass:"spell-text"}));
     if(details?.missingText) nodes.push(node("p",privateTextMissingNote(details.missingText),"launch-details"));
-    if(details?.higherLevels) nodes.push(node("p",`Ai livelli superiori. ${details.higherLevels}`,"spell-text"));
+    // The reference's text may already open with the same words (reference-modal.js strips them too).
+    if(details?.higherLevels) nodes.push(node("p",`Ai livelli superiori. ${details.higherLevels.replace(/^Ai livelli superiori\.\s*/i,"")}`,"spell-text"));
     if(spellId && !details) nodes.push(node("p",spellbookSpellReferenceLoaded()?"Testo non disponibile.":"Caricamento del testo…","launch-details"));
     return nodes;
   }
@@ -1465,12 +1477,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       maneuverDraft.effect,selection.status,busy,invalidated]);
     if(signature!==maneuverSignature) {
       maneuverSignature=signature;
-      const options=[node("option","— Scegli il bersaglio —")];options[0].value="";
+      const options=[node("option","—")];options[0].value="";
       for(const item of presentation.targets){const option=node("option",bossTargetLabel(item));option.value=item.id;options.push(option);}
       maneuverTarget.replaceChildren(...options);
       maneuverTarget.value=maneuverDraft.targetId || "";
       maneuverTarget.disabled=busy || invalidated;
-      const message=maneuverDraft.targetId?"":pcAttackSelectionHint(selection.status);
+      const message=maneuverDraft.targetId || selection.status==="none"?"":pcAttackSelectionHint(selection.status);
       maneuverHint.textContent=message;maneuverHint.hidden=!message;
       maneuverEffects.hidden=kind!=="shove";
       maneuverEffects.replaceChildren(...(kind==="shove"?PC_SHOVE_EFFECTS.map(effect=>choiceButton(PC_SHOVE_EFFECT_LABELS[effect],maneuverDraft.effect===effect,
@@ -1818,12 +1830,13 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     renderMirrorImage();
     renderTargetReactions();
     if(area){hint.hidden=true;return;}
-    const options=[node("option","— Scegli il bersaglio —")];options[0].value="";
+    const options=[node("option","—")];options[0].value="";
     for(const item of presentation.targets){const option=node("option",bossTargetLabel(item));option.value=item.id;options.push(option);}
     targetSelect.replaceChildren(...options);
     targetSelect.value=draft.targetId || "";
     targetSelect.disabled=busy;
-    const message=draft.targetId?"":pcAttackSelectionHint(selection.status);
+    // Nothing selected is the normal start: the fixed row asks for the target. A hint only says what is wrong with the selection.
+    const message=draft.targetId || selection.status==="none"?"":pcAttackSelectionHint(selection.status);
     hint.textContent=message;hint.hidden=!message;
   }
   // The focus follows the GM's own click to what is typed next, never a live update: after an outcome that deals
@@ -1841,7 +1854,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     renderMode();
     // An area attack has a save for each creature: no single outcome (the block stays for the arrow picker).
     outcomes.hidden=isArea();
-    if(outcomeBlock) outcomeBlock.hidden=isArea() && !modeOptions().length;
+    if(outcomeBlock) outcomeBlock.hidden=isArea();
     outcomes.replaceChildren(...pcAttackOutcomesFor(resolved()).map(outcome=>{
       const button=node("button",PC_ATTACK_OUTCOME_LABELS[outcome]);button.type="button";button.dataset.outcome=outcome;
       button.setAttribute("aria-pressed",String(draft.outcome===outcome));button.disabled=busy;
@@ -1851,13 +1864,15 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   function renderDamage() {
     const attack=typedAttack();
+    // A spell with several types (Chromatic Orb): until one is picked, its damage has no type to name.
+    const untyped=!!attack?.spell?.types && !attack.spell.types.includes(draft.spell.damageType);
     damage.replaceChildren(...(attack?.components || []).map(component=>{
       const body=node("div","","component-body");
-      const typeName=typeLabel(component.type);
+      const typeName=untyped?"Danno":typeLabel(component.type);
       // A cantrip's dice follow the character level; a weapon shows the formula written in its quick action.
       const meta=node("div","","component-meta");meta.dataset.damageMeta=component.id;
       body.append(node("span",typeName,"component-title"),meta);
-      const input=amountInput(draft.amounts[component.id] ?? "",`Danni ${damageTypeLabel(component.type)}`);input.dataset.damageInput=component.id;
+      const input=amountInput(draft.amounts[component.id] ?? "",untyped?"Danni":`Danni ${damageTypeLabel(component.type)}`);input.dataset.damageInput=component.id;
       // No damage to enter on a miss or a passed save (half on a passed save with Potent Cantrip).
       input.disabled=busy || !!draft.outcome && pcAttackDamageFactor(attack,draft.outcome,attackerCard())==="zero";
       input.addEventListener("input",()=>{draft.amounts[component.id]=input.value.trim();renderState();});
@@ -1903,8 +1918,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(presentation?.turnState?.order?.length && !isOffTurn(presentation.turnState,sourceId)) ownTurnSeen=true;
     const reaction=attackReaction();
     if(reaction && ownTurnSeen){ownTurnSeen=false;useReaction=false;reactionSignature="";}
-    reactionRow.hidden=!reaction;
-    if(!reaction){reactionSignature="";return;}
+    // Just spent by the attack registered here: the status line says so, the warning waits for the next attack's outcome.
+    if(!reaction?.used) reactionSpentBy="";
+    const quiet=!!reaction?.used && reactionSpentBy===sourceId && !draft?.outcome;
+    reactionRow.hidden=!reaction || quiet;
+    if(!reaction || quiet){reactionSignature="";return;}
     const signature=JSON.stringify([reaction.used,useReaction,busy]);
     if(signature===reactionSignature) return;
     reactionSignature=signature;
@@ -1930,7 +1948,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     extrasBox.hidden=!damaging;addExtra.hidden=!damaging;
     // Activations follow the outcome and the riders chosen (Wrath of the Order, Wails from the Grave).
     updateActivations();
-    if(extrasCaption) extrasCaption.textContent=preRollOnMiss?"Prima del tiro":resolved()?.cantrip?.save?"Extra al danno":"Extra al colpo";
+    if(extrasCaption){extrasCaption.textContent=preRollOnMiss?"Prima del tiro":resolved()?.cantrip?.save?"Extra al danno":"Extra al colpo";extrasCaption.hidden=false;}
+    if(damageHead) damageHead.hidden=false;
+    extrasSection.dataset.bare="false";
     const view=preview();
     // In the fixed row, above the total it explains: each defense with what it did to the damage typed. A monster's save on
     // the hit counts in the total and cannot be ignored here: its defense is only said.
@@ -1961,7 +1981,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(activationsBox) activationsBox.hidden=true;
     if(activationsCaption) activationsCaption.hidden=true;
     extrasBox.hidden=false;addExtra.hidden=false;
-    if(extrasCaption) extrasCaption.textContent="Extra al danno";
+    // An area without damage (Frightful Presence, the metallic breath) has no damage to title. Its button stays: damage the
+    // stat block's text did not give the console can still be added by hand.
+    const bare=!resolved()?.components?.length && !draft.extras.length;
+    if(extrasCaption){extrasCaption.textContent="Extra al danno";extrasCaption.hidden=bare;}
+    if(damageHead) damageHead.hidden=bare;
+    extrasSection.dataset.bare=String(bare);
     defensesBox.replaceChildren();
     const view=areaPreview();
     // The total says only the sum: each creature's row says what it takes and what its defenses did.
@@ -1974,7 +1999,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     }
     total.replaceChildren();total.title=view.ready?"":view.blocker;total.dataset.kind="";
     // An area without damage (the metallic breath): the creatures it reaches.
-    if(view.ready && !resolved()?.components?.length) total.append(node("strong",String(view.rows.length)),node("span",` ${view.rows.length===1?"creatura":"creature"} · nessun danno`));
+    if(view.ready && bare) total.append(node("strong",String(view.rows.length)),node("span",` ${view.rows.length===1?"creatura":"creature"} · nessun danno`));
     else if(view.ready) total.append(node("strong",String(view.total)),node("span",` danni · ${view.rows.length} ${view.rows.length===1?"creatura":"creature"}`));
     else total.textContent=view.blocker;
     apply.disabled=busy || invalidated || !view.ready;
@@ -2033,7 +2058,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const signature=JSON.stringify([attack.id,draft.outcome,draft.targetId]);
     if(signature!==hitSignature) {
       hitSignature=signature;
-      const children=[node("span","Al colpo","caption")];
+      const children=[node("span","Effetto del colpo","caption")];
       const save=onHit.save;
       if(save) {
         const bonus=pcAttackTargetSaveBonus(target,save.ability);
@@ -2110,7 +2135,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const requested=fresh && [...pcAttackCantripIds(loaded.action),...pcAttackSpellIds(loaded.action)].includes(wanted)?wanted:"";
     requestedSpellId="";
     // Another action (the picker) starts without the previous one's arrow.
-    if(fresh) draft=emptyDraft(loaded.action,draft?.targetId || null,requested || defaultCantripId(loaded.action,loaded.item),switched?"":draft?.attackMode || "");
+    if(fresh) draft=emptyDraft(loaded.action,draft?.targetId || null,requested || defaultCantripId(loaded.action,loaded.item,loaded.picker),switched?"":draft?.attackMode || "");
     if(draft.targetId && !targetById(draft.targetId)) draft.targetId=null;
     if(fresh || form.hidden) render();else renderLive();
   }
@@ -2341,6 +2366,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const result=await runtime.executePcAttack(request);
     if(!lifecycle.isCurrent(operation)) return;
     showUndo(result);
+    if(result.reaction?.spent) reactionSpentBy=sourceId;
     setStatus([resultSummary(result),...(result.spell?[spellResultSummary(result.spell)]:[]),...(result.reaction?.spent?["Reazione segnata."]:[]),
       ...(result.followUps || []),...(result.warnings || [])].join("\n"),"ok");
     rememberEntry(currentEntry()?.key);
@@ -2401,7 +2427,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     void setMinimized(false);
     pendingFollow=null;pendingReady=false;renderFollow();
     sourceId=next;actionId="";requestedSpellId="";launchKey="";launchSignature="";
-    presentation=null;draft=null;liveSignature="";useReaction=true;reactionSignature="";ownTurnSeen=false;
+    presentation=null;draft=null;liveSignature="";useReaction=true;reactionSignature="";ownTurnSeen=false;reactionSpentBy="";
     beamTally={spellId:"",count:0};palmDraft={targetId:"",outcome:"",amount:"",id:newAttackId()};
     maneuverDraft={kind:"",targetId:"",outcome:"",effect:"",id:newAttackId()};grappleSignature="";maneuverSignature="";
     selection={status:"none",target:null,candidates:[]};selectedItems=[];

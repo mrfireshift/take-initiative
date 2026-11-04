@@ -488,15 +488,15 @@ Al turno del mostro la console mostra:
   **Disegna** mette l'area sulla mappa alla misura dello statblock (dal token
   del mostro, o su un punto) e spunta le creature dentro; un'area attorno al
   mostro propone le creature da sola. Accanto a ogni creatura il suo bonus al
-  TS, «Elusione» e le sue immunità; gli esiti sono **TS fallito**, **TS
-  superato** e **Immune** (chi è immune parte già lì). Chi supera subisce
+  TS, «Elusione» e le sue immunità; gli esiti sono **Fallito**, **Superato**
+  e **Immune** (chi è immune parte già lì). Chi supera subisce
   metà danni solo se lo statblock lo prevede; le condizioni durano quanto
   dice lo statblock e, con il tiro ripetuto, portano il promemoria del TS a
   fine turno della creatura, che superato le toglie; un'azione come la
   Presenza terrificante rende immune per 24 ore chi la supera;
 - gli **effetti al colpo** (il veleno del ragno gigante, la paralisi del
-  ghoul, la presa del coccodrillo): su Colpito o Critico, il riquadro **Al
-  colpo** chiede l'esito del TS del bersaglio e il suo danno, applica le
+  ghoul, la presa del coccodrillo): su Colpito o Critico, il riquadro **Effetto
+  del colpo** chiede l'esito del TS del bersaglio e il suo danno, applica le
   condizioni, «Afferrato» con la CD di fuga e Prono; la spinta si fa a mano;
 - **Ricarica 5–6**: dopo l'uso il sottotitolo scrive «usata»; non blocca mai,
   se al tavolo la ricarica esce, si usa di nuovo;

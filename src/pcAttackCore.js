@@ -1046,7 +1046,10 @@ export function pcAttackPreview({
     ...Object.fromEntries(chosenExtras.map((extra, index) => [`x${index + 1}`, extra.amount])),
   };
   const profileDefenses = targetItem ? damageDefensesForItem(targetItem, META_KEY) : {};
-  const defenses = markNonmagicalDefenses(relevantDamageDefenses(profileDefenses, components.filter((component) => damageTypeSet.has(component.type)), ignoredDefenses),
+  // A spell with several types (Chromatic Orb): until one is picked no defense applies to its damage, whatever type it holds meanwhile.
+  const typedComponents = attack.spell?.types && !attack.spell.types.includes(spellCast?.damageType)
+    ? components.filter((component) => component.id !== attack.components[0]?.id) : components;
+  const defenses = markNonmagicalDefenses(relevantDamageDefenses(profileDefenses, typedComponents.filter((component) => damageTypeSet.has(component.type)), ignoredDefenses),
     targetItem?.metadata?.[META_KEY]?.initiativeCard);
   // Full damage on a hit, a critical or a failed save (the shared helper would halve a "passed" save).
   // A monster's hit effect (fase 5, lotto 4): its save's damage on top, with the target's defenses.
@@ -1057,7 +1060,7 @@ export function pcAttackPreview({
   // The count the console shows: what each defense did to the damage typed, and to a monster's save on the hit.
   const targetCard = targetItem?.metadata?.[META_KEY]?.initiativeCard;
   const defenseCounts = targetItem && outcome && !miss
-    ? markNonmagicalDefenses(bossDefenseCounts(components, allAmounts, factor === "half" ? "passed" : "hit", profileDefenses, ignoredDefenses), targetCard) : [];
+    ? markNonmagicalDefenses(bossDefenseCounts(typedComponents, allAmounts, factor === "half" ? "passed" : "hit", profileDefenses, ignoredDefenses), targetCard) : [];
   const hitEffectCounts = markNonmagicalDefenses((hitPlan?.components || []).filter((component) => component.defense)
     .map((component) => ({ type: component.type, defense: component.defense, before: Number(component.inputAmount), after: component.amount })), targetCard);
   const meta = targetItem?.metadata?.[META_KEY] || {};
