@@ -129,7 +129,16 @@ function areaShapeFacts(rule) {
   const cells = area?.cells || [];
   if (!cells.length) return "nessuna casella";
   const meters = (pixels) => Math.round(pixels / dpi * 1.5 * 10) / 10;
-  const span = (pick, size) => meters(Math.max(...cells.map((cell) => pick(cell) + size(cell))) - Math.min(...cells.map(pick)));
+  // A loop, not a spread: an area of a mile has too many cells to pass as arguments.
+  const span = (pick, size) => {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const cell of cells) {
+      min = Math.min(min, pick(cell));
+      max = Math.max(max, pick(cell) + size(cell));
+    }
+    return meters(max - min);
+  };
   return `${span((cell) => cell.x, (cell) => cell.width)}×${span((cell) => cell.y, (cell) => cell.height)} m, ${cells.length} rettangoli`;
 }
 

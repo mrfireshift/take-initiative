@@ -161,9 +161,8 @@ quel personaggio.
   magica, Illusione minore, Prestidigitazione, Taumaturgia, Randello incantato,
   Pietra Magica, Disco fluttuante, Scritto illusorio, Immagine silenziosa, Occhio
   arcano, Chiaroveggenza, Serratura arcana, Trucco della corda, Destriero
-  fantomatico, Servitore inosservato…) e quelli che evocano (Evoca animali, Evoca
-  elementali minori, Evoca creature boschive, Evoca Demoni Minori, Evocare Bestia,
-  Evoca Folletto, Evoca Non Morto, Evoca Bestia d'Ombra) non chiedono bersagli: la
+  fantomatico, Servitore inosservato…) e quelli che evocano (tutti gli Evoca,
+  Evocare Bestia, Richiamo Infernale, Danza Macabra) non chiedono bersagli: la
   pill sta sul caster. Quelli che durano finché non vengono dissolti (Giara magica,
   Fiamma perenne, Bocca magica…) non scadono da soli: la pill mostra **M** e la
   togli a mano. Se il bersaglio può essere una creatura o un oggetto (Aura magica

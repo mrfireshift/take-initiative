@@ -936,10 +936,10 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: pill sul caster, 1 minuto."
       },
       "sweep": {
         "runs": 2,
@@ -1076,18 +1076,18 @@
       "level": 7,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura: ciò che evoca non è sulla mappa al lancio. Ora pill e concentrazione stanno sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, concentrazione."
       }
     },
     {
@@ -1096,18 +1096,18 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura: ciò che evoca non è sulla mappa al lancio. Ora pill e concentrazione stanno sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, concentrazione."
       }
     },
     {
@@ -1116,18 +1116,18 @@
       "level": 6,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura: ciò che evoca non è sulla mappa al lancio. Ora pill e concentrazione stanno sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, concentrazione."
       }
     },
     {
@@ -1176,10 +1176,10 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Nessun difetto nel lancio: il TS del caster e i 6d6 restano al tavolo."
       },
       "sweep": {
         "runs": 2,
@@ -1376,18 +1376,18 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura, che il testo non ha. Ora la pill sta sul caster. La durata dipende dal materiale: scadenza manuale."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, scadenza manuale."
       }
     },
     {
@@ -1861,18 +1861,18 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: una creatura. Se non è sulla mappa si spunta il caster. L'incubo resta al tavolo."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Pill sul goblin, 8 ore."
       }
     },
     {
@@ -2021,18 +2021,18 @@
       "level": 7,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: al 7° si spunta il caster, dall'8° tre creature per slot. Il piano etereo resta al tavolo."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Slot 7, spuntato il caster: pill, 8 ore."
       }
     },
     {
@@ -2261,10 +2261,10 @@
       "level": 6,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: concentrazione, 1 giorno."
       },
       "sweep": {
         "runs": 2,
@@ -2901,18 +2901,18 @@
       "level": 6,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura, che il testo non ha. Ora la pill sta sul caster. Gli effetti restano al tavolo."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, 24 ore."
       }
     },
     {
@@ -3441,18 +3441,18 @@
       "level": 6,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura, che il testo non ha. Ora la pill sta sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, scadenza manuale."
       }
     },
     {
@@ -3661,10 +3661,10 @@
       "level": 4,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
@@ -3861,18 +3861,18 @@
       "level": 7,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura, che il testo non ha. Ora la pill sta sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, 24 ore."
       }
     },
     {
@@ -4121,18 +4121,18 @@
       "level": 7,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Disegnava un quadrato di 1,5 km: 1,1 milioni di caselle ricalcolate a ogni cambiamento sulla scena. Ora una sagoma di 60 m segna il punto, con la nota."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Zona di 60 m, 10 giorni, nota nel pannello; Termina."
       }
     },
     {
@@ -4204,18 +4204,18 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "D6: chiede l'esito del TS, il lancio rapido lo considera fallito."
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Con il TS fallito non dava nulla. Ora Affascinato e Incapacitato finché dura, e il danno lo termina. I ricordi restano al tavolo."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Superato: nulla. Fallito: pill, Affascinato, Incapacitato e concentrazione. Il danno toglie tutto."
       }
     },
     {
@@ -4244,10 +4244,10 @@
       "level": 6,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: zona di 12 m, 2 ore."
       },
       "sweep": {
         "runs": 2,
@@ -4304,18 +4304,18 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura, che il testo non ha. Ora la pill sta sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, 1 ora."
       }
     },
     {
@@ -4384,10 +4384,10 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "D6: chiede l'esito del TS, il lancio rapido lo considera fallito."
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "La durata non seguiva lo slot: corretta nel lotto 9."
       },
       "sweep": {
         "runs": 2,
@@ -4604,18 +4604,18 @@
       "level": 4,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Nota: la sagoma è il cubo massimo del 4° slot. Le proprietà restano al tavolo."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Usa senza placement; nota nel pannello."
       }
     },
     {
@@ -4644,18 +4644,18 @@
       "level": 6,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura, che il testo non ha. Ora la pill sta sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, scadenza manuale."
       }
     },
     {
@@ -4664,18 +4664,18 @@
       "level": 7,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura, che il testo non ha. Ora la pill sta sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, concentrazione, 1 giorno."
       }
     },
     {
@@ -5072,10 +5072,10 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: pill sul caster; il TS con i modificatori resta al tavolo."
       },
       "sweep": {
         "runs": 2,
@@ -5132,18 +5132,18 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Il limite era un bersaglio: ora qualunque numero di creature."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Quattro creature, TS mostrato se non consenziente, 8 ore."
       }
     },
     {
@@ -5172,18 +5172,18 @@
       "level": 7,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: una creatura; per un oggetto si spunta il caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Spuntato il caster: pill manuale."
       }
     },
     {
@@ -5352,18 +5352,18 @@
       "level": 7,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Chiedeva una creatura: il simulacro è una creatura nuova e il suo dato resta al tavolo. Ora la pill sta sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, scadenza manuale."
       }
     },
     {
@@ -5774,18 +5774,18 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: otto creature, 1 ora."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Due creature, 1 ora."
       }
     },
     {
@@ -5814,10 +5814,10 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: zona di 3 m, fino alla fine del turno successivo del caster."
       },
       "sweep": {
         "runs": 2,
@@ -5934,18 +5934,18 @@
       "level": 6,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura, che il testo non ha. Ora la pill sta sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, scade all'inizio del turno del caster."
       }
     },
     {
@@ -5954,10 +5954,10 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
@@ -6016,18 +6016,18 @@
       "level": 6,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Pill su Sera, 1 ora."
       }
     },
     {
@@ -6836,18 +6836,18 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Chiedeva una creatura, con il limite di una: i cadaveri si alzano come creature nuove. Ora pill e concentrazione stanno sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, concentrazione."
       }
     },
     {
@@ -6976,18 +6976,18 @@
       "level": 4,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura: ciò che evoca non è sulla mappa al lancio. Ora pill e concentrazione stanno sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, concentrazione."
       }
     },
     {
@@ -7136,18 +7136,18 @@
       "level": 6,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Chiedeva una creatura: l'anima sta nella gabbia del caster, e i sei usi sono suoi. Ora la pill sta sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, 8 ore."
       }
     },
     {
@@ -7836,18 +7836,18 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura: ciò che evoca non è sulla mappa al lancio. Ora pill e concentrazione stanno sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, concentrazione."
       }
     },
     {
@@ -8376,18 +8376,18 @@
       "level": 4,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura: ciò che evoca non è sulla mappa al lancio. Ora pill e concentrazione stanno sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, concentrazione."
       }
     },
     {
@@ -8416,18 +8416,18 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura: ciò che evoca non è sulla mappa al lancio. Ora pill e concentrazione stanno sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, concentrazione."
       }
     },
     {
@@ -8436,18 +8436,18 @@
       "level": 4,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura: ciò che evoca non è sulla mappa al lancio. Ora pill e concentrazione stanno sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, concentrazione."
       }
     },
     {
@@ -8456,18 +8456,18 @@
       "level": 4,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura: ciò che evoca non è sulla mappa al lancio. Ora pill e concentrazione stanno sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, concentrazione."
       }
     },
     {
@@ -8496,18 +8496,18 @@
       "level": 6,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura: ciò che evoca non è sulla mappa al lancio. Ora pill e concentrazione stanno sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, concentrazione."
       }
     },
     {
@@ -9436,10 +9436,10 @@
       "level": 5,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-10",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: pill e promemoria dell'azione bonus."
       },
       "sweep": {
         "runs": 2,

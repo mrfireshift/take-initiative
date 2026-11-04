@@ -587,6 +587,29 @@ const TARGET_MODE_OVERRIDES = Object.freeze({
   "tasha-evoca-bestia-dombra": "self",
   "tasha-evoca-folletto": "self",
   "tasha-evoca-non-morto": "self",
+  "conjure-celestial": "self",
+  "conjure-elemental": "self",
+  "conjure-fey": "self",
+  "xanathar-evoca-demone-maggiore": "self",
+  "xanathar-richiamo-infernale": "self",
+  "tasha-evoca-aberrazione": "self",
+  "tasha-evoca-celestiale": "self",
+  "tasha-evoca-costrutto": "self",
+  "tasha-evoca-elementale": "self",
+  "tasha-evoca-immondo": "self",
+  // The corpses rise as new creatures at the caster's command; the soul goes into the caster's cage; a copy is a new creature.
+  "xanathar-danza-macabra": "self",
+  "xanathar-gabbia-dellanima": "self",
+  "simulacrum": "self",
+  // Lotto P3-10, the same: an object, a passage, a dwelling, an illusion, a linked plant, a warded place.
+  "creation": "self",
+  "guards-and-wards": "self",
+  "instant-summons": "self",
+  "magnificent-mansion": "self",
+  "passwall": "self",
+  "programmed-illusion": "self",
+  "project-image": "self",
+  "transport-via-plants": "self",
   // Xanathar: the creature touched breathes the cone later, with its action; at the cast there is no cone to place.
   "xanathar-soffio-del-drago": "selected",
   "spiritual-weapon": "self",
@@ -629,6 +652,7 @@ const TARGETING_OVERRIDES = Object.freeze({
   // "Any number of creatures" (2014 texts).
   "beacon-of-hope": Object.freeze({ unbounded: true }),
   "mass-heal": Object.freeze({ unbounded: true }),
+  "seeming": Object.freeze({ unbounded: true }),
   // Xanathar: six columns, two more for each slot level above the 6th. Under a creature, one each.
   "xanathar-ossa-della-terra": Object.freeze({ baseMaximum: 6, additionalPerSlotAbove: 2, baseSlot: 6 }),
   "feather-fall": Object.freeze({ maximum: 5 }),

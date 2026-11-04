@@ -465,7 +465,23 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
   ]),
   // D6: nothing but the pill of the spell, on who fails the save; the rest stays at the table.
   "imprisonment": failedAutomation([]),
-  "modify-memory": failedAutomation([]),
+  // 2014: charmed and incapacitated for the duration. Damage ends the spell; so does another spell on the target, at the
+  // table. The memories stay at the table too.
+  "modify-memory": failedAutomation([
+    conditionRule("Affascinato", {
+      expiry: concentration,
+      manualRemoval: true,
+      endsParentOnRemoval: true,
+      mechanics: { endsOnDamage: true },
+      effectDetail: "Ignaro di ciò che accade, ma sente il caster. Se subisce danni o è bersagliato da un altro incantesimo, l'incantesimo termina e nessun ricordo cambia. Chi combatte contro il caster ha vantaggio al TS.",
+    }),
+    conditionRule("Incapacitato", {
+      expiry: concentration,
+      manualRemoval: true,
+      endsParentOnRemoval: true,
+      mechanics: { endsOnDamage: true },
+    }),
+  ]),
   "planar-binding": failedAutomation([]),
   // CAP-HP-BRANCH: the 4d6 come with the cast whatever the save; a failure leaves the mind shattered until a
   // save at the end of every 30 days (at the table), Greater Restoration, Heal or Wish.

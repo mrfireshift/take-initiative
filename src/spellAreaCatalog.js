@@ -435,6 +435,18 @@ const AREA_OVERRIDES = Object.freeze({
   "xanathar-boschetto-druidico": {
     note: "La sagoma mostra il cubo minimo, 9 m di lato; il massimo è 27 m. Gli effetti scelti restano al tavolo.",
   },
+  // Lotto P3-10. A square of a mile is 1.1 million cells: the area is rebuilt from them at every change on the scene, for
+  // 10 days. "Up to" a mile: the shape marks where the mirage is.
+  "mirage-arcane": {
+    shape: "square",
+    sizeMeters: 60,
+    origin: "point",
+    rangeMeters: SIGHT_RANGE_METERS,
+    note: "La sagoma segna il punto, 60 m di lato: l'area vera può arrivare a un quadrato di 1,5 km.",
+  },
+  "private-sanctum": {
+    note: "La sagoma mostra il cubo massimo del 4° slot, 30 m di lato: può partire da 1,5 m e cresce di 30 m per ogni slot in più. Le proprietà scelte restano al tavolo.",
+  },
   // Lotto P3-9.
   "tiny-hut": {
     note: "La cupola resta ferma e finisce quando il caster ne esce: chiudila con Termina. Chi può attraversarla si decide al tavolo.",

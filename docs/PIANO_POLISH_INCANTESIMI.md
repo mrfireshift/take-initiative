@@ -1,6 +1,6 @@
 # Polishing degli incantesimi (piano)
 
-Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1, 2, 3, 4, 5, 6, 7, 8, 9 e D6 fatti)**. Questo piano guida la
+Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 e D6 fatti)**. Questo piano guida la
 revisione di tutti i 477 incantesimi prima di aggiungere nuove capacità. Per ognuno si controlla:
 
 - **A, l'interpretazione:** il motore fa ciò che dice il testo 2014?
@@ -487,6 +487,32 @@ Tasha) e Portale, Semipiano, Reggia meravigliosa.
 Provato al banco: i 22 senza bersaglio; Immagine maggiore agli slot 3 e 6; Animale messaggero allo slot 3; Parlare con i vegetali con Termina; Capanna con il caster che
 esce; Terreno illusorio; Sortilegio allo slot 3 con un round che passa; Cerimonia con matrimonio e dedizione; Legame planare allo slot 7; gli incantesimi con bersaglio,
 compreso il cadavere a 0 PF e un Inviare lontano. Le pill in vista espansa e compatta. Test in `test/spellPolishLot9.test.js`.
+
+#### Lotto 10 (fatto il 4/11): i 40 successivi
+
+I tracciati dal 4° al 7° livello, in ordine.
+
+| Difetto | Incantesimi | Correzione |
+|---|---|---|
+| Non si lanciavano senza spuntare una creatura, che il testo non ha | Creazione, Vigilanza e interdizione, Evocazione istantanea, Reggia meravigliosa, Passapareti, Illusione programmata, Immagine proiettata, Trasporto vegetale | Il lancio non chiede bersagli, la pill sta sul caster |
+| Lo stesso per chi evoca: ciò che evoca non è sulla mappa al lancio | Evoca elementale, Evoca folletto, Evoca celestiale, Evoca Demone Maggiore, Richiamo Infernale, Evoca Aberrazione, Evoca Celestiale, Evoca Costrutto, Evoca Elementale, Evoca Immondo | Pill e concentrazione sul caster |
+| Lo stesso, anche se il testo nomina qualcuno: non è lui a portare l'effetto | Danza Macabra (i cadaveri si alzano come creature nuove), Simulacro (il dato è una creatura nuova), Gabbia dell'Anima (l'anima sta nella gabbia del caster) | Pill sul caster |
+| Con il TS fallito non dava nulla | Modificare memoria | Affascinato e Incapacitato finché dura, come Trama ipnotica; il danno lo termina. Il vantaggio di chi combatte e un altro incantesimo sul bersaglio stanno nel dettaglio. I ricordi restano al tavolo |
+| Il limite era un bersaglio | Sembrare | Qualunque numero di creature |
+| **Disegnava 1,1 milioni di caselle** | Miraggio arcano | L'area si ricostruisce dalle caselle a ogni cambiamento sulla scena, e il miraggio dura 10 giorni. Sagoma di 60 m che segna il punto, con la nota: il testo dice «massimo» 1,5 km. Un test tiene ogni area sotto le 20.000 caselle |
+| La sagoma non diceva che cosa mostra | Santuario privato | Una nota: il cubo massimo del 4° slot |
+
+Scelta da confermare: la sagoma di 60 m di Miraggio arcano.
+
+Strumento: `npm run polish:sheets` falliva su Miraggio arcano, per le troppe caselle passate a `Math.max`. Ora usa un ciclo.
+
+Chiedono ancora una creatura, a ragione: Sogno (se non è sulla mappa si spunta il caster), Legame planare, Celare, Legame telepatico, Visione del vero. **Forma eterea** al 7° slot vale solo per il caster, ma la lista resta
+perché dall'8° prende tre creature per slot: si spunta il caster. Un bersaglio che dipende dallo slot non c'è, e non conviene costruirlo per un incantesimo.
+
+Restano al tavolo, senza contraddizioni: il TS Intelligenza e i 6d6 di Contattare altri piani, i modificatori del TS di Scrutare, l'incubo di Sogno.
+
+Provato al banco: i 21 senza bersaglio; Modificare memoria con i due esiti e con il danno; Sembrare su quattro creature; Miraggio arcano con Termina; Forma eterea allo slot 7, Sogno, Celare, Legame telepatico, Visione del vero. Test in
+`test/spellPolishLot10.test.js`.
 
 ### P4, i workflow che la prova non copre ancora (B)
 
