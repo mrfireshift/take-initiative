@@ -1,13 +1,14 @@
 import { exhaustionLevelFromInstances } from "./exhaustionCore.js";
 import { SPEED_CHECK_METERS_PER_CELL } from "./speedCheckCore.js";
 
-export const MOVEMENT_MODE_ORDER = Object.freeze(["walk", "fly", "swim", "climb"]);
+export const MOVEMENT_MODE_ORDER = Object.freeze(["walk", "fly", "swim", "climb", "burrow"]);
 
 export const MOVEMENT_MODE_LABELS = Object.freeze({
   walk: "Camminare",
   fly: "Volare",
   swim: "Nuotare",
   climb: "Scalare",
+  burrow: "Scavare",
 });
 
 const ZERO_SPEED_CONDITIONS = Object.freeze(new Map([

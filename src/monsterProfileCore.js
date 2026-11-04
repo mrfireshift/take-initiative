@@ -44,6 +44,27 @@ export function monsterSpeedsText(profile) {
     .join(" · ");
 }
 
+// The stat block's speeds as a passive movement effect, the form in which the engine already takes a mode from a spell
+// or a class feature: conditions and spells apply to them and nothing else has to know about monsters (velocità dei
+// mostri, lotto 2). A creature that does not walk has no walking mode at all: left at 0 m it would be the active mode of
+// a banshee, and its every move rejected. null without other speeds.
+export function monsterSpeedsMovementInstance(card, baseSpeedMeters = card?.speed) {
+  const speeds = card?.[MONSTER_PROFILE_FIELD]?.speeds;
+  const modes = {};
+  for (const mode of MONSTER_SPEED_MODES) {
+    const meters = Number(speeds?.[mode]);
+    if (meters > 0) modes[mode] = { grantMeters: meters };
+  }
+  if (!Object.keys(modes).length) return null;
+  return {
+    id: "monster-statblock-speeds",
+    effectId: "monster-statblock-speeds",
+    condition: "Velocità dello statblock",
+    active: true,
+    mechanics: { movement: { modes, ...(Number(baseSpeedMeters) > 0 ? {} : { suppressModes: ["walk"] }) } },
+  };
+}
+
 export function isMonsterProfileCard(card) {
   return !!sanitizeMonsterProfile(card?.[MONSTER_PROFILE_FIELD]);
 }

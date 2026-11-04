@@ -25,12 +25,19 @@ modalità di movimento dello statblock.
    alternative e le velocità a scelta. La tab Statistiche ha il riquadro «Altre velocità», l'import la riga
    corrispondente. Su 1631 mostri di sette bestiari: 739 hanno altre velocità (mediana 17 byte, massimo 60); il resto
    delle schede è identico a prima. Il motore non le usa ancora.
-2. **Il motore.** Apertura ai non PG (D1), modalità come effetto passivo nei due punti che calcolano la velocità
-   (`conditionSpeedForItem` in `speedCheck.js`, `resolveItemMovementProfile` in `movementProfileItemCore.js`), scavo (D5),
-   modalità di partenza (D4). I volanti importati diventano tali anche per le zone che chiedono una modalità
-   (`spellStaticZone.js`).
+2. **Il motore.** ✅ Fatto (04/11): il controllo «solo PG» è tolto dai due punti di `speedCheck.js` e un non PG senza
+   velocità resta spento per il controllo che c'era già (D1). Le modalità dello statblock sono un effetto passivo
+   (`monsterSpeedsMovementInstance`) nei due punti che calcolano la velocità (`conditionSpeedForItem`,
+   `resolveItemMovementProfile`), quindi condizioni e incantesimi valgono anche per loro senza toccare i calcoli del
+   motore. Chi non cammina non ha la modalità «Camminare» e parte dalla prima che ha. «Scavare» è la quinta modalità (D5).
+   Un non PG riparte dalla modalità dell'ultimo turno, un PG sempre a piedi (D4). Limita movimento non ha chiesto codice:
+   il ritorno indietro non guardava già l'attitudine (D3). I volanti importati lo sono anche per le zone che chiedono una
+   modalità (Controllare i venti). Una velocità tolta dalla scheda a metà turno spegne subito il controllo, anche per i
+   PG: prima il token non si muoveva più fino al turno dopo. Ogni turno extra di un Paragon ha il suo movimento.
+   **Non va in bundle da solo:** finché non c'è il lotto 3, i giocatori ricevono stato e avvisi anche dei mostri nascosti.
 3. **Il tavolo.** Cosa vedono i giocatori (D2), comando della modalità nella vista compatta (D6), niente scrittura sul
-   token a inizio turno per i non PG: solo quando si muove.
+   token a inizio turno per i non PG: solo quando si muove. Attenzione: «spendi movimento» di un promemoria
+   (`reminderResolutionCore.js`) legge quella scrittura; senza, il costo di un mostro fermo non verrebbe contato.
 4. **Verifica.** Test, banco in entrambe le viste, documentazione, prova in stanza.
 
 ## Fuori da questo piano
@@ -38,3 +45,7 @@ modalità di movimento dello statblock.
 - Le velocità oltre la camminata non si modificano a mano nella scheda: si reimporta lo statblock.
 - Un volante prono non cade da solo: resta al tavolo.
 - I mostri importati prima di questo lotto hanno solo la camminata finché non si reimportano.
+- Un mostro bloccato (afferrato, paralizzato) non si trascina nel suo turno anche con Limita movimento spento, come un PG:
+  per spostarlo a mano si spegne Movimento tracciato.
+- Lo scavo conta solo in orizzontale, come il nuoto: solo volo e scalata pagano i cambi di elevazione.
+- Le zone leggono le modalità dalla scheda sul token: un omonimo che le ha solo nel registro della stanza non vola per loro.

@@ -4,6 +4,7 @@ import { getInitiativeCard, loadInitiativeCard } from "./initiativeCards.js";
 import { getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import { classFeaturePassiveMovementMechanics } from "./classFeatureCore.js";
 import { getConditionInstances } from "./conditions.js";
+import { monsterSpeedsMovementInstance } from "./monsterProfileCore.js";
 import {
   proneStandingCostMeters,
   resolveConditionSpeed,
@@ -26,6 +27,7 @@ import {
   retreatSpeedCycle,
   reversedPathStart,
   shouldRetreatSpeedMovement,
+  startingMovementMode,
 } from "./speedCheckCore.js";
 import { normalizeElevation } from "./distance3dCore.js";
 import { activeBossSeamTerrainAreas, bossSeamTerrainSourceItems } from "./bossSeamTerrainCore.js";
@@ -316,11 +318,14 @@ function parseSpeedMeters(rawSpeed) {
   return Math.round(num * 10) / 10;
 }
 
-function conditionSpeedForItem(item, baseSpeedMeters, preferredMode = "walk") {
+// speedProfile: the card the base speed was read from, where the stat block's other speeds are too (a namesake may have
+// it only in the room's registry, not on its token).
+function conditionSpeedForItem(item, baseSpeedMeters, preferredMode = "walk", speedProfile = null) {
   const meta = item?.metadata?.[META_KEY] || {};
   const conditions = meta.conditions || {};
   const spells = meta[SPELLS_META_KEY] || [];
-  const passiveFeatureInstances = getEnabledClassFeatures(getInitiativeCard(item))
+  const card = getInitiativeCard(item);
+  const passiveFeatureInstances = getEnabledClassFeatures(card)
     .map((feature) => {
       const movement = classFeaturePassiveMovementMechanics(feature);
       if (!movement) return null;
@@ -333,9 +338,14 @@ function conditionSpeedForItem(item, baseSpeedMeters, preferredMode = "walk") {
       };
     })
     .filter(Boolean);
+  const statblockSpeeds = monsterSpeedsMovementInstance(speedProfile || card, baseSpeedMeters);
   return resolveConditionSpeed(
     baseSpeedMeters,
-    [...passiveFeatureInstances, ...getConditionInstances(conditions)],
+    [
+      ...passiveFeatureInstances,
+      ...(statblockSpeeds ? [statblockSpeeds] : []),
+      ...getConditionInstances(conditions),
+    ],
     spells,
     preferredMode,
   );
@@ -467,8 +477,7 @@ async function applyConditionSpeedItem(item, { refreshProfile = false } = {}) {
   const state = movementState;
   if (!state || item?.id !== state.itemId) return;
   state.profileItem = item;
-  if (state.disabled || (refreshProfile
-    && String(item.metadata?.[META_KEY]?.attitude || "").toLowerCase() !== "pc")) {
+  if (state.disabled) {
     if (!refreshProfile || !currentTurn) return;
     movementState = null;
     movementStatePromise = null;
@@ -483,6 +492,7 @@ async function applyConditionSpeedItem(item, { refreshProfile = false } = {}) {
     if (movementState !== state || state.profileRevision !== revision
       || !isCurrentSpeedOperation(state.sceneEpoch, state.generation)) return;
     baseSpeedMeters = Math.max(0, Number(profile?.speed) || 0);
+    state.speedProfile = profile;
     item = state.profileItem;
   }
   const totalMeters = movementTotalMeters(state);
@@ -493,7 +503,15 @@ async function applyConditionSpeedItem(item, { refreshProfile = false } = {}) {
     item,
     baseSpeedMeters,
     state.activeMode,
+    state.speedProfile,
   );
+  // The speed was taken off the card: no tracking from now on, not a token that cannot move until its next turn.
+  if (refreshProfile && !resolved.hasMovementModes && currentTurn) {
+    movementState = null;
+    movementStatePromise = null;
+    await ensureMovementState({ ...currentTurn });
+    return;
+  }
   const previousSignature = movementResolutionSignature(state);
   const nextSignature = movementResolutionSignature({ ...resolved, climbing, baseSpeedMeters });
   if (previousSignature === nextSignature) return;
@@ -584,6 +602,7 @@ function applyPersistedMovementItem(item) {
     item,
     movementState.baseSpeedMeters,
     payload.activeMode || movementState.activeMode,
+    movementState.speedProfile,
   );
   applyResolvedMovementState(movementState, resolved, totalMeters);
   movementState.climbing = item?.metadata?.[META_KEY]?.[CLIMBING_META_FIELD] === true;
@@ -767,7 +786,8 @@ async function loadMovementState(turn, { itemId: requestedItemId = "", boardToke
   const meta = item?.metadata?.[META_KEY] || {};
   const boardTokenRule = boardToken ? speedCheckedBoardTokenRule(item, actorId) : null;
   if (boardToken && !boardTokenRule) return null;
-  if (!item || (!boardTokenRule && String(meta.attitude || "").toLowerCase() !== "pc")) {
+  // Any creature with a speed on its card, PC or not (velocità dei mostri, D1); without one, hasMovementModes below.
+  if (!item) {
     return { turnKey, itemId, sceneEpoch, generation, disabled: true, path: [] };
   }
 
@@ -789,7 +809,8 @@ async function loadMovementState(turn, { itemId: requestedItemId = "", boardToke
     : conditionSpeedForItem(
       item,
       baseSpeedMeters,
-      persistedMatches ? persisted.activeMode : "walk",
+      startingMovementMode(persisted, turnKey, meta.attitude),
+      profile,
     );
   if (!resolvedSpeed.hasMovementModes) {
     return { turnKey, itemId, sceneEpoch, generation, disabled: true, path: [] };
@@ -813,6 +834,7 @@ async function loadMovementState(turn, { itemId: requestedItemId = "", boardToke
     sceneEpoch,
     generation,
     disabled: false,
+    speedProfile: profile,
     baseSpeedMeters,
     modeBaseSpeedMeters: resolvedSpeed.modeBaseSpeedMeters,
     speedMeters,

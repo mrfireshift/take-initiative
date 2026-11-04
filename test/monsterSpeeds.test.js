@@ -1,9 +1,12 @@
 // Velocità dei mostri, lotto 1: le velocità oltre la camminata, dallo statblock al profilo del mostro sulla scheda.
+// Lotto 2: quelle stesse velocità nel motore, come effetto passivo.
 import assert from "node:assert/strict";
 import test from "node:test";
+import { resolveMovementProfile } from "../src/movementProfileCore.js";
 import { fiveToolsMonsterToStatblock } from "../src/fiveToolsMonsterCore.js";
 import { parseCharacterSheetImport } from "../src/characterSheetImportCore.js";
-import { MONSTER_PROFILE_STATBLOCK_FIELDS, monsterSpeedsText, sanitizeMonsterProfile } from "../src/monsterProfileCore.js";
+import { MONSTER_PROFILE_STATBLOCK_FIELDS, monsterSpeedsMovementInstance, monsterSpeedsText, sanitizeMonsterProfile } from "../src/monsterProfileCore.js";
+import { startingMovementMode } from "../src/speedCheckCore.js";
 
 const convert = (speed) => fiveToolsMonsterToStatblock({ name: "Test", source: "MM", ac: [15], hp: { average: 10 }, speed,
   action: [{ name: "Claw", entries: ["{@atk mw} {@hit 4} to hit, reach 5 ft., one target. {@h}5 ({@damage 1d6 + 2}) slashing damage."] }] });
@@ -58,4 +61,59 @@ test("in parole: le modalità nell'ordine, in metri con la virgola, lo stazionar
   assert.equal(monsterSpeedsText({ speeds: { swim: 7.5, fly: 24 }, hover: true }), "Volare 24 m (stazionario) · Nuotare 7,5 m");
   assert.equal(monsterSpeedsText({ source: "manual" }), "");
   assert.equal(monsterSpeedsText(null), "");
+});
+
+const modesOf = (profile) => profile.movementModes.map(({ id, speedMeters }) => [id, speedMeters]);
+const statblock = (speed, speeds) => monsterSpeedsMovementInstance({ speed, monster: { source: "5etools", speeds } });
+
+test("nel motore: le modalità dello statblock si aggiungono alla camminata, nell'ordine, senza una riga di motivi", () => {
+  const profile = resolveMovementProfile(12, [statblock(12, { burrow: 6, fly: 24, swim: 12, climb: 3 })]);
+  assert.deepEqual(modesOf(profile), [["walk", 12], ["fly", 24], ["swim", 12], ["climb", 3], ["burrow", 6]]);
+  assert.equal(profile.movementModes.at(-1).label, "Scavare");
+  assert.equal(profile.activeMode, "walk");
+  assert.equal(profile.summary, "");
+  assert.equal(resolveMovementProfile(12, [statblock(12, { fly: 24 })], [], "fly").summary, "");
+});
+
+test("nel motore: condizioni e incantesimi valgono per ogni modalità, come per quelle date da un incantesimo", () => {
+  const flyer = statblock(12, { fly: 24 });
+  const grappled = resolveMovementProfile(12, [flyer, { condition: "Afferrato", active: true }], [], "fly");
+  assert.deepEqual(modesOf(grappled), [["walk", 0], ["fly", 0]]);
+  assert.equal(grappled.blocked, true);
+  assert.deepEqual(modesOf(resolveMovementProfile(12, [flyer, { condition: "Indebolimento", level: 2, active: true }])), [["walk", 6], ["fly", 12]]);
+  assert.deepEqual(modesOf(resolveMovementProfile(12, [flyer], ["Velocità"])), [["walk", 24], ["fly", 48]]);
+  assert.equal(resolveMovementProfile(12, [flyer, { condition: "Prono", active: true }], [], "fly").movementCostMultiplier, 2);
+  const flySpell = { condition: "Volare", active: true, mechanics: { movement: { modes: { fly: { grantMeters: 18 } } } } };
+  assert.deepEqual(modesOf(resolveMovementProfile(12, [flyer, flySpell])), [["walk", 12], ["fly", 24]], "il più alto fra i due");
+});
+
+test("nel motore: chi non cammina non ha la camminata e parte dalla prima modalità che ha", () => {
+  for (const speed of [null, undefined, 0]) {
+    const profile = resolveMovementProfile(speed, [statblock(speed, { swim: 6, fly: 12 })]);
+    assert.deepEqual(modesOf(profile), [["fly", 12], ["swim", 6]], String(speed));
+    assert.deepEqual([profile.activeMode, profile.speedMeters, profile.hasMovementModes], ["fly", 12, true]);
+  }
+  assert.equal(resolveMovementProfile(12, [statblock(12, { fly: 24 })], [], "swim").activeMode, "walk", "una modalità che non ha: cammina");
+});
+
+test("nel motore: senza altre velocità nessun effetto, e la scheda resta quella di prima", () => {
+  for (const card of [null, {}, { speed: 9 }, { speed: 9, monster: { source: "manual" } }, { monster: { speeds: { fly: 0, teleport: 9 } } }]) {
+    assert.equal(monsterSpeedsMovementInstance(card), null);
+  }
+  assert.equal(resolveMovementProfile(0, []).hasMovementModes, false);
+  assert.ok(monsterSpeedsMovementInstance({ speed: 9, monster: { speeds: { fly: 12 } } }).mechanics.movement.suppressModes === undefined,
+    "chi cammina tiene la camminata: la velocità di default è quella della scheda");
+});
+
+test("la modalità di partenza: quella del turno se è lo stesso; quella dell'ultimo per i non PG, la camminata per i PG", () => {
+  const last = { turnKey: "1:0:a", activeMode: "fly" };
+  assert.equal(startingMovementMode(last, "1:0:a", "pc"), "fly", "lo stesso turno ricaricato");
+  assert.equal(startingMovementMode(last, "1:0:a", "enemy"), "fly");
+  assert.equal(startingMovementMode(last, "2:0:a", "pc"), "walk");
+  assert.equal(startingMovementMode(last, "2:0:a", "PC"), "walk");
+  for (const attitude of ["enemy", "ally", "neutral", "", undefined]) {
+    assert.equal(startingMovementMode(last, "2:0:a", attitude), "fly", String(attitude));
+  }
+  assert.equal(startingMovementMode(undefined, "1:0:a", "enemy"), "walk", "il primo turno");
+  assert.equal(startingMovementMode({ turnKey: "1:0:a" }, "1:0:a", "pc"), "walk");
 });

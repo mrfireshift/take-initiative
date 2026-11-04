@@ -167,6 +167,15 @@ export function resolveSpeedCheckTurn(state) {
   };
 }
 
+// The mode a turn starts in: its own, when it is reloaded halfway through. A non-PC otherwise keeps the one of its last
+// turn, so a flyer stays in the air (velocità dei mostri, D4), while a PC starts each turn on foot. Where the creature has
+// no such mode the engine takes walking, or the first one it has.
+export function startingMovementMode(persisted, turnKey, attitude) {
+  const sameTurn = String(persisted?.turnKey || "") === String(turnKey || "");
+  const keepsLastTurn = String(attitude || "").toLowerCase() !== "pc";
+  return (sameTurn || keepsLastTurn) && persisted?.activeMode ? persisted.activeMode : "walk";
+}
+
 export function advanceSpeedCycle(previous, movedCells, speedMeters) {
   const speed = Math.max(0, Number(speedMeters) || 0);
   const meters = Math.max(0, Number(movedCells) || 0) * SPEED_CHECK_METERS_PER_CELL;

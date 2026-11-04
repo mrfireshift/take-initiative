@@ -4,6 +4,7 @@ import { classFeaturePassiveMovementMechanics } from "./classFeatureCore.js";
 import { resolveConditionSpeed } from "./conditionSpeedCore.js";
 import { getConditionInstances } from "./conditions.js";
 import { getInitiativeCard } from "./initiativeCards.js";
+import { monsterSpeedsMovementInstance } from "./monsterProfileCore.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
@@ -32,10 +33,12 @@ export function resolveItemMovementProfile(
         : null;
     })
     .filter(Boolean);
+  const statblockSpeeds = monsterSpeedsMovementInstance(profile, baseSpeed);
   return resolveConditionSpeed(
     baseSpeed,
     [
       ...passiveFeatureInstances,
+      ...(statblockSpeeds ? [statblockSpeeds] : []),
       ...getConditionInstances(meta.conditions || {}),
     ],
     meta[SPELLS_META_KEY] || [],

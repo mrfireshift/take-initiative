@@ -76,7 +76,7 @@ stub("../src/initiativeCards.js", {
   getInitiativeCard: (item) => item.metadata?.[META_KEY]?.initiativeCard || {},
   async loadInitiativeCard(item) {
     if (env.profileGate) await env.profileGate.promise;
-    return item.metadata?.[META_KEY]?.initiativeCard || {};
+    return env.registryCard || item.metadata?.[META_KEY]?.initiativeCard || {};
   },
 });
 stub("../src/classFeatureCatalog.js", { getEnabledClassFeatures: () => [] });
@@ -280,13 +280,169 @@ test("profile changes during initialization replace the pending profile read", a
   assert.equal(env.snapshot.totalMeters, 1.5);
 });
 
-test("attitude edits disable and re-enable tracking only for PCs", async () => {
+test("attitude edits no longer switch the tracking: the speed on the card is what counts", async () => {
   await runtime();
   await ready();
-  await metadataEdit((meta) => { meta.attitude = "enemy"; });
-  await until(() => env.snapshot?.disabled);
-  await metadataEdit((meta) => { meta.attitude = "pc"; });
+  for (const attitude of ["enemy", "pc"]) {
+    await metadataEdit((meta) => { meta.attitude = attitude; });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(env.snapshot.available, true, attitude);
+  }
+});
+
+// Velocità dei mostri, lotto 2: the engine opened to non-PCs, with the stat block's other speeds.
+function creature({ speed = 12, speeds, attitude = "enemy" } = {}) {
+  const item = token("hero", 0, speed);
+  item.metadata[META_KEY].attitude = attitude;
+  if (speeds) item.metadata[META_KEY].initiativeCard.monster = { source: "5etools", speeds };
+  return item;
+}
+const nextRoundTurn = async (api) => {
+  env.turn.current = 1;
+  api.syncSpeedCheckTurn(env.turn);
+  await until(() => env.snapshot.itemId === "ally" && env.snapshot.available);
+  env.turn = { ...env.turn, current: 0, round: env.turn.round + 1 };
+  api.syncSpeedCheckTurn(env.turn);
+  await until(() => env.snapshot.itemId === "hero" && env.snapshot.available);
+};
+
+test("a non-PC with a speed is tracked like a PC, and its moves are charged", async () => {
+  const api = await runtime({ items: [creature(), token("ally")] });
+  await ready();
+  assert.equal(env.snapshot.available, true);
+  assert.equal(env.snapshot.speedMeters, 12);
+  await move(api, 0, 1);
+  assert.equal(env.snapshot.totalMeters, 1.5);
+  assert.equal(env.items[0].metadata[META_KEY].speedCheckMovement.totalMeters, 1.5);
+});
+
+test("a non-PC without a speed stays off, its token free; a speed on the card turns it on", async () => {
+  const api = await runtime({ items: [creature({ speed: null }), token("ally")] });
+  await ready();
+  assert.equal(env.snapshot.disabled, true);
+  const writes = env.writes.length;
+  await move(api, 0, 1);
+  assert.equal(env.items[0].position.x, 1, "no rollback");
+  assert.equal(env.writes.length, writes, "nothing written on the token");
+  await metadataEdit((meta) => { meta.initiativeCard.speed = 9; });
   await until(() => env.snapshot?.available);
+  assert.equal(env.snapshot.speedMeters, 9);
+});
+
+test("Limita movimento rolls a non-PC back as it does a PC (D3)", async () => {
+  const api = await runtime({ items: [creature({ speed: 3 }), token("ally")] });
+  await ready();
+  api.setSpeedCheckMovementLimit(true);
+  await move(api, 0, 2);
+  assert.equal(env.snapshot.totalMeters, 3);
+  await move(api, 2, 3);
+  assert.equal(env.items[0].position.x, 2, "back where it was");
+  assert.equal(env.snapshot.totalMeters, 3);
+});
+
+test("a creature that does not walk starts in its first mode, with no walking mode to fall into", async () => {
+  const api = await runtime({ items: [creature({ speed: null, speeds: { swim: 6, fly: 12 } }), token("ally")] });
+  await ready();
+  assert.equal(env.snapshot.available, true);
+  assert.equal(env.snapshot.activeMode, "fly");
+  assert.equal(env.snapshot.speedMeters, 12);
+  assert.deepEqual(env.snapshot.movementModes.map(({ id }) => id), ["fly", "swim"]);
+  await move(api, 0, 1);
+  assert.equal(env.items[0].position.x, 1, "not rejected as a creature at 0 m");
+  assert.equal(env.snapshot.totalMeters, 1.5);
+});
+
+test("the stat block's modes can be chosen, and a condition applies to each of them", async () => {
+  const api = await runtime({ items: [creature({ speeds: { fly: 24, burrow: 6 } }), token("ally")] });
+  await ready();
+  assert.deepEqual(env.snapshot.movementModes.map(({ id, label, speedMeters }) => [id, label, speedMeters]),
+    [["walk", "Camminare", 12], ["fly", "Volare", 24], ["burrow", "Scavare", 6]]);
+  assert.equal(env.snapshot.activeMode, "walk");
+  api.setSpeedCheckMovementMode("burrow");
+  await api.queueSpeedCheckMovements([]);
+  assert.deepEqual([env.snapshot.activeModeLabel, env.snapshot.speedMeters], ["Scavare", 6]);
+  await metadataEdit((meta) => { meta.conditions = { instances: [{ id: "grappled", active: true, condition: "Afferrato" }] }; });
+  await until(() => env.snapshot.blocked);
+  assert.deepEqual(env.snapshot.movementModes.map(({ speedMeters }) => speedMeters), [0, 0, 0]);
+  await move(api, 0, 1);
+  assert.equal(env.items[0].position.x, 0, "held in place, as a PC is");
+});
+
+test("a non-PC keeps the mode of its last turn, with a new turn's budget (D4)", async () => {
+  const api = await runtime({ items: [creature({ speeds: { fly: 24 } }), token("ally")] });
+  await ready();
+  assert.equal(env.snapshot.activeMode, "walk", "its first turn: walking");
+  api.setSpeedCheckMovementMode("fly");
+  await move(api, 0, 1);
+  await nextRoundTurn(api);
+  assert.deepEqual([env.snapshot.activeMode, env.snapshot.speedMeters, env.snapshot.totalMeters], ["fly", 24, 0]);
+});
+
+test("a Paragon's extra turn is a turn of the same token, with a budget of its own; a virtual entry tracks nothing", async () => {
+  const api = await runtime({ items: [creature({ speeds: { fly: 24 } }), token("ally")] });
+  await ready();
+  api.setSpeedCheckMovementMode("fly");
+  await move(api, 0, 1);
+  env.turn = { order: ["hero", "hero::p1", "__LAIR__", "ally"], current: 1, round: 1 };
+  api.syncSpeedCheckTurn(env.turn);
+  await until(() => env.snapshot.turnKey === "1:1:hero::p1" && env.snapshot.available);
+  assert.deepEqual([env.snapshot.itemId, env.snapshot.activeMode, env.snapshot.totalMeters], ["hero", "fly", 0]);
+  env.turn.current = 2;
+  api.syncSpeedCheckTurn(env.turn);
+  await until(() => env.snapshot.turnKey === "1:2:__LAIR__" && env.snapshot.disabled);
+  const writes = env.writes.length;
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(env.writes.length, writes);
+});
+
+test("a PC still starts each turn on foot, whatever it did on the last one", async () => {
+  const api = await runtime({ items: [creature({ attitude: "pc", speeds: { fly: 24 } }), token("ally")] });
+  await ready();
+  api.setSpeedCheckMovementMode("fly");
+  await move(api, 0, 1);
+  assert.equal(env.items[0].metadata[META_KEY].speedCheckMovement.activeMode, "fly");
+  await nextRoundTurn(api);
+  assert.equal(env.snapshot.activeMode, "walk");
+});
+
+test("a speed taken off the card mid-turn turns the tracking off, it does not freeze the token", async () => {
+  const api = await runtime({ items: [creature(), token("ally")] });
+  await ready();
+  await move(api, 0, 1);
+  await metadataEdit((meta) => { meta.initiativeCard.speed = null; });
+  await until(() => env.snapshot?.disabled);
+  await move(api, 1, 2);
+  assert.equal(env.items[0].position.x, 2, "no rollback");
+  await metadataEdit((meta) => { meta.initiativeCard.speed = 12; });
+  await until(() => env.snapshot?.available);
+  assert.equal(env.snapshot.totalMeters, 1.5, "what it had used this turn is still there");
+});
+
+test("the other speeds come from the card the speed came from: a namesake's is in the room's registry", async () => {
+  const namesake = token("hero", 0, 0);
+  delete namesake.metadata[META_KEY].initiativeCard;
+  const api = await runtime({ items: [namesake, token("ally")] });
+  await ready();
+  assert.equal(env.snapshot.disabled, true);
+  env.registryCard = { speed: 12, monster: { source: "5etools", speeds: { fly: 24 } } };
+  await metadataEdit((meta) => { meta.attitude = "enemy"; });
+  await until(() => env.snapshot?.available);
+  assert.deepEqual(env.snapshot.movementModes.map(({ id }) => id), ["walk", "fly"]);
+  await metadataEdit((meta) => { meta.conditions = { instances: [{ id: "prone", active: true, condition: "Prono" }] }; });
+  await until(() => env.snapshot.prone);
+  assert.deepEqual(env.snapshot.movementModes.map(({ id }) => id), ["walk", "fly"], "still there on a later refresh");
+  api.setSpeedCheckMovementMode("fly");
+  await api.queueSpeedCheckMovements([]);
+  assert.equal(env.snapshot.speedMeters, 24);
+});
+
+test("the zones that ask for a mode see the stat block's, as long as it can use it", async () => {
+  const { itemHasEffectiveMovementMode } = await import("../src/movementProfileItemCore.js");
+  const flyer = creature({ speeds: { fly: 24 } });
+  assert.equal(itemHasEffectiveMovementMode(flyer, "fly"), true);
+  assert.equal(itemHasEffectiveMovementMode(creature(), "fly"), false);
+  flyer.metadata[META_KEY].conditions = { instances: [{ id: "grappled", active: true, condition: "Afferrato" }] };
+  assert.equal(itemHasEffectiveMovementMode(flyer, "fly"), false);
 });
 
 test("a queued first movement survives a profile refresh during initialization", async () => {
