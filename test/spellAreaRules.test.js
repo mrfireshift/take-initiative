@@ -910,11 +910,12 @@ test("Sfera Acquea, Spirito Guaritore, Crescita di Spine e Muro di Ghiaccio trac
 });
 
 test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () => {
-  assert.equal(AREA_SAVE_SPELL_IDS.length, 94);
+  // 93 since Dragon's Breath has no cone at the cast (polish, lot 7): the creature touched breathes later.
+  assert.equal(AREA_SAVE_SPELL_IDS.length, 93);
   // 37 with Pass without Trace's aura (lotto L1); 40 with Wall of Sand, Wall of Force and Forbiddance (lotto L3); 42 with
   // Plant Growth and Wall of Water (CAP-TERRAIN).
   assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 42);
-  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 137);
+  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 136);
   // 17 with the saves with damage of lotto L2; 152 in the popover with the zones of lotto L3; 21 and 156 with
   // Disintegrate, Finger of Death, Power Word Kill and Feeblemind (CAP-HP-BRANCH); 25 and 160 with Heal, Power
   // Word Heal, Lesser Restoration and Dispel Magic (CAP-CLEANSE); 26 and 161 with Magic Missile; 27 and 162 with
@@ -922,7 +923,7 @@ test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () =>
   // 54 and 191 with the 21 spells of decision D6 of the polish; 58 and 195 with Frostbite, Earthen Grasp, Witch Bolt and
   // Ray of Enfeeblement (lot 3).
   assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 58);
-  assert.equal(AREA_POPOVER_SPELL_IDS.length, 195);
+  assert.equal(AREA_POPOVER_SPELL_IDS.length, 194);
   assert.equal(AREA_SAVE_SPELL_IDS.includes("phb2014-fame-di-hadar"), false);
   assert.equal(
     AREA_PLACEMENT_ONLY_SPELL_IDS.includes("phb2014-fame-di-hadar"),
@@ -945,8 +946,9 @@ test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () =>
 test("l'audit classifica ogni campo area dell'intero catalogo", () => {
   const excludedIds = Object.keys(AREA_FIELD_NON_POPOVER_REASONS);
   const popoverIds = new Set(AREA_POPOVER_SPELL_IDS);
-  // 28 since Forbiddance became a zone (lotto L3); 27 since Disintegrate resolves in the area command (CAP-HP-BRANCH).
-  assert.equal(excludedIds.length, 27);
+  // 28 since Forbiddance became a zone (lotto L3); 27 since Disintegrate resolves in the area command (CAP-HP-BRANCH); 28
+  // with Dragon's Breath (polish, lot 7).
+  assert.equal(excludedIds.length, 28);
   for (const spellId of excludedIds) {
     assert.ok(getSpellDefinition(spellId)?.area, spellId);
     assert.equal(popoverIds.has(spellId), false, spellId);

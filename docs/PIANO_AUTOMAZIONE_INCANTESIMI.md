@@ -551,7 +551,8 @@ inserire. Le decisioni approvate sono D1–D5.
   «Ritorno dalla morte −4», con il valore nel nome perché i dadi si tirano al tavolo.
   Il riposo lungo di Riposo del gruppo la abbassa di 1 nello stesso comando
   (`planGroupRestReturnFromDeath`), a 0 la toglie. Chi è morto o a 0 PF non ne
-  beneficia; un mostro non riposa, e il GM la toglie a mano. Costrizione resta da fare.
+  beneficia; un mostro non riposa, e il GM la toglie a mano. Di Costrizione restano i
+  5d10 al giorno: Affascinato e le durate per slot sono del lotto 7 del polish.
 - Le pill di un incantesimo istantaneo non hanno `effectKind`: la card mostra buff e
   debuff solo dentro la pill del loro incantesimo, che qui non c'è. Vale anche per lo
   zombi e per le condizioni di Parola divina (`hpBranchSpellRules.js`).

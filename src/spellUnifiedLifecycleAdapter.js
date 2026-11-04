@@ -472,6 +472,8 @@ export async function executeSpellUnifiedLifecycle({
       ...history,
       error: null,
       request,
+      // What the GM should know about the cast (Power Word Stun above its threshold: no effect).
+      ...(Array.isArray(executionResult?.notes) && executionResult.notes.length ? { notes: executionResult.notes } : {}),
       ...(noOp ? {
         reason: executionResult?.reason || executionStatus,
         pending: executionResult?.pending === true,

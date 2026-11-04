@@ -84,7 +84,6 @@ export const AREA_SAVE_SPELL_IDS = Object.freeze([
   "xanathar-sfera-acquea",
   "xanathar-sfera-al-vetriolo",
   "xanathar-sfera-della-tempesta",
-  "xanathar-soffio-del-drago",
   "xanathar-trabocchetto",
   "xanathar-trasmutare-roccia",
   "xanathar-turbine",
@@ -272,6 +271,8 @@ export const AREA_FIELD_NON_POPOVER_REASONS = Object.freeze({
   "arcane-eye": "sensory-radius",
   "xanathar-investitura-del-vento": "active-action-only-area",
   "xanathar-investitura-della-pietra": "active-action-only-area",
+  // The creature touched breathes the cone later, with its action (CAP-ORIGIN).
+  "xanathar-soffio-del-drago": "active-action-only-area",
   "conjure-elemental": "summon-source-volume",
   "create-or-destroy-water": "environment-volume",
   "creation": "created-object-volume",
@@ -454,8 +455,15 @@ const noPersistentEffect = Object.freeze({
 // track=false mantiene condizioni istantanee (es. Prono) indipendenti da una
 // pill spell di un round, che altrimenti le rimuoverebbe troppo presto.
 export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
+  "geas": failedAutomation([
+    conditionRule("Affascinato", {
+      expiry: rounds(432000),
+      manualRemoval: true,
+      endsParentOnRemoval: true,
+      effectDetail: "Affascinato dal caster per la durata. Subisce 5d10 danni psichici quando agisce contro il comando, al massimo una volta al giorno. Finisce anche con rimuovi maledizione, ristorare superiore o desiderio.",
+    }),
+  ]),
   // D6: nothing but the pill of the spell, on who fails the save; the rest stays at the table.
-  "geas": failedAutomation([]),
   "imprisonment": failedAutomation([]),
   "modify-memory": failedAutomation([]),
   "planar-binding": failedAutomation([]),
@@ -816,6 +824,14 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
 // Varianti in cui lo stesso incantesimo usa TS diversi o produce risultati
 // incompatibili. La Console HP deve chiedere quale sotto-effetto si sta
 // risolvendo, invece di applicare una condizione arbitraria.
+// Antipathy/Sympathy: the save of whoever ends the turn far from the target, or unable to see it.
+const ANTIPATHY_SYMPATHY_END_SAVE = Object.freeze({
+  ability: "wis",
+  timing: "turn-end",
+  dcSource: "source-spell",
+  label: "Effettua questo TS solo se è a più di 18 m dal bersaglio o non lo vede. Se lo supera, l'effetto termina e ne è immune per 1 minuto.",
+});
+
 export const AREA_SAVE_RULE_CHOICES = Object.freeze({
   // Transmute Rock (XGtE): only the mud leaves terrain behind (spellAreaRules.js); the other two are resolved at the cast.
   "xanathar-trasmutare-roccia": Object.freeze([
@@ -882,6 +898,7 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
           expiry: rounds(144000),
           manualRemoval: true,
           endsParentOnRemoval: true,
+          saveReminder: ANTIPATHY_SYMPATHY_END_SAVE,
         }),
       ]),
     }),
@@ -897,6 +914,7 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
             expiry: rounds(144000),
             manualRemoval: true,
             endsParentOnRemoval: true,
+            saveReminder: ANTIPATHY_SYMPATHY_END_SAVE,
             summaryParts: Object.freeze([
               Object.freeze({ id: "sympathy-attraction", label: "Verso destinazione" }),
             ]),

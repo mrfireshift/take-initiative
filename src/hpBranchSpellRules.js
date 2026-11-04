@@ -30,6 +30,24 @@ export function currentHitPointsForBranch(value = {}) {
   return Math.max(0, Math.floor(Math.min(hp, hpMax)));
 }
 
+// Power Word Stun and Power Word Pain: above these current hit points "the spell has no effect". The cast is spent all the
+// same. Single-target spells, on the lifecycle lane; no hit points on the token: the GM decides, the spell applies.
+const SPELL_HP_CEILINGS = Object.freeze({
+  "power-word-stun": 150,
+  "xanathar-parola-del-potere-dolore": 100,
+});
+
+export function spellHpCeiling(spellId = "") {
+  return SPELL_HP_CEILINGS[String(spellId || "").trim()] ?? null;
+}
+
+export function spellHpCeilingRefuses(spellId = "", item = null) {
+  const ceiling = spellHpCeiling(spellId);
+  if (ceiling === null) return false;
+  const hp = currentHitPointsForBranch(meta(item));
+  return hp !== null && hp > ceiling;
+}
+
 function creatureKind(context = {}, value = {}) {
   const chosen = String(context?.creatureKind || "").trim();
   if (chosen) return chosen;

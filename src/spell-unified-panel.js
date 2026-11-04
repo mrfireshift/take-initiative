@@ -3001,7 +3001,7 @@ export function bootSpellUnifiedPanel(
         },
         feedback: {
           state: "success",
-          message: `${recordOnly ? "Lancio registrato: effetti al tavolo" : "Incantesimo applicato"}${spentText(slotSpend)}.`,
+          message: `${result.notes?.length ? result.notes.join(" ") : recordOnly ? "Lancio registrato: effetti al tavolo" : "Incantesimo applicato"}${spentText(slotSpend)}.`,
         },
       });
       await refreshScene();

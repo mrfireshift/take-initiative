@@ -215,7 +215,9 @@ quel personaggio.
   lo spostamento era forzato.
 - Alcuni incantesimi leggono i PF del bersaglio alla conferma (i PF temporanei
   non contano). Parola del potere uccidere non ha TS: con 100 PF o meno la
-  creatura muore. Parola divina, al TS Carisma fallito, assorda, acceca o
+  creatura muore. Parola del potere stordire sopra i 150 PF e Parola del Potere
+  Dolore sopra i 100 PF non hanno effetto: lo slot è speso e il pannello lo dice.
+  Parola divina, al TS Carisma fallito, assorda, acceca o
   stordisce secondo i PF rimasti e uccide chi ha 20 PF o meno. Disintegrazione
   riduce in polvere chi porta a 0 PF; Dito della morte, se uccide un umanoide,
   ricorda a inizio del prossimo turno del caster che si rianima come zombi.

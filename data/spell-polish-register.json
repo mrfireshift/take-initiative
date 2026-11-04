@@ -53,18 +53,18 @@
       "level": 2,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto nel lancio: solo la pill. I PF massimi restano a CAP-MAXHP."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Pill su Sera, nessun campo."
       }
     },
     {
@@ -256,18 +256,18 @@
       "level": 8,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Mancava il TS a fine turno di chi è lontano dal bersaglio o non lo vede. Ora c'è, sui due effetti."
       },
       "sweep": {
         "runs": 4,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Goblin spaventato; TS a fine turno; superato toglie condizione e pill."
       }
     },
     {
@@ -736,18 +736,18 @@
       "level": 2,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: due varianti; sospendere davvero le condizioni resta a CAP-SUPPRESSION."
       },
       "sweep": {
         "runs": 4,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Variante Indifferenza: pill e condizione."
       }
     },
     {
@@ -1701,10 +1701,10 @@
       "level": 5,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto nel lancio: solo la pill. Congedo e Spezzare restano a CAP-CLEANSE."
       },
       "sweep": {
         "runs": 2,
@@ -1821,10 +1821,10 @@
       "level": 8,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "D6: chiede l'esito del TS, il lancio rapido lo considera fallito."
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: come Dominare bestie, 8 ore al 9°."
       },
       "sweep": {
         "runs": 2,
@@ -2121,18 +2121,18 @@
       "level": 4,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza un bersaglio. Ora la pill sta sul caster. Il morso resta al tavolo (CAP-ORIGIN)."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, pill sul caster."
       }
     },
     {
@@ -2201,10 +2201,10 @@
       "level": 8,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: 4d6 comunque, la pill solo se fallisce."
       },
       "sweep": {
         "runs": 2,
@@ -2212,7 +2212,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Pill Regressione mentale con la × in entrambe le viste, TS Intelligenza, formula 4d6."
+        "note": "Superato: 5 danni, nessuna pill."
       }
     },
     {
@@ -2581,18 +2581,18 @@
       "level": 9,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Pill su Sera."
       }
     },
     {
@@ -2621,18 +2621,18 @@
       "level": 6,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto nel lancio: 10d6 e 1 per slot. La sfera conservata resta a CAP-ORIGIN."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Slot 7: 11d6."
       }
     },
     {
@@ -2681,18 +2681,18 @@
       "level": 5,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "D6: chiede l'esito del TS, il lancio rapido lo considera fallito."
+        "state": "corretto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Non dava Affascinato e la durata non seguiva lo slot. Ora Affascinato, un anno dal 7°, fino a dissoluzione dal 9°. I 5d10 restano al tavolo (CAP-CALENDAR)."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Slot 5, 7 e 9: Affascinato e pill con la durata dello slot; manuale al 9°."
       }
     },
     {
@@ -2861,18 +2861,18 @@
       "level": 5,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Solo registrato: resta a CAP-MAXHP."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Registra lancio."
       }
     },
     {
@@ -3021,18 +3021,18 @@
       "level": 6,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Solo registrato: resta a CAP-MAXHP."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Registra lancio, col TS mostrato."
       }
     },
     {
@@ -3141,18 +3141,18 @@
       "level": 6,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Solo registrato: resta a CAP-MAXHP."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Registra lancio."
       }
     },
     {
@@ -3241,18 +3241,18 @@
       "level": 8,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Non diceva cosa succede a un immondo o non morto che colpisce in mischia. Ora è nel dettaglio."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Parte del caster spuntata, nemici no."
       }
     },
     {
@@ -3381,18 +3381,18 @@
       "level": 8,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: TS al lancio, all'ingresso e a fine turno."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Accecato dentro; TS a fine turno e all'ingresso; Termina."
       }
     },
     {
@@ -3981,18 +3981,18 @@
       "level": 8,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Pill su Auril."
       }
     },
     {
@@ -4484,10 +4484,10 @@
       "level": 9,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: CAP-HP-BRANCH."
       },
       "sweep": {
         "runs": 2,
@@ -4504,18 +4504,18 @@
       "level": 8,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Stordiva anche sopra i 150 PF. Ora non ha effetto: lo slot è speso e il pannello lo dice."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Auril a 580 PF: nessun effetto, il pannello lo dice. Sera a 38 PF: Stordito."
       }
     },
     {
@@ -4584,10 +4584,10 @@
       "level": 9,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto nelle regole: muro o sfera, strati e attraversamento dal GM."
       },
       "sweep": {
         "runs": 4,
@@ -5714,18 +5714,18 @@
       "level": 8,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: 12d6, Accecato 1 minuto, TS a fine turno."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "12d6, Accecato."
       }
     },
     {
@@ -5734,10 +5734,10 @@
       "level": 7,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: otto varianti, CAP-TERRAIN."
       },
       "sweep": {
         "runs": 16,
@@ -5994,10 +5994,10 @@
       "level": 9,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: CAP-STABILIZE."
       },
       "sweep": {
         "runs": 2,
@@ -6176,18 +6176,18 @@
       "level": 5,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza un bersaglio. Ora la pill sta sul caster. Pannelli e PF restano a CAP-STRUCTURE."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, pill sul caster."
       }
     },
     {
@@ -6296,18 +6296,18 @@
       "level": 9,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: TS a fine turno con 4d10, se supera finisce."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Spaventato; TS a fine turno con 4d10."
       }
     },
     {
@@ -6676,18 +6676,18 @@
       "level": 5,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Solo registrato: restano console attacchi e CAP-TELEPORT."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Registra lancio."
       }
     },
     {
@@ -6776,18 +6776,18 @@
       "level": 7,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: 7 stelle e 2 per slot, popup al turno del caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Slot 8: 9 stelle; popup al turno del caster."
       }
     },
     {
@@ -6936,18 +6936,18 @@
       "level": 8,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: Spaventato il suo minuto, il soffio dal popup."
       },
       "sweep": {
         "runs": 4,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Spaventato sul goblin; popup del soffio al turno del caster."
       }
     },
     {
@@ -7336,10 +7336,10 @@
       "level": 9,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: difesa vera."
       },
       "sweep": {
         "runs": 2,
@@ -7436,18 +7436,18 @@
       "level": 3,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Chiedeva il TS senza scrivere danni. Ora 2d6 per la meteora del lancio. Le altre restano al tavolo (CAP-MULTIAREA)."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Slot 5: sempre 2d6, sul goblin colpito."
       }
     },
     {
@@ -7656,18 +7656,18 @@
       "level": 8,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: TS Sag a inizio turno, 8d8."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Accecato dentro; TS Sag a inizio turno di ciascuno."
       }
     },
     {
@@ -7696,18 +7696,18 @@
       "level": 7,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Colpiva anche sopra i 100 PF. Ora non ha effetto: lo slot è speso e il pannello lo dice."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Auril a 580 PF: nessun effetto. Mira a 45 PF: la pill."
       }
     },
     {
@@ -7736,20 +7736,18 @@
       "level": 3,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Chiedeva il TS senza scrivere danni e contava il caster. Ora 3d10 e 1 per slot, senza il caster. Il teletrasporto resta al tavolo (CAP-TELEPORT)."
       },
       "sweep": {
         "runs": 2,
-        "findings": [
-          "no-effect"
-        ]
+        "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Slot 4: 4d10 sui due goblin vicini, caster escluso."
       }
     },
     {
@@ -7758,10 +7756,10 @@
       "level": 5,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto nel lancio: il teletrasporto resta a CAP-TELEPORT."
       },
       "sweep": {
         "runs": 2,
@@ -8058,18 +8056,18 @@
       "level": 2,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Chiedeva cono e TS al lancio e non scriveva nulla. Ora tocca una creatura e la pill va a lei. Il soffio resta al tavolo (CAP-ORIGIN)."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Nessuna sagoma; pill e concentrazione sul goblin toccato."
       }
     },
     {
@@ -8178,18 +8176,18 @@
       "level": 3,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Solo registrato: resta a CAP-RELATION."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Registra lancio."
       }
     },
     {
@@ -8258,10 +8256,10 @@
       "level": 7,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: 10d6, TS Forza e Trattenuto per chi fallisce."
       },
       "sweep": {
         "runs": 2,
@@ -8278,18 +8276,18 @@
       "level": 9,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: 14d6, Stordito, TS Int a fine turno."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "14d6, Stordito."
       }
     },
     {
@@ -8578,10 +8576,10 @@
       "level": 9,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto nel lancio: pedina e due attacchi dal ⚡."
       },
       "sweep": {
         "runs": 2,
@@ -9378,10 +9376,10 @@
       "level": 4,
       "group": "capacita",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto nel lancio: solo la pill. Il trascinamento resta a CAP-ORIGIN."
       },
       "sweep": {
         "runs": 2,
@@ -9558,10 +9556,10 @@
       "level": 9,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-7",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: CAP-CLEANSE."
       },
       "sweep": {
         "runs": 2,

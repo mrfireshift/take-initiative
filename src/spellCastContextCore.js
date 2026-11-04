@@ -8,14 +8,20 @@ const uniqueIds = (values = []) => Array.from(new Set(
 // concentration and lasts its full duration": castContext.withoutConcentration names that spell's id, so a
 // panel switched to another spell casts it as usual.
 export function spellForCastContext(spell, castContext = {}) {
-  if (!spell || typeof spell !== "object" || spell.concentration !== true) return spell;
-  const exempt = String(castContext?.withoutConcentration || "").trim();
-  if (exempt && exempt === String(spell.id || "").trim()) return { ...spell, concentration: false };
+  if (!spell || typeof spell !== "object") return spell;
+  if (spell.concentration === true) {
+    const exempt = String(castContext?.withoutConcentration || "").trim();
+    if (exempt && exempt === String(spell.id || "").trim()) return { ...spell, concentration: false };
+  }
   // A slot high enough lifts the concentration (Bestow Curse from the 5th level), and lifts the end too from
-  // manualFromSlot ("until dispelled", its 9th level): no expiry, the pill ends by hand or by another spell.
+  // manualFromSlot ("until dispelled", its 9th level; Geas, which has no concentration to lift): no expiry, the pill ends
+  // by hand or by another spell.
   const rule = spell.durationBySlot;
   const slot = Math.floor(Number(castContext?.slotLevel));
-  if (!Number.isFinite(slot) || !(Number(rule?.concentrationBelowSlot) <= slot)) return spell;
+  if (!Number.isFinite(slot)) return spell;
+  const lifted = spell.concentration === true && Number(rule?.concentrationBelowSlot) <= slot;
+  const untilDispelled = spell.concentration !== true && Number(rule?.manualFromSlot) <= slot;
+  if (!lifted && !untilDispelled) return spell;
   return {
     ...spell,
     concentration: false,

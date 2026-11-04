@@ -826,6 +826,8 @@ const SELF_CAST_AURA_SPELL_IDS = new Set([
   "xanathar-vento-di-interdizione",
 ]);
 const CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS = new Set([
+  // Thunder Step: the thunder is where the caster was, and the caster has gone.
+  "xanathar-passo-del-tuono",
   "phb2014-braccia-di-hadar",
   "phb2014-onda-distruttiva",
   "xanathar-parola-radiosa",

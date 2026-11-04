@@ -24,7 +24,6 @@ const KNOWN = Object.freeze({
   "no-effect": {
     "dimension-door": IN_MEMORY_TELEPORT,
     "misty-step": IN_MEMORY_TELEPORT,
-    "xanathar-passo-del-tuono": IN_MEMORY_TELEPORT,
   },
   "rejected": {
     "raise-dead": LIVING_TARGET,

@@ -643,10 +643,10 @@ da questo audit.
 - Catalogo totale: **477** definizioni su 477 record.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **477**; disconnessi: **0**; fragili: **0**.
-- Opzioni trackable del runtime: **360**; definizioni con tracking persistente verificate dall'audit: **360**; definizioni con regole d'area: **141** (146 regole).
+- Opzioni trackable del runtime: **360**; definizioni con tracking persistente verificate dall'audit: **360**; definizioni con regole d'area: **140** (145 regole).
 - Workflow che richiedono smoke test runtime: **415**.
 - Lacune RAW confermate P1: **7**; discrepanze ad alta confidenza P2: **2**.
-- Impronta deterministica: `e8ffd682ef5ee4eb`.
+- Impronta deterministica: `74677bc6bbca6fa9`.
 
 ## Decisioni di prodotto chiuse
 
@@ -671,8 +671,8 @@ da questo audit.
 | --- | ---: |
 | ACCEPTED | 72 |
 | CLOSED | 15 |
-| GAP | 9 |
-| UNREVIEWED | 381 |
+| GAP | 10 |
+| UNREVIEWED | 380 |
 
 ### Livello di automazione target (targetAutomationLevel)
 
@@ -701,7 +701,7 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | ACTIVE_ACTION | 51 |
-| AREA_GEOMETRY | 141 |
+| AREA_GEOMETRY | 140 |
 | CAST | 278 |
 | CLEANUP | 119 |
 | CONCENTRATION | 218 |
@@ -712,8 +712,8 @@ da questo audit.
 
 | Stato | Totale |
 | --- | ---: |
-| partial | 9 |
-| reachable | 468 |
+| partial | 10 |
+| reachable | 467 |
 
 ### Problemi di integrazione
 
@@ -752,7 +752,9 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 
 ## P3 — candidate da revisionare
 
-Nessuna voce.
+| Incantesimo | Fonte | Lacune | Evidenza/valutazione |
+| --- | --- | --- | --- |
+| Soffio del Drago | Xanathar | geometria d'area assente; workflow batch/area del tiro salvezza assente | Segnalazione strutturale senza estratto testuale breve. |
 
 ## Matrice completa (477 incantesimi)
 
@@ -1174,7 +1176,7 @@ Nessuna voce.
 | Silenzio | `silence` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Simbolo | `symbol` | SRD 5.1 / 7 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Simulacro | `simulacrum` | SRD 5.1 / 7 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Soffio del Drago | `xanathar-soffio-del-drago` | Xanathar / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Soffio del Drago | `xanathar-soffio-del-drago` | Xanathar / 2 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P3 | geometria d'area assente; workflow batch/area del tiro salvezza assente |
 | Sogno | `dream` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Sogno del Velo Celeste | `tasha-sogno-del-velo-celeste` | Tasha / 7 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Sonnellino | `xanathar-sonnellino` | Xanathar / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

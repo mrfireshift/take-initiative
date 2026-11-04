@@ -48,6 +48,10 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
     }),
   }),
   "xanathar-creare-falo": Object.freeze({ initialHP: true, successfulSaveDamage: "none" }),
+  // Xanathar. The thunder where the caster was; the teleport stays at the table (CAP-TELEPORT).
+  "xanathar-passo-del-tuono": Object.freeze({ initialHP: true }),
+  // Xanathar. The meteor of the cast, on its 1,5 m; the others stay at the table (CAP-MULTIAREA).
+  "xanathar-minuscole-meteore-di-melf": Object.freeze({ initialHP: true }),
   "phb2014-evoca-raffica": Object.freeze({
     initialHP: true,
     damageByOutcome: Object.freeze({
@@ -442,7 +446,9 @@ const SPELL_CAST_DAMAGE_DICE = Object.freeze({
   "phb2014-dardo-stregato": castDice("1d12", 1, 1),
   "xanathar-creare-falo": cantripDice("1d8"),
   "xanathar-immolazione": castDice("8d6"),
+  "xanathar-minuscole-meteore-di-melf": castDice("2d6"),
   "xanathar-muro-di-luce": castDice("4d8", 5, 1),
+  "xanathar-passo-del-tuono": castDice("3d10", 3, 1),
   "xanathar-onda-di-marea": castDice("4d8"),
   "xanathar-parola-radiosa": cantripDice("1d6"),
   "xanathar-rombo-di-tuono": cantripDice("1d6"),

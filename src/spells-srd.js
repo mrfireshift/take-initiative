@@ -547,6 +547,11 @@ const TARGET_MODE_OVERRIDES = Object.freeze({
   "phb2014-allucinazione-di-forza": "selected",
   "xanathar-immolazione": "selected",
   "etherealness": "selected",
+  // Nothing to choose: a wall and a phantom watchdog stand where the caster puts them, the pill stays with the caster.
+  "wall-of-stone": "self",
+  "faithful-hound": "self",
+  // Xanathar: the creature touched breathes the cone later, with its action; at the cast there is no cone to place.
+  "xanathar-soffio-del-drago": "selected",
   "spiritual-weapon": "self",
   "arcane-sword": "self",
   "arcane-hand": "self",
@@ -673,6 +678,12 @@ const SLOT_DURATION_OVERRIDES = Object.freeze({
   "mass-suggestion": Object.freeze({
     baseSlot: 6,
     turnsBySlot: Object.freeze({ 6: 14400, 7: 144000, 8: 432000, 9: 5270400 }),
+  }),
+  // 2014: 30 days; a year with a 7th or 8th-level slot; until dispelled with a 9th-level one.
+  "geas": Object.freeze({
+    baseSlot: 5,
+    turnsBySlot: Object.freeze({ 5: 432000, 7: 5256000 }),
+    manualFromSlot: 9,
   }),
 });
 
@@ -1257,7 +1268,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "holy-aura-protection",
       kind: "buff",
       label: "Vantaggio TS · svantaggio Att",
-      detail: "Vantaggio ai tiri salvezza; gli attacchi contro il bersaglio hanno svantaggio.",
+      detail: "Vantaggio ai tiri salvezza; gli attacchi contro il bersaglio hanno svantaggio. Un immondo o un non morto che lo colpisce in mischia fa un TS Costituzione: se fallisce, è accecato fino alla fine dell'incantesimo.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "holy-aura-saving-throw-advantage", label: "Vant. TS" }),
         Object.freeze({ id: "holy-aura-incoming-attack-disadvantage", label: "Attacchi contro svant." }),
@@ -2273,12 +2284,13 @@ if (MISSING_ITALIAN_NAMES.length) {
 }
 
 // A pill that counts the spell's whole duration by itself follows the duration of this cast (Mass Suggestion: 10 days with a
-// 7th-level slot).
+// 7th-level slot; Geas: until dispelled with a 9th-level one).
 function effectForCastDuration(effect, spell, castContext = {}) {
+  const rule = spell?.durationBySlot;
+  if (!rule || effect?.expiry?.mode !== "rounds" || Number(effect.expiry.remaining) !== Number(spell?.defaultTurns)) return effect;
+  if (Number(rule.manualFromSlot) <= Math.floor(Number(castContext?.slotLevel))) return { ...effect, expiry: { mode: "manual" } };
   const turns = durationTurnsForSlot(spell, castContext);
-  return turns && effect?.expiry?.mode === "rounds" && Number(effect.expiry.remaining) === Number(spell?.defaultTurns)
-    ? { ...effect, expiry: { ...effect.expiry, remaining: turns } }
-    : effect;
+  return turns ? { ...effect, expiry: { ...effect.expiry, remaining: turns } } : effect;
 }
 
 function effectSaveRule(effect, spell) {
@@ -2383,7 +2395,7 @@ function areaSaveAutomationForSpell(spell, choiceValue = "", castContext = {}) {
     || null;
   const failedEffects = [...fixedEffects, ...(selectedChoice?.effects || [])]
     .filter((effect) => failedEffectIds.has(effect.id))
-    .map((effect) => effectSaveRule(effectForCastDuration(effect, spell, castContext), spell))
+    .map((effect) => effectSaveRule(effect, spell))
     .filter((rule) => rule.condition && rule.effectKind);
 
   if (!base && !declared && !workflowChoiceAutomation && !failedEffects.length) return null;
@@ -2410,7 +2422,7 @@ function areaSaveAutomationForSpell(spell, choiceValue = "", castContext = {}) {
     ];
     if (rules.length) {
       merged[outcome] = Object.freeze(
-        rules.map((rule) => scopedParentRemovalRule(rule, spell))
+        rules.map((rule) => scopedParentRemovalRule(effectForCastDuration(rule, spell, castContext), spell))
       );
     }
   }

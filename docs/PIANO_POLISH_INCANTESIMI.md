@@ -1,6 +1,6 @@
 # Polishing degli incantesimi (piano)
 
-Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1, 2, 3, 4, 5, 6 e D6 fatti)**. Questo piano guida la
+Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1, 2, 3, 4, 5, 6, 7 e D6 fatti)**. Questo piano guida la
 revisione di tutti i 477 incantesimi prima di aggiungere nuove capacità. Per ognuno si controlla:
 
 - **A, l'interpretazione:** il motore fa ciò che dice il testo 2014?
@@ -390,6 +390,34 @@ Test in `test/spellPolishLot6.test.js`.
 
 Provato al banco dopo le decisioni: Trasformazione di Tenser con Termina, che toglie i PF temporanei e lascia il TS CD 15; con Annulla, che li
 riporta; con 60 danni, che li consumano e lasciano la pill.
+
+#### Lotto 7 (fatto il 4/11): i 40 successivi
+
+Gli ultimi 23 automatizzati, dal 7° al 9° livello, e i primi 17 che aspettano una capacità. Di questi si controlla che il lancio di oggi non
+contraddica il testo e non blocchi il tavolo: la capacità resta da costruire.
+
+| Difetto | Incantesimi | Correzione |
+|---|---|---|
+| Colpivano anche sopra la soglia di PF | Parola del potere stordire (150), Parola del Potere Dolore (100) | Sopra la soglia nessun effetto: lo slot è speso, il lancio va nel registro e il pannello lo dice (`spellHpCeilingRefuses`). Contano i PF attuali |
+| Mancava il TS a fine turno di chi è lontano o non vede il bersaglio | Antipatia/simpatia | Promemoria sui due effetti, da fare solo se vale la condizione; se supera, l'effetto finisce |
+| Non dava Affascinato, e la durata non seguiva lo slot | Costrizione | Affascinato, un anno dal 7°, fino a dissoluzione dal 9° (`manualFromSlot`). I 5d10 al giorno restano al tavolo |
+| Non si lanciavano senza un bersaglio | Muro di pietra, Segugio fedele | Il lancio non chiede bersagli, la pill sta sul caster |
+| Chiedeva un cono e il TS al lancio, e non scriveva nulla | Soffio del Drago | Tocca una creatura e la pill va a lei. Il soffio resta al tavolo (CAP-ORIGIN) |
+| Chiedeva il TS senza scrivere danni | Passo del Tuono, Minuscole Meteore | Danno al lancio con i dadi dello slot: 3d10 e 1 per slot, senza il caster; 2d6 per la meteora del lancio. Teletrasporto e altre meteore restano al tavolo (CAP-TELEPORT, CAP-MULTIAREA) |
+| Non diceva cosa succede a chi colpisce in mischia | Aura sacra | L'accecamento è nel dettaglio della pill |
+
+Scelta da confermare: Soffio del Drago, Passo del Tuono e Minuscole Meteore sono passi intermedi, che anticipano una parte delle loro capacità.
+
+Falsi allarmi, da non riaprire: Antipatia/simpatia toglie la condizione alla sola creatura. Il caster non è Spaventato dalla propria
+Antipatia. Corona di Stelle e Drago Illusorio aprono il popup al turno del caster, anche se Drago Illusorio non ha una pill sul caster.
+
+Il banco non ha potuto provare Muro prismatico, perché il finto strumento non dà la geometria che il muro chiede, né l'ultimo passo di Turbine, dove
+il TS Forza sta nella riga: coperti dai test. **Non provate** nemmeno le azioni del ⚡ di Lama del Disastro, in P4.
+
+Provato al banco: le due Parole del potere sopra e sotto soglia; Antipatia con il TS superato; Costrizione a tre slot; Muro di pietra e Segugio
+fedele senza bersagli; Soffio del Drago su un goblin; Passo del Tuono allo slot 4; Minuscole Meteore allo slot 5; Aura sacra e Calmare emozioni;
+Nube incendiaria e Oscurità della Follia turno per turno; Corona di Stelle allo slot 8; Drago Illusorio; Fatale; Urlo Psichico; Regressione
+mentale; Esplosione solare; Sfera congelante allo slot 7; i lanci solo registrati. Test in `test/spellPolishLot7.test.js`.
 
 ### P4, i workflow che la prova non copre ancora (B)
 

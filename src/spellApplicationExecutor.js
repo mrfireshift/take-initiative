@@ -92,6 +92,7 @@ import {
 } from "./spellExecutionHistoryCore.js";
 import { buildSpellCausality } from "./combatLogCausalityCore.js";
 import { executeSpellCastRecord, recordInCombatLog } from "./spellCastRecord.js";
+import { spellHpCeiling, spellHpCeilingRefuses } from "./hpBranchSpellRules.js";
 import { withSpellCastCost } from "./spellCastRecordCore.js";
 
 const STATE_KEY = `${ID}/state`;
@@ -2200,6 +2201,29 @@ export async function executeSpellApplication({
       extraOperations,
       castCost,
     });
+  }
+  // Above the threshold the spell has no effect: the cast is spent and recorded, and the panel says why.
+  if (spellHpCeiling(spell?.id) !== null) {
+    const liveTargets = await OBR.scene.items.getItems(uniqueIds(targetIds)).catch(() => []);
+    if (liveTargets.length && liveTargets.every((item) => spellHpCeilingRefuses(spell.id, item))) {
+      const recorded = await executeSpellCastRecord({
+        spell,
+        enteredName,
+        casterId,
+        casterName,
+        targetIds,
+        castContext,
+        sceneEpoch,
+        visualSceneEpoch,
+        sceneIdentity,
+        commandId,
+        isCurrent,
+        extraOperations,
+        castCost,
+      });
+      const names = liveTargets.map((item) => String(item?.name || "")).filter(Boolean).join(", ");
+      return Object.assign(recorded, { notes: [`Nessun effetto: ${names || "il bersaglio"} ha più di ${spellHpCeiling(spell.id)} PF`] });
+    }
   }
   const matchedVisualSceneEpoch = Number.isInteger(visualSceneEpoch)
     ? visualSceneEpoch
