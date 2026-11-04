@@ -4,7 +4,7 @@ Micro-audit del 04/11/2026 su `pc-attack.html` e `src/pc-attack.js`, chiesto dal
 
 Restano fermi i colori del costo in stile Baldur's Gate, il rosso solo per il danno e niente conteggi sui tab, già decisi dall'utente.
 
-Stato: D1-D3 approvate come consigliate il 04/11/2026. Lotti 1, 2, 3 e 4 fatti, gli altri da fare.
+Stato: D1-D3 approvate come consigliate il 04/11/2026. Lotti 1, 2, 3, 4 e 5 fatti, restano il 6 e il 7.
 
 ## Misure
 
@@ -97,7 +97,7 @@ Tutti riguardano l'aspetto: danni, PF e registrazione non si toccano.
 2. **Testata.** Via sottotitolo e `Turno`, dati sotto il selettore, menu ⋯, una riga sola per i cambi di creatura. Fatto. In più, un solo pulsante quando la creatura selezionata è quella di turno.
 3. **Griglia e densità.** Un bordo sinistro, etichetta e controllo, righe a una linea, niente riquadri, difesa accanto al totale, menu del bersaglio con i PF a destra. `TS fallito` e `TS superato` del bersaglio singolo diventano `Fallito` e `Superato`: il TS ora è scritto sopra, sotto il selettore. Fatto. In più, tab sottolineate e altezze 24, 32 e 36. Restano nativi il menu `Tiro` e quelli piccoli di slot e tipo di danno.
 4. **Aree.** Danno prima dell'elenco, righe compatte, PF sempre visibili. Fatto. In più, area, TS e CD una volta sola sotto il selettore, `Tiro` sotto il selettore anche fuori dalle aree, `+ Danno extra` sulla riga del danno.
-5. **Pill, icone e colori.** Una forma per gli usi, una famiglia di frecce, emoji, colori per significato, note brevi di Immagine speculare e Scudo.
+5. **Pill, icone e colori.** Una forma per gli usi, una famiglia di frecce, emoji, colori per significato, note brevi di Immagine speculare e Scudo. Fatto sul pannello attacchi. La console boss conserva testi lunghi e colori fino al lotto 7. Gli usi a zero passano dal rosso al giallo: il rosso è solo del danno.
 6. **Altezza della finestra.** Dopo il lotto 3.
 7. **Console boss.** Quello che vale anche lì: condividono `public/console-shell.css`.
 
@@ -140,3 +140,14 @@ Approvate il 04/11/2026.
 - [ ] **Freccia Perforante:** `Tiro` resta in alto, il danno sotto, le creature in fondo.
 - [ ] **Danno extra:** su un'area `+ Danno extra` sta sulla riga del danno. Aggiungendone uno compare il titolo `Extra al danno`.
 - [ ] **Registra:** i PF scendono come prima, anche con i tiri segnati da **Tutti falliti**.
+
+## Prova in stanza del lotto 5
+
+- [ ] **Righe:** in Capacità nessuna emoji; a destra il costo e l'ultimo numero, gli usi (`3/3`). Passando sul numero il suggerimento dice cosa conta. A zero usi il numero è giallo.
+- [ ] **Scheda della capacità:** niente pill del costo, che sta già sulla riga; restano `Su di sé`, `Su un bersaglio`, `Attiva`. Accanto al pulsante compare solo il motivo per cui è spento.
+- [ ] **Manovre:** `Manovre · Dadi di Superiorità` con `5/5` in fondo alla riga. Una capacità con i suoi usi ha il numero a destra, e sparisce dalla riga il nome della risorsa.
+- [ ] **Incantesimi:** a destra `Azione · Console` per quelli che si risolvono nella console; `Concentrazione` non compare più come pill nei Dettagli.
+- [ ] **Azioni leggendarie:** nessuna scritta `Leggendaria`; `Costo 2` su quelle che costano 2.
+- [ ] **Frecce:** `Altre capacità` e `Dettagli` hanno il chevron dei menu, a destra, che gira quando si aprono.
+- [ ] **Bersaglio con reazioni:** con Immagine speculare e Scudo due righe senza colore: `Immagine speculare · d20 ≥ 6` e `Reazione · +5 CA`, ognuna col suo pulsante. La regola è nel suggerimento, e i pulsanti funzionano come prima.
+- [ ] **Console boss:** con lo stesso bersaglio mostra ancora i testi lunghi, come prima.

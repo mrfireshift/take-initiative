@@ -10,9 +10,9 @@ function element(documentRef, tag, text = "", className = "") {
 }
 
 // box: the container; context: attackTargetReactions' input; handlers: retaliate(row, amount), cast(offer);
-// buttonClass: the console's own small button.
+// buttonClass: the console's own small button; compact: the datum that counts on one line, the whole rule in its tooltip.
 export function renderAttackReactions(box, context = {}, {
-  busy = false, retaliate = null, cast = null, buttonClass = "mini-button", documentRef = globalThis.document,
+  busy = false, retaliate = null, cast = null, buttonClass = "mini-button", documentRef = globalThis.document, compact = false,
 } = {}) {
   if (!box) return;
   const model = attackTargetReactions(context);
@@ -20,8 +20,13 @@ export function renderAttackReactions(box, context = {}, {
   if (box.dataset.signature === signature) return;
   box.dataset.signature = signature;
   box.replaceChildren();
+  const note = (row) => {
+    const paragraph = element(documentRef, "p", compact ? row.short : row.text, "attack-reaction-note");
+    if (compact) paragraph.title = row.text;
+    return paragraph;
+  };
   const rows = [];
-  if (model.sanctuary) rows.push(element(documentRef, "p", model.sanctuary.text, "attack-reaction-note"));
+  if (model.sanctuary) rows.push(note(model.sanctuary));
   for (const row of model.retaliations) {
     const line = element(documentRef, "div", "", "attack-reaction");
     // A fixed amount (Armor of Agathys) asks no roll: the button applies it.
@@ -49,7 +54,7 @@ export function renderAttackReactions(box, context = {}, {
       event.stopPropagation();
       if (!button.disabled) button.click();
     });
-    line.append(element(documentRef, "p", row.text, "attack-reaction-note"), ...(input ? [input] : []), button);
+    line.append(note(row), ...(input ? [input] : []), button);
     rows.push(line);
   }
   for (const offer of model.offers) {
@@ -61,7 +66,7 @@ export function renderAttackReactions(box, context = {}, {
     button.addEventListener("click", () => {
       if (typeof cast === "function") void cast(offer);
     });
-    line.append(element(documentRef, "p", offer.text, "attack-reaction-note"), button);
+    line.append(note(offer), button);
     rows.push(line);
   }
   box.append(...rows);

@@ -761,7 +761,10 @@ duplicato (10 + Destrezza del caster, dalla sua scheda). Se il tiro bersaglia
 un duplicato e lo colpisce, premi **Duplicato colpito**: il duplicato è
 distrutto e non registri l'attacco sul caster.
 
-Nello stesso punto le console mostrano le difese e le reazioni del bersaglio:
+Nello stesso punto le console mostrano le difese e le reazioni del bersaglio.
+Nella console attacchi ogni riga dice solo il dato che serve accanto al suo
+pulsante (`Immagine speculare · d20 ≥ 6`, `Reazione · +5 CA`), e il suggerimento
+la regola per intero; la console Boss scrive tutto nella riga.
 
 - **Difese ai danni**: il pulsante dice cosa ha fatto la difesa al danno digitato
   (`Res. taglienti: 10 → 5`, `Imm. fuoco: 7 → 0`), e un clic la ignora per

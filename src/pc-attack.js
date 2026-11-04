@@ -38,7 +38,7 @@ import { PC_MANEUVER_CONTEST, PC_MANEUVER_NOTES, PC_MANEUVER_OUTCOMES, PC_MANEUV
   pcAttackManeuverEntries, pcGrappleHolds, pcGrapplesOn, pcManeuverBlocker, pcManeuverLabel } from "./pcAttackManeuverCore.js";
 import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
-import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageState } from "./mirrorImageCore.js";
+import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageShortNotice, mirrorImageState } from "./mirrorImageCore.js";
 import { renderAttackReactions } from "./attackReactionsView.js";
 import { pcBreathAreaRuleId, pcMonsterAreaRuleId } from "./pcAttackBreathId.js";
 import "./popoverDrag.js";
@@ -630,8 +630,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const body=node("div","","component-body");
       const title=node("span",option.label,"component-title");
       const meta=node("div","","component-meta");meta.dataset.activationField="meta";
+      const uses=node("span","","component-uses");uses.dataset.activationField="uses";
       const reason=node("span","","component-reason");reason.dataset.activationField="reason";
-      body.append(title,meta,reason);
+      body.append(title,meta,uses,reason);
       const extra=node("div","","component-options");extra.dataset.activationField="options";
       if(option.types.length>1) {
         const type=typeSelect(option.types,state.type,{format:damageTypeLabel,className:"inline-select"});type.dataset.activationField="type";
@@ -687,13 +688,21 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     activationsBox.hidden=!options.length;
     // On a miss the section caption already says what these are ("Prima del tiro").
     if(activationsCaption) activationsCaption.hidden=!options.length || draft.outcome==="miss";
-    const resourceText=option=>option.resources.map(entry=>entry.unlimited || entry.current===null?entry.name:`${entry.name} ${entry.current}/${entry.maximum ?? "?"}`);
+    const counted=entry=>!entry.unlimited && entry.current!==null;
+    const usesLeft=entry=>`${entry.current}/${entry.maximum ?? "?"}`;
+    const resourceText=option=>option.resources.map(entry=>counted(entry)?`${entry.name} ${usesLeft(entry)}`:entry.name);
     const listed=options.filter(option=>draft.outcome!=="miss" || option.preRoll).map(option=>resourceText(option).join(" · "));
     const common=activationsCaption && !activationsCaption.hidden && listed.length>1 && listed[0] && listed.every(text=>text===listed[0])?listed[0]:"";
     // The section's title says what they are for; this says only what they share: the maneuvers and their dice.
     const maneuvers=!!activationsCaption && !activationsCaption.hidden && listed.length>0 && options.every(option=>option.group==="manovra");
     if(activationsCaption) {
-      activationsCaption.replaceChildren(...(maneuvers?[node("span","Manovre")]:[]),...(common?[node("span",`${maneuvers?" · ":""}${common}`,"subcaption-detail")]:[]));
+      // What they share: its name beside their title, the number on the right, as on every row.
+      const shared=common?options.find(option=>draft.outcome!=="miss" || option.preRoll)?.resources || []:[];
+      const names=shared.map(entry=>entry.name).join(" · "),numbers=shared.filter(counted).map(usesLeft).join(" · ");
+      const words=node("span");
+      if(maneuvers) words.append("Manovre");
+      if(names) words.append(node("span",`${maneuvers?" · ":""}${names}`,"subcaption-detail"));
+      activationsCaption.replaceChildren(words,...(numbers?[node("span",numbers,"component-uses")]:[]));
       if(!maneuvers && !common) activationsCaption.hidden=true;
     }
     const critical=dice=>draft.outcome==="critical" && dice?`${dice} · critico ${pcAttackCriticalDice(dice)}`:dice;
@@ -705,7 +714,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       if(option.types.length && !option.types.includes(state.type)) state.type=option.types[0];
       const field=name=>row.querySelector(`[data-activation-field="${name}"]`);
       field("on").checked=state.on;field("on").disabled=busy || !option.available;
-      const resource=common?[]:resourceText(option);
+      // The number on the right of the row, what it counts in its tooltip; a pool with no number keeps its name here.
+      const pools=common?[]:option.resources;
+      const resource=pools.filter(entry=>!counted(entry)).map(entry=>entry.name);
+      field("uses").textContent=pools.filter(counted).map(usesLeft).join(" · ");
+      field("uses").title=pools.filter(counted).map(entry=>`${entry.name} ${usesLeft(entry)}`).join(" · ");
       const dice=option.tempHp?`${option.dice || "2d8 + livello"} PF temporanei`
         :option.damage || option.secondary?`${(option.noCriticalDouble?option.dice:critical(option.dice)) || "dado"} ${option.types.length===1?damageTypeLabel(option.types[0]):""}`.trim():"";
       // A choice's save and effect replace the activation's (Open Hand Technique).
@@ -1058,10 +1071,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // A leveled spell cast left open (rays or darts still to register) says so in its entry.
     const inProgress=entry=>entry.mode==="attack" && entry.tab==="spells"
       && !!pcAttackOpenSpellCast({sourceItem:presentation.item,spellId:entry.spellId,turnState:presentation.turnState});
-    // In the cantrips and spells tabs ⚔ marks what the console resolves, ★ the favourites (as the 🪄 menu); the select
-    // names the casting time too.
-    const label=entry=>[entry.pinned?"★ ":"",entry.label,entry.tab!=="attacks" && entry.mode==="attack"?" ⚔":"",
-      entry.spellId && castingTimeLabel(entry.spellId)?` · ${capitalized(castingTimeLabel(entry.spellId))}`:"",inProgress(entry)?" · in corso":""].join("");
+    // In the cantrips and spells tabs «Console» marks what the console resolves, ★ the favourites (as the 🪄 menu); the
+    // select names the casting time too. No emoji in the panel's rows (decision D3 of its audit).
+    const label=entry=>[entry.pinned?"★ ":"",plainLabel(entry.label),
+      entry.spellId && castingTimeLabel(entry.spellId)?` · ${capitalized(castingTimeLabel(entry.spellId))}`:"",
+      entry.tab!=="attacks" && entry.mode==="attack"?" · Console":"",inProgress(entry)?" · in corso":""].join("");
     if(["cantrips","spells"].includes(current.tab) && !spellbookSpellReferenceLoaded()) {
       void loadSpellbookSpellReference().then(()=>{pickerSignature="";renderPicker();}).catch(()=>{});
     }
@@ -1079,15 +1093,17 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       return entry.tab==="spells" && Number.isInteger(entry.level) && entry.level>0 && slots.length>0 && !inProgress(entry)
         && !slots.some(row=>row.level>=entry.level && row.current>0);
     };
-    // A row's marks: its cost first (the activation, or the casting time), coloured, then the uses left (a badge, red at
-    // zero) or the spell's marks, each explained in its tooltip. A favourite spell, listed apart, names its level.
+    // A row's marks: its cost first (the activation, or the casting time), coloured, then the spell's marks or the uses
+    // left (the number, last: on the right; its name in the tooltip), each explained in its tooltip. A favourite spell,
+    // listed apart, names its level. A legendary action says only a cost above 1: its group's title says the rest.
     const favourite=entry=>entry.tab==="spells" && entry.pinned;
-    const rowCost=entry=>entry.tab==="features"?entry.activation:entry.tab==="attacks"?"azione":castingTimeLabel(entry.spellId);
+    const legendaryCost=text=>{const cost=String(text || "").match(/^leggendaria(?: \((\d+)\))?$/u);return cost?(cost[1]?`costo ${cost[1]}`:""):text;};
+    const rowCost=entry=>entry.tab==="features"?legendaryCost(entry.activation):entry.tab==="attacks"?"azione":castingTimeLabel(entry.spellId);
     const rowParts=entry=>(entry.tab==="features"
-      ?[...featureUses(entry).map(row=>({text:`${row.current}/${row.maximum}`,title:row.name,uses:true,zero:row.current===0})),
-        featureActive(entry)?{text:"attiva",title:"Capacità attiva"}:null]
+      ?[featureActive(entry)?{text:"attiva",title:"Capacità attiva"}:null,
+        ...featureUses(entry).map(row=>({text:`${row.current}/${row.maximum}`,title:row.name,uses:true,zero:row.current===0}))]
       :[favourite(entry)?{text:`${entry.level}°`,title:`Incantesimo di ${entry.level}° livello`}:null,
-        entry.tab!=="attacks" && entry.mode==="attack"?{text:"⚔",title:"Si risolve nella console"}:null,entry.concentration?{text:"Conc.",title:"Concentrazione"}:null,
+        entry.tab!=="attacks" && entry.mode==="attack"?{text:"Console",title:"Si risolve nella console"}:null,entry.concentration?{text:"Conc.",title:"Concentrazione"}:null,
         entry.ritual?{text:"Rit.",title:"Rituale"}:null,inProgress(entry)?{text:"in corso",title:"Lancio in corso: raggi o dardi ancora da registrare"}:null]).filter(Boolean);
     const rowTags=entry=>[capitalized(rowCost(entry)),...rowParts(entry).map(part=>part.text),exhausted(entry)?"esaurita":""].filter(Boolean).join(" · ");
     const rowTagsNode=entry=>{
@@ -1133,7 +1149,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       // The menu's entries, the list's rows: the name on the left, the cost and marks on the right.
       if(pickerMenu) pickerMenu.replaceChildren(...(asList?[]:inTab.map(entry=>{
         const row=node("button","","picker-row");row.type="button";row.dataset.pickerKey=entry.key;row.title=label(entry);
-        row.append(node("span",`${entry.pinned?"★ ":""}${entry.label}`,"picker-row-name"),rowTagsNode(entry));
+        row.append(node("span",`${entry.pinned?"★ ":""}${plainLabel(entry.label)}`,"picker-row-name"),rowTagsNode(entry));
         row.addEventListener("click",()=>{setMenuOpen(false,{focus:true});chooseEntry((presentation?.picker || []).find(item=>item.key===entry.key));});
         return row;
       })));
@@ -1154,9 +1170,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         })(),
         ...inTab.filter(entry=>groupOf(entry)===group).map(entry=>{
           const row=node("button","","picker-row");row.type="button";row.dataset.pickerKey=entry.key;row.dataset.group=String(group);
-          row.dataset.name=entry.label;row.title=entry.label;
+          row.dataset.name=plainLabel(entry.label);row.title=plainLabel(entry.label);
           if(exhausted(entry)) row.dataset.exhausted="true";
-          row.append(node("span",`${entry.pinned && !favourite(entry)?"★ ":""}${entry.label}`,"picker-row-name"),rowTagsNode(entry));
+          row.append(node("span",`${entry.pinned && !favourite(entry)?"★ ":""}${plainLabel(entry.label)}`,"picker-row-name"),rowTagsNode(entry));
           row.addEventListener("click",()=>chooseEntry((presentation?.picker || []).find(item=>item.key===entry.key)));
           return row;
         })])));
@@ -1171,7 +1187,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       pickerDropdown.hidden=!asDropdown;
       if(!asDropdown) setMenuOpen(false);
       else {
-        dropdownButton.replaceChildren(node("span",`${current.pinned?"★ ":""}${current.label}`,"picker-row-name"),rowTagsNode(current),node("span","","picker-dropdown-caret"));
+        dropdownButton.replaceChildren(node("span",`${current.pinned?"★ ":""}${plainLabel(current.label)}`,"picker-row-name"),rowTagsNode(current),node("span","","picker-dropdown-caret"));
         dropdownButton.title=label(current);dropdownButton.disabled=busy;
         if(busy) setMenuOpen(false);
         for(const row of pickerMenu?.querySelectorAll("button") || []){row.setAttribute("aria-pressed",String(row.dataset.pickerKey===current.key));row.disabled=busy;}
@@ -1300,8 +1316,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const spent=["activate","toggle"].includes(form.kind) && !active.length && firstPool && !firstPool.unlimited && firstPool.current===0;
     return {
       form,
-      tags:[...(entry.activation?[[capitalized(entry.activation),""]]:[]),...(target?[[target,""]]:[]),
-        ...(active.length?[[Number.isFinite(remaining)?`Attiva · ${remaining} r`:"Attiva","warning"]]:[]),...(entry.species?[["Specie",""]]:[])],
+      // Its cost is on its row: the card says it only when there is no row.
+      tags:[...(entry.activation && !pickerNamesEntry?[[capitalized(entry.activation),""]]:[]),...(target?[[target,""]]:[]),
+        ...(active.length?[[Number.isFinite(remaining)?`Attiva · ${remaining} r`:"Attiva",""]]:[]),...(entry.species?[["Specie",""]]:[])],
       detailText:resources.join(" · "),
       notes:[...(form.note?[[form.note,""]]:[]),...(form.disabledReason?[[form.disabledReason,"warning"]]:[]),
         ...(spent && !form.disabledReason?[["Nessun uso rimasto.","warning"]]:[]),
@@ -1581,11 +1598,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       element.disabled=busy || invalidated;element.addEventListener("click",onClick);return element;};
     const escapeTitle=(who,dc)=>dc?`${who} supera il TS per sfuggire (CD ${dc})`:`${who} vince la prova contrapposta (Atletica o Acrobazia contro Atletica)`;
     grappleBox.replaceChildren(node("span","Presa","caption"),
-      ...holds.map(hold=>row(`✊ Tiene ${hold.name}`,`${hold.name}: Afferrato da ${actor}`,[
+      ...holds.map(hold=>row(`Tiene ${hold.name}`,`${hold.name}: Afferrato da ${actor}`,[
         button("Lascia andare",`${actor} lascia andare ${hold.name} (nessuna azione)`,()=>void endGrapple(hold.targetId,hold.instanceId,"release")),
         button("Sfugge",escapeTitle(hold.name),()=>void endGrapple(hold.targetId,hold.instanceId,"escaped")),
         button("Non sfugge",`${hold.name} tenta di sfuggire e resta Afferrato`,()=>void endGrapple(hold.targetId,hold.instanceId,"escape-failed"))])),
-      ...on.map(grab=>row(`✊ Afferrato${grab.name?` da ${grab.name}`:""}${grab.escapeDC?` (CD ${grab.escapeDC})`:""}`,
+      ...on.map(grab=>row(`Afferrato${grab.name?` da ${grab.name}`:""}${grab.escapeDC?` (CD ${grab.escapeDC})`:""}`,
         `${actor}: Afferrato${grab.name?` da ${grab.name}`:""}${grab.escapeDC?` (CD ${grab.escapeDC} per sfuggire)`:""}`,[
         button("Sfugge",escapeTitle(actor,grab.escapeDC),()=>void endGrapple(sourceId,grab.instanceId,"escaped")),
         button("Non sfugge",`${actor} tenta di sfuggire e resta Afferrato`,()=>void endGrapple(sourceId,grab.instanceId,"escape-failed"))])));
@@ -1647,15 +1664,17 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       total.replaceChildren();
       // A blocked feature says why beside its button, in place of what it costs.
       total.dataset.kind=isFeature && feature.blocked && feature.blockReason?"warning":"";
-      if(isFeature) total.textContent=feature.blocked && feature.blockReason?[feature.blockReason,feature.detailText].filter(Boolean).join(" "):feature.detailText;
+      // The uses left are on its row, the cost too: here only why it is off, and the name of what it spends in the tooltip.
+      if(isFeature) total.textContent=feature.blocked && feature.blockReason?feature.blockReason:pickerNamesEntry?"":feature.detailText;
       else if(!details) total.textContent="";
       else {
-        if(cost) total.append(costTag(cost));
-        if(details.range) total.append(node("span",`${cost?" · ":""}${details.range}`));
+        const shownCost=pickerNamesEntry?"":cost;
+        if(shownCost) total.append(costTag(shownCost));
+        if(details.range) total.append(node("span",`${shownCost?" · ":""}${details.range}`));
       }
       total.title=isFeature?feature.detailText:details?[details.castingTime,details.range].filter(Boolean).join(" · "):"";
     }
-    const tags=isFeature?feature.tags:entry?[...(entry.concentration?[["Concentrazione",""]]:[]),...(entry.ritual?[["Rituale",""]]:[])]:[];
+    const tags=isFeature?feature.tags:entry?.ritual?[["Rituale",""]]:[];
     // A feature keeps its tags and uses in view, its text in the accordion; a spell's details all go in the accordion.
     const body=isFeature?featureDetailsNodes(entry):entry?.spellId?spellDetailsNodes(entry.spellId,tags):[];
     // A feature's form follows its state and, for Purifying Touch, the creature selected and its spells.
@@ -1680,7 +1699,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       return pill;}));children.push(row);}
     if(isFeature && feature.target){const line=node("p","","feature-target");line.dataset.featureTarget="1";children.push(line);}
     // The uses left sit in the fixed row when the feature has a button; the reason it is off too.
-    if(isFeature && feature.detailText && !canLaunch) children.push(node("p",feature.detailText,"launch-details"));
+    if(isFeature && feature.detailText && !canLaunch && !pickerNamesEntry) children.push(node("p",feature.detailText,"launch-details"));
     if(isFeature && feature.form.fields?.length) children.push(...featureFields(entry,feature.form,feature.blocked));
     const shownNotes=isFeature && canLaunch && feature.blocked?notes.filter(([text])=>text!==feature.blockReason):notes;
     children.push(...shownNotes.map(([text,kind])=>node("p",text,`launch-note${kind?" "+kind:""}`)));
@@ -1707,7 +1726,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(signature===launchSignature) return;
     launchSignature=signature;
     const children=[];
-    if(entry.activation){
+    if(entry.activation && entry.group!=="monster-legendary" && !pickerNamesEntry){
       const row=node("div","","launch-meta"),text=capitalized(entry.activation),cost=costKind(text);
       const pill=node("span",text,`launch-tag${cost?" cost-tag":""}`);
       if(cost) pill.dataset.cost=cost;
@@ -1815,7 +1834,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const state=roll && draft.targetId?mirrorImageState(targetById(draft.targetId)):null;
     mirrorBox.hidden=!state;
     if(!state) return;
-    mirrorNote.textContent=mirrorImageNotice(state);
+    mirrorNote.textContent=mirrorImageShortNotice(state);
+    mirrorNote.title=mirrorImageNotice(state);
     mirrorHit.disabled=busy || mirrorBusy;
     mirrorHit.dataset.instanceId=state.instanceId;
   }
@@ -1845,7 +1865,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       target,attacker:presentation?.item || null,items:[...(presentation?.targets || []),...(presentation?.item?[presentation.item]:[])],
       attack:{roll:pcAttackOutcomesFor(resolved()).includes("hit"),melee:resolved()?.range==="melee",outcome:draft?.outcome || "",
         damageTypes:(attack?.components || []).map(component=>component.type)},
-    },{busy:busy || reactionsBusy,retaliate:retaliateOnAttacker,cast:castTargetReaction});
+    },{busy:busy || reactionsBusy,retaliate:retaliateOnAttacker,cast:castTargetReaction,compact:true});
   }
   async function retaliateOnAttacker(row,amount) {
     if(reactionsBusy || !presentation?.item) return;

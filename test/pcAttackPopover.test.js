@@ -47,7 +47,7 @@ const sword = sanitizeQuickAction({ id: "holy-sword", label: "Spada sacra", kind
   components: [{ type: "slashing", formula: "1d8+3" }, { type: "radiant", formula: "2d8" }] });
 
 // actions: the actor's quick actions, for the picker (the runtime then loads the one asked for, like pcAttackExecution).
-function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, card = null, featureState = null, featureRuntime, actionId = "holy-sword", confirm, broadcast, autoOpenOption, autoOpenMonstersOption, metas = {}, openTracker } = {}) {
+function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, card = null, featureState = null, featureRuntime, actionId = "holy-sword", confirm, broadcast, autoOpenOption, autoOpenMonstersOption, metas = {}, openTracker, statblockText } = {}) {
   const documentRef = createDocument();
   const creature = (id, name, hp, extra = {}) => ({ id, name, type: "IMAGE", layer: "CHARACTER", metadata: { [META]: { hp, hpMax: hp, inInitiative: true, ...extra } } });
   // metas: more metadata for the ghoul and the imp (their cards, for the off-turn actions).
@@ -105,7 +105,7 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
         damageComponents: [{ amount: 17 }], hpChange: { before: 30, after: 13, hpMax: 30 } };
     },
   };
-  const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId, confirm, autoOpenOption, autoOpenMonstersOption, featureRuntime, openTracker, launchAckTimeoutMs: 40, schedule: (callback) => setTimeout(callback, 0),
+  const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId, confirm, autoOpenOption, autoOpenMonstersOption, featureRuntime, openTracker, statblockText, launchAckTimeoutMs: 40, schedule: (callback) => setTimeout(callback, 0),
     undo: async (entryId) => { undoCalls.push(entryId); return { ok: true }; } });
   const $ = (id) => documentRef.getElementById(id);
   // keydown: a key pressed in the console, its target the element focused (or the one given).
@@ -542,7 +542,8 @@ test("on a miss the console keeps only the activations used on the roll, under �
   assert.equal(activationRow(f, "attacco-con-spazzata").hidden, true);
   const precise = activationRow(f, "attacco-preciso");
   assert.equal(precise.hidden, false);
-  assert.equal(activationField(precise, "meta").textContent.replace(/ /gu, " "), "+1d10 al tiro per colpire · Dadi di Superiorità 5/5");
+  assert.equal(activationField(precise, "meta").textContent.replace(/ /gu, " "), "+1d10 al tiro per colpire");
+  assert.deepEqual([activationField(precise, "uses").textContent, activationField(precise, "uses").title], ["5/5", "Dadi di Superiorità 5/5"], "the number on the right, what it counts in its tooltip");
   assert.equal(f.$("pc-attack-add-extra").hidden, true, "no components on a miss");
   const box = activationField(precise, "on"); box.checked = true; await box.emit("change");
   assert.equal(activationField(precise, "amount").hidden, true, "nothing to enter");
@@ -1186,8 +1187,10 @@ test("the Capacità tab lists the features by group with their activation and us
   assert.equal(f.$("pc-attack-title").textContent, "Aria");
   assert.match(textOf(f.$("pc-attack-picker-list").querySelector('[aria-pressed="true"]')), /Ira/);
   assert.equal(facts(f), "");
-  assert.match(textOf(f.$("pc-attack-launch")), /Azione bonus.*Su di sé/);
-  assert.match(textOf(f.$("pc-attack-total")), /Ire 2\/3/, "the uses left beside the button");
+  assert.match(textOf(f.$("pc-attack-launch")), /Su di sé/);
+  assert.doesNotMatch(textOf(f.$("pc-attack-launch")), /Azione bonus/, "its cost is on its row: once");
+  assert.doesNotMatch(textOf(list.querySelectorAll("button")[0]), /\p{Extended_Pictographic}/u, "no emoji in the panel's rows");
+  assert.deepEqual([f.$("pc-attack-total").textContent, f.$("pc-attack-total").title], ["", "Ire 2/3"], "the uses left on the row too: their name in the tooltip beside the button");
   assert.ok(f.$("pc-attack-launch").querySelector("details"), "its text in the accordion");
   assert.equal(f.$("pc-attack-launch-button").textContent, "Attiva");
   await f.$("pc-attack-launch-button").click(); await tick();
@@ -1233,7 +1236,8 @@ test("an active feature offers Termina; a passive one is only read", async () =>
   assert.match(f.$("pc-attack-status").textContent, /Capacità terminata: Ira\./);
   await f.$("pc-attack-picker-list").querySelectorAll("button")[2].click(); await tick();
   assert.match(textOf(f.$("pc-attack-picker-list").querySelector('[aria-pressed="true"]')), /Difesa Senza Armatura/);
-  assert.match(textOf(f.$("pc-attack-launch")), /Passiva/);
+  assert.match(textOf(f.$("pc-attack-picker-list").querySelector('[aria-pressed="true"]')), /Passiva/, "what it is, on its row");
+  assert.doesNotMatch(textOf(f.$("pc-attack-launch")), /Passiva/);
   assert.equal(f.$("pc-attack-launch-button").hidden, true, "a passive feature has no button");
 });
 
@@ -1314,7 +1318,7 @@ test("the keyboard: the focus goes to the damage to type, Enter registers when r
 test("the lists: the favourites first, a search in long lists, the features to read folded", async () => {
   const f = fixture({ card: clericCard, attacker: clericMeta }); await f.controller.ready; await tick();
   await pickerTabs(f).find((button) => button.textContent === "Trucchetti").click(); await tick();
-  assert.deepEqual(f.$("pc-attack-picker-select").children.map((option) => option.textContent), ["Fiamma sacra ⚔ · Azione", "Luce · Azione"],
+  assert.deepEqual(f.$("pc-attack-picker-select").children.map((option) => option.textContent), ["Fiamma sacra · Azione · Console", "Luce · Azione"],
     "the cantrips in the select (the dropdown's fallback), their cost capitalised");
   const book = Array.from({ length: 14 }, (_, index) => ["bless", "shield-of-faith", "cure-wounds", "command", "sanctuary", "guiding-bolt", "healing-word",
     "inflict-wounds", "detection-of-evil-and-good", "create-or-destroy-water", "purify-food-and-drink", "aid", "lesser-restoration", "spiritual-weapon"][index]);
@@ -1355,7 +1359,7 @@ test("the attacks' and cantrips' dropdown: each entry with its cost on the right
   await button.click(); await tick();
   assert.equal(menu.hidden, false);
   const rows = menu.querySelectorAll("button");
-  assert.deepEqual(rows.map((row) => textOf(row).trim()), ["Fiamma sacra Azione · ⚔", "Luce Azione"], "the cost first on the right, coloured");
+  assert.deepEqual(rows.map((row) => textOf(row).trim()), ["Fiamma sacra Azione · Console", "Luce Azione"], "the cost first on the right, coloured; «Console»: it resolves here");
   assert.equal(rows[0].querySelector("[data-cost]").dataset.cost, "action");
   await f.keydown("Escape", rows[0]);
   assert.equal(menu.hidden, true, "Esc closes the menu");
@@ -1491,14 +1495,15 @@ test("a feature on the map selection says who it reaches; a spent one fades and 
   assert.equal(target(), "Su Nessuna selezione: su Aria", "the runtime falls back on the actor");
   await f.select(["ghoul"]);
   assert.equal(target(), "Su Ghoul · 30/30 PF", "the selection, followed in place");
-  assert.match(textOf(f.$("pc-attack-total")), /Riserva 100\/100/, "the uses left beside the button, once");
+  assert.match(f.$("pc-attack-total").title, /Riserva 100\/100/, "the uses left on the row: what they count in the tooltip beside the button");
+  assert.doesNotMatch(textOf(f.$("pc-attack-total")), /Riserva/);
   assert.doesNotMatch(textOf(f.$("pc-attack-launch")), /Riserva/);
   const spentState = { ...paladinState(), resources: { "paladino-imposizione-delle-mani": [{ poolId: "paladino-imposizione-mani-punti", name: "Riserva", current: 0, maximum: 100, unlimited: false }] } };
   const spent = fixture({ card: paladinCard, attacker: { initiativeCard: paladinCard }, featureState: spentState, featureRuntime: runtime.runtime });
   await spent.controller.ready; await tick(); await openFeatures(spent);
   const row = featureRow(spent, /Imposizione delle Mani/);
   assert.equal(row.dataset.exhausted, "true", "the row fades");
-  assert.equal(row.querySelector(".uses-badge").dataset.zero, "true", "its uses in red");
+  assert.equal(row.querySelector(".uses-badge").dataset.zero, "true", "its uses in yellow: red is for damage");
   await row.click(); await tick();
   assert.equal(spent.$("pc-attack-launch-button").disabled, true);
   assert.match(textOf(spent.$("pc-attack-total")), /Nessun punto rimasto/);
@@ -1682,7 +1687,7 @@ test("a feature used with a reaction: the console warns when it is already used,
     confirm: (message) => { asked.push(message); return answers.shift(); } });
   await f.controller.ready; await tick(); await openFeatures(f);
   await featureRow(f, /Piegare la Fortuna/).click(); await tick();
-  assert.match(textOf(f.$("pc-attack-launch")), /Reazione.*Reazione già usata in questo round\./);
+  assert.match(textOf(f.$("pc-attack-launch")), /Reazione già usata in questo round\./);
   await f.$("pc-attack-launch-button").click(); await tick();
   assert.match(asked[0], /Aria ha già usato la reazione in questo round\.[\s\S]*Usare comunque Piegare la Fortuna\?/);
   assert.deepEqual(calls, [], "declined: nothing spent");
@@ -1970,6 +1975,25 @@ test("monster save action in the console: its area and DC under the picker, draw
   assert.deepEqual(f.calls[0].area.members, [{ targetId: "ghoul", outcome: "failed" }, { targetId: "imp", outcome: "passed" }]);
   assert.deepEqual(f.calls[0].area.componentAmounts, { c1: 63 });
   assert.match(f.$("pc-attack-status").textContent, /^Registrato: Soffio di fuoco su 2 creature\./);
+});
+
+test("a monster's traits: the row says only a legendary action's cost above 1, the card no pill of what its row says", async () => {
+  const card = { ...dragonCard, monster: { ...dragonCard.monster, ref: "dragon" } };
+  const statblockText = { view: async () => ({ sections: [
+    { title: "Reactions", entries: [{ name: "Parry", text: "Adds 3 to its AC." }] },
+    { title: "Legendary Actions", entries: [{ name: "Detect", text: "Makes a check." }, { name: "Wing Attack (Costs 2 Actions)", text: "Beats its wings." }] },
+  ] }) };
+  const f = fixture({ card, actionId: "bite", attacker: { attitude: "enemy", initiativeCard: card }, statblockText }); await f.controller.ready; await tick(); await tick();
+  await pickerTabs(f).find((button) => button.textContent === "Capacità").click(); await tick();
+  const row = (name) => featureRow(f, name);
+  assert.equal(textOf(row(/Detect/)).trim(), "Detect", "its group's title says what it is");
+  assert.equal(textOf(row(/Wing Attack/)).trim(), "Wing Attack (Costs 2 Actions) Costo 2");
+  assert.equal(textOf(row(/Parry/)).trim(), "Parry Reazione");
+  await row(/Wing Attack/).click(); await tick();
+  assert.doesNotMatch(textOf(f.$("pc-attack-launch")), /Leggendaria/);
+  assert.equal(f.$("pc-attack-launch").querySelector(".launch-meta"), null, "no pill: its row says it");
+  await row(/Parry/).click(); await tick();
+  assert.equal(f.$("pc-attack-launch").querySelector(".launch-meta"), null);
 });
 
 // Attacchi dei mostri, lotto 7: la seconda pillola, «Mostri», con la sua opzione.

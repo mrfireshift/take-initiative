@@ -74,7 +74,9 @@ export function attackTargetReactions({ target = null, attacker = null, attack =
   const casterCard = sanctuaryPill ? metaOf(byId.get(text(sanctuaryPill.sourceId))).initiativeCard || {} : {};
   const dc = Number.isFinite(Number(casterCard.spellSaveDC)) && Number(casterCard.spellSaveDC) > 0
     ? Math.floor(Number(casterCard.spellSaveDC)) : null;
+  // short: the datum that counts, on one line beside the button; text: the whole rule, in its tooltip.
   const sanctuary = sanctuaryPill ? {
+    short: `Santuario · TS Saggezza${dc ? ` CD ${dc}` : ""}`,
     text: `Santuario: ${attackerName} tira prima un TS Saggezza ${dc ? `CD ${dc}` : "(CD del caster)"}; se fallisce, sceglie un altro bersaglio o perde l'attacco.`,
   } : null;
 
@@ -88,6 +90,7 @@ export function attackTargetReactions({ target = null, attacker = null, attack =
       dice: text(rule.dice),
       type: text(rule.type),
       typeLabel,
+      short: `${text(rule.label) || "Ritorsione"} · ${text(rule.dice)} ${typeLabel}`,
       text: `${text(rule.label) || "Ritorsione"}: ${attackerName} subisce ${text(rule.dice)} danni da ${typeLabel}`
         + `${rule.reachMeters ? ` se è entro ${String(rule.reachMeters).replace(".", ",")} m` : ""}.`,
     };
@@ -109,6 +112,7 @@ export function attackTargetReactions({ target = null, attacker = null, attack =
         amount,
         type,
         typeLabel: damageTypeLabel(type),
+        short: `${label} · ${amount} ${damageTypeLabel(type)}`,
         text: `${label}: ${attackerName} subisce ${amount} danni da ${damageTypeLabel(type)} (finché restano i PF temporanei dell'armatura).`,
       });
     }
@@ -118,16 +122,16 @@ export function attackTargetReactions({ target = null, attacker = null, attack =
   if (!hasReactionUsed(metaOf(target).conditions)) {
     const castable = creatureCastableSpellIds(target);
     if (hit && attack.roll === true && castable.has("shield") && !hasActiveSpell(target, "shield")) {
-      offers.push({ spellId: "shield", label: "Lancia Scudo", direct: true,
+      offers.push({ spellId: "shield", label: "Lancia Scudo", direct: true, short: "Reazione · +5 CA",
         text: "Scudo (reazione): +5 CA fino al suo prossimo turno, anche contro questo attacco; se il tiro non arriva alla CA + 5, segna Mancato." });
     }
     const absorbed = (Array.isArray(attack.damageTypes) ? attack.damageTypes : []).map(text).find((type) => ABSORB_ELEMENTS_CHOICES[type]);
     if (damaging && absorbed && castable.has(ABSORB_ELEMENTS_SPELL_ID) && !hasActiveSpell(target, ABSORB_ELEMENTS_SPELL_ID)) {
-      offers.push({ spellId: ABSORB_ELEMENTS_SPELL_ID, label: "Assorbire elementi", direct: false, variant: ABSORB_ELEMENTS_CHOICES[absorbed],
+      offers.push({ spellId: ABSORB_ELEMENTS_SPELL_ID, label: "Assorbire elementi", direct: false, variant: ABSORB_ELEMENTS_CHOICES[absorbed], short: `Reazione · resistenza ${damageTypeLabel(absorbed)}`,
         text: `Assorbire elementi (reazione): resistenza ai danni da ${damageTypeLabel(absorbed)}, anche contro questo danno; +1d6 al suo prossimo colpo in mischia.` });
     }
     if (damaging && attacker?.id && castable.has("hellish-rebuke")) {
-      offers.push({ spellId: "hellish-rebuke", label: "Intimorire infernale", direct: false, targetIds: [attacker.id],
+      offers.push({ spellId: "hellish-rebuke", label: "Intimorire infernale", direct: false, targetIds: [attacker.id], short: "Reazione · 2d10 fuoco",
         text: `Intimorire infernale (reazione): dopo il danno, ${attackerName} tira un TS Destrezza; 2d10 fuoco, metà se lo supera.` });
     }
   }

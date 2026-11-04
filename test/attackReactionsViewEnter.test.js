@@ -69,6 +69,18 @@ test("L17: con la console occupata Invio non applica nulla e resta comunque nel 
   assert.equal(enter.propagationStopped, true);
 });
 
+test("compact: the datum that counts on the row, the whole rule in its tooltip; without it, the rule (the Boss console)", () => {
+  rows = [{ ...row, short: "Scudo di fuoco · 2d8 fuoco", text: "Scudo di fuoco: l'attaccante subisce 2d8 danni da fuoco." }];
+  const documentRef = fakeDocument();
+  const compact = documentRef.createElement("div");
+  renderAttackReactions(compact, { target: { id: "wizard" } }, { documentRef, compact: true });
+  assert.deepEqual([compact.children[0].children[0].textContent, compact.children[0].children[0].title], ["Scudo di fuoco · 2d8 fuoco", rows[0].text]);
+  const full = documentRef.createElement("div");
+  renderAttackReactions(full, { target: { id: "wizard" } }, { documentRef });
+  assert.equal(full.children[0].children[0].textContent, rows[0].text);
+  rows = [row];
+});
+
 // CAP-TEMP, lotto T3c: Armor of Agathys' retaliation is a fixed amount: no field, the button applies it.
 test("una ritorsione a danno fisso (Armatura di Agathys) non chiede il tiro: il pulsante applica il danno", () => {
   rows = [{ instanceId: "aoa-1", label: "Armatura di Agathys", dice: "10", amount: 10, text: "Ritorsione", type: "cold" }];

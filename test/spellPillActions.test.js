@@ -95,7 +95,7 @@ test("one click runs an action with nothing to fill in the panel (lotto B), its 
 });
 
 test("Mirror Image on the attacked creature (lotto C): the d20 for three, two and one duplicate, the duplicate's AC", async () => {
-  const { mirrorImageNotice, mirrorImageState, mirrorImageThreshold } = await import("../src/mirrorImageCore.js");
+  const { mirrorImageNotice, mirrorImageShortNotice, mirrorImageState, mirrorImageThreshold } = await import("../src/mirrorImageCore.js");
   assert.deepEqual([3, 2, 1, 0].map(mirrorImageThreshold), [6, 8, 11, null]);
   const META = "com.thebigpicture.initiative/meta";
   const SPELLS = "com.thebigpicture.initiative/spells";
@@ -110,4 +110,6 @@ test("Mirror Image on the attacked creature (lotto C): the d20 for three, two an
   assert.equal(mirrorImageState(mage(3, null)).armorClass, null, "no Dexterity on the card");
   assert.match(mirrorImageNotice(mirrorImageState(mage(3))), /3 duplicati\. Tira un d20: con 6 o più[\s\S]*CA 13/u);
   assert.match(mirrorImageNotice(mirrorImageState(mage(1, null))), /1 duplicato\.[\s\S]*11 o più[\s\S]*CA 10 \+ Des/u);
+  assert.equal(mirrorImageShortNotice(mirrorImageState(mage(3))), "Immagine speculare · d20 ≥ 6", "one line beside its button: the rule in the tooltip");
+  assert.equal(mirrorImageShortNotice(null), "");
 });

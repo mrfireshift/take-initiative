@@ -66,7 +66,9 @@ test("Sanctuary: the attacker saves on Wisdom against the warding caster's DC; i
   const orc = creature("orc");
   const view = attackTargetReactions({ target: warded, attacker: orc, attack: { roll: true, outcome: "" }, items: [priest, orc] });
   assert.match(view.sanctuary.text, /orc tira prima un TS Saggezza CD 15/u);
+  assert.equal(view.sanctuary.short, "Santuario · TS Saggezza CD 15", "the datum that counts, for one line");
   assert.match(attackTargetReactions({ target: warded, attacker: orc, items: [] }).sanctuary.text, /CD del caster/u);
+  assert.equal(attackTargetReactions({ target: warded, attacker: orc, items: [] }).sanctuary.short, "Santuario · TS Saggezza");
   const attacker = { ...warded, metadata: { [META]: { ...warded.metadata[META], [SPELLS]: [{ spellId: "sanctuary", instanceId: "sanc-1" }] } } };
   const ends = pcAttackLinkEnds({ sourceItem: attacker, targetItem: orc });
   assert.deepEqual(ends.map((end) => [end.spellId, end.instanceId]), [["sanctuary", "Santuario-pill"]]);
@@ -80,6 +82,7 @@ test("the retaliation: Fire Shield on a melee hit only, Shadow of Moil on any hi
   const [fire] = attackTargetReactions({ target: shield, attacker: orc, attack: melee }).retaliations;
   assert.deepEqual([fire.dice, fire.type, fire.label], ["2d8", "fire", "Scudo di fuoco"]);
   assert.match(fire.text, /orc subisce 2d8 danni da fuoco se è entro 1,5 m/u);
+  assert.equal(fire.short, "Scudo di fuoco · 2d8 fuoco");
   assert.deepEqual(attackTargetReactions({ target: shield, attacker: orc, attack: { ...melee, melee: false } }).retaliations, []);
   assert.deepEqual(attackTargetReactions({ target: shield, attacker: orc, attack: { ...melee, outcome: "miss" } }).retaliations, []);
   const [necrotic] = attackTargetReactions({ target: moil, attacker: orc, attack: { roll: true, melee: false, outcome: "critical" } }).retaliations;
@@ -97,6 +100,8 @@ test("the reactions the attacked creature can still cast: Shield on a hit, Absor
     ["xanathar-assorbire-elementi", false, "fuoco", []],
     ["hellish-rebuke", false, "", ["orc"]],
   ]);
+  assert.deepEqual(attackTargetReactions({ target: all, attacker: orc, attack: { roll: true, outcome: "hit", damageTypes: ["slashing", "fire"] } }).offers.map((offer) => offer.short),
+    ["Reazione · +5 CA", "Reazione · resistenza fuoco", "Reazione · 2d10 fuoco"], "what it gives, its button says which");
   assert.deepEqual(offers(all, { roll: true, outcome: "miss", damageTypes: ["fire"] }), [], "a miss triggers nothing");
   assert.deepEqual(offers(all, { roll: false, outcome: "failed", damageTypes: ["cold"] }).map(([id]) => id),
     ["xanathar-assorbire-elementi", "hellish-rebuke"], "a save: no Shield");

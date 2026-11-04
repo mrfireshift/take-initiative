@@ -38,6 +38,11 @@ export function mirrorImageState(item) {
   };
 }
 
+// The datum that counts, on one line beside its button: the rule stays in mirrorImageNotice (the tooltip).
+export function mirrorImageShortNotice(state) {
+  return state ? `Immagine speculare · d20 ≥ ${state.threshold}` : "";
+}
+
 export function mirrorImageNotice(state) {
   if (!state) return "";
   const duplicates = `${state.remaining} ${state.remaining === 1 ? "duplicato" : "duplicati"}`;
