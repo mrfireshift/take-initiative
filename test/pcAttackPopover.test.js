@@ -47,7 +47,7 @@ const sword = sanitizeQuickAction({ id: "holy-sword", label: "Spada sacra", kind
   components: [{ type: "slashing", formula: "1d8+3" }, { type: "radiant", formula: "2d8" }] });
 
 // actions: the actor's quick actions, for the picker (the runtime then loads the one asked for, like pcAttackExecution).
-function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, card = null, featureState = null, featureRuntime, actionId = "holy-sword", confirm, broadcast, autoOpenOption, autoOpenMonstersOption, metas = {}, openTracker, statblockText } = {}) {
+function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, card = null, featureState = null, featureRuntime, actionId = "holy-sword", confirm, broadcast, autoOpenOption, autoOpenMonstersOption, metas = {}, openTracker, statblockText, popover = {}, viewport, measureWindow, ResizeObserver } = {}) {
   const documentRef = createDocument();
   const creature = (id, name, hp, extra = {}) => ({ id, name, type: "IMAGE", layer: "CHARACTER", metadata: { [META]: { hp, hpMax: hp, inInitiative: true, ...extra } } });
   // metas: more metadata for the ghoul and the imp (their cards, for the off-turn actions).
@@ -61,7 +61,8 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
     player: { getRole: async () => "GM", getSelection: async () => selection, onChange: (listener) => subscribe(listeners.player, listener) },
     scene: { isReady: async () => true, onReadyChange: () => () => {}, onMetadataChange: (listener) => subscribe(listeners.metadata, listener),
       items: { getItems: async (ids) => Array.isArray(ids) ? items.filter((item) => ids.includes(item.id)) : items, onChange: (listener) => subscribe(listeners.items, listener) } },
-    popover: { close: async (id) => { closed.push(id); } },
+    popover: { close: async (id) => { closed.push(id); }, ...popover },
+    ...(viewport ? { viewport } : {}),
     ...(broadcast ? { broadcast } : {}),
   };
   const runtime = {
@@ -105,7 +106,7 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
         damageComponents: [{ amount: 17 }], hpChange: { before: 30, after: 13, hpMax: 30 } };
     },
   };
-  const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId, confirm, autoOpenOption, autoOpenMonstersOption, featureRuntime, openTracker, statblockText, launchAckTimeoutMs: 40, schedule: (callback) => setTimeout(callback, 0),
+  const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId, confirm, autoOpenOption, autoOpenMonstersOption, featureRuntime, openTracker, statblockText, measureWindow, ResizeObserver, launchAckTimeoutMs: 40, schedule: (callback) => setTimeout(callback, 0),
     undo: async (entryId) => { undoCalls.push(entryId); return { ok: true }; } });
   const $ = (id) => documentRef.getElementById(id);
   // keydown: a key pressed in the console, its target the element focused (or the one given).
@@ -1994,6 +1995,118 @@ test("a monster's traits: the row says only a legendary action's cost above 1, t
   assert.equal(f.$("pc-attack-launch").querySelector(".launch-meta"), null, "no pill: its row says it");
   await row(/Parry/).click(); await tick();
   assert.equal(f.$("pc-attack-launch").querySelector(".launch-meta"), null);
+});
+
+// The window follows its content (lot 6 of the panel's audit): the page's measures and the observer are the test's.
+function windowFixture(options = {}) {
+  const heights = [], sizes = { content: 300, menu: 0 };
+  let observed = null;
+  class FakeObserver { constructor(callback) { observed = callback; } observe() {} disconnect() { observed = null; } }
+  const f = fixture({ ...options, ResizeObserver: FakeObserver, measureWindow: () => ({ ...sizes }), viewport: { getHeight: async () => 1000 },
+    popover: { getHeight: async () => heights.at(-1) ?? 560, setHeight: async (id, height) => { heights.push(height); } } });
+  return { ...f, heights, sizes, resized: async () => { observed?.(); await tick(); await tick(); } };
+}
+
+test("the window follows its content: only when something changes size, never asking twice for the same height", async () => {
+  const f = windowFixture(); await f.controller.ready; await tick();
+  await f.resized();
+  assert.deepEqual(f.heights, [300]);
+  assert.equal(f.documentRef.body.getAttribute("data-fit"), "on");
+  await f.resized();
+  assert.deepEqual(f.heights, [300], "the same height: nothing asked");
+  f.sizes.content = 301; await f.resized();
+  assert.deepEqual(f.heights, [300], "a pixel is no reason to move");
+});
+
+test("during an attack the window does not shrink, so Registra stays; after Registra it follows its content again", async () => {
+  const f = windowFixture(); await f.controller.ready; await tick();
+  await f.resized();
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  f.sizes.content = 366; await f.resized();
+  assert.equal(f.heights.at(-1), 366, "the extras: it grows");
+  await f.outcome("miss").click();
+  f.sizes.content = 300; await f.resized();
+  assert.equal(f.heights.at(-1), 366, "no extras on a miss: it stays");
+  await f.outcome("hit").click();
+  await typeAmounts(f, ["7", "2"]);
+  f.sizes.content = 345;
+  await f.$("pc-attack-apply").click(); await tick();
+  await f.resized();
+  assert.equal(f.heights.at(-1), 345, "a new attack: what it needs");
+});
+
+test("a spell or a feature is no attack: the window follows it both ways", async () => {
+  const f = windowFixture({ card: clericCard, attacker: clericMeta }); await f.controller.ready; await tick();
+  await pickerTabs(f).find((button) => button.textContent === "Incantesimi").click(); await tick();
+  f.sizes.content = 493; await f.resized();
+  f.sizes.content = 389; await f.resized();
+  assert.deepEqual(f.heights.slice(-2), [493, 389]);
+});
+
+test("an open menu has room while it is open, and leaves no height behind", async () => {
+  const f = windowFixture(); await f.controller.ready; await tick();
+  await f.resized();
+  f.sizes.menu = 411;
+  await f.$("pc-attack-target-button").click(); await tick(); await tick();
+  assert.equal(f.heights.at(-1), 411, "it asked by itself: an absolute menu moves no observed size");
+  f.sizes.menu = 0;
+  await f.$("pc-attack-target-button").click(); await tick(); await tick();
+  assert.equal(f.heights.at(-1), 300);
+});
+
+test("folded by Riduci the window does not follow its content; unfolded it gets its height back, then follows again", async () => {
+  const f = windowFixture(); await f.controller.ready; await tick();
+  await f.resized();
+  await f.$("pc-attack-minimize").click(); await tick(); await tick();
+  const folded = f.heights.at(-1);
+  assert.ok(folded < 100);
+  f.sizes.content = 500; await f.resized();
+  assert.equal(f.heights.at(-1), folded, "the content changes behind it");
+  await f.$("pc-attack-minimize").click(); await tick(); await tick(); await tick();
+  assert.deepEqual(f.heights.slice(-2), [300, 500], "its height back, then what it needs now");
+});
+
+test("at the limit the long lists give way; below it they do not, and the screen's height is read only when it may count", async () => {
+  let reads = 0;
+  const heights = [], sizes = { content: 300, menu: 0 };
+  let observed = null;
+  class FakeObserver { constructor(callback) { observed = callback; } observe() {} disconnect() {} }
+  const f = fixture({ ResizeObserver: FakeObserver, measureWindow: () => ({ ...sizes }), viewport: { getHeight: async () => { reads += 1; return 720; } },
+    popover: { getHeight: async () => 560, setHeight: async (id, height) => { heights.push(height); } } });
+  await f.controller.ready; await tick();
+  const resized = async () => { observed(); await tick(); await tick(); };
+  await resized();
+  assert.equal(heights.at(-1), 300);
+  const before = reads;
+  await resized();
+  assert.equal(reads, before, "nothing to change: no question to the host");
+  sizes.content = 900; await resized();
+  assert.equal(heights.at(-1), 648, "720 of screen, 60 of top, 12 of margin");
+  assert.equal(f.documentRef.body.getAttribute("data-capped"), "true");
+  sizes.content = 300; await resized();
+  assert.equal(heights.at(-1), 648, "the same attack: it does not shrink");
+  assert.equal(f.documentRef.body.getAttribute("data-capped"), "false", "but it is no longer short of room");
+});
+
+test("a host that refuses to resize: the panel goes back to scrolling, nothing stays out of reach", async () => {
+  let observed = null, disconnected = false;
+  class FakeObserver { constructor(callback) { observed = callback; } observe() {} disconnect() { disconnected = true; } }
+  const f = fixture({ ResizeObserver: FakeObserver, measureWindow: () => ({ content: 300, menu: 0 }), viewport: { getHeight: async () => 1000 },
+    popover: { setHeight: async () => { throw new Error("no"); } } });
+  await f.controller.ready; await tick();
+  assert.equal(f.documentRef.body.getAttribute("data-fit"), "on");
+  observed(); await tick(); await tick();
+  assert.equal(f.documentRef.body.getAttribute("data-fit"), "off");
+  assert.equal(disconnected, true);
+});
+
+test("without a host that resizes or a way to measure, the console stays as it is", async () => {
+  const noHost = fixture({ measureWindow: () => ({ content: 300, menu: 0 }) }); await noHost.controller.ready; await tick();
+  assert.equal(noHost.documentRef.body.getAttribute("data-fit"), null, "no observer: the panel keeps its own scroll");
+  const heights = [];
+  const noMeasure = fixture({ popover: { getHeight: async () => 560, setHeight: async (id, height) => { heights.push(height); } } }); await noMeasure.controller.ready; await tick();
+  assert.deepEqual(heights, []);
 });
 
 // Attacchi dei mostri, lotto 7: la seconda pillola, «Mostri», con la sua opzione.

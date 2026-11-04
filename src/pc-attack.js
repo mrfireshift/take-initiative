@@ -22,7 +22,8 @@ import { totalCharacterLevel } from "./abilityModifiersCore.js";
 import { pcAttackCriticalDice } from "./pcAttackRiderCatalog.js";
 import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossTargetLabel, bossTargetParts } from "./bossActionsViewCore.js";
 import { DAMAGE_TYPES, damageDefenseCount, damageTypeLabel, damageDefensesForItem } from "./damageDefensesCore.js";
-import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_HEIGHT, PC_ATTACK_POPOVER_ID, PC_ATTACK_SPELL_LAUNCH_CHANNEL, PC_ATTACK_WIDTH } from "./pcAttackLauncher.js";
+import { pcAttackWindowFloor, pcAttackWindowHeight, pcAttackWindowLimit } from "./pcAttackWindowCore.js";
+import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_HEIGHT, PC_ATTACK_POPOVER_ID, PC_ATTACK_SPELL_LAUNCH_CHANNEL, PC_ATTACK_WIDTH, pcAttackWindowTop, rememberPcAttackHeight } from "./pcAttackLauncher.js";
 import { loadSpellbookSpellReference, spellbookSpellDetails, spellbookSpellReferenceLoaded } from "./spellbookCatalog.js";
 import { rulesTextBlock } from "./rulesTextView.js";
 import { privateTextMissingNote } from "./privatePackCore.js";
@@ -249,12 +250,20 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const pickerCaption=$("pc-attack-picker-caption");
   // The long lists' search.
   const pickerSearch=$("pc-attack-picker-search");
+  // The window follows its content (pcAttackWindowCore.js, fitWindow further down).
+  let fitQueued=false,fitFloor=0,fitKey="",fitLast=0,fitPaused=false,fitCapped=false,fitObserver=null;
+  function scheduleFit() {
+    if(fitQueued) return;
+    fitQueued=true;
+    void Promise.resolve().then(()=>{fitQueued=false;return fitWindow();}).catch(()=>{});
+  }
   // A menu the console draws (the picker's, a target's): its button opens it, Esc or a click elsewhere closes it, the
   // arrows move through its rows.
   function drawnMenu(container,button,menu) {
     let open=false;
     function setOpen(next,{focus=false}={}) {
       if(!menu || !button) return;
+      const was=open;
       open=!!next && !busy;
       menu.hidden=!open;
       button.setAttribute("aria-expanded",String(open));
@@ -263,6 +272,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         // Low in a panel that scrolls, the whole menu comes into view.
         menu.scrollIntoView?.({block:"nearest"});
       } else if(focus) button.focus?.();
+      // The window makes room for it while it is open.
+      if(was!==open) scheduleFit();
     }
     button?.addEventListener("click",()=>setOpen(!open));
     button?.addEventListener("keydown",event=>{if(event.key==="ArrowDown"){event.preventDefault?.();setOpen(true);}});
@@ -293,6 +304,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     moreButton?.setAttribute("aria-expanded",String(!!open));
     if(open) moreMenu.querySelector("input")?.focus?.();
     else if(focus) moreButton?.focus?.();
+    scheduleFit();
   }
   setMoreOpen(false);
   moreButton?.addEventListener("click",()=>setMoreOpen(!moreOpen()));
@@ -1621,6 +1633,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // and Lancia (a spell) or Usa (a ⚡ quick action) waits in the fixed row at the bottom, always visible.
   function renderLaunch() {
     if(!launchBox) return;
+    if(fitCapped) scheduleFit();
     // The fixed row is shared with the attacks: their defenses do not follow here.
     defensesBox.replaceChildren();
     if(attackView) attackView.hidden=true;
@@ -2035,6 +2048,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     reactionRow.replaceChildren(label);
   }
   function renderState() {
+    if(fitCapped) scheduleFit();
     renderReaction();
     renderTargetReactions();
     // The hit effect follows the outcome, which a click changes without a full render (fase 5, lotto 4).
@@ -2303,6 +2317,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function unmountLiveUpdates() {unsubscribers.splice(0).forEach(unsubscribe=>{try{unsubscribe();}catch{}});}
   function destroy() {
     unmountLiveUpdates();
+    fitObserver?.disconnect?.();fitObserver=null;
     try{offPing?.();}catch{}
     try{offAutoOpen?.();}catch{}
     offPing=null;offAutoOpen=null;
@@ -2347,6 +2362,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   let minimizedHeight=0;
   function renderMinimized() {
     documentRef.body?.setAttribute?.("data-minimized",String(!!minimizedHeight));
+    scheduleFit();
     if(!minimizeButton) return;
     minimizeButton.textContent=minimizedHeight?"+":"−";
     minimizeButton.title=minimizedHeight?"Espandi":"Riduci";
@@ -2365,14 +2381,83 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   async function foldConsole(fold,restore=0) {
     try {
       if(fold) {
+        // Folded, the window does not follow its content.
+        fitPaused=true;
         const height=Number(await api.popover?.getHeight?.(PC_ATTACK_POPOVER_ID)) || PC_ATTACK_HEIGHT;
         const header=documentRef.querySelector?.(".header");
         await api.popover?.setHeight?.(PC_ATTACK_POPOVER_ID,Math.ceil((header?.offsetHeight || 44)+2));
         return height;
       }
-      if(restore) await api.popover?.setHeight?.(PC_ATTACK_POPOVER_ID,restore);
+      if(restore) {
+        fitLast=restore;
+        await api.popover?.setHeight?.(PC_ATTACK_POPOVER_ID,restore);
+      }
     } catch {}
+    finally {if(!fold) fitPaused=false;}
     return 0;
+  }
+  // What the window needs, read from the page: everything but the panel (the header, the switches, the reaction, the total,
+  // the status) plus the panel's content, whole, with what a long list or card keeps hidden when the window is at its limit.
+  // An open menu counts apart: only while it is open. null where there is nothing to measure.
+  const measureWindow=overrides.measureWindow || (()=>{
+    const shell=documentRef.querySelector?.(".glass-shell"),panel=documentRef.querySelector?.(".panel"),view=documentRef.defaultView;
+    if(!shell?.getBoundingClientRect || !panel || !form?.children || !view?.getComputedStyle) return null;
+    const style=view.getComputedStyle(panel);
+    const chrome=shell.getBoundingClientRect().height-panel.clientHeight;
+    const padding=(parseFloat(style.paddingTop) || 0)+(parseFloat(style.paddingBottom) || 0);
+    const formTop=form.getBoundingClientRect().top;
+    const bottom=Math.max(0,...[...form.children].filter(child=>!child.hidden).map(child=>child.getBoundingClientRect().bottom-formTop));
+    const kept=[pickerList,launchBox].reduce((sum,box)=>sum+(box && !box.hidden?Math.max(0,box.scrollHeight-box.clientHeight):0),0);
+    const panelTop=panel.getBoundingClientRect().top;
+    const menus=[pickerMenu,targetMenu,maneuverMenu].filter(menu=>menu && !menu.hidden).map(menu=>menu.getBoundingClientRect().bottom-panelTop+panel.scrollTop);
+    return {
+      content:Math.ceil(chrome+padding+bottom+kept)+1,
+      menu:Math.ceil(Math.max(0,...menus.map(menuBottom=>chrome+menuBottom+8),moreOpen()?moreMenu.getBoundingClientRect().bottom+8:0)),
+    };
+  });
+  // The attack in progress, which keeps the window from shrinking: a new one, or none, lets it follow its content again.
+  function fitAttackKey() {
+    const entry=launching()?currentEntry():null;
+    if(entry?.mode==="maneuver") return `maneuver|${sourceId}|${entry.key}|${maneuverDraft.id}`;
+    return !launching() && draft?`attack|${sourceId}|${actionId}|${draft.spellId}|${draft.attackMode}|${draft.attackInstanceId}`:"";
+  }
+  async function fitWindow() {
+    const stopped=()=>fitPaused || !!drawing || !!minimizedHeight || invalidated || !presentation;
+    if(stopped() || typeof api.popover?.setHeight!=="function") return;
+    const measured=measureWindow();
+    if(!measured) return;
+    const key=fitAttackKey();
+    fitFloor=pcAttackWindowFloor({key,lastKey:fitKey,floor:fitFloor,content:measured.content});
+    fitKey=key;
+    const current=fitLast || Number(documentRef.defaultView?.innerHeight) || 0;
+    // Nothing to change, with room to spare: no need to ask the host how tall the screen is.
+    const free=pcAttackWindowHeight({...measured,floor:fitFloor});
+    if(!fitCapped && !free.capped && Math.abs(free.height-current)<=1) return;
+    const viewport=Number(await Promise.resolve().then(()=>api.viewport?.getHeight?.()).catch(()=>0)) || Infinity;
+    if(stopped()) return;
+    const {height,capped}=pcAttackWindowHeight({...measured,floor:fitFloor,limit:pcAttackWindowLimit({top:pcAttackWindowTop(),viewport})});
+    if(capped!==fitCapped) {
+      fitCapped=capped;
+      documentRef.body?.setAttribute?.("data-capped",String(capped));
+    }
+    if(Math.abs(height-current)<=1) return;
+    fitLast=height;
+    try {
+      await api.popover.setHeight(PC_ATTACK_POPOVER_ID,height);
+      if(!measured.menu) rememberPcAttackHeight(height);
+    } catch {
+      // A host that does not resize the window: the panel goes back to scrolling, nothing stays out of reach.
+      fitObserver?.disconnect?.();fitObserver=null;
+      documentRef.body?.setAttribute?.("data-fit","off");
+    }
+  }
+  // Only when something really changes size: the window's own height does not move these. At the limit the long lists give
+  // way and their size says nothing: there the renders ask (renderState, renderLaunch).
+  const ResizeObserverClass=overrides.ResizeObserver || documentRef.defaultView?.ResizeObserver;
+  if(typeof ResizeObserverClass==="function" && form) {
+    fitObserver=new ResizeObserverClass(()=>scheduleFit());
+    for(const element of [form,$("pc-attack-switch-row"),reactionRow,applyRow,documentRef.querySelector?.(".status-bar")]) if(element) fitObserver.observe(element);
+    documentRef.body?.setAttribute?.("data-fit","on");
   }
   // The breath's cone or line on the map, from the attacker's token: the creatures inside are ticked (never the
   // attacker); the GM still marks each save and may tick or untick by hand. Esc in the tool cancels.

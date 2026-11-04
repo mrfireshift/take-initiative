@@ -4,7 +4,7 @@ Micro-audit del 04/11/2026 su `pc-attack.html` e `src/pc-attack.js`, chiesto dal
 
 Restano fermi i colori del costo in stile Baldur's Gate, il rosso solo per il danno e niente conteggi sui tab, già decisi dall'utente.
 
-Stato: D1-D3 approvate come consigliate il 04/11/2026. Lotti 1, 2, 3, 4 e 5 fatti, restano il 6 e il 7.
+Stato: D1-D3 approvate come consigliate il 04/11/2026. Lotti da 1 a 6 fatti, resta il 7.
 
 ## Misure
 
@@ -98,7 +98,7 @@ Tutti riguardano l'aspetto: danni, PF e registrazione non si toccano.
 3. **Griglia e densità.** Un bordo sinistro, etichetta e controllo, righe a una linea, niente riquadri, difesa accanto al totale, menu del bersaglio con i PF a destra. `TS fallito` e `TS superato` del bersaglio singolo diventano `Fallito` e `Superato`: il TS ora è scritto sopra, sotto il selettore. Fatto. In più, tab sottolineate e altezze 24, 32 e 36. Restano nativi il menu `Tiro` e quelli piccoli di slot e tipo di danno.
 4. **Aree.** Danno prima dell'elenco, righe compatte, PF sempre visibili. Fatto. In più, area, TS e CD una volta sola sotto il selettore, `Tiro` sotto il selettore anche fuori dalle aree, `+ Danno extra` sulla riga del danno.
 5. **Pill, icone e colori.** Una forma per gli usi, una famiglia di frecce, emoji, colori per significato, note brevi di Immagine speculare e Scudo. Fatto sul pannello attacchi. La console boss conserva testi lunghi e colori fino al lotto 7. Gli usi a zero passano dal rosso al giallo: il rosso è solo del danno.
-6. **Altezza della finestra.** Dopo il lotto 3.
+6. **Altezza della finestra.** Dopo il lotto 3. Fatto, come D1: limite a 720 px e al bordo dello schermo, e nessuna misura finché è ridotta, mentre si disegna e mentre carica.
 7. **Console boss.** Quello che vale anche lì: condividono `public/console-shell.css`.
 
 ## Decisioni
@@ -151,3 +151,15 @@ Approvate il 04/11/2026.
 - [ ] **Frecce:** `Altre capacità` e `Dettagli` hanno il chevron dei menu, a destra, che gira quando si aprono.
 - [ ] **Bersaglio con reazioni:** con Immagine speculare e Scudo due righe senza colore: `Immagine speculare · d20 ≥ 6` e `Reazione · +5 CA`, ognuna col suo pulsante. La regola è nel suggerimento, e i pulsanti funzionano come prima.
 - [ ] **Console boss:** con lo stesso bersaglio mostra ancora i testi lunghi, come prima.
+
+## Prova in stanza del lotto 6
+
+- [ ] **Apertura:** dalla 🗡️ la finestra si apre alta quanto il contenuto, senza spazio vuoto sotto; dalla seconda volta riparte dall'ultima altezza.
+- [ ] **Esito:** `Colpito` fa crescere la finestra con gli extra; `Mancato` non la restringe, e **Registra** resta nello stesso punto. Dopo **Registra** torna alla misura giusta.
+- [ ] **Capacità e incantesimi:** aprendo `Dettagli` cresce, chiudendoli torna giù.
+- [ ] **Menu:** in una finestra bassa il menu del bersaglio e `⋯` si vedono interi; alla chiusura la finestra torna com'era.
+- [ ] **Bordo dello schermo:** trascina la finestra in basso e apri qualcosa di lungo: non esce dallo schermo, e il pannello scorre. Trascinala di nuovo in alto: al primo clic riprende spazio.
+- [ ] **Molti incantesimi:** con un libro lungo la lista scorre da sola e `Dettagli` resta in vista.
+- [ ] **Riduci e Disegna:** ridotta resta la testata anche se intanto cambia qualcosa; riaperta torna all'altezza di prima. **Disegna** piega la finestra e la riapre.
+- [ ] **Cambio di turno:** con la console aperta il turno passa a un'altra creatura: la finestra cambia altezza una volta, senza lampeggiare.
+- [ ] **Fluidità:** con la console aperta i token si muovono come prima.

@@ -133,7 +133,11 @@ Sulla card del tracker il GM trova due pulsanti in colonna sul ritratto: ⚡
 azioni rapide e 🗡️, che apre in un clic la console attacchi del personaggio.
 La console elenca attacchi, incantesimi del libro (i preferiti in cima a ogni
 livello) e capacità; aperta senza una voce scelta, torna all'ultima usata con
-quel personaggio.
+quel personaggio. La finestra è alta quanto il suo contenuto: durante un attacco
+può solo crescere, così **Registra** non si sposta cambiando esito, e dopo la
+registrazione torna alla misura giusta. Si ferma a 720 px e al bordo dello
+schermo: da lì una lista lunga scorre da sola, e trascinando la finestra più in
+alto ha più spazio.
 
 - Il pulsante dell'incantesimo lo lancia come un'azione rapida: applicato
   subito quando non serve altro, altrimenti aperto nel pannello incantesimi.

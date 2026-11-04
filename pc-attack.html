@@ -53,9 +53,12 @@
     /* Under the menu it describes, level with its text: not in the labels' column. */
     .picker:has(.picker-dropdown:not([hidden])) + .action-facts { padding-left: calc(var(--form-label) + var(--obrt-space-md) + 11px); }
     #pc-attack-multiattack { margin-top: -4px; line-height: 1.3; text-wrap: pretty; }
-    /* One scroll: the console's view fills the panel, and in the spells and features tabs the list takes the height left. */
+    /* The view is as tall as its content, and the window follows it (fitWindow): no scrollbar, not even for the frame the
+       window takes to grow. Only at the window's limit do the long lists give way, and the panel scroll. */
     .panel { display: flex; flex-direction: column; padding: var(--obrt-space-md) var(--obrt-space-xl) var(--obrt-space-lg); }
-    .panel > .view { flex: 1 1 auto; min-height: 0; }
+    .panel > .view { flex: 0 0 auto; }
+    body[data-fit="on"]:not([data-capped="true"]) .panel { overflow-y: hidden; }
+    body:not([data-fit="on"]) .panel > .view, body[data-capped="true"] .panel > .view { flex: 1 1 auto; min-height: 0; }
     .muted { margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); }
     /* Sections: no frames, the space and the titles say where each one starts. */
     .card { display: grid; gap: 6px; }
