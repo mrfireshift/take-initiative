@@ -165,9 +165,10 @@ test("hit with defenses: preview, ignore a defense, register, then a fresh attac
   await typeAmounts(f, ["8", "9"]);
   assert.match(textOf(f.$("pc-attack-total")), /13 danni · PF 30 → 17/);
   const chip = f.$("pc-attack-defenses").querySelector("button");
-  assert.match(chip.textContent, /Res\. taglienti/);
+  assert.equal(chip.textContent, "Res. taglienti: 8 → 4", "what it did to the damage typed");
   await chip.click();
   assert.match(textOf(f.$("pc-attack-total")), /17 danni · PF 30 → 13/);
+  assert.equal(f.$("pc-attack-defenses").querySelector("button").textContent, "Res. taglienti", "ignored: nothing to count");
   assert.equal(f.$("pc-attack-apply").disabled, false);
   await f.$("pc-attack-apply").click(); await tick();
   const request = f.calls[0];
@@ -680,6 +681,29 @@ test("an area cantrip: the creatures near the caster proposed, a save for each, 
   assert.equal(areaSummary({ rows: [] }, "Rombo di Tuono"), "Registrato: Rombo di Tuono su 0 creature.");
 });
 
+test("an area: under each creature what it takes and what its defenses did, once its save and the roll are known", async () => {
+  const action = sanitizeQuickAction({ id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["tasha-turbine-di-spade"] } });
+  const f = fixture({ action, attacker: { initiativeCard: { characterBuild: [{ classId: "mago", level: 5 }], spellSaveDC: 14 } }, turnState: ownTurn,
+    defenses: { resistances: ["force"], immunities: [], vulnerabilities: [] }, nearby: () => ["ghoul"] });
+  await f.controller.ready; await tick();
+  const line = (id) => areaField(areaRow(f, id), "damage");
+  const lineText = (id) => textOf(line(id)).trim();
+  assert.equal(line("ghoul").hidden, true, "no save yet");
+  await areaField(areaRow(f, "ghoul"), "failed").click();
+  await areaField(areaRow(f, "imp"), "failed").click();
+  assert.equal(line("ghoul").hidden, true, "no roll yet");
+  await typeAmounts(f, ["7"]);
+  assert.equal(lineText("ghoul"), "−3 · Res. forza: 7 → 3");
+  assert.equal(lineText("imp"), "−7");
+  assert.match(textOf(f.$("pc-attack-total")), /10 danni · 2 creature$/);
+  assert.equal(f.$("pc-attack-defenses").children.length, 0, "no button in an area: the rows say it");
+  await areaField(areaRow(f, "imp"), "passed").click();
+  assert.equal(lineText("imp"), "Nessun danno");
+  const on = areaField(areaRow(f, "ghoul"), "on");
+  on.checked = false; await on.emit("change");
+  assert.equal(line("ghoul").hidden, true, "out of the area, nothing to say");
+});
+
 // Lot L11 of the bugfix pass (AT-04): the saves of an area attack were not decisions: Esc, ⇄ or a turn change dropped
 // them without asking.
 test("L11: gli esiti di un attacco ad area trattengono la console come le altre scelte", async () => {
@@ -890,6 +914,20 @@ function launchBroadcast({ ack = true, result = { ok: true, mode: "review" }, on
       }, 0);
     } } };
 }
+
+test("a spell's card shares the fixed row: the attack's defenses leave with the attack and come back with it", async () => {
+  const f = fixture({ card: clericCard, attacker: clericMeta, defenses: { resistances: ["slashing", "bludgeoning", "piercing"], immunities: [], vulnerabilities: [] } });
+  await f.controller.ready; await tick();
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  assert.ok(f.$("pc-attack-defenses").children.length > 0, "the attack shows them");
+  await pickerTabs(f)[2].click(); await tick();
+  assert.equal(f.$("pc-attack-launch-button").hidden, false);
+  assert.equal(f.$("pc-attack-defenses").children.length, 0, "not under Lancia");
+  await pickerTabs(f)[0].click(); await tick();
+  assert.equal(f.$("pc-attack-apply").hidden, false);
+  assert.ok(f.$("pc-attack-defenses").children.length > 0, "back with the attack");
+});
 
 test("a spell the console does not resolve shows its card instead of the form; the attack waits behind it", async () => {
   const f = fixture({ card: clericCard, attacker: clericMeta }); await f.controller.ready; await tick();

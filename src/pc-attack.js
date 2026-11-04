@@ -8,7 +8,7 @@ import { pcAttackAreaOutcomes, pcAttackTargetActionImmune, pcAttackTargetConditi
 import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint, pcAttackActivationOptions,
   pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction, pcAttackOutcomesFor, pcAttackSaveLabel, pcAttackDamageFactor,
   pcAttackCantripPillLabels, pcAttackWeaponCantripOptions, pcAttackActionWeaponCantripIds, pcAttackQuiveringPalm,
-  pcAttackModeOptions, pcAttackAreaPreview, pcAttackActionPanelCantripIds, pcAttackSpellIds, pcAttackWithSpellType, pcAttackOpenSpellCast,
+  pcAttackModeOptions, pcAttackAreaPreview, pcAttackAreaRowDamage, pcAttackActionPanelCantripIds, pcAttackSpellIds, pcAttackWithSpellType, pcAttackOpenSpellCast,
   pcAttackMonsterAreaNote, pcAttackMonsterTags } from "./pcAttackCore.js";
 import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileCore.js";
 import { PC_ATTACK_MONSTER_GROUP_TITLES, pcAttackMonsterTraitEntries } from "./pcAttackMonsterTraitsCore.js";
@@ -21,7 +21,7 @@ import { getPcAttackCantrip, pcAttackCantripBeams, PC_ATTACK_SAVE_LABELS } from 
 import { totalCharacterLevel } from "./abilityModifiersCore.js";
 import { pcAttackCriticalDice } from "./pcAttackRiderCatalog.js";
 import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossTargetLabel } from "./bossActionsViewCore.js";
-import { DAMAGE_TYPES, damageDefenseTag, damageTypeLabel, damageDefensesForItem } from "./damageDefensesCore.js";
+import { DAMAGE_TYPES, damageDefenseCount, damageTypeLabel, damageDefensesForItem } from "./damageDefensesCore.js";
 import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_HEIGHT, PC_ATTACK_POPOVER_ID, PC_ATTACK_SPELL_LAUNCH_CHANNEL, PC_ATTACK_WIDTH } from "./pcAttackLauncher.js";
 import { loadSpellbookSpellReference, spellbookSpellDetails, spellbookSpellReferenceLoaded } from "./spellbookCatalog.js";
 import { rulesTextBlock } from "./rulesTextView.js";
@@ -845,7 +845,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
           button.addEventListener("click",()=>{const member=draft.area.members[item.id] ||= {on:false,outcome:""};member.on=true;member.outcome=outcome;renderArea();renderState();});
           outcomesBox.append(button);
         }
-        row.append(lead,label,outcomesBox);return row;
+        // Below the row: what this creature takes and why (renderAreaState).
+        const damageLine=node("span","","area-damage");damageLine.dataset.areaField="damage";damageLine.hidden=true;
+        row.append(lead,label,outcomesBox,damageLine);return row;
       }));
     }
     for(const item of presentation.targets) {
@@ -1559,6 +1561,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // and Lancia (a spell) or Usa (a ⚡ quick action) waits in the fixed row at the bottom, always visible.
   function renderLaunch() {
     if(!launchBox) return;
+    // The fixed row is shared with the attacks: their defenses do not follow here.
+    defensesBox.replaceChildren();
     if(attackView) attackView.hidden=true;
     // Grapple and Shove have a card of their own.
     if(currentEntry()?.mode==="maneuver"){launchBox.hidden=true;launchSignature="";renderManeuver(currentEntry());return;}
@@ -1928,8 +1932,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     updateActivations();
     if(extrasCaption) extrasCaption.textContent=preRollOnMiss?"Prima del tiro":resolved()?.cantrip?.save?"Extra al danno":"Extra al colpo";
     const view=preview();
+    // In the fixed row, above the total it explains: each defense with what it did to the damage typed. A monster's save on
+    // the hit counts in the total and cannot be ignored here: its defense is only said.
     defensesBox.replaceChildren(...view.defenses.map(row=>{
-      const chip=node("button",damageDefenseTag(row),"defense-chip");chip.type="button";
+      const chip=node("button",damageDefenseCount({...row,...(view.defenseCounts || []).find(entry=>entry.type===row.type)}),"defense-chip");chip.type="button";
       chip.setAttribute("aria-pressed",String(!row.ignored));
       chip.title=row.ignored?"Difesa ignorata: clic per applicarla":row.nonmagical?`Vale solo contro danni ${row.nonmagical}: con un'arma che la supera, clic per ignorarla in questo attacco`:"Clic per ignorarla in questo attacco";
       chip.disabled=busy;
@@ -1937,12 +1943,13 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         draft.ignored=row.ignored?draft.ignored.filter(type=>type!==row.type):[...draft.ignored,row.type];renderState();
       });
       return chip;
-    }));
+    }),...(view.hitEffectCounts || []).map(row=>node("small",damageDefenseCount(row),"defense-note")));
     total.replaceChildren();total.title=view.ready?"":view.blocker;total.dataset.kind="";
     if(view.ready) {
       const strong=node("strong",String(draft.outcome==="miss"?0:view.total));
       total.append(strong,node("span",draft.outcome==="miss"?" danni":` danni · PF ${view.hp.before} → ${view.hp.after}`));
-      if(view.secondary?.hp) total.append(node("span",` · seconda: ${view.secondary.total}`));
+      const secondaryCounts=(view.secondary?.defenseCounts || []).map(row=>damageDefenseCount(row)).join(", ");
+      if(view.secondary?.hp) total.append(node("span",` · seconda: ${view.secondary.total}${secondaryCounts?` (${secondaryCounts})`:""}`));
       if(view.spell?.casterHeal) total.append(node("span",` · caster PF ${view.spell.casterHeal.before} → ${view.spell.casterHeal.after}`));
     } else total.textContent=view.blocker;
     apply.disabled=busy || invalidated || !view.ready;
@@ -1957,6 +1964,14 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(extrasCaption) extrasCaption.textContent="Extra al danno";
     defensesBox.replaceChildren();
     const view=areaPreview();
+    // The total says only the sum: each creature's row says what it takes and what its defenses did.
+    for(const item of presentation?.targets || []) {
+      const line=areaList.querySelector(`[data-area-id="${item.id}"]`)?.querySelector('[data-area-field="damage"]');
+      if(!line) continue;
+      const damage=pcAttackAreaRowDamage(view.rows.find(row=>row.id===item.id));
+      line.hidden=!damage;
+      line.replaceChildren(...(damage?[node("strong",damage.amount),...(damage.reason?[node("span",` · ${damage.reason}`)]:[])]:[]));
+    }
     total.replaceChildren();total.title=view.ready?"":view.blocker;total.dataset.kind="";
     // An area without damage (the metallic breath): the creatures it reaches.
     if(view.ready && !resolved()?.components?.length) total.append(node("strong",String(view.rows.length)),node("span",` ${view.rows.length===1?"creatura":"creature"} · nessun danno`));

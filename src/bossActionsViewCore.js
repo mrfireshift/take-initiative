@@ -597,3 +597,25 @@ export function bossDefendedDamage(components = [], amounts = {}, outcome = "", 
     return sum + componentDamageAfterDefense(value, factor, defense && !ignored.has(component.type) ? defense : null);
   }, 0);
 }
+
+// What the defenses did, for the previews: one row per defended type with the damage typed and what is left of it, by the
+// arithmetic of bossDefendedDamage (each component on its own). None when no damage goes through or none was typed.
+export function bossDefenseCounts(components = [], amounts = {}, outcome = "", profileDefenses = {}, ignoredTypes = [], marked = false, evasion = false) {
+  if (outcome === "miss") return [];
+  const defenses = marked ? bossMarkedDefenses(profileDefenses) : profileDefenses;
+  const base = outcome === "passed" ? "half" : "full";
+  const factor = evasion ? evasionFactor(base) : base;
+  if (factor === "zero") return [];
+  const ignored = new Set(Array.isArray(ignoredTypes) ? ignoredTypes : []);
+  const rows = new Map();
+  for (const component of components) {
+    const value = Number(amounts?.[component.id]);
+    const defense = damageDefenseFor(defenses, component.type);
+    if (!defense || !Number.isInteger(value) || value <= 0) continue;
+    const row = rows.get(component.type) || { type: component.type, defense, ignored: ignored.has(component.type), before: 0, after: 0 };
+    row.before += value;
+    row.after += componentDamageAfterDefense(value, factor, row.ignored ? null : defense);
+    rows.set(component.type, row);
+  }
+  return [...rows.values()];
+}

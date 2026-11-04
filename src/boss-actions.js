@@ -13,11 +13,11 @@ import { bossActionTargets,bossActionGroups,bossActionExecutionKind,bossActionDa
   validateBossActionSelection,isBossActionSourceItem,bossDamageTypeLabel,bossActionAutomationSummary,bossActionResultSummary,
   bossSelectionTarget,reconcileBossDraftTarget,bossSelectionHint,bossActionRowMeta,bossDamageTotal,bossAbilityLabel,bossPhaseLabel,
   reconcileBossDraftGroup,reconcileBossAreaGroup,bossGroupApplyBlocker,bossGroupRestrictions,validateBossActionGroupSelection,
-  bossDefendedDamage,bossConditionDurationText,bossAreaNoun,bossCombatGroups,bossPassiveAbilities,
+  bossDefendedDamage,bossDefenseCounts,bossConditionDurationText,bossAreaNoun,bossCombatGroups,bossPassiveAbilities,
   bossFeetPerCell,bossInnerTargetIds,bossPointTooClose,bossGroupConfirmationText,bossGroupOutcomes,bossGroupMissingDamageIds,bossAreaTheme,bossPointDistanceFeet,
   validateBossThrowSelection,validateBossEffectEndSelection,bossReachFeet,
   BOSS_ACTIONS_HEIGHT } from "./bossActionsViewCore.js";
-import { damageDefensesForItem, markNonmagicalDefenses, relevantDamageDefenses, damageDefenseTag, EVASION_DEFENSE, evasionAppliesTo, evasionForItem, evasionFactor } from "./damageDefensesCore.js";
+import { damageDefensesForItem, markNonmagicalDefenses, relevantDamageDefenses, damageDefenseCount, damageDefenseTag, EVASION_DEFENSE, evasionAppliesTo, evasionForItem, evasionFactor } from "./damageDefensesCore.js";
 import { bossActionAreaRuleId,bossAreaShapeLabel,bossGroupRequiresConfirmation,bossTargetImmune,bossGrappledIds,bossGrappleBlocker,bossEffectSummaryParts,
   bossMarkApplies,bossMarkReady,bossTargetMarked,bossMarkBlocker,bossMarkedDefenses,bossTriggerMet,bossActiveEffects,bossThrowDistances,
   bossSeamRuleId,BOSS_SEAM_ITEM_KEY,bossSeamSegments,bossSeamSegmentLabel } from "./bossActionExecutionCore.js";
@@ -323,6 +323,11 @@ export function bootBossActions(documentRef=document, overrides={}) {
   function defendedDamage(id,outcome) {
     return bossDefendedDamage(componentsFor(id),amountsFor(id),outcome,defensesOf(id),ignoredFor(id),markReadyFor(id),evasionUsedFor(id));
   }
+  // What this target's defenses did to the damage, beside the same total (defendedDamage).
+  function defenseCountsFor(id,outcome) {
+    if(outcomeFactor(outcome,id)==="zero") return [];
+    return markNonmagicalDefenses(bossDefenseCounts(componentsFor(id),amountsFor(id),outcome,defensesOf(id),ignoredFor(id),markReadyFor(id),evasionUsedFor(id)),targetById(id)?.metadata?.[META_KEY]?.initiativeCard);
+  }
   function markBadge(id) {
     if(!draft || !bossTargetMarked(targetById(id),presentation?.profile)) return null;
     const ready=markReadyFor(id);
@@ -332,16 +337,17 @@ export function bootBossActions(documentRef=document, overrides={}) {
     return badge;
   }
   // Actor Profile defenses relevant to this action; a click ignores one for this resolution only (explicit, locks the draft).
-  function defenseChips(id,onChange) {
+  // counts: a single target's, said on the chip, whose line has room; a group's row is narrow and says them on a line of its own.
+  function defenseChips(id,onChange,counts=null) {
     const effective=markReadyFor(id)?bossMarkedDefenses(defensesOf(id)):defensesOf(id);
     const rows=markNonmagicalDefenses(relevantDamageDefenses(effective,bossActionDamageComponents(draft.action),ignoredFor(id)),targetById(id)?.metadata?.[META_KEY]?.initiativeCard);
     if(evasionFor(id))rows.push({type:EVASION_DEFENSE,defense:"evasion",ignored:ignoredFor(id).includes(EVASION_DEFENSE)});
     if(!rows.length) return null;
     const wrap=node("span","","defense-chips");wrap.dataset.defensesFor=id;
     for(const row of rows) {
-      const chip=button(row.type===EVASION_DEFENSE?"Elusione":damageDefenseTag(row),"defense-chip");chip.dataset.defenseType=row.type;
+      const chip=button(row.type===EVASION_DEFENSE?"Elusione":counts?damageDefenseCount({...row,...counts.find(entry=>entry.type===row.type)}):damageDefenseTag({...row,nonmagical:""}),"defense-chip");chip.dataset.defenseType=row.type;
       chip.setAttribute("aria-pressed",String(!row.ignored));chip.disabled=busy;
-      chip.title=row.ignored?"Ignorata in questa risoluzione: clic per riapplicarla":"Dal profilo attore: clic per ignorarla in questa risoluzione";
+      chip.title=row.ignored?"Ignorata in questa risoluzione: clic per riapplicarla":row.nonmagical?`Vale solo contro danni ${row.nonmagical}: clic per ignorarla in questa risoluzione`:"Dal profilo attore: clic per ignorarla in questa risoluzione";
       chip.addEventListener("click",event=>{
         event.stopPropagation?.();
         if(!draft || busy) return;
@@ -800,7 +806,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const name=node("span",target?target.name || target.id:hint,"target-name"+(target?"":" is-empty"));
     name.id="boss-target-name";line.appendChild(name);
     if(target)line.appendChild(node("span",hpText(target),"target-hp"));
-    let chips=target?defenseChips(target.id,()=>{renderTargetBox();renderDraftState();}):null;
+    let chips=target?defenseChips(target.id,()=>{renderTargetBox();renderDraftState();},defenseCountsFor(target.id,draft.outcome)):null;
     const mark=target?markBadge(target.id):null;
     if(mark){if(!chips){chips=node("span","","defense-chips");chips.dataset.defensesFor=target.id;}chips.appendChild(mark);}
     const change=button(draft.picker?"Chiudi":"Cambia");change.id="boss-target-change";change.disabled=busy;
@@ -1440,6 +1446,10 @@ export function bootBossActions(documentRef=document, overrides={}) {
       if(chips)details.appendChild(chips);
       row.appendChild(name);
       const damageCell=node("span","","group-damage");
+      // Under the row, once the damage is known: what its defenses did to it.
+      const countLine=node("span","","group-count");
+      const renderCount=()=>{const text=outcome?defenseCountsFor(id,outcome).filter(entry=>!entry.ignored).map(entry=>damageDefenseCount(entry)).join(" · "):"";countLine.textContent=text;countLine.hidden=!text;};
+      renderCount();
       if(attackGroup() && outcome==="hit") {
         // One damage roll per hit, typed on the row; only the row total is redrawn while typing.
         const typed=node("span","","row-damage");typed.dataset.damageFor=id;
@@ -1450,7 +1460,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
           input.title=`${capitalize(bossDamageTypeLabel(component.type))} ${component.formula}`;input.setAttribute("aria-label",`Danni ${bossDamageTypeLabel(component.type)} di ${item?.name || id}`);
           input.addEventListener("input",()=>{
             draft.targetAmounts={...draft.targetAmounts,[id]:{...(draft.targetAmounts?.[id] || {}),[component.id]:input.value}};
-            lockDraft();damageCell.textContent="−"+groupRowDamage("hit",id);renderGroupState();persistDraft();
+            lockDraft();damageCell.textContent="−"+groupRowDamage("hit",id);renderCount();renderGroupState();persistDraft();
           });
           typed.appendChild(input);
         }
@@ -1476,7 +1486,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       row.appendChild(tag);
       const remove=button("×","icon-button group-remove");remove.title=`Togli ${item?.name || id}`;remove.setAttribute("aria-label",remove.title);remove.disabled=busy;
       remove.addEventListener("click",()=>{if(!busy)setGroup(draft.targetIds.filter(entry=>entry!==id));});
-      row.appendChild(remove);list.appendChild(row);
+      row.appendChild(remove);row.appendChild(countLine);list.appendChild(row);
     }
     if(offer) {
       clear(offer);offer.hidden=!draft.groupSuggestion;

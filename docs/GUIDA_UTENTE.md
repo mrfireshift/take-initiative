@@ -504,10 +504,13 @@ Al turno del mostro la console mostra:
 
 Le **difese** dello statblock valgono quando il mostro è il bersaglio, nella
 console attacchi e nella console boss: il danno di quel tipo si dimezza o si
-azzera, e il pulsante della difesa compare accanto ai danni. Anche le difese
-limitate alle armi non magiche, come «Res. taglienti (non magici né
-d'argento)», si applicano da sole, perché il plugin non sa di che arma si
-tratta. Per un'arma magica, del materiale giusto o per Frusta di Spine, un clic
+azzera. L'anteprima dice cosa ha fatto ogni difesa al danno digitato: sul
+pulsante della difesa, `Res. taglienti: 10 → 5`, nella console attacchi sopra il
+totale e sempre in vista; nelle aree e nei gruppi, sotto ogni creatura,
+`−30 · Res. fuoco: 60 → 30`. Anche le difese limitate alle armi non magiche,
+come «Res. taglienti (non magici né d'argento)», si applicano da sole, perché il
+plugin non sa di che arma si tratta. Per un'arma magica, del materiale giusto o
+per Frusta di Spine, un clic
 sul pulsante la ignora in quell'attacco; all'attacco dopo vale di nuovo. Le aree
 della console non hanno il pulsante e la difesa vale sempre: in pratica conta
 solo per la Freccia perforante dell'Arciere arcano e per l'azione ad area di un
@@ -741,6 +744,10 @@ distrutto e non registri l'attacco sul caster.
 
 Nello stesso punto le console mostrano le difese e le reazioni del bersaglio:
 
+- **Difese ai danni**: il pulsante dice cosa ha fatto la difesa al danno digitato
+  (`Res. taglienti: 10 → 5`, `Imm. fuoco: 7 → 0`), e un clic la ignora per
+  quell'attacco. Nelle aree della console attacchi e nei gruppi della console
+  boss, ogni creatura ha la sua riga con il danno e il conto.
 - **Santuario**: chi attacca il protetto tira prima un TS Saggezza, con la CD
   del caster dalla sua scheda. Se il protetto attacca dalla console, il
   Santuario finisce.

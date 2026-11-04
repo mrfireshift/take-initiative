@@ -147,3 +147,10 @@ export function markNonmagicalDefenses(rows, card) {
 export function damageDefenseTag({ type, defense, nonmagical = "" }) {
   return `${DAMAGE_DEFENSE_LABELS[defense] || defense} ${damageTypeLabel(type)}${nonmagical ? ` (${nonmagical})` : ""}`;
 }
+
+// The same tag with what the defense did to the damage typed ("Res. taglienti: 10 → 5"): the tag alone while nothing is
+// typed, or when the GM ignores it.
+export function damageDefenseCount({ before = 0, after = 0, ignored = false, ...row }) {
+  const tag = damageDefenseTag(row);
+  return before > 0 && !ignored ? `${tag}: ${before} → ${after}` : tag;
+}

@@ -16,11 +16,11 @@ import {
   isBossActionCreature, isBossActionTargetItem, bossMetadataSnapshot, bossConditionAppliedAt,
   damageAmount, defendedComponents, targetProfileAssert, bossGroupConditionInstanceId,
 } from "./bossActionExecutionCore.js";
-import { bossDefendedDamage } from "./bossActionsViewCore.js";
+import { bossDefendedDamage, bossDefenseCounts } from "./bossActionsViewCore.js";
 import { getSpellDefinition, getSpellEffects, getSpellSummaryParts } from "./spells-srd.js";
 import { catalogSpellApplicationOperations } from "./spellLifecycleOperationsCore.js";
 import { spellEffectThemeFor } from "./spellColorCore.js";
-import { actorHasEvasion, damageDefensesForItem, damageTypeLabel, evasionFactor, markNonmagicalDefenses, relevantDamageDefenses } from "./damageDefensesCore.js";
+import { actorHasEvasion, damageDefenseCount, damageDefensesForItem, damageTypeLabel, evasionFactor, markNonmagicalDefenses, relevantDamageDefenses } from "./damageDefensesCore.js";
 import { MONSTER_PROFILE_FIELD } from "./monsterProfileCore.js";
 import { CLASS_FEATURE_RESOURCE_POOL_BY_ID, getClassFeatureDefinition, getClassFeatureResourcePool, getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import {
@@ -1054,6 +1054,12 @@ export function pcAttackPreview({
   const total = (targetItem && outcome && !miss
     ? bossDefendedDamage(components, allAmounts, factor === "half" ? "passed" : "hit", profileDefenses, ignoredDefenses) : 0)
     + (hitPlan?.components || []).reduce((sum, component) => sum + component.amount, 0);
+  // The count the console shows: what each defense did to the damage typed, and to a monster's save on the hit.
+  const targetCard = targetItem?.metadata?.[META_KEY]?.initiativeCard;
+  const defenseCounts = targetItem && outcome && !miss
+    ? markNonmagicalDefenses(bossDefenseCounts(components, allAmounts, factor === "half" ? "passed" : "hit", profileDefenses, ignoredDefenses), targetCard) : [];
+  const hitEffectCounts = markNonmagicalDefenses((hitPlan?.components || []).filter((component) => component.defense)
+    .map((component) => ({ type: component.type, defense: component.defense, before: Number(component.inputAmount), after: component.amount })), targetCard);
   const meta = targetItem?.metadata?.[META_KEY] || {};
   const hp = targetItem && Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax)
     ? { before: meta.hp, after: miss ? meta.hp : calculateQuickHPChange({ value: total, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp }).afterHP, hpMax: meta.hpMax }
@@ -1078,7 +1084,10 @@ export function pcAttackPreview({
   const secondaryMeta = secondaryItem?.metadata?.[META_KEY] || {};
   const secondaryTotal = secondaryWanted && secondaryItem && validAmount(secondarySource.amount) && damageTypeSet.has(secondarySource.type)
     ? bossDefendedDamage([{ id: "s1", type: secondarySource.type }], { s1: secondarySource.amount }, "hit", secondaryDefenses, []) : 0;
+  const secondaryCounts = secondaryWanted && secondaryItem && validAmount(secondarySource.amount) && damageTypeSet.has(secondarySource.type)
+    ? bossDefenseCounts([{ id: "s1", type: secondarySource.type }], { s1: secondarySource.amount }, "hit", secondaryDefenses, []) : [];
   const secondary = secondaryWanted && secondaryItem ? { id: secondaryItem.id, total: secondaryTotal, profileDefenses: secondaryDefenses,
+    ...(secondaryCounts.length ? { defenseCounts: secondaryCounts } : {}),
     hp: Number.isFinite(secondaryMeta.hp) && Number.isFinite(secondaryMeta.hpMax)
       ? { before: secondaryMeta.hp, after: calculateQuickHPChange({ value: secondaryTotal, hp: secondaryMeta.hp, hpMax: secondaryMeta.hpMax, tempHp: secondaryMeta.tempHp }).afterHP, hpMax: secondaryMeta.hpMax }
       : null } : null;
@@ -1141,7 +1150,7 @@ export function pcAttackPreview({
     : hitPlan?.blocker ? hitPlan.blocker
     : !hp ? "Il bersaglio non ha PF canonici validi."
     : "";
-  return { ready: !blocker, blocker, defenses, profileDefenses, total, hp, ...(secondary ? { secondary } : {}),
+  return { ready: !blocker, blocker, defenses, defenseCounts, ...(hitEffectCounts.length ? { hitEffectCounts } : {}), profileDefenses, total, hp, ...(secondary ? { secondary } : {}),
     ...(hitPlan?.causality ? { hitEffect: hitPlan.causality } : {}),
     ...(spellPlan?.ok ? { spell: { slotLevel: spellPlan.slotLevel, dice: spellPlan.dice, index: spellPlan.index, total: spellPlan.total,
       firstOfCast: spellPlan.firstOfCast, ...(spellPlan.leap ? { leap: true } : {}), ...(spellPlan.fromActiveSpell ? { fromActiveSpell: true } : {}),
@@ -1862,7 +1871,11 @@ export function pcAttackAreaPreview({
     const hp = Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax)
       ? { before: meta.hp, after: calculateQuickHPChange({ value: total, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp }).afterHP, hpMax: meta.hpMax } : null;
     const conditionImmune = attack.monster?.onFail ? pcAttackTargetConditionImmune(member.item, attack.monster.onFail.condition) : false;
+    // Its row says what it takes and why (pcAttackAreaRowDamage), once its outcome and the damage are known.
+    const defenseCounts = member.outcome && factor !== "zero" && amountsReady
+      ? markNonmagicalDefenses(bossDefenseCounts(components, inputs, factor === "half" ? "passed" : "hit", profileDefenses, []), meta.initiativeCard) : [];
     return { id: member.item.id, name: member.item.name || member.item.id, outcome: member.outcome || "", factor, total, hp, profileDefenses,
+      counted: components.length > 0 && !!member.outcome && (factor === "zero" || amountsReady), ...(defenseCounts.length ? { defenseCounts } : {}),
       ...(evasion ? { evasion: true } : {}), ...(conditionImmune ? { conditionImmune: true } : {}) };
   });
   const options = riders.length && sourceItem ? riderOptionsFor(attack, { sourceItem, targetItem: null, turnState }) : [];
@@ -1888,6 +1901,12 @@ export function pcAttackAreaPreview({
     : rows.find((row) => !row.hp) ? `${rows.find((row) => !row.hp).name} non ha PF canonici validi.`
     : "";
   return { ready: !blocker, blocker, rows, total: rows.reduce((sum, row) => sum + row.total, 0) };
+}
+
+// What a creature of an area takes and why, for its row in the console: null until its outcome and the damage are known.
+export function pcAttackAreaRowDamage(row) {
+  if (!row?.counted) return null;
+  return { amount: row.total > 0 ? `−${row.total}` : "Nessun danno", reason: (row.defenseCounts || []).map((entry) => damageDefenseCount(entry)).join(" · ") };
 }
 
 export function buildPcAttackAreaMutation({

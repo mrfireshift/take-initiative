@@ -116,6 +116,9 @@
     .group-damage { text-align: right; color: #fca5a5; font-weight: var(--obrt-weight-bold); font-variant-numeric: tabular-nums; }
     .group-tag { overflow: hidden; color: #fde68a; font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
     .group-remove { width: 22px; height: 22px; font-size: 15px; }
+    /* What the creature's defenses did to the damage, under its row. */
+    .group-count { grid-column: 1 / -1; color: var(--info-text); font-size: var(--obrt-type-caption); font-variant-numeric: tabular-nums; }
+    .group-count[hidden] { display: none; }
     .damage-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     .damage-cell { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
     .damage-cell .damage-type { font-size: var(--obrt-type-secondary); }

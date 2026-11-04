@@ -478,10 +478,12 @@ test("defenses: Icekiss shows the target's cold resistance, previews it and can 
   const f=fixture({selection:["dars"]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");resistCold(f,"dars");
   await f.controller.refresh();await open(f,"Icekiss +2");await outcome(f,"hit").click();
   const chip=f.$("boss-target-defenses").querySelector('[data-defense-type="cold"]');
-  assert.equal(chip.textContent,"Res. freddo");assert.equal(chip.getAttribute("aria-pressed"),"true");
+  assert.equal(chip.textContent,"Res. freddo: 7 → 3","what it did to the damage");assert.equal(chip.getAttribute("aria-pressed"),"true");
   assert.match(textOf(f.$("boss-total")),/Totale 21/,"18 + floor(7/2)");
   await chip.click();
   assert.match(textOf(f.$("boss-total")),/Totale 25/);
+  const ignored=f.$("boss-target-defenses").querySelector('[data-defense-type="cold"]');
+  assert.equal(ignored.textContent,"Res. freddo","ignored: nothing to count");assert.equal(ignored.getAttribute("aria-pressed"),"false");
   await submit(f);
   assert.deepEqual(f.calls[0].ignoredDefenses,["cold"]);
   assert.deepEqual(f.calls[0].expectedDefenses,{immunities:[],resistances:["cold"],vulnerabilities:[]});
@@ -494,7 +496,14 @@ test("defenses: Breath rows apply each creature's resistance and send the frozen
   await f.$("boss-resolution").querySelector('[data-group-all="failed"]').click();
   assert.match(textOf(groupRows(f)[0]),/Res\. freddo.*−29/);
   assert.match(textOf(groupRows(f)[1]),/−46/);assert.doesNotMatch(textOf(groupRows(f)[1]),/Res\./);
+  assert.equal(groupRows(f)[0].querySelector(".group-count").textContent,"Res. freddo: 33 → 16","its own line says what the defense did");
+  assert.equal(groupRows(f)[0].querySelector(".group-count").hidden,false);
+  assert.equal(groupRows(f)[1].querySelector(".group-count").hidden,true,"no defense, no line");
   assert.match(textOf(f.$("boss-total")),/Totale 75/);
+  await groupRows(f)[0].querySelector('[data-defense-type="cold"]').click();
+  assert.equal(groupRows(f)[0].querySelector(".group-count").hidden,true,"ignored: nothing to count");
+  assert.match(textOf(groupRows(f)[0]),/−46/);
+  await groupRows(f)[0].querySelector('[data-defense-type="cold"]').click();
   await submit(f);
   assert.deepEqual(f.calls[0].expectedDefenses.dars.resistances,["cold"]);
   assert.deepEqual(f.calls[0].expectedDefenses.mira,{immunities:[],resistances:[],vulnerabilities:[]});
@@ -897,6 +906,21 @@ test("Meteor Swarm: draw four spaced points, within 10 ft from the drawn centres
 });
 
 // ---- tranche 9: Divine Brilliance ----
+test("Divine Brilliance: a row's own roll keeps its line on the defenses up to date while typing",async()=>{
+  const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"auril-phase-3.html");
+  f.items[0].metadata[META].hp=98;resistCold(f,"dars");await f.controller.refresh();
+  await f.$("boss-trigger-open").click();await tick();
+  await confirmGroup(f);await drawCone(f,["dars","mira"]);
+  await groupOutcome(f,"dars","hit").click();
+  const dars=()=>groupRows(f).find(row=>row.dataset.targetId==="dars");
+  assert.equal(dars().querySelector(".group-count").textContent,"Res. freddo: 10 → 5");
+  const cold=dars().querySelector('[data-target-component="cold"]');
+  cold.value="14";await cold.emit("input");
+  assert.equal(dars().querySelector(".group-count").textContent,"Res. freddo: 14 → 7","without rebuilding the row");
+  assert.match(textOf(dars()),/−17/,"7 + 10 necrotic");
+  f.controller.destroy();
+});
+
 test("Divine Brilliance: reminded below 105 PF, confirm, emanation of conscious creatures, hit/miss and one damage roll per hit",async()=>{
   const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"auril-phase-3.html");
   assert.equal(f.$("boss-trigger-warning"),null,"no reminder above the threshold");
