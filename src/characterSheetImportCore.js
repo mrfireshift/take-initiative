@@ -137,10 +137,15 @@ function importedSpeed(value) {
   return normalizeSpeedMeters(feet ? number * 0.3 : number);
 }
 
+// "speed": { "walk": "40 ft", "fly": "80 ft" }: walking is the card's speed.
+function walkingSpeedOf(value) {
+  return value && typeof value === "object" ? value.walk ?? value.camminare : value;
+}
+
 function importedStats(data) {
   const values = {
     armorClass: integer(data.armorClass ?? data.ac ?? data.ca),
-    speed: importedSpeed(data.speed ?? data.velocita ?? data.velocità),
+    speed: importedSpeed(walkingSpeedOf(data.speed ?? data.velocita ?? data.velocità)),
     passivePerception: integer(data.passivePerception),
     spellSaveDC: integer(data.spellSaveDC ?? data.spellSaveDc),
     spellAttackBonus: integer(data.spellAttackBonus),
@@ -446,7 +451,7 @@ export function parseCharacterSheetImport(value) {
   const error = Object.keys(sections).length ? "" : "Nel blocco non c'è nessun dato della scheda riconosciuto.";
   return { error, name: text(data.name ?? data.nome).slice(0, 80), sections, unresolved,
     ...(monster ? { monster: { source: monsterImportSource(data), ...(monsterImportRef(data) ? { ref: monsterImportRef(data) } : {}),
-      ...monsterDefensesOf(data) },
+      ...monsterDefensesOf(data), ...monsterSpeedsOf(data) },
       hitPoints: importedMonsterHitPoints(data), legendary: monsterLegendaryOf(data) } : {}) };
 }
 
@@ -457,6 +462,23 @@ function monsterDefensesOf(data) {
     .map((name) => text(name)).filter(Boolean)
     .map((name) => (/^(exhaustion|indebolimento)$/i.test(name) ? "indebolimento" : monsterImportConditionName(name) || name).toLocaleLowerCase("it"));
   return { ...(names.length ? { conditionImmunities: names } : {}), ...(data.evasion === true ? { evasion: true } : {}) };
+}
+
+// A monster's speeds beyond walking (velocità dei mostri, lotto 1), in "speeds" or in an object "speed": metres or feet as
+// the card's speed, in English or Italian; hover ("stazionario") with its flying speed.
+const MONSTER_SPEED_KEYS = Object.freeze({ fly: ["fly", "volare", "volo"], swim: ["swim", "nuotare", "nuoto"],
+  climb: ["climb", "scalare", "scalata"], burrow: ["burrow", "scavare", "scavo"] });
+function monsterSpeedsOf(data) {
+  const speed = data.speed ?? data.velocita ?? data.velocità;
+  const source = data.speeds ?? data.velocitaAltre ?? (speed && typeof speed === "object" ? speed : null);
+  if (!source || typeof source !== "object") return {};
+  const speeds = {};
+  for (const [mode, keys] of Object.entries(MONSTER_SPEED_KEYS)) {
+    const meters = importedSpeed(source[keys.find((key) => source[key] !== undefined)]);
+    if (meters > 0) speeds[mode] = meters;
+  }
+  if (!Object.keys(speeds).length) return {};
+  return { speeds, ...(source.hover === true || source.stazionario === true ? { hover: true } : {}) };
 }
 
 function asArray(value) {

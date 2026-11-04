@@ -71,7 +71,7 @@ import {
   parseCharacterSheetImport,
   sheetImportSectionSummary,
 } from "./characterSheetImportCore.js";
-import { MONSTER_PROFILE_FIELD, MONSTER_PROFILE_STATBLOCK_FIELDS, sanitizeMonsterProfile } from "./monsterProfileCore.js";
+import { MONSTER_PROFILE_FIELD, MONSTER_PROFILE_STATBLOCK_FIELDS, monsterSpeedsText, sanitizeMonsterProfile } from "./monsterProfileCore.js";
 import { fiveToolsCollection, fiveToolsImportSummary, fiveToolsMonsterLabel, fiveToolsMonsterToStatblock, fiveToolsMonsters, fiveToolsSearch, isFiveToolsData }
   from "./fiveToolsMonsterCore.js";
 import { createFiveToolsArchivePanel } from "./fiveToolsArchivePanel.js";
@@ -4063,6 +4063,14 @@ function renderSheetImportResult(result, { summary = "", report = [], portrait =
       }
       return row;
     });
+  // Its speeds beyond walking (velocità dei mostri, lotto 1): the stat block's, with any section applied.
+  const importedSpeeds = result.monster ? monsterSpeedsText(result.monster) : "";
+  if (importedSpeeds) {
+    const line = document.createElement("div");
+    line.className = "sheet-import-hp-option";
+    line.textContent = `Altre velocità: ${importedSpeeds}`;
+    rows.push(line);
+  }
   // A legendary monster (fase 4, lotto 5, decision D7): the tracker's Leggendario mode after Salva, on this token and its
   // namesakes, never where a boss mode is set.
   if (result.monster && result.legendary) {
@@ -4746,6 +4754,9 @@ function renderView() {
   $("armorClass").textContent = valueText(profile.armorClass);
   $("passivePerception").textContent = valueText(profile.passivePerception);
   $("speed").textContent = valueText(profile.speed, profile.speed === null ? "" : " m");
+  const otherSpeeds = monsterSpeedsText(profile[MONSTER_PROFILE_FIELD]);
+  $("speedModes").textContent = otherSpeeds;
+  $("speedModesStat").hidden = !otherSpeeds;
   $("spellSaveDC").textContent = valueText(profile.spellSaveDC);
   $("spellAttackBonus").textContent = signedText(profile.spellAttackBonus);
   $("notes").textContent = profile.notes || "";

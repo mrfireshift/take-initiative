@@ -1,3 +1,5 @@
+import { normalizeSpeedMeters } from "./speedCheckCore.js";
+
 // A card imported from a monster's stat block (attacchi dei mostri, lotto 1): where it came from and its Multiattack,
 // shown at the top of the attack console. The actions are the card's attack quick actions, the AC its armorClass; the
 // stat block's full text never goes on the token.
@@ -13,7 +15,10 @@ const sourceSet = new Set(MONSTER_PROFILE_SOURCES);
 const MAX_MONSTER_CONDITION_IMMUNITIES = 16;
 const MAX_MONSTER_CONDITION_NAME = 40;
 // The stat block's own fields of the profile: a new monster's block replaces them, never merges with the old ones.
-export const MONSTER_PROFILE_STATBLOCK_FIELDS = Object.freeze(["conditionImmunities", "evasion"]);
+export const MONSTER_PROFILE_STATBLOCK_FIELDS = Object.freeze(["conditionImmunities", "evasion", "speeds", "hover"]);
+// Its speeds beyond walking, which stays the card's speed (velocità dei mostri, lotto 1).
+export const MONSTER_SPEED_MODES = Object.freeze(["fly", "swim", "climb", "burrow"]);
+const MONSTER_SPEED_LABELS = Object.freeze({ fly: "Volare", swim: "Nuotare", climb: "Scalare", burrow: "Scavare" });
 
 export function sanitizeMonsterProfile(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -24,8 +29,19 @@ export function sanitizeMonsterProfile(value) {
   // ("spaventato"), for the console's «Immune»; Evasion, for a Dexterity save that halves.
   const conditionImmunities = [...new Set((Array.isArray(value.conditionImmunities) ? value.conditionImmunities : [])
     .map((name) => String(name ?? "").trim().toLocaleLowerCase("it").slice(0, MAX_MONSTER_CONDITION_NAME)).filter(Boolean))].slice(0, MAX_MONSTER_CONDITION_IMMUNITIES);
+  // { fly: 24, swim: 12 } in metres; hover only with a flying speed.
+  const speeds = Object.fromEntries(MONSTER_SPEED_MODES.map((mode) => [mode, normalizeSpeedMeters(value.speeds?.[mode])]).filter(([, meters]) => meters > 0));
   return { source, ...(ref ? { ref } : {}), ...(multiattack ? { multiattack } : {}),
-    ...(conditionImmunities.length ? { conditionImmunities } : {}), ...(value.evasion === true ? { evasion: true } : {}) };
+    ...(conditionImmunities.length ? { conditionImmunities } : {}), ...(value.evasion === true ? { evasion: true } : {}),
+    ...(Object.keys(speeds).length ? { speeds } : {}), ...(value.hover === true && speeds.fly ? { hover: true } : {}) };
+}
+
+// "Volare 24 m (stazionario) · Nuotare 12 m", "" without other speeds.
+export function monsterSpeedsText(profile) {
+  const clean = sanitizeMonsterProfile(profile);
+  return MONSTER_SPEED_MODES.filter((mode) => clean?.speeds?.[mode])
+    .map((mode) => `${MONSTER_SPEED_LABELS[mode]} ${String(clean.speeds[mode]).replace(".", ",")} m${mode === "fly" && clean.hover ? " (stazionario)" : ""}`)
+    .join(" · ");
 }
 
 export function isMonsterProfileCard(card) {

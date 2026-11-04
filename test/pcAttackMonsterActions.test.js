@@ -252,7 +252,7 @@ test("immunità alle condizioni ed Elusione nel profilo del mostro: dal formato 
   assert.deepEqual(sheet.monster, { source: "manual", conditionImmunities: ["spaventato", "avvelenato", "indebolimento"], evasion: true });
   assert.deepEqual(sanitizeMonsterProfile({ source: "5etools", conditionImmunities: ["Spaventato", "spaventato", ""], evasion: "sì" }),
     { source: "5etools", conditionImmunities: ["spaventato"] });
-  assert.deepEqual(MONSTER_PROFILE_STATBLOCK_FIELDS, ["conditionImmunities", "evasion"], "a new block replaces them, never merges");
+  assert.deepEqual(MONSTER_PROFILE_STATBLOCK_FIELDS, ["conditionImmunities", "evasion", "speeds", "hover"], "a new block replaces them, never merges");
   assert.equal(parseCharacterSheetImport(JSON.stringify({ name: "PG", conditionImmunities: ["frightened"] })).monster, undefined, "only a monster's block");
 });
 

@@ -118,7 +118,10 @@ GM**; i giocatori aprono soltanto quelle di personaggi e alleati.
 Un blocco è uno statblock quando ha `"kind": "monster"` oppure una lista
 `actions`. Le altre chiavi (`armorClass`, `speed`, `abilities`,
 `savingThrows`, `damageDefenses`, `notes`) sono quelle della scheda
-personaggio; in più `conditionImmunities` (le condizioni a cui il mostro è
+personaggio; in più `speeds` (le velocità oltre la camminata, in piedi o in
+metri come `speed`: `{ "fly": "80 ft", "swim": "40 ft", "climb": "20 ft",
+"burrow": "10 ft" }`, con `"hover": true` se vola stazionario; vale anche uno
+`speed` a oggetto, `{ "walk": "40 ft", "fly": "80 ft" }`), `conditionImmunities` (le condizioni a cui il mostro è
 immune, in inglese o in italiano: la console lo segna «Immune») ed
 `"evasion": true` (il tratto Elusione). Le distanze sono in piedi come negli statblock (`10`,
 `"10 ft"`) oppure in metri (`"3 m"`).
@@ -130,6 +133,7 @@ immune, in inglese o in italiano: la console lo segna «Immune») ed
   "armorClass": 19,
   "hitPoints": { "average": 256, "formula": "19d12+133" },
   "speed": "40 ft",
+  "speeds": { "fly": "80 ft", "swim": "40 ft" },
   "abilities": { "str": 27, "dex": 10, "con": 25, "int": 16, "wis": 13, "cha": 21 },
   "savingThrows": { "dex": 6, "con": 13, "wis": 7, "cha": 11 },
   "damageDefenses": { "immunities": ["fire"] },
@@ -420,7 +424,8 @@ Leggi lo statblock di D&D 5e allegato e restituisci SOLO un oggetto JSON,
 senza commenti né testo intorno, con queste chiavi (ometti quelle assenti):
 
 kind: "monster"; name; armorClass; hitPoints: { average, formula };
-speed in piedi ("40 ft"); abilities: punteggi con chiavi str dex con int
+speed in piedi ("40 ft"); speeds: le altre velocità, { fly, swim, climb, burrow }
+in piedi, con hover: true se vola stazionario; abilities: punteggi con chiavi str dex con int
 wis cha; savingThrows: bonus totali con le stesse chiavi; damageDefenses:
 { resistances, immunities, vulnerabilities } con i tipi di danno in inglese;
 multiattack: il testo del Multiattacco; actions: una voce per azione con

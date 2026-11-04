@@ -405,6 +405,35 @@ function fiveToolsLegendary(monster, report) {
   return { actions: Math.max(1, Math.min(5, actions)), resistances: Math.max(0, Math.min(5, resistances)) };
 }
 
+// The speeds beyond walking (velocità dei mostri, lotto 1), for the movement modes: "(hover)" is one of them; a speed only
+// in a form or a case ("(owl form only)", "(hover, Graystaff magic)") is not, and goes to the report, as a walking speed
+// with a condition (which stays the card's speed), the alternate ones and a speed to choose.
+const SPEED_MODE_LABELS = Object.freeze({ walk: "camminare", fly: "volare", swim: "nuotare", climb: "scalare", burrow: "scavare" });
+function fiveToolsSpeeds(monster, report) {
+  const speed = monster.speed && typeof monster.speed === "object" ? monster.speed : {};
+  const speeds = {};
+  let hover = speed.canHover === true;
+  for (const [mode, label] of Object.entries(SPEED_MODE_LABELS)) {
+    const value = speed[mode];
+    const feet = Number(value && typeof value === "object" ? value.number : value);
+    if (!(feet > 0)) continue;
+    const condition = value && typeof value === "object" ? fiveToolsPlainText(value.condition || "").trim() : "";
+    const hovering = /^\(?hover\)?$/i.test(condition);
+    if (hovering) hover = true;
+    if (condition && !hovering) report.push(`velocità da gestire al tavolo: ${label} ${feet} ft ${condition}`);
+    else if (mode !== "walk") speeds[mode] = `${feet} ft`;
+  }
+  for (const [mode, list] of Object.entries(speed.alternate && typeof speed.alternate === "object" ? speed.alternate : {})) {
+    for (const entry of asList(list)) report.push(`velocità da gestire al tavolo: ${SPEED_MODE_LABELS[mode] || mode} ${Number(entry?.number) || 0} ft ${fiveToolsPlainText(entry?.condition || "").trim()}`.trim());
+  }
+  if (speed.choose) {
+    const from = asList(speed.choose.from).map((mode) => SPEED_MODE_LABELS[mode] || mode).join(" o ");
+    report.push(`velocità da gestire al tavolo: ${from} ${Number(speed.choose.amount) || 0} ft ${fiveToolsPlainText(speed.choose.note || "").trim()}`.trim());
+  }
+  if (!Object.keys(speeds).length) return null;
+  return { ...speeds, ...(hover && speeds.fly ? { hover: true } : {}) };
+}
+
 // The stat block's slots against the plugin's for the class: "" when they are the same.
 function fiveToolsSlotMismatch(levels, characterBuild) {
   const { slots, pact } = spellSlotMaximums(characterBuild);
@@ -662,6 +691,7 @@ export function fiveToolsMonsterToStatblock(input, { pool = [], allow2024 = fals
   const ac = Array.isArray(monster.ac) ? monster.ac[0] : monster.ac;
   const armorClass = typeof ac === "number" ? ac : Number(ac?.ac) || null;
   const walk = typeof monster.speed?.walk === "object" ? monster.speed.walk.number : monster.speed?.walk;
+  const speeds = fiveToolsSpeeds(monster, report);
   const abilities = Object.fromEntries(["str", "dex", "con", "int", "wis", "cha"].filter((key) => Number.isFinite(monster[key])).map((key) => [key, monster[key]]));
   const savingThrows = monster.save && typeof monster.save === "object" ? { ...monster.save } : null;
   const damageDefenses = {
@@ -695,6 +725,7 @@ export function fiveToolsMonsterToStatblock(input, { pool = [], allow2024 = fals
     ...(traits.some((name) => /^Evasion$/i.test(name)) ? { evasion: true } : {}),
     ...(Number.isFinite(monster.hp?.average) ? { hitPoints: { average: monster.hp.average, ...(monster.hp.formula ? { formula: monster.hp.formula } : {}) } } : {}),
     ...(Number.isFinite(walk) && walk > 0 ? { speed: `${walk} ft` } : {}),
+    ...(speeds ? { speeds } : {}),
     ...(Object.keys(abilities).length ? { abilities } : {}),
     ...(savingThrows ? { savingThrows } : {}),
     ...(Number.isFinite(monster.passive) ? { passivePerception: monster.passive } : {}),
