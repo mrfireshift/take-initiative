@@ -27,6 +27,8 @@ import {
   retreatSpeedCycle,
   reversedPathStart,
   shouldRetreatSpeedMovement,
+  speedSnapshotForPlayers,
+  speedWarningDestination,
   startingMovementMode,
 } from "./speedCheckCore.js";
 import { normalizeElevation } from "./distance3dCore.js";
@@ -204,7 +206,7 @@ export async function mountSpeedCheckEnabledSync({ authority = false } = {}) {
   return speedCheckEnabled;
 }
 
-function broadcastSpeedWarning(payload) {
+function broadcastSpeedWarning(payload, destination = "ALL") {
   if (!isMovementReminderEnabled()) return Promise.resolve();
   const warning = {
     type: "show-speed-warning",
@@ -215,7 +217,7 @@ function broadcastSpeedWarning(payload) {
   const send = () => OBR.broadcast.sendMessage(
     SPEED_WARNING_CHANNEL,
     warning,
-    { destination: "ALL" },
+    { destination },
   );
   speedWarningBroadcastQueue = speedWarningBroadcastQueue.then(send, send);
   return speedWarningBroadcastQueue.catch(() => {});
@@ -229,10 +231,20 @@ function emitMovementSnapshot(snapshot) {
 
 function broadcastMovementSnapshot(snapshot) {
   if (!processorEnabled) return;
-  void OBR.broadcast.sendMessage(SPEED_STATE_CHANNEL, {
-    type: "speed-state",
-    snapshot,
-  }, { destination: "ALL" }).catch(() => {});
+  const send = (data, destination) => {
+    void OBR.broadcast.sendMessage(SPEED_STATE_CHANNEL, {
+      type: "speed-state",
+      snapshot: data,
+    }, { destination }).catch(() => {});
+  };
+  const forPlayers = speedSnapshotForPlayers(snapshot);
+  if (forPlayers === snapshot) {
+    send(snapshot, "ALL");
+    return;
+  }
+  // The GM's own pages (the compact tab) keep all of it.
+  send(snapshot, "LOCAL");
+  send(forPlayers, "REMOTE");
 }
 
 function requestMovementSnapshot(turnKey = currentTurn?.turnKey || "") {
@@ -310,6 +322,20 @@ function samePosition(a, b) {
 function movementTotalMeters(state) {
   return (Math.max(0, Number(state?.cycle) || 0) * Math.max(0, Number(state?.speedMeters) || 0))
     + Math.max(0, Number(state?.cycleMeters) || 0);
+}
+
+function isNonPlayerCreature(item) {
+  return String(item?.metadata?.[META_KEY]?.attitude || "").toLowerCase() !== "pc";
+}
+
+// Who the movement is for follows the token (D2): hidden or shown by the GM, or its attitude edited, during its turn.
+function syncMovementAudience(state, item) {
+  if (state.disabled) return;
+  const hiddenFromPlayers = item.visible === false;
+  const nonPlayerCreature = isNonPlayerCreature(item);
+  if (state.hiddenFromPlayers === hiddenFromPlayers && state.nonPlayerCreature === nonPlayerCreature) return;
+  Object.assign(state, { hiddenFromPlayers, nonPlayerCreature });
+  notifyMovementState();
 }
 
 function parseSpeedMeters(rawSpeed) {
@@ -663,13 +689,14 @@ function mountSpeedMetadataListener() {
       )
     )));
     if (!state) {
-      if (currentTurn && (refreshProfile || event.flags.conditions || event.flags.concentration)) {
+      if (currentTurn && (refreshProfile || event.flags.conditions || event.flags.concentration || event.flags.visibility)) {
         movementStatePromise = null;
         movementStatePrefetch = null;
         void ensureMovementState({ ...currentTurn }).catch(() => {});
       }
       return;
     }
+    syncMovementAudience(state, item);
     if (event.flags.speedCheck) applyPersistedMovementItem(item);
     if (event.flags.conditions || event.flags.concentration || event.flags.tracker) {
       void applyConditionSpeedItem(item, { refreshProfile }).catch(() => {});
@@ -815,6 +842,7 @@ async function loadMovementState(turn, { itemId: requestedItemId = "", boardToke
   if (!resolvedSpeed.hasMovementModes) {
     return { turnKey, itemId, sceneEpoch, generation, disabled: true, path: [] };
   }
+  const nonPlayerCreature = !boardTokenRule && isNonPlayerCreature(item);
   const speedMeters = resolvedSpeed.speedMeters;
   const initialPosition = validPoint(item.position);
   const persistedStartPosition = persistedMatches ? validPoint(persisted.startPosition) : null;
@@ -834,6 +862,8 @@ async function loadMovementState(turn, { itemId: requestedItemId = "", boardToke
     sceneEpoch,
     generation,
     disabled: false,
+    hiddenFromPlayers: item.visible === false,
+    nonPlayerCreature,
     speedProfile: profile,
     baseSpeedMeters,
     modeBaseSpeedMeters: resolvedSpeed.modeBaseSpeedMeters,
@@ -865,10 +895,14 @@ async function loadMovementState(turn, { itemId: requestedItemId = "", boardToke
     lastCell: persistedMatches ? validPoint(persisted.lastCell) || lastCell : lastCell,
     path: [],
     persistedSignature: persistedMatches ? persistedMovementSignature(persisted) : "",
-    needsBaselinePersist: !persistedMatches
+    // A non-PC is written when it first moves, not at the start of each of its turns (velocità dei mostri, lotto 3):
+    // a monster that stays put writes nothing. Unless a reminder may spend its movement before that, on this record.
+    needsBaselinePersist: (!nonPlayerCreature || resolvedSpeed.hasMovementEscape) && (
+      !persistedMatches
       || !persistedStartPosition
       || !validPoint(persisted.startCell)
-      || storedStartElevation === null,
+      || storedStartElevation === null
+    ),
     needsMovementOrigin: !persistedMatches,
     awaitingFirstMovement: !persistedMatches,
   };
@@ -1298,7 +1332,7 @@ async function processSpeedCheckMovement(movement, turn) {
       cycle: beforeSnapshot.cycle,
       cyclesCrossed: 1,
       turnKey,
-    });
+    }, speedWarningDestination(state));
     return;
   }
   const next = advanceSpeedCycle(state, chargedCells, state.speedMeters);
@@ -1332,7 +1366,7 @@ async function processSpeedCheckMovement(movement, turn) {
       cycle: 0,
       cyclesCrossed: 1,
       turnKey,
-    });
+    }, speedWarningDestination(state));
     if (persistTask) await persistTask;
     return;
   }
@@ -1358,7 +1392,7 @@ async function processSpeedCheckMovement(movement, turn) {
     cycle: next.cycle,
     cyclesCrossed: Math.max(1, limitCrossings),
     turnKey,
-  });
+  }, speedWarningDestination(state));
   if (persistTask) await persistTask;
 }
 

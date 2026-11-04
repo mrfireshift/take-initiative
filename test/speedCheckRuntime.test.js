@@ -65,7 +65,7 @@ const sdk = {
   },
   broadcast: {
     onMessage: (channel, listener) => { env.messageListeners.set(channel, listener); return () => {}; },
-    sendMessage: async (channel, data) => { env.broadcasts.push({ channel, data: clone(data) }); },
+    sendMessage: async (channel, data, options) => { env.broadcasts.push({ channel, data: clone(data), destination: options?.destination }); },
   },
 };
 mock.module("@owlbear-rodeo/sdk", { defaultExport: sdk });
@@ -434,6 +434,163 @@ test("the other speeds come from the card the speed came from: a namesake's is i
   api.setSpeedCheckMovementMode("fly");
   await api.queueSpeedCheckMovements([]);
   assert.equal(env.snapshot.speedMeters, 24);
+});
+
+// Velocità dei mostri, lotto 3: what the table sees of a non-PC, and what a non-PC no longer writes.
+const stateMessages = (destination) => env.broadcasts
+  .filter((entry) => entry.data?.type === "speed-state" && entry.destination === destination)
+  .map((entry) => entry.data.snapshot);
+const warningDestinations = () => env.broadcasts
+  .filter((entry) => entry.data?.type === "show-speed-warning")
+  .map((entry) => entry.destination);
+const writesOf = (id) => env.writes.flat().filter((item) => item.id === id);
+function itemEdit(edit) {
+  const before = createSceneItemsSnapshot(env.items);
+  edit(env.items[0]);
+  return env.itemListener({
+    ...classifySceneItemSnapshots(before, createSceneItemsSnapshot(env.items)),
+    sceneEpoch: env.epoch,
+  });
+}
+const nothingToShow = (snapshot) => [snapshot.disabled, snapshot.available, snapshot.name, snapshot.itemId, snapshot.movementModes, snapshot.totalMeters];
+
+test("a hidden monster's movement stays with the GM: the others hear only that there is nothing to show", async () => {
+  const hidden = creature({ speeds: { fly: 24 } });
+  hidden.visible = false;
+  const api = await runtime({ items: [hidden, token("ally")] });
+  api.mountSpeedCheckStateBroadcast();
+  await ready();
+  await move(api, 0, 1);
+  assert.equal(env.snapshot.totalMeters, 1.5, "the GM's own tracker");
+  assert.deepEqual([stateMessages("LOCAL").at(-1).name, stateMessages("LOCAL").at(-1).totalMeters], ["hero", 1.5], "the GM's compact tab");
+  assert.equal(stateMessages("ALL").filter((snapshot) => snapshot.name).length, 0);
+  const told = stateMessages("REMOTE");
+  assert.ok(told.length);
+  for (const snapshot of told) assert.deepEqual(nothingToShow(snapshot), [true, false, "", "", [], 0]);
+  assert.equal(told.at(-1).turnKey, "1:0:hero", "the player knows the turn it is about");
+  // A player who asks for it, opening the tracker in the middle of the turn.
+  env.broadcasts.length = 0;
+  env.messageListeners.get("com.thebigpicture.initiative/speed-state")({ data: { type: "request-speed-state", turnKey: "" } });
+  assert.deepEqual(nothingToShow(stateMessages("REMOTE").at(-1)), [true, false, "", "", [], 0]);
+});
+
+test("shown or hidden by the GM during its turn, the table follows the token", async () => {
+  await runtime({ items: [creature(), token("ally")] });
+  await ready();
+  assert.equal(stateMessages("ALL").at(-1).name, "hero");
+  env.broadcasts.length = 0;
+  await itemEdit((item) => { item.visible = false; });
+  assert.deepEqual(nothingToShow(stateMessages("REMOTE").at(-1)), [true, false, "", "", [], 0]);
+  assert.equal(stateMessages("LOCAL").at(-1).name, "hero");
+  assert.equal(stateMessages("ALL").length, 0);
+  env.broadcasts.length = 0;
+  await itemEdit((item) => { item.visible = true; });
+  assert.equal(stateMessages("ALL").at(-1).name, "hero");
+  assert.equal(stateMessages("REMOTE").length, 0);
+});
+
+test("a visible monster shows its movement and the mode it uses, not the other modes of its stat block", async () => {
+  const api = await runtime({ items: [creature({ speeds: { fly: 24, burrow: 6 } }), token("ally")] });
+  await ready();
+  assert.deepEqual(stateMessages("LOCAL").at(-1).movementModes.map(({ id }) => id), ["walk", "fly", "burrow"], "the GM chooses among them");
+  const told = stateMessages("REMOTE").at(-1);
+  assert.deepEqual([told.name, told.available, told.speedMeters, told.movementModes.map(({ id }) => id)], ["hero", true, 12, ["walk"]]);
+  api.setSpeedCheckMovementMode("fly");
+  await move(api, 0, 1);
+  const flying = stateMessages("REMOTE").at(-1);
+  assert.deepEqual([flying.activeMode, flying.speedMeters, flying.totalMeters, flying.movementModes.map(({ id }) => id)], ["fly", 24, 1.5, ["fly"]]);
+});
+
+test("a PC shows all of it to the table, as before", async () => {
+  await runtime({ items: [creature({ attitude: "pc", speeds: { fly: 24 } }), token("ally")] });
+  await ready();
+  assert.deepEqual(stateMessages("ALL").at(-1).movementModes.map(({ id }) => id), ["walk", "fly"]);
+  assert.equal(stateMessages("REMOTE").length + stateMessages("LOCAL").length, 0, "one message, as before");
+});
+
+test("a non-PC's or a hidden token's warnings go only to the GM, a PC's to the whole table", async () => {
+  for (const [attitude, visible, expected] of [["enemy", true, "LOCAL"], ["ally", true, "LOCAL"], ["pc", true, "ALL"], ["pc", false, "LOCAL"]]) {
+    const item = creature({ speed: 3, attitude });
+    item.visible = visible;
+    const api = await runtime({ items: [item, token("ally")] });
+    await ready();
+    await move(api, 0, 3);
+    assert.ok(warningDestinations().length, attitude);
+    assert.ok(warningDestinations().every((destination) => destination === expected), `${attitude} ${visible}`);
+  }
+});
+
+test("an attitude edited during the turn changes who hears of the next warning", async () => {
+  const api = await runtime({ items: [creature({ speed: 3 }), token("ally")] });
+  await ready();
+  await metadataEdit((meta) => { meta.attitude = "pc"; });
+  await move(api, 0, 3);
+  assert.deepEqual([...new Set(warningDestinations())], ["ALL"]);
+});
+
+test("a non-PC writes nothing at the start of its turn, only once it moves", async () => {
+  const api = await runtime({ items: [creature({ speeds: { fly: 24 } }), token("ally")] });
+  await ready();
+  assert.equal(writesOf("hero").length, 0);
+  assert.equal(env.items[0].metadata[META_KEY].speedCheckMovement, undefined);
+  await move(api, 0, 1);
+  const written = env.items[0].metadata[META_KEY].speedCheckMovement;
+  assert.deepEqual([written.turnKey, written.totalMeters, written.startPosition], ["1:0:hero", 1.5, { x: 0, y: 0 }]);
+  // Its next turn, standing still: the record of the last one stays as it is, with the mode it keeps.
+  api.setSpeedCheckMovementMode("fly");
+  await api.queueSpeedCheckMovements([]);
+  await nextRoundTurn(api);
+  const writes = writesOf("hero").length;
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(writesOf("hero").length, writes);
+  assert.equal(env.items[0].metadata[META_KEY].speedCheckMovement.turnKey, "1:0:hero");
+  assert.deepEqual([env.snapshot.activeMode, env.snapshot.totalMeters], ["fly", 0]);
+  await move(api, 1, 2);
+  assert.deepEqual([env.items[0].metadata[META_KEY].speedCheckMovement.turnKey, env.snapshot.totalMeters], ["2:0:hero", 1.5]);
+});
+
+test("a monster that has not moved can still be reset, and its first move undone", async () => {
+  const api = await runtime({ items: [creature(), token("ally")] });
+  await ready();
+  api.resetSpeedCheckMovement();
+  await api.queueSpeedCheckMovements([]);
+  assert.equal(env.items[0].position.x, 0, "the reset is an order of the GM: it writes");
+  assert.equal(env.items[0].metadata[META_KEY].speedCheckMovement.totalMeters, 0);
+  await move(api, 0, 2);
+  assert.equal(env.snapshot.totalMeters, 3);
+  await move(api, 2, 0, { undo: true });
+  assert.equal(env.snapshot.totalMeters, 0);
+});
+
+test("a non-PC's turn reloaded by a new page keeps what it used and where it started; before any move there is nothing to keep", async () => {
+  const api = await runtime({ items: [creature({ speeds: { fly: 24 } }), token("ally")] });
+  await ready();
+  api.setSpeedCheckMovementMode("fly");
+  await move(api, 0, 2);
+  const moved = await runtime({ items: clone(env.items) });
+  await ready();
+  assert.deepEqual([env.snapshot.totalMeters, env.snapshot.activeMode, env.snapshot.speedMeters], [3, "fly", 24]);
+  moved.resetSpeedCheckMovement();
+  await moved.queueSpeedCheckMovements([]);
+  assert.equal(env.items[0].position.x, 0, "the origin of its first move");
+  const untouched = creature();
+  untouched.position.x = 5;
+  const fresh = await runtime({ items: [untouched, token("ally")] });
+  await ready();
+  await move(fresh, 5, 6);
+  assert.equal(env.items[0].metadata[META_KEY].speedCheckMovement.startPosition.x, 5);
+});
+
+test("under Libertà di movimento a non-PC is written at the start of its turn: the reminder spends on that record", async () => {
+  const item = creature();
+  item.metadata[META_KEY].conditions = { instances: [{ id: "freedom", active: true, condition: "Libertà di movimento",
+    mechanics: { movement: { escape: { costMeters: 1.5, conditions: ["Afferrato", "Trattenuto"] } } } }] };
+  await runtime({ items: [item, token("ally")] });
+  await ready();
+  await until(() => env.items[0].metadata[META_KEY].speedCheckMovement);
+  assert.equal(env.items[0].metadata[META_KEY].speedCheckMovement.turnKey, "1:0:hero");
+  await metadataEdit((meta) => { meta.speedCheckMovement = { ...meta.speedCheckMovement, totalMeters: 1.5 }; });
+  await until(() => env.snapshot.totalMeters === 1.5);
 });
 
 test("the zones that ask for a mode see the stat block's, as long as it can use it", async () => {

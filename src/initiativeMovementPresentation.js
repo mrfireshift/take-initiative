@@ -65,3 +65,21 @@ export function movementReadoutSummary(snapshot, compact = false) {
     ? movementNumber(snapshot.totalMeters) + "/" + movementNumber(snapshot.allowanceMeters) + " m · (" + movementNumber(snapshot.totalCells) + "/" + movementNumber(snapshot.allowanceCells) + ")"
     : movementNumber(snapshot.totalMeters) + " / " + movementNumber(snapshot.allowanceMeters) + " m · " + movementNumber(snapshot.totalCells) + "/" + movementNumber(snapshot.allowanceCells) + " caselle";
 }
+
+const COMPACT_MODE_LABELS = Object.freeze({ walk: "Piedi", fly: "Volo", swim: "Nuoto", climb: "Scalata", burrow: "Scavo" });
+
+// The line of the compact tab. The GM of a creature with several modes also chooses among them (velocità dei mostri,
+// D6). The tab stays as wide as it is: the choice shows a short word, the metres alone make room for it, and the
+// squares stay in the tab's title.
+export function compactSpeedReadout(snapshot, { gm = false } = {}) {
+  const modes = gm && Array.isArray(snapshot?.movementModes) && snapshot.movementModes.length > 1
+    ? snapshot.movementModes
+    : [];
+  return {
+    summary: modes.length
+      ? movementNumber(snapshot.totalMeters) + "/" + movementNumber(snapshot.allowanceMeters) + " m"
+      : movementReadoutSummary(snapshot, true),
+    modes: modes.map((mode) => ({ id: mode.id, label: mode.label + " · " + movementNumber(mode.speedMeters) + " m" })),
+    activeLabel: modes.length ? COMPACT_MODE_LABELS[snapshot.activeMode] || snapshot.activeModeLabel : "",
+  };
+}

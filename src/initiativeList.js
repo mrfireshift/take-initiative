@@ -11754,8 +11754,9 @@ try {
       __mountTurnNoticeReplayListener();
       await mountSpeedCheckEnabledSync({ authority: IS_GM });
       OBR.broadcast.onMessage(`${ID}/compact-speed-readout`, (event) => {
-        if (!IS_GM || event?.data?.type !== "set-movement-limit") return;
-        setSpeedCheckMovementLimit(event.data.enabled === true);
+        if (!IS_GM) return;
+        if (event?.data?.type === "set-movement-limit") setSpeedCheckMovementLimit(event.data.enabled === true);
+        if (event?.data?.type === "set-movement-mode") setSpeedCheckMovementMode(event.data.mode);
       });
       const hpBarsBinding = bindOptionalRuntimeOption({
         service: runtimeOptionsService,

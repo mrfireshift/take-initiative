@@ -524,6 +524,9 @@ export function resolveMovementProfile(
       ]),
     ],
     directionalCostModifiers: active.directionalCostModifiers || [],
+    // A reminder may ask it to spend movement at the start of its turn, on the turn's record (Libertà di movimento).
+    hasMovementEscape: flags.freedomOfMovement
+      || rules.some((rule) => rule?.escape && typeof rule.escape === "object"),
     reasons: [...active.reasons],
     summary: active.summary,
   };

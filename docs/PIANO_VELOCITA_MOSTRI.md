@@ -34,10 +34,14 @@ modalità di movimento dello statblock.
    il ritorno indietro non guardava già l'attitudine (D3). I volanti importati lo sono anche per le zone che chiedono una
    modalità (Controllare i venti). Una velocità tolta dalla scheda a metà turno spegne subito il controllo, anche per i
    PG: prima il token non si muoveva più fino al turno dopo. Ogni turno extra di un Paragon ha il suo movimento.
-   **Non va in bundle da solo:** finché non c'è il lotto 3, i giocatori ricevono stato e avvisi anche dei mostri nascosti.
-3. **Il tavolo.** Cosa vedono i giocatori (D2), comando della modalità nella vista compatta (D6), niente scrittura sul
-   token a inizio turno per i non PG: solo quando si muove. Attenzione: «spendi movimento» di un promemoria
-   (`reminderResolutionCore.js`) legge quella scrittura; senza, il costo di un mostro fermo non verrebbe contato.
+3. **Il tavolo.** ✅ Fatto (04/11). D2: del token nascosto, anche di un PG, agli altri client arriva solo il turno e che non
+   c'è nulla da mostrare (`speedSnapshotForPlayers`); se il GM lo nasconde o lo mostra durante il turno, il tavolo segue. Un
+   non PG visibile mostra a tutti il movimento e la modalità in uso, non le altre del suo statblock. Gli avvisi di un non PG
+   o di un token nascosto vanno solo al GM (`LOCAL`), quelli di un PG a tutti come prima. D6: la linguetta compatta ha, per
+   il GM e con più di una modalità, un selettore nativo: stessi 154 px, una parola breve e i soli metri, con le caselle nel
+   title; la griglia degli strumenti non è toccata. Un non PG scrive sul token solo quando si muove o il GM cambia modalità,
+   non a inizio turno. Resta la scrittura di chi è sotto Libertà di movimento: «spendi movimento» del suo promemoria
+   (`reminderResolutionCore.js`) lavora su quella, e così Annulla resta com'era.
 4. **Verifica.** Test, banco in entrambe le viste, documentazione, prova in stanza.
 
 ## Fuori da questo piano

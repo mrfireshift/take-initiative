@@ -6,7 +6,8 @@ import { resolveMovementProfile } from "../src/movementProfileCore.js";
 import { fiveToolsMonsterToStatblock } from "../src/fiveToolsMonsterCore.js";
 import { parseCharacterSheetImport } from "../src/characterSheetImportCore.js";
 import { MONSTER_PROFILE_STATBLOCK_FIELDS, monsterSpeedsMovementInstance, monsterSpeedsText, sanitizeMonsterProfile } from "../src/monsterProfileCore.js";
-import { startingMovementMode } from "../src/speedCheckCore.js";
+import { buildSpeedCheckSnapshot, speedSnapshotForPlayers, speedWarningDestination, startingMovementMode } from "../src/speedCheckCore.js";
+import { compactSpeedReadout } from "../src/initiativeMovementPresentation.js";
 
 const convert = (speed) => fiveToolsMonsterToStatblock({ name: "Test", source: "MM", ac: [15], hp: { average: 10 }, speed,
   action: [{ name: "Claw", entries: ["{@atk mw} {@hit 4} to hit, reach 5 ft., one target. {@h}5 ({@damage 1d6 + 2}) slashing damage."] }] });
@@ -103,6 +104,55 @@ test("nel motore: senza altre velocità nessun effetto, e la scheda resta quella
   assert.equal(resolveMovementProfile(0, []).hasMovementModes, false);
   assert.ok(monsterSpeedsMovementInstance({ speed: 9, monster: { speeds: { fly: 12 } } }).mechanics.movement.suppressModes === undefined,
     "chi cammina tiene la camminata: la velocità di default è quella della scheda");
+});
+
+const moving = (extra = {}) => buildSpeedCheckSnapshot({
+  turnKey: "1:0:a", itemId: "a", name: "Drago", speedMeters: 24, baseSpeedMeters: 12, cycleMeters: 3, activeMode: "fly", activeModeLabel: "Volare",
+  movementModes: [{ id: "walk", label: "Camminare", baseSpeedMeters: 12, speedMeters: 12 }, { id: "fly", label: "Volare", baseSpeedMeters: 24, speedMeters: 24 }],
+  ...extra,
+});
+
+test("ai giocatori: del mostro nascosto solo il turno, del visibile la modalità in uso, del PG tutto", () => {
+  const hidden = speedSnapshotForPlayers(moving({ hiddenFromPlayers: true, nonPlayerCreature: true }));
+  assert.deepEqual([hidden.turnKey, hidden.disabled, hidden.available, hidden.name, hidden.itemId, hidden.movementModes, hidden.totalMeters, hidden.speedMeters],
+    ["1:0:a", true, false, "", "", [], 0, 0]);
+  const visible = speedSnapshotForPlayers(moving({ nonPlayerCreature: true }));
+  assert.deepEqual([visible.name, visible.totalMeters, visible.speedMeters, visible.activeMode, visible.movementModes.map(({ id }) => id)], ["Drago", 3, 24, "fly", ["fly"]]);
+  const pc = moving();
+  assert.equal(speedSnapshotForPlayers(pc), pc, "lo stesso oggetto: un messaggio solo");
+  const oneMode = moving({ nonPlayerCreature: true, movementModes: [{ id: "fly", label: "Volare", speedMeters: 24 }] });
+  assert.equal(speedSnapshotForPlayers(oneMode), oneMode, "un mostro con una modalità sola non ha nulla da togliere");
+  const before = moving();
+  assert.equal(speedSnapshotForPlayers(before), before);
+  assert.equal(speedSnapshotForPlayers(null), null);
+});
+
+test("gli avvisi: al tavolo quelli di un PG, solo al GM quelli di un non PG o di un token nascosto", () => {
+  assert.equal(speedWarningDestination({}), "ALL");
+  assert.equal(speedWarningDestination({ nonPlayerCreature: true }), "LOCAL");
+  assert.equal(speedWarningDestination({ hiddenFromPlayers: true }), "LOCAL");
+  assert.equal(speedWarningDestination(null), "ALL");
+});
+
+test("nel motore: chi può spendere movimento su un promemoria a inizio turno", () => {
+  assert.equal(resolveMovementProfile(12, []).hasMovementEscape, false);
+  assert.equal(resolveMovementProfile(12, [statblock(12, { fly: 24 })]).hasMovementEscape, false);
+  assert.equal(resolveMovementProfile(12, [], ["freedom-of-movement"]).hasMovementEscape, true);
+  assert.equal(resolveMovementProfile(12, [], [{ name: "Libertà di movimento" }]).hasMovementEscape, true);
+  const escape = { condition: "Libertà di movimento", active: true, mechanics: { movement: { escape: { costMeters: 1.5, conditions: ["Afferrato"] } } } };
+  assert.equal(resolveMovementProfile(12, [escape]).hasMovementEscape, true);
+  assert.equal(resolveMovementProfile(12, [{ ...escape, active: false }]).hasMovementEscape, false);
+});
+
+test("la linguetta compatta: il GM di chi ha più modalità le sceglie e legge i soli metri, tutti gli altri come prima", () => {
+  const several = moving({ totalMeters: 3 });
+  const asGm = compactSpeedReadout(several, { gm: true });
+  assert.equal(asGm.summary, "3/24 m");
+  assert.deepEqual(asGm.modes, [{ id: "walk", label: "Camminare · 12 m" }, { id: "fly", label: "Volare · 24 m" }]);
+  assert.equal(asGm.activeLabel, "Volo", "una parola breve nella linguetta, per 154 px");
+  assert.deepEqual(compactSpeedReadout(several), { summary: "3/24 m · (2/16)", modes: [], activeLabel: "" }, "il giocatore");
+  const single = moving({ movementModes: [{ id: "fly", label: "Volare", speedMeters: 7.5 }], speedMeters: 7.5 });
+  assert.deepEqual(compactSpeedReadout(single, { gm: true }), { summary: "3/7,5 m · (2/5)", modes: [], activeLabel: "" }, "il GM con una modalità sola");
 });
 
 test("la modalità di partenza: quella del turno se è lo stesso; quella dell'ultimo per i non PG, la camminata per i PG", () => {

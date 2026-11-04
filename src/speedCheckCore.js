@@ -71,6 +71,8 @@ export function buildSpeedCheckSnapshot(state, enabled = true, movementLimited =
     turnKey: String(source.turnKey || ""),
     itemId: String(source.itemId || ""),
     name: String(source.name || ""),
+    hiddenFromPlayers: source.hiddenFromPlayers === true,
+    nonPlayerCreature: source.nonPlayerCreature === true,
     baseSpeedMeters,
     modeBaseSpeedMeters,
     speedMeters,
@@ -110,6 +112,24 @@ export function buildSpeedCheckSnapshot(state, enabled = true, movementLimited =
     cycle: completedCycles + 1,
     progress: available && allowanceMeters > 0 ? Math.min(1, totalMeters / allowanceMeters) : 0,
   };
+}
+
+// What the other clients receive of a snapshot (velocità dei mostri, D2). A hidden token: only that its turn has nothing
+// to show. A non-PC: its movement in the mode it is using, not the other modes of its stat block. Otherwise all of it,
+// the same object: the caller then has one message to send.
+export function speedSnapshotForPlayers(snapshot) {
+  if (snapshot?.hiddenFromPlayers === true) {
+    return buildSpeedCheckSnapshot({ turnKey: snapshot.turnKey, disabled: true }, snapshot.enabled, false);
+  }
+  if (snapshot?.nonPlayerCreature === true && snapshot.movementModes?.length > 1) {
+    return { ...snapshot, movementModes: snapshot.movementModes.filter((mode) => mode.id === snapshot.activeMode) };
+  }
+  return snapshot;
+}
+
+// Who hears of a movement warning (D2): the table for a PC's, only the GM for a non-PC's or a hidden token's.
+export function speedWarningDestination(state) {
+  return state?.nonPlayerCreature === true || state?.hiddenFromPlayers === true ? "LOCAL" : "ALL";
 }
 
 export function shouldKeepSpeedReadoutOpen(snapshot, previousSnapshot = null) {
