@@ -1081,9 +1081,9 @@ test("Fame di Hadar separa danno automatico iniziale e TS finale", () => {
     initiativeState: initiativeState(0, 2),
     now: 200,
   });
-  assert.equal(started.newActivations[0].resolution, "informational");
+  assert.equal(started.newActivations[0].resolution, "manual-effect");
   assert.equal(started.newActivations[0].damage.type, "freddo");
-  assert.deepEqual(started.runtime.pending, []);
+  assert.equal(started.runtime.pending.length, 1);
 
   const ended = planSpellZoneTriggers({
     rule,
@@ -1149,7 +1149,7 @@ test("Fame di Hadar aggrega fine turno e inizio turno di token consecutivi", () 
   );
   assert.deepEqual(
     merged.pending.map((activation) => activation.resolution),
-    ["manual-save"],
+    ["manual-effect", "manual-save"],
   );
 });
 

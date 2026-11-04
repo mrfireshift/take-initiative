@@ -856,13 +856,16 @@ function castContextFor({ spell, resolution, command, mobileAura, boardToken, pl
       spellSaveDC: monsterActionSaveDC,
     };
   }
-  if (!hasActiveResolution && !mobileAura && !boardToken
+  // A reminder that grows with the slot reads it from the pill (effectSaveReminderCore.js): Tasha's Caustic Brew.
+  const hasScaledReminder = Array.isArray(spell?.saveAutomation?.failed)
+    && spell.saveAutomation.failed.some((rule) => Number(rule?.saveReminder?.damage?.additionalPerSlotAbove) > 0);
+  if (!hasActiveResolution && !hasScaledReminder && !mobileAura && !boardToken
     && !resolution?.targeting && !resolution?.choice) return null;
   return {
     ...(command?.spell?.castContext && typeof command.spell.castContext === "object"
       ? clone(command.spell.castContext)
       : {}),
-    ...(hasActiveResolution ? { slotLevel: command.spell.slotLevel } : {}),
+    ...(hasActiveResolution || hasScaledReminder ? { slotLevel: command.spell.slotLevel } : {}),
     ...(mobileAura ? { mobileAura: true } : {}),
     ...spiritShroudContext,
     ...(boardToken ? { boardToken: true } : {}),
@@ -1098,6 +1101,21 @@ async function defaultRestoreZoneTrigger(snapshot, runtime) {
   });
 }
 
+// The duration a variant declares for itself (Pyrotechnics: the fireworks until the end of the caster's next turn, the
+// smoke for 1 minute). The spell's pill ends with it, and the conditions under the pill go with the pill.
+function spellWithChoiceTiming(spell, choiceValue) {
+  const choices = Array.isArray(spell?.effectChoices) ? spell.effectChoices : [];
+  const selected = choices.find((choice) => choice.id === choiceValue) || choices[0] || null;
+  const declaresExpiry = !!selected && Object.prototype.hasOwnProperty.call(selected, "spellExpiry");
+  const declaresTurns = Number(selected?.defaultTurns) > 0;
+  if (!declaresExpiry && !declaresTurns) return spell;
+  return {
+    ...spell,
+    ...(declaresTurns ? { defaultTurns: Math.floor(Number(selected.defaultTurns)) } : {}),
+    ...(declaresExpiry ? { expiry: selected.spellExpiry ? { ...selected.spellExpiry } : null } : {}),
+  };
+}
+
 function placementRuleFor(command, spell) {
   const placementId = text(command?.placement?.ruleId);
   if (placementId) {
@@ -1143,7 +1161,10 @@ function triggerFrom(command, runtime) {
 async function buildPlan(command, runtime) {
   const spellId = text(command?.spell?.spellId);
   // A Wild Magic Surge casts it without concentration (spellCastContextCore.js).
-  const spell = spellForCastContext(getSpellDefinition(spellId), command?.spell?.castContext);
+  const spell = spellWithChoiceTiming(
+    spellForCastContext(getSpellDefinition(spellId), command?.spell?.castContext),
+    text(command?.spell?.choiceValue),
+  );
   if (!spell) return { valid: false, errors: [{ code: "spell-not-found", message: "Incantesimo non trovato." }] };
   const teleportRule = getSpellTeleportRule(spell.id);
   const commandTargetIds = uniqueIds(command?.targeting?.targetIds);

@@ -290,7 +290,7 @@ const AUTOMATION = Object.freeze({
     conditionOptions: {
       Spaventato: {
         summaryParts: [
-          { id: "phantasmal-killer-psychic-damage", label: "4d10 psichici se fallisce" },
+          { id: "phantasmal-killer-psychic-damage", label: "Danni psichici se fallisce" },
         ],
         expiry: { mode: "concentration" },
         manualRemoval: true,
@@ -308,7 +308,7 @@ const AUTOMATION = Object.freeze({
             baseSlot: 4,
             additionalPerSlotAbove: 1,
           },
-          label: "4d10 psichici se fallisce; se supera, termina l'incantesimo.",
+          label: "Danni psichici se fallisce; se supera, termina l'incantesimo.",
         },
       },
     },
@@ -994,9 +994,12 @@ const SPELL_EFFECTS = Object.freeze({
       id: "gaseous-form-movement",
       kind: "buff",
       label: "Forma gassosa · solo volo 3 m",
-      detail: "La velocità di volare di 3 metri è l'unico metodo di movimento.",
+      detail: "La velocità di volare di 3 metri è l'unico metodo di movimento. Resistenza ai danni non magici e vantaggio ai TS su Forza, Destrezza e Costituzione. Non può attaccare, lanciare incantesimi, parlare né manipolare oggetti. L'incantesimo termina se scende a 0 PF.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "gaseous-form-fly-only", label: "Solo volo 3 m" }),
+        Object.freeze({ id: "gaseous-form-nonmagical-resistance", label: "Res. danni non magici" }),
+        Object.freeze({ id: "gaseous-form-save-advantage", label: "Vant. TS For/Des/Cos" }),
+        Object.freeze({ id: "gaseous-form-no-attacks-spells", label: "No attacchi né incantesimi" }),
       ]),
       mechanics: Object.freeze({
         movement: Object.freeze({
@@ -1541,7 +1544,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "protection-from-poison-ward",
       kind: "buff",
       label: "Vant. TS veleno · res. veleno",
-      detail: "Neutralizza un veleno che lo affligge; vantaggio ai tiri salvezza per non essere avvelenato e resistenza ai danni da veleno.",
+      detail: "Al lancio toglie Avvelenato, un veleno solo se ne ha più d'uno. Vantaggio ai tiri salvezza per non essere avvelenato e resistenza ai danni da veleno.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "protection-from-poison-save-advantage", label: "Vant. TS avvelenato" }),
         Object.freeze({ id: "damage-defense-resistance-poison", label: "Res. veleno" }),

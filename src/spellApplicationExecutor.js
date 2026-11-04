@@ -4,6 +4,7 @@ import { takesDeathSaveDamage } from "./deathSaveCore.js";
 import { resolveSharedHpGroup } from "./sharedHpCore.js";
 import { createSpellInstanceId } from "./spells.js";
 import { getConditionInstances, refreshConditionLabels } from "./conditions.js";
+import { CAST_CLEANSE_SPELL_ID_SET, planCleanseTarget } from "./cleanseSpellRules.js";
 import {
   spellEffectConditionName,
   spellEffectConditionOptions,
@@ -594,6 +595,22 @@ async function buildCastHealingMutation({ spell, phase = "", targetIds = [], val
     });
   }
   return { metadataPatches };
+}
+
+// CAP-CLEANSE on this lane: what the cast ends on its targets, read live, in the command and the History entry of its
+// pill (Protection from Poison, cleanseSpellRules.js). The panel's "apply conditions" off leaves the creature as it is.
+async function buildCastCleanseOperations({ spell, phase = "", targetIds = [], applyAutomatedConditions = true } = {}) {
+  if (!CAST_CLEANSE_SPELL_ID_SET.has(spell?.id) || phase === "prepare" || applyAutomatedConditions === false) return [];
+  const ids = Array.from(new Set((targetIds || []).filter(Boolean)));
+  const items = ids.length ? await OBR.scene.items.getItems(ids) : [];
+  const removals = items.flatMap((item) => planCleanseTarget({ spellId: spell.id, item }).removeInstanceIds
+    .map((instanceId) => ({ itemId: item.id, instanceId })));
+  return removals.length
+    ? [
+      { type: "condition:remove-instances", removals },
+      { type: "condition:automate", subjectIds: Array.from(new Set(removals.map((removal) => removal.itemId))) },
+    ]
+    : [];
 }
 
 async function buildCastTemporaryHpMutation({ spell, phase = "", targetIds = [], operations = [], slotLevel = null, roll = undefined, choiceValue = "" } = {}) {
@@ -2306,9 +2323,19 @@ export async function executeSpellApplication({
     phasePlan: applicationPlan.phasePlan,
     damageTargets: initialDamageMutation.targets,
   });
+  const castCleanseOperations = await buildCastCleanseOperations({
+    spell,
+    phase: applicationPlan.phasePlan?.phase,
+    targetIds: intent.subjects,
+    applyAutomatedConditions,
+  });
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-spell-application");
+  }
   const applicationOperations = [
     ...scopeBanishmentOperations(applicationPlan.operations, banishmentEligibleTargetIds),
     ...initialDamageMutation.operations,
+    ...castCleanseOperations,
     ...(Array.isArray(extraOperations) ? extraOperations : []),
   ];
   const castTemporaryHp = await buildCastTemporaryHpMutation({

@@ -524,7 +524,7 @@ test("i tre lotti di danno a fine turno dichiarano tutti i trigger auditati", ()
       "turn-end:manual-save",
     ],
     "phb2014-fame-di-hadar": [
-      "turn-start:informational",
+      "turn-start:manual-effect",
       "turn-end:manual-save",
     ],
   };

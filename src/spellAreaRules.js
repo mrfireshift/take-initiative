@@ -781,6 +781,11 @@ const SELF_CAST_AURA_TARGETING_BY_SPELL = Object.freeze({
     filter: "friendly",
     includeCaster: true,
   }),
+  // Xanathar's Guide: the wind deafens the caster as well as the others; nobody to choose, it takes everyone in it.
+  "xanathar-vento-di-interdizione": Object.freeze({
+    ...SELF_CAST_AURA_TARGETING,
+    includeCaster: true,
+  }),
 });
 const NO_CONFIRM_TARGETING = Object.freeze({
   ...COMMON_TARGETING,
@@ -799,6 +804,7 @@ const SELF_CAST_AURA_SPELL_IDS = new Set([
   "phb2014-aura-di-purezza",
   "phb2014-aura-di-vita",
   "phb2014-aura-di-vitalita",
+  "xanathar-vento-di-interdizione",
 ]);
 const CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS = new Set([
   "phb2014-braccia-di-hadar",
@@ -2076,10 +2082,11 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
     {
       id: "hunger-of-hadar-damage-on-turn-start",
       group: "hunger-of-hadar-damage-on-turn-start",
-      label: "2d6 danni da freddo automatici a inizio turno nella Fame di Hadar.",
+      label: "Danni da freddo automatici a inizio turno nella Fame di Hadar.",
       event: "turn-start",
       frequency: "once-per-turn",
-      resolution: "informational",
+      // Damage with no save, like the Cloud of Daggers: the reminder asks the 2d6 and applies them.
+      resolution: "manual-effect",
       damage: {
         dice: "2d6",
         type: "freddo",
@@ -2099,6 +2106,25 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
         type: "acido",
         onSave: "none",
       },
+    },
+  ],
+  // Xanathar's Guide: the trap springs when a creature moves onto the ground in the circle. A failed save applies the
+  // spell's own rule (areaSaveSpellRules.js): Trattenuto, with its save at the end of each of the creature's turns.
+  "xanathar-trabocchetto": [
+    {
+      id: "snare-save-on-entry",
+      group: "snare-save-on-entry",
+      label: "TS Destrezza entrando nel Trabocchetto",
+      event: "enter",
+      frequency: "once-per-turn",
+      resolution: "manual-save",
+      failureEffect: "Trattenuto. Se lo supera, la trappola è scattata a vuoto: termina l'incantesimo a mano.",
+      requiresOwnTurn: false,
+      triggerOnAreaMove: false,
+      // A token dragged across the circle has moved onto it too, and may have left it by the time the GM answers.
+      requiresCrossing: true,
+      persistsAfterExit: true,
+      skipLinkedConditions: ["Trattenuto"],
     },
   ],
 });
@@ -2282,6 +2308,7 @@ const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
   "cordon-of-arrows-save-on-entry": { ability: "dex" },
   "cordon-of-arrows-save-on-turn-end": { ability: "dex" },
   "hunger-of-hadar-save-on-turn-end": { ability: "dex" },
+  "snare-save-on-entry": { ability: "dex", failureAutomation: "spell-save" },
   "web-save-on-entry": {
     ability: "dex",
     failureCondition: {
@@ -2605,13 +2632,17 @@ function catalogAreaRule(spec) {
       conditionMembershipEffect(
         "warding-wind-deafened",
         "Assordato",
-        "Il vento assorda le creature nella sua area.",
+        "Il vento assorda l'incantatore e le altre creature nella sua area.",
       ),
-      difficultTerrainEffect(
-        "warding-wind-difficult-terrain",
-        "Terreno difficile / Vento di Interdizione",
-        "Il vento raddoppia il costo del movimento per le altre creature.",
-      ),
+      // Xanathar's Guide: the wind deafens the caster too, but it is difficult terrain only for the others.
+      {
+        ...difficultTerrainEffect(
+          "warding-wind-difficult-terrain",
+          "Terreno difficile / Vento di Interdizione",
+          "Il vento raddoppia il costo del movimento per le altre creature.",
+        ),
+        targeting: Object.freeze({ filter: "all", includeCaster: false }),
+      },
     ],
     "pass-without-trace": [{
       id: "pass-without-trace-aura",
@@ -2807,6 +2838,8 @@ function catalogAreaRule(spec) {
             : "none",
           ...(choice?.snapOrigin === "vertex" ? { snapOrigin: "vertex" } : {}),
         },
+        // A variant may change the zone's own cast: Pyrotechnics' smoke asks no save.
+        ...(choice?.zonePolicy ? { zonePolicy: { ...choice.zonePolicy } } : {}),
       };
     })
     : [];
@@ -4096,6 +4129,7 @@ export function getSpellAreaRuleForPlacement(ruleId, ruleChoice = "", castContex
         ...rule.placement,
         ...(choice.placement || {}),
       },
+      ...(choice.zonePolicy ? { zonePolicy: { ...rule.zonePolicy, ...choice.zonePolicy } } : {}),
       placementChoice: choice.id,
     })
     : rule;

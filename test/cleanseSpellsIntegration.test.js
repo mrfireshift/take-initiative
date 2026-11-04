@@ -319,6 +319,50 @@ test("Lesser Restoration ends the poison the GM chose; one Undo brings it back",
   assert.deepEqual(pills("hero"), ["Accecato", "Avvelenato"]);
 });
 
+// Protection from Poison stays on the lifecycle lane: its pill, and the poison taken off in the same command.
+async function castProtectionFromPoison(targetId, extra = {}) {
+  const { executeSpellApplication } = await import("../src/spellApplicationExecutor.js");
+  const { getSpellDefinition } = await import("../src/spells-srd.js");
+  const spell = getSpellDefinition("protection-from-poison");
+  await executeSpellApplication({
+    spell,
+    enteredName: spell.displayName,
+    turns: 600,
+    casterId: CASTER,
+    casterName: CASTER,
+    targetIds: [targetId],
+    castContext: { slotLevel: 2 },
+    ...extra,
+  });
+  await convergeDeferredEffectsHistory();
+}
+const activeIds = (id) => (meta(id).conditions?.instances || []).filter((entry) => entry.active !== false).map((entry) => entry.id);
+
+test("Protection from Poison ends the poison at the cast, one if there are more; one Undo brings them back and takes the pill", async () => {
+  await resetScene([token(CASTER, 60, 60), token("hero", 20, 30, conditions([
+    pill("first", "Avvelenato", "hero"), pill("second", "Avvelenato", "hero"), pill("blind", "Accecato", "hero")]))]);
+  await castProtectionFromPoison("hero");
+  assert.equal(activeIds("hero").includes("first"), false);
+  assert.equal(activeIds("hero").includes("second"), true, "the other poison stays");
+  assert.equal(activeIds("hero").includes("blind"), true);
+  assert.equal(meta("hero")[SPELLS_KEY].length, 1, "the pill of the spell, in the same command");
+  assert.ok(pills("hero").includes("Vant. TS veleno · res. veleno"));
+  await undoLast();
+  assert.deepEqual(pills("hero"), ["Accecato", "Avvelenato", "Avvelenato"]);
+  assert.deepEqual(meta("hero")[SPELLS_KEY], []);
+});
+
+test("Protection from Poison takes nothing off a creature that is not poisoned, or with the panel's conditions off", async () => {
+  await resetScene([token(CASTER, 60, 60), token("hero", 20, 30, conditions([pill("blind", "Accecato", "hero")])),
+    token("ally", 20, 30, conditions([pill("poison", "Avvelenato", "ally")]))]);
+  await castProtectionFromPoison("hero");
+  assert.equal(activeIds("hero").includes("blind"), true);
+  assert.equal(meta("hero")[SPELLS_KEY].length, 1);
+  await castProtectionFromPoison("ally", { applyAutomatedConditions: false });
+  assert.equal(activeIds("ally").includes("poison"), true);
+  assert.equal(meta("ally")[SPELLS_KEY].length, 1);
+});
+
 test("Dispel Magic ends a concentration spell on its target only, the caster's concentration with it; Undo restores both", async () => {
   const bless = { instanceId: "bless-1", spellId: "bless", name: "Benedizione", conc: true, casterId: CASTER, source: CASTER };
   await resetScene([

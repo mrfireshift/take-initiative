@@ -162,6 +162,10 @@ quel personaggio.
   o azzerano il danno di quel tipo, e il GM può ignorare il chip della difesa
   per un singolo attacco. Le altre etichette dei benefici (Armatura magica, Pelle
   coriacea, Pelle di pietra…) sono promemoria per il tavolo.
+- Protezione dai veleni al lancio toglie anche **Avvelenato**: una sola volta se
+  la creatura ne ha più d'uno, perché neutralizza un veleno solo, e il plugin
+  sceglie il primo in elenco. Nulla se «Applica condizioni dell'incantesimo» è
+  spenta. Un annullamento riporta tutto com'era.
 - Cura ferite, Parola guaritrice, Preghiera di guarigione e Parola
   guaritrice di massa si risolvono nel pannello come Cura ferite di massa: si
   scelgono le creature (una, o fino a sei), si scrive la cura e i PF salgono,
@@ -178,9 +182,14 @@ quel personaggio.
   rialza; l'etichetta si toglie a mano.
 - Cerchio magico, Santificare, Proibizione e Pirotecnica chiedono la variante
   nel pannello prima di piazzare la zona. Con il Fumo di Pirotecnica non c'è
-  TS: si segna ogni esito come superato. Bagliore solare e Drago illusorio
+  TS e il pannello non lo chiede. Bagliore solare e Drago illusorio
   propongono a inizio turno la nuova linea o il soffio, come Invocare il
   fulmine.
+- Trabocchetto: chi entra nel cerchio o lo attraversa fa il TS Destrezza; chi
+  fallisce resta Trattenuto e ritenta a fine turno. Quando la trappola è
+  scattata e nessuno resta trattenuto, l'incantesimo si termina a mano.
+- Percezione delle Bestie: al lancio il caster non è accecato né assordato. Le
+  condizioni si aggiungono a mano mentre usa i sensi della bestia.
 - Quando la creatura colpita da Marchio del cacciatore o Sortilegio scende a
   0 PF (o sparisce dalla scena), a inizio turno il caster può spostare il
   marchio: seleziona la nuova creatura e conferma. Sortilegio mantiene la

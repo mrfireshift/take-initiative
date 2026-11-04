@@ -1521,7 +1521,12 @@ export function buildSpellUnifiedPanelContract({
     castContext,
   );
   const castRules = getSpellAreaRules(spell.id, { triggerType: "cast" });
-  const presentationCastRules = phasePlan.phase === "prepare" ? [] : castRules;
+  // A variant may change the zone's own cast: Pyrotechnics' smoke asks no save.
+  const presentationCastRules = phasePlan.phase === "prepare"
+    ? []
+    : castRules.map((rule) => ((rule.placementChoices || []).some((choice) => choice.id === text(choiceValue) && choice.zonePolicy)
+      ? getSpellAreaRuleForPlacement(rule.id, text(choiceValue))
+      : rule));
   const allAreaRules = getSpellAreaRules(spell.id);
   const boardTokenRule = getSpellBoardTokenRule(spell);
   const boardTokenPlacementRule = getSpellBoardTokenPlacementRule(spell);

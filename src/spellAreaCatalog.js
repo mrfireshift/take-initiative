@@ -275,9 +275,10 @@ const AREA_OVERRIDES = Object.freeze({
     initialSave: { ability: "con" },
     placementChoices: [
       { id: "fireworks", label: "Fuochi d'artificio: 3 m attorno alla fiamma", shape: "circle", sizeMeters: 3 },
-      { id: "smoke", label: "Fumo: 6 m attorno alla fiamma", shape: "circle", sizeMeters: 6 },
+      // Only the fireworks ask the save; the smoke obscures the area for 1 minute.
+      { id: "smoke", label: "Fumo: 6 m attorno alla fiamma", shape: "circle", sizeMeters: 6, zonePolicy: { initialResolution: "none" } },
     ],
-    note: "La fiamma scelta si spegne. Fumo: nessun TS, segnare ogni esito come superato.",
+    note: "La fiamma scelta si spegne.",
   },
   // The difficult terrain lasts until the end of the caster's next turn; the save is the cast's.
   "ice-storm": {

@@ -14,6 +14,8 @@ export const CLEANSE_SPELL_IDS = Object.freeze([
   "dispel-magic",
 ]);
 export const CLEANSE_SPELL_ID_SET = new Set(CLEANSE_SPELL_IDS);
+// The same on the lifecycle lane: the spell keeps its own pill, and its cast takes off what it ends.
+export const CAST_CLEANSE_SPELL_ID_SET = new Set(["protection-from-poison"]);
 
 const HEAL_ENDS = Object.freeze(["accecato", "assordato"]);
 const POWER_WORD_HEAL_ENDS = Object.freeze(["affascinato", "paralizzato", "spaventato", "stordito"]);
@@ -90,6 +92,11 @@ export function planCleanseTarget({ spellId = "", item = null, slotLevel = null,
     plan.removeInstanceIds = chosen === "disease"
       ? activeConditions(item).filter(isDiseaseInstance).map((instance) => String(instance.id).trim())
       : chosen ? conditionIds(item, [conditionKey(chosen)]) : [];
+    return plan;
+  }
+  // One poison: the plugin cannot tell them apart, so with more than one it takes the first listed and the others stay.
+  if (spellId === "protection-from-poison") {
+    plan.removeInstanceIds = conditionIds(item, [conditionKey("Avvelenato")]).slice(0, 1);
     return plan;
   }
   if (spellId === "dispel-magic") {

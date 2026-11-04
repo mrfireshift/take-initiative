@@ -123,7 +123,7 @@ test("Cure Wounds heals through the area command, never above maximum HP", async
 
 // spellId: [ability, meters, base slot, dice at base, dice two slots above, damage on a successful save]
 const SAVES = Object.freeze({
-  "xanathar-catapulta": ["dex", 18, 1, "3d8", "5d8", "zero"],
+  "xanathar-catapulta": ["dex", 45, 1, "3d8", "5d8", "zero"],
   "hellish-rebuke": ["dex", 18, 1, "2d10", "4d10", null],
   "phb2014-sussurri-dissonanti": ["wis", 18, 1, "3d6", "5d6", null],
   "blight": ["con", 9, 4, "8d8", "10d8", null],

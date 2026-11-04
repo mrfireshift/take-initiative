@@ -93,10 +93,10 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 6,
@@ -113,10 +113,10 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "D6: chiede l'esito del TS, il lancio rapido lo considera fallito."
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
@@ -516,18 +516,18 @@
       "level": 3,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "D6: chiede l'esito del TS, il lancio rapido lo considera fallito."
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: durate e concentrazione per slot, promemoria a inizio turno della variante dell'azione persa."
       },
       "sweep": {
         "runs": 18,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Promemoria a inizio turno del bersaglio; la maledizione resta."
       }
     },
     {
@@ -2001,18 +2001,18 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "D6: chiede l'esito del TS, il lancio rapido lo considera fallito."
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Pill e svantaggio per 10 turni, senza concentrazione."
       }
     },
     {
@@ -2641,18 +2641,18 @@
       "level": 3,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "La card diceva solo il volo. Ora anche resistenza, vantaggi, divieti e fine a 0 PF."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Pill sul bersaglio, concentrazione sul caster, nelle due viste."
       }
     },
     {
@@ -2801,10 +2801,10 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: le bacche sono una risorsa, l'ultima chiude l'incantesimo."
       },
       "sweep": {
         "runs": 2,
@@ -3501,10 +3501,10 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
@@ -3701,10 +3701,10 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "P2: limite di bersagli per slot, dal testo."
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
@@ -4284,10 +4284,10 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
@@ -4335,7 +4335,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "TS SAG a fine turno con 4d10 psichici."
+        "note": "TS SAG a fine turno con i danni dello slot: 5d10 allo slot 5."
       }
     },
     {
@@ -4684,10 +4684,10 @@
       "level": 3,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 10,
@@ -4724,18 +4724,18 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Neutralizzava solo a parole: Avvelenato restava. Decisione del proprietario: il lancio ne toglie uno, il primo in elenco, nello stesso comando della pill. Nulla con le condizioni spente."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Due veleni: ne resta uno. Annullamento: tornano entrambi e la pill esce. Condizioni spente: nessuno tolto. Il Registro segna la rimozione."
       }
     },
     {
@@ -5514,10 +5514,10 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
@@ -6216,10 +6216,10 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
@@ -6436,18 +6436,18 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: niente reazioni fino alla fine del turno successivo del bersaglio."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Danno e niente reazioni, finiti con il turno del bersaglio."
       }
     },
     {
@@ -6596,18 +6596,18 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "La gittata misurava la creatura a 18 m, che sono dell'oggetto: vola altri 27 m. Ora 45 m."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Creatura a 25 m accettata."
       }
     },
     {
@@ -6616,10 +6616,10 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: le durate seguono la variante."
       },
       "sweep": {
         "runs": 8,
@@ -6696,10 +6696,10 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
@@ -6796,18 +6796,18 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "P2: TS superato senza danno, dal testo."
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: TS al lancio, all'ingresso e a fine turno."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "TS al lancio, a fine turno e all'ingresso."
       }
     },
     {
@@ -6896,18 +6896,18 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: TS Forza a fine turno entro 1,5 m."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "TS Forza a fine turno di chi è adiacente."
       }
     },
     {
@@ -7016,10 +7016,10 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: tiro e danno stanno nella console attacchi."
       },
       "sweep": {
         "runs": 2,
@@ -7196,18 +7196,18 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "D6: chiede l'esito del TS, il lancio rapido lo considera fallito."
+        "state": "corretto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "La pill restava su chi superava il TS. Ora esce, come in Blocca persone."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "TS superato a fine turno: pill fuori, concentrazione finita."
       }
     },
     {
@@ -7216,10 +7216,10 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: si risolve nella console attacchi."
       },
       "sweep": {
         "runs": 2,
@@ -7376,10 +7376,10 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
@@ -7798,18 +7798,18 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Il Fumo chiedeva il TS e accecava come i Fuochi, per 1 turno; i Fuochi finivano al cambio di round. Ora il Fumo non ha TS e dura 1 minuto, i Fuochi fino alla fine del turno successivo del caster."
       },
       "sweep": {
         "runs": 4,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Fumo senza TS, 10 turni. Fuochi: Accecato fino alla fine del turno successivo del caster, poi pill e zona finiscono."
       }
     },
     {
@@ -7898,10 +7898,10 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
@@ -7938,10 +7938,10 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
@@ -8098,18 +8098,18 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: cura all'ingresso e a inizio turno, cresce con lo slot."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "2d6 allo slot 3, a inizio turno e all'ingresso."
       }
     },
     {
@@ -8158,18 +8158,18 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessuno faceva mai il TS: la regola c'era, nessun trigger la chiamava. Ora TS Destrezza a chi entra o attraversa il cerchio. La chiusura resta a mano: pill e zona stanno sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Ingresso e attraversamento con TS; fallito Trattenuto; TS a fine turno lo toglie; la zona resta finché non si chiude."
       }
     },
     {
@@ -8318,18 +8318,18 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Non assordava il caster e senza una creatura selezionata non si lanciava. Ora assorda anche il caster, il terreno difficile vale per gli altri, nessuna selezione."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Senza selezione. Caster Assordato; goblin Assordato e terreno difficile, che escono e tornano col token; Termina toglie tutto."
       }
     },
     {
@@ -8338,10 +8338,10 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "D6: chiede l'esito del TS, il lancio rapido lo considera fallito."
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
@@ -8658,18 +8658,18 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun promemoria del danno a inizio turno. Ora c'è, e lo slot arriva al promemoria: 4d4 allo slot 2."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "4d4 acido a inizio turno allo slot 2, con il campo."
       }
     },
     {
@@ -8758,10 +8758,10 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
@@ -8858,10 +8858,10 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: i dadi crescono con lo slot."
       },
       "sweep": {
         "runs": 2,
@@ -8898,18 +8898,18 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "D6: chiede l'esito del TS, il lancio rapido lo considera fallito."
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: il promemoria a fine turno del caster chiude il duello."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Promemoria a fine turno del caster: Termina toglie pill e condizione."
       }
     },
     {
@@ -8998,10 +8998,10 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
@@ -9098,10 +9098,10 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: TS all'ingresso e a fine turno."
       },
       "sweep": {
         "runs": 2,
@@ -9109,7 +9109,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Dall'avviso scende il contatore delle frecce."
+        "note": "TS a fine turno e all'ingresso."
       }
     },
     {
@@ -9118,18 +9118,18 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "D6: chiede l'esito del TS, il lancio rapido lo considera fallito."
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: TS superato a fine turno chiude l'incantesimo."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "TS superato a fine turno: incantesimo finito."
       }
     },
     {
@@ -9158,18 +9158,18 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Accecato e Assordato al lancio, e toglierli finiva l'incantesimo. Valgono solo usando i sensi della bestia: a mano."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Al lancio solo i sensi della bestia, sul caster."
       }
     },
     {
@@ -9218,18 +9218,18 @@
       "level": 3,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Il freddo a inizio turno era solo un avviso. Ora un promemoria con il campo, come Nube di Pugnali. Limite: Accecato anche a chi tocca solo il bordo."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "2d6 freddo a inizio turno con il campo, poi TS Destrezza a fine turno; Termina toglie la zona."
       }
     },
     {
@@ -9238,10 +9238,10 @@
       "level": 3,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-4",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: i dadi crescono con lo slot, il danno primario resta a mano."
       },
       "sweep": {
         "runs": 2,

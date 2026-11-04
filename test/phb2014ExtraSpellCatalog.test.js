@@ -162,12 +162,8 @@ test("le condizioni standard mancanti sono cablate con la durata corretta", () =
   assert.equal(wave.failed[0].condition, "Prono");
   assert.deepEqual(wave.failed[0].options, { parentEffectId: "" });
 
-  assert.deepEqual(
-    getProposedConditions(spell("Percezione delle Bestie")).map((entry) =>
-      typeof entry === "string" ? entry : entry.name
-    ),
-    ["Accecato", "Assordato"],
-  );
+  // Polish, lot 4: blinded and deafened only while using the beast's senses, not at the cast.
+  assert.deepEqual(getProposedConditions(spell("Percezione delle Bestie")), []);
   assert.deepEqual(
     getProposedConditions(spell("Morte Apparente")).map((entry) =>
       typeof entry === "string" ? entry : entry.name

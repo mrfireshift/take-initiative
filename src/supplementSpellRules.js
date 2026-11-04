@@ -57,6 +57,8 @@ export const SUPPLEMENT_AUTOMATION = Object.freeze({
     conditions: Object.freeze(["Spaventato"]),
     conditionOptions: Object.freeze({
       Spaventato: Object.freeze({
+        // Who shakes it off keeps no pill of the spell, as for Hold Person; the others stay frightened.
+        parentRemoval: "target",
         saveReminder: Object.freeze({
           ability: "wis",
           timing: "turn-end",
@@ -850,12 +852,23 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
   "tasha-miscela-caustica-di-tasha": Object.freeze([Object.freeze({
     id: "caustic-acid",
     kind: "debuff",
-    label: "Acido: 2d4 a inizio turno",
-    detail: "Subisce danni da acido all'inizio del turno; il bersaglio o una creatura adiacente può usare un'azione per rimuoverlo.",
+    label: "Acido a inizio turno",
+    detail: "Subisce danni da acido all'inizio di ogni suo turno: 2d4, più 2d4 per ogni slot oltre il 1°. Con un'azione una creatura toglie l'acido da sé o da un'altra.",
     summaryParts: Object.freeze([
       Object.freeze({ id: "caustic-acid-remove-action", label: "Azione: rimuovi" }),
     ]),
     manualRemoval: true,
+    saveReminder: Object.freeze({
+      timing: "turn-start",
+      mode: "manual-damage",
+      damage: Object.freeze({
+        dice: "2d4",
+        type: "acido",
+        baseSlot: 1,
+        additionalPerSlotAbove: 2,
+      }),
+      label: "Subisce danni da acido all'inizio di ogni proprio turno.",
+    }),
   })]),
 });
 

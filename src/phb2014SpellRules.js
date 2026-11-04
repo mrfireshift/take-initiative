@@ -107,22 +107,12 @@ export const PHB2014_AUTOMATION = Object.freeze({
     conditions: Object.freeze([]),
     targetMode: "self",
   }),
+  // Blinded and deafened only while using the beast's senses, which takes an action and can stop at any time while
+  // the spell goes on: they are not part of the cast (see the detail of beast-senses).
   "phb2014-percezione-delle-bestie": Object.freeze({
     mode: "automatic",
-    conditions: Object.freeze(["Accecato", "Assordato"]),
+    conditions: Object.freeze([]),
     targetMode: "self",
-    conditionOptions: Object.freeze({
-      Accecato: Object.freeze({
-        expiry: concentration,
-        manualRemoval: true,
-        endsParentOnRemoval: true,
-      }),
-      Assordato: Object.freeze({
-        expiry: concentration,
-        manualRemoval: true,
-        endsParentOnRemoval: true,
-      }),
-    }),
   }),
   "phb2014-morte-apparente": Object.freeze({
     mode: "automatic",
@@ -510,7 +500,7 @@ export const PHB2014_EFFECTS = Object.freeze({
     id: "beast-senses",
     kind: "buff",
     label: "Sensi della bestia",
-    detail: "Percepisce tramite i sensi della bestia e beneficia dei suoi sensi speciali.",
+    detail: "Con un'azione percepisce tramite la bestia e ne ottiene i sensi speciali; con un'altra azione torna ai propri sensi. Finché percepisce così è Accecato e Assordato per ciò che lo circonda: le condizioni si aggiungono a mano.",
     summaryParts: Object.freeze([
       Object.freeze({ id: "beast-senses-benefit", label: "Sensi bestia" }),
     ]),

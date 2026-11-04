@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "83ab9b1e9823b643",
+  "fingerprint": "e8ffd682ef5ee4eb",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -24,16 +24,16 @@
     },
     "coverageStatus": {
       "ACCEPTED": 72,
-      "CLOSED": 14,
+      "CLOSED": 15,
       "GAP": 9,
-      "UNREVIEWED": 382
+      "UNREVIEWED": 381
     },
     "targetAutomationLevel": {
       "FULL": 66,
       "MANUAL": 4,
-      "PARTIAL": 13,
+      "PARTIAL": 14,
       "TRACK_ONLY": 3,
-      "UNREVIEWED": 391
+      "UNREVIEWED": 390
     },
     "currentUiExposure": {
       "UNIFIED": 477
@@ -50,7 +50,7 @@
     "highConfidence": 2,
     "reviewCandidates": 0,
     "curatedP1": 7,
-    "manuallyReviewed": 95,
+    "manuallyReviewed": 96,
     "knownIntegrationGaps": 0,
     "knownRawGaps": 9,
     "byPriority": {
@@ -106,7 +106,7 @@
       "CLEANUP": 119,
       "CONCENTRATION": 218,
       "PERSISTENCE": 360,
-      "TURN_TRIGGER": 109
+      "TURN_TRIGGER": 110
     },
     "unifiedCatalogExposed": 477,
     "integrationDisconnected": 0,
@@ -31688,7 +31688,8 @@
         "AREA_GEOMETRY",
         "CAST",
         "CONCENTRATION",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -31702,7 +31703,8 @@
       "coverage": [
         "tracking",
         "aree:instant",
-        "TS"
+        "TS",
+        "turni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -31730,7 +31732,8 @@
           "AREA_GEOMETRY",
           "CAST",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
@@ -31781,7 +31784,8 @@
           "AREA_GEOMETRY",
           "CAST",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -38653,8 +38657,8 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "coverageStatus": "CLOSED",
+      "targetAutomationLevel": "PARTIAL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -38665,15 +38669,14 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "status:Accecato/Assordato"
       ],
       "coverage": [
         "tracking",
-        "TS",
-        "status:Accecato/Assordato"
+        "TS"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -38683,10 +38686,7 @@
           "Accecato",
           "Assordato"
         ],
-        "implemented": [
-          "Accecato",
-          "Assordato"
-        ]
+        "implemented": []
       },
       "runtime": {
         "trackable": true,
@@ -38732,8 +38732,6 @@
             "concentration:break",
             "spell:upsert",
             "condition:add",
-            "condition:add",
-            "condition:add",
             "concentration:register",
             "condition:automate"
           ],
@@ -38767,7 +38765,8 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: Percezione delle Bestie è PARTIAL/CLOSED (polish, lotto 4). Il tracker conserva l'incantesimo in concentrazione e l'etichetta dei sensi. Accecato e Assordato valgono solo mentre il caster percepisce tramite la bestia, cosa che richiede un'azione e si interrompe con un'altra senza finire l'incantesimo: restano condizioni a mano, non un effetto del lancio."
     },
     {
       "id": "insect-plague",
@@ -54324,7 +54323,9 @@
         "areaKinds": [
           "zone"
         ],
-        "triggerIds": [],
+        "triggerIds": [
+          "snare-save-on-entry"
+        ],
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
@@ -56747,7 +56748,6 @@
         "tracking",
         "aree:aura",
         "lifecycle",
-        "TS",
         "status:Assordato",
         "movimento"
       ],
@@ -56769,7 +56769,7 @@
           "aura"
         ],
         "triggerIds": [],
-        "saveAutomation": true,
+        "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [],
@@ -56801,7 +56801,6 @@
           "visibleInputs": [
             "caster",
             "slot",
-            "targets",
             "placement"
           ]
         },

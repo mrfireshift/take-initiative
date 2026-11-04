@@ -1,6 +1,6 @@
 # Polishing degli incantesimi (piano)
 
-Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1, 2, 3 e D6 fatti)**. Questo piano guida la
+Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1, 2, 3, 4 e D6 fatti)**. Questo piano guida la
 revisione di tutti i 477 incantesimi prima di aggiungere nuove capacità. Per ognuno si controlla:
 
 - **A, l'interpretazione:** il motore fa ciò che dice il testo 2014?
@@ -251,6 +251,56 @@ entrambe le corsie e in Catena di fulmini, e sullo strumento vero della mappa co
 del Gelo, il promemoria di Raggio di affaticamento a fine turno del bersaglio, il «Ripeti» a inizio turno del caster, la scadenza di
 Braccia di Hadar, Nube di Pugnali all'ingresso e a inizio turno. **Non provata:** la mano di Stretta della Terra sulla mappa: lo
 strumento del banco non disegna le pedine. L'esecuzione con TS superato e fallito è coperta dai test (`test/spellPolishLot3.test.js`).
+
+#### Lotto 4 (fatto il 4/11): i 40 successivi
+
+Trucchetti, incantesimi di 1° e 2° livello e i primi di 3°. Solo correzioni sui dati e quattro piccoli raccordi, che non toccano turno
+attivo, riconciliazione dei metadati, sincronizzazione dei PF o barre sulla mappa.
+
+| Difetto | Incantesimi | Correzione |
+|---|---|---|
+| Nessuno faceva mai il TS: la regola con Trattenuto c'era, nessun trigger la chiamava | Trabocchetto | TS Destrezza a chi entra nel cerchio o lo attraversa. Il fallimento applica la regola dell'incantesimo, con il suo TS a fine turno |
+| Il Fumo chiedeva il TS e accecava come i Fuochi, per 1 turno | Pirotecnica | Una variante può cambiare la politica della zona (`placementChoices[].zonePolicy`): il Fumo non ha TS e dura 1 minuto |
+| L'accecamento dei Fuochi finiva al cambio di round: con la pill di 1 turno se ne andavano anche le condizioni | Pirotecnica | L'esecutore legge la durata che la variante dichiara (`spellWithChoiceTiming`): pill e condizione arrivano alla fine del turno successivo del caster |
+| Il freddo a inizio turno era solo un avviso, senza campo danni | Fame di Hadar | Promemoria con il campo, come Nube di Pugnali |
+| Non assordava il caster, e senza una creatura selezionata non si lanciava | Vento di Interdizione | Aura che si applica da sola, con il caster. Il terreno difficile ha un `targeting` suo e vale per gli altri |
+| Nessun promemoria del danno a inizio turno | Miscela Caustica di Tasha | Promemoria con il campo. L'etichetta non nomina i dadi, che crescono con lo slot |
+| Lo slot non arrivava ai promemoria sulla corsia delle aree | Miscela Caustica di Tasha | `hasScaledReminder`: il lancio lascia lo slot sulla pill. 4d4 allo slot 2 |
+| Accecato e Assordato al lancio, e toglierli finiva l'incantesimo | Percezione delle Bestie | Valgono solo usando i sensi della bestia, a mano: il dettaglio lo dice. Scheda chiusa nell'audit |
+| La gittata misurava la creatura a 18 m, che sono dell'oggetto | Catapulta | 45 m: i 18 dell'oggetto e i 27 del volo |
+| La pill restava su chi superava il TS | Incuti Paura | `parentRemoval: "target"`, come Blocca persone |
+| La card diceva solo il volo | Forma gassosa | Anche resistenza, vantaggi, divieti e fine a 0 PF |
+| La riga diceva 4d10 a ogni slot, mentre il campo li faceva crescere | Allucinazione mortale | La riga non nomina i dadi |
+
+Due test fissavano il comportamento di prima e sono cambiati: le due condizioni di Percezione delle Bestie al lancio
+(`test/phb2014ExtraSpellCatalog.test.js`) e l'avviso di Fame di Hadar (`test/spellZoneTriggerCore.test.js`).
+
+Dubbio deciso dal proprietario il 4/11: **Protezione dai veleni** neutralizza un veleno già presente, e il lancio toglie Avvelenato, nello
+stesso comando della pill (`buildCastCleanseOperations`, `planCleanseTarget`): un annullamento riporta tutto. Con «Applica condizioni
+dell'incantesimo» spenta non toglie nulla.
+
+Limiti rimasti:
+- **Protezione dai veleni:** con più veleni il testo ne toglie uno che il caster conosce o uno a caso. Il plugin non li distingue: toglie il
+  primo in elenco, e gli altri restano.
+- **Trabocchetto:** quando nessuno resta trattenuto l'incantesimo si termina a mano, e il promemoria lo dice. La pill e la zona stanno
+  sul caster, e togliere la condizione agisce solo sulla creatura che la porta: la chiusura automatica toccherebbe l'esecutore delle
+  rimozioni per tutti gli incantesimi. Con due creature appese si chiude dopo che si è liberata l'ultima.
+- **Fame di Hadar:** il testo acceca solo chi è completamente dentro, il motore anche chi tocca il bordo: la zona ha una sola regola di
+  appartenenza per tutti i suoi effetti, e danni e terreno difficile valgono anche sul bordo.
+- **Fuochi di Pirotecnica:** la zona resta disegnata fino alla fine della durata, senza alcun effetto per chi vi entra.
+
+Rimandati ai loro lotti, trovati provando il Vento: **Campo antimagia e Cerchio di Potere** chiedono una creatura selezionata anche se
+l'area è fissata sul caster, quindi da soli non si lanciano; Cerchio di Potere non conta il caster tra chi ne beneficia.
+
+Classificati, nessun difetto: Ferocia Primordiale e Infestazione si risolvono nella console attacchi.
+
+Provato al banco, con il servizio di sfondo vero: Trabocchetto all'ingresso e all'attraversamento, fino al TS a fine turno; Fame di
+Hadar a inizio e fine turno; Vento con il token che esce e rientra, fino a Termina; Miscela allo slot 2; Pirotecnica con le due varianti,
+turno per turno; Percezione delle Bestie; Catapulta a 25 m; Incuti Paura e Corona di Follia con il TS superato; Scagliare maledizione
+con l'azione persa; Creare Falò, Diavoletto di Polvere, Spirito Guaritore, Cordone di Frecce, Duello Obbligato, Scudiscio Mentale,
+Estasiare; Forma gassosa nelle due viste; Protezione dai veleni con due veleni, con l'annullamento e con le condizioni spente, che il
+Registro segna «− Avvelenato». **Non provata:** la risoluzione preparata di Colpo Intrappolante, perché il banco non apre
+il suo popup: i dadi per slot sono coperti dal calcolo, non dal percorso intero. Test in `test/spellPolishLot4.test.js`.
 
 ### P4, i workflow che la prova non copre ancora (B)
 

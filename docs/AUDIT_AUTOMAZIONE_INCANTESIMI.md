@@ -646,7 +646,7 @@ da questo audit.
 - Opzioni trackable del runtime: **360**; definizioni con tracking persistente verificate dall'audit: **360**; definizioni con regole d'area: **141** (146 regole).
 - Workflow che richiedono smoke test runtime: **415**.
 - Lacune RAW confermate P1: **7**; discrepanze ad alta confidenza P2: **2**.
-- Impronta deterministica: `83ab9b1e9823b643`.
+- Impronta deterministica: `e8ffd682ef5ee4eb`.
 
 ## Decisioni di prodotto chiuse
 
@@ -670,9 +670,9 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | ACCEPTED | 72 |
-| CLOSED | 14 |
+| CLOSED | 15 |
 | GAP | 9 |
-| UNREVIEWED | 382 |
+| UNREVIEWED | 381 |
 
 ### Livello di automazione target (targetAutomationLevel)
 
@@ -680,9 +680,9 @@ da questo audit.
 | --- | ---: |
 | FULL | 66 |
 | MANUAL | 4 |
-| PARTIAL | 13 |
+| PARTIAL | 14 |
 | TRACK_ONLY | 3 |
-| UNREVIEWED | 391 |
+| UNREVIEWED | 390 |
 
 ### Esposizione UI attuale (currentUiExposure)
 
@@ -706,7 +706,7 @@ da questo audit.
 | CLEANUP | 119 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 360 |
-| TURN_TRIGGER | 109 |
+| TURN_TRIGGER | 110 |
 
 ### Stato di integrazione console unificata
 
@@ -1077,7 +1077,7 @@ Nessuna voce.
 | Paura | `fear` | SRD 5.1 / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Pelle coriacea | `barkskin` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Pelle di pietra | `stoneskin` | SRD 5.1 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Percezione delle Bestie | `phb2014-percezione-delle-bestie` | PHB 2014 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Percezione delle Bestie | `phb2014-percezione-delle-bestie` | PHB 2014 / 2 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
 | Piaga degli insetti | `insect-plague` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Pietra Magica | `xanathar-pietra-magica` | Xanathar / 0 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Pirotecnica | `xanathar-pirotecnica` | Xanathar / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

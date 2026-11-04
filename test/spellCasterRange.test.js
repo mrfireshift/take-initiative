@@ -73,7 +73,9 @@ test("ogni incantesimo con bersagli e una gittata misurabile la controlla", () =
     const spatial = targeting.spatialRules?.mode;
     if (spatial === "primary-and-secondary-range") continue;
     if (spatial === "caster-range") {
-      if (meters && targeting.spatialRules.maxMeters !== meters) disagreeing.push(`${id}: ${targeting.spatialRules.maxMeters} / ${spell.range}`);
+      // Catapulta: the 18 m are for the object, which flies 27 m more; the target is the creature it strikes.
+      const expected = id === "xanathar-catapulta" ? 45 : meters;
+      if (meters && targeting.spatialRules.maxMeters !== expected) disagreeing.push(`${id}: ${targeting.spatialRules.maxMeters} / ${spell.range}`);
       continue;
     }
     if (meters && targeting.casterRange?.maxMeters !== meters) unmeasured.push(id);

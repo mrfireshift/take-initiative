@@ -511,6 +511,7 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
     outcomeLabels: { failed: "Colpito", immune: "Mancato" },
   }),
   // A save with damage on one creature (lotto L2, 2014 texts); the damage by outcome is in spellCastResolutionRules.js.
+  // The 18 m are for the object, which then flies up to 27 m: the creature it strikes can be up to 45 m from the caster.
   "xanathar-catapulta": workflowRule({
     spellId: "xanathar-catapulta",
     ability: "dex",
@@ -519,7 +520,7 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
     baseSlot: 1,
     spatial: {
       mode: "caster-range",
-      maxMeters: 18,
+      maxMeters: 45,
     },
   }),
   "hellish-rebuke": workflowRule({

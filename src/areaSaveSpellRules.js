@@ -796,7 +796,7 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       manualRemoval: true,
       endsParentOnRemoval: true,
       effectId: "snare-trapped",
-      effectDetail: "La creatura trattenuta può usare un'azione per effettuare una prova di Intelligenza (Arcano) contro la CD dell'incantesimo e liberarsi.",
+      effectDetail: "Appesa a testa in giù. La creatura, o chi può raggiungerla, può usare un'azione per una prova di Intelligenza (Arcano) contro la CD dell'incantesimo: se riesce, non è più trattenuta. Quando nessuno resta trattenuto, l'incantesimo termina: va chiuso a mano.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "snare-escape-action", label: "Azione: prova Arcano" }),
       ]),
@@ -804,7 +804,7 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
         ability: "dex",
         timing: "turn-end",
         dcSource: "source-spell",
-        label: "Se supera il TS, termina Trattenuto su di sé.",
+        label: "Se supera il TS, termina Trattenuto su di sé. Se nessuno resta trattenuto, termina l'incantesimo a mano.",
       }),
     }),
   ]),
