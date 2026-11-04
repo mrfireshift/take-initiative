@@ -646,7 +646,7 @@ da questo audit.
 - Opzioni trackable del runtime: **360**; definizioni con tracking persistente verificate dall'audit: **360**; definizioni con regole d'area: **140** (145 regole).
 - Workflow che richiedono smoke test runtime: **415**.
 - Lacune RAW confermate P1: **7**; discrepanze ad alta confidenza P2: **2**.
-- Impronta deterministica: `74677bc6bbca6fa9`.
+- Impronta deterministica: `ef8933c19fc575d0`.
 
 ## Decisioni di prodotto chiuse
 
@@ -660,8 +660,8 @@ da questo audit.
 | --- | ---: |
 | FULL | 66 |
 | MANUAL | 58 |
-| PARTIAL | 242 |
-| TRACK_ONLY | 111 |
+| PARTIAL | 243 |
+| TRACK_ONLY | 110 |
 
 ### Stato di copertura (coverageStatus)
 
@@ -702,7 +702,7 @@ da questo audit.
 | --- | ---: |
 | ACTIVE_ACTION | 51 |
 | AREA_GEOMETRY | 140 |
-| CAST | 276 |
+| CAST | 277 |
 | CLEANUP | 129 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 360 |
@@ -1235,7 +1235,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Visione del vero | `true-seeing` | SRD 5.1 / 6 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Vita falsata | `false-life` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Volare | `fly` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Vuoto mentale | `mind-blank` | SRD 5.1 / 8 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Vuoto mentale | `mind-blank` | SRD 5.1 / 8 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Zona di verità | `zone-of-truth` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 
 ## Dati macchina

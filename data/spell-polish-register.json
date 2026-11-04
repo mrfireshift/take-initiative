@@ -173,18 +173,18 @@
       "level": 3,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco. Il limite era un bersaglio: ora uno e due per slot sopra il 3°."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Slot 3: 0/1. Slot 5: 0/5."
       }
     },
     {
@@ -376,18 +376,18 @@
       "level": 9,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Senza limite: ora il caster e otto creature."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "0/9 bersagli."
       }
     },
     {
@@ -396,10 +396,10 @@
       "level": 2,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -856,10 +856,10 @@
       "level": 8,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -956,10 +956,10 @@
       "level": 5,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -1276,18 +1276,18 @@
       "level": 8,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: pill sul caster, concentrazione, 8 ore."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Pill sul caster."
       }
     },
     {
@@ -1316,10 +1316,10 @@
       "level": 3,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -1336,10 +1336,10 @@
       "level": 1,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -1356,18 +1356,18 @@
       "level": 6,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco. Il limite era un bersaglio: ora tre e uno per slot sopra il 6°."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Slot 6: 0/3. Slot 9: 0/6."
       }
     },
     {
@@ -1538,18 +1538,18 @@
       "level": 8,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura, che il testo non ha. Ora la pill sta sul caster."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, 1 ora."
       }
     },
     {
@@ -1741,10 +1741,10 @@
       "level": 4,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -1881,10 +1881,10 @@
       "level": 0,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -2081,10 +2081,10 @@
       "level": 4,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -2221,10 +2221,10 @@
       "level": 1,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -2241,10 +2241,10 @@
       "level": 2,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -2281,10 +2281,10 @@
       "level": 2,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -2661,18 +2661,18 @@
       "level": 9,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura, che il testo non ha. Ora la pill sta sul caster. L'evocazione di una creatura resta al tavolo."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, concentrazione."
       }
     },
     {
@@ -2741,18 +2741,18 @@
       "level": 8,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Nessun difetto."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Pill sul caster."
       }
     },
     {
@@ -3321,10 +3321,10 @@
       "level": 1,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -3521,10 +3521,10 @@
       "level": 2,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -3541,10 +3541,10 @@
       "level": 5,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -3641,10 +3641,10 @@
       "level": 2,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -4021,10 +4021,10 @@
       "level": 0,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -4081,18 +4081,18 @@
       "level": 8,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Non dava nulla. Ora immunità vera ai danni psichici e ad Affascinato; il resto nel dettaglio."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Sera: immunità ai danni psichici fra le difese; Blocca persone la paralizza comunque."
       }
     },
     {
@@ -4364,10 +4364,10 @@
       "level": 6,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -4404,18 +4404,18 @@
       "level": 7,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco. Il limite era un bersaglio: ora il caster e otto creature."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "0/9 bersagli, TS mostrato."
       }
     },
     {
@@ -4744,10 +4744,10 @@
       "level": 1,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -4868,10 +4868,10 @@
       "level": 3,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco. Non termina Scagliare maledizione e Sortilegio sul bersaglio: da decidere."
       },
       "sweep": {
         "runs": 2,
@@ -5092,10 +5092,10 @@
       "level": 4,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -5614,10 +5614,10 @@
       "level": 4,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -5794,18 +5794,18 @@
       "level": 7,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco. Senza limite: ora il caster e otto creature."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "0/9 bersagli."
       }
     },
     {
@@ -6356,10 +6356,10 @@
       "level": 9,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -6376,18 +6376,18 @@
       "level": 6,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco. Il limite era un bersaglio: ora il caster e cinque creature."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "0/6 bersagli."
       }
     },
     {
@@ -6736,10 +6736,10 @@
       "level": 0,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "P2: solo registrazione, l'effetto è ambientale."
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -6816,10 +6816,10 @@
       "level": 6,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco. I 2d4 al caster restano al tavolo."
       },
       "sweep": {
         "runs": 2,
@@ -6916,18 +6916,18 @@
       "level": 6,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco. Il limite era un bersaglio: ora cinque creature, e il pannello mostra il TS Saggezza di chi non è consenziente."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "0/5 bersagli, TS mostrato, lancio registrato."
       }
     },
     {
@@ -7056,10 +7056,10 @@
       "level": 0,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco. Mostra il TS Forza."
       },
       "sweep": {
         "runs": 2,
@@ -7076,18 +7076,18 @@
       "level": 8,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Non si lanciava senza spuntare una creatura, che il testo non ha. Ora la pill sta sul caster. La pill dura i suoi 7 giorni."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Lanciato senza bersagli, 7 giorni."
       }
     },
     {
@@ -7416,18 +7416,18 @@
       "level": 9,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: dieci creature, TS solo se non è consenziente."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Dieci creature al massimo, TS mostrato."
       }
     },
     {
@@ -7456,10 +7456,10 @@
       "level": 0,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "P2: solo registrazione, l'effetto è ambientale."
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -7476,10 +7476,10 @@
       "level": 0,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "P2: solo registrazione, l'effetto è ambientale."
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -8136,18 +8136,18 @@
       "level": 7,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Nota su ciò che resta al tavolo: il TS di chi entra, il d4, le cure in più."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Zona di 36 m, 24 ore, nota nel pannello; Termina."
       }
     },
     {
@@ -8236,10 +8236,10 @@
       "level": 4,
       "group": "registrazione",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Solo registrato, nessun blocco."
       },
       "sweep": {
         "runs": 2,
@@ -8696,18 +8696,18 @@
       "level": 7,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Il limite era un bersaglio: ora il caster e otto creature, con Privo di sensi e Prono."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Tre creature, 6 ore, Privo di sensi e Prono."
       }
     },
     {
@@ -9516,18 +9516,18 @@
       "level": 8,
       "group": "tracciato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-11",
+        "date": "2026-11-04",
+        "note": "Nessun difetto: una creatura, a qualsiasi distanza, 24 ore."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Chiede una creatura."
       }
     },
     {

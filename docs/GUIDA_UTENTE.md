@@ -173,7 +173,7 @@ quel personaggio.
   matrimonio di Cerimonia dura 7 giorni.
 - Protezione dai veleni, Protezione dall'energia, Invulnerabilità, Aura di
   Purezza, Aura di Vita, Fortezza della Mente, Morte Apparente, Investitura del
-  Ghiaccio, Investitura della Fiamma e Abito Ultraterreno danno difese vere
+  Ghiaccio, Investitura della Fiamma, Abito Ultraterreno e Vuoto mentale danno difese vere
   finché durano: la console attacchi e la console boss dimezzano o azzerano il
   danno di quel tipo, e il GM può ignorare il chip della difesa per un singolo
   attacco. Nei danni degli incantesimi ad area il dimezzamento resta al GM. Le

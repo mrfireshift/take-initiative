@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "74677bc6bbca6fa9",
+  "fingerprint": "ef8933c19fc575d0",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -19,8 +19,8 @@
     "currentAutomationLevel": {
       "FULL": 66,
       "MANUAL": 58,
-      "PARTIAL": 242,
-      "TRACK_ONLY": 111
+      "PARTIAL": 243,
+      "TRACK_ONLY": 110
     },
     "coverageStatus": {
       "ACCEPTED": 72,
@@ -105,7 +105,7 @@
     "smokeCategories": {
       "ACTIVE_ACTION": 51,
       "AREA_GEOMETRY": 140,
-      "CAST": 276,
+      "CAST": 277,
       "CLEANUP": 129,
       "CONCENTRATION": 218,
       "PERSISTENCE": 360,
@@ -20721,12 +20721,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -39328,12 +39327,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -48262,12 +48260,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -57517,12 +57514,13 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CAST",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -57532,14 +57530,17 @@
       "scope": "combattimento",
       "signals": [],
       "coverage": [
-        "tracking"
+        "tracking",
+        "status:Affascinato"
       ],
       "assessment": "coperto",
       "priority": "—",
       "gaps": [],
       "conditions": {
         "raw": [],
-        "implemented": []
+        "implemented": [
+          "Affascinato"
+        ]
       },
       "runtime": {
         "trackable": true,
@@ -57548,11 +57549,12 @@
         "triggerIds": [],
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
-        "effectCount": 0,
+        "effectCount": 1,
         "activeActionIds": [],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CAST",
           "PERSISTENCE"
         ]
       },
@@ -57573,16 +57575,19 @@
           "visibleInputs": [
             "caster",
             "slot",
-            "targets"
+            "targets",
+            "automation"
           ]
         },
         "cast": {
           "adapter": "spell-lifecycle",
           "valid": true,
           "operationTypes": [
-            "spell:upsert"
+            "spell:upsert",
+            "condition:add",
+            "condition:automate"
           ],
-          "mutationMode": "tracking",
+          "mutationMode": "mechanical",
           "errors": []
         },
         "persistence": {
@@ -57599,6 +57604,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CAST",
           "PERSISTENCE"
         ]
       },

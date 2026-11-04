@@ -580,6 +580,7 @@ const AREA_OVERRIDES = Object.freeze({
     sizeMeters: 36,
     origin: "point",
     rangeMeters: 36,
+    note: "Il TS Carisma di chi tenta di entrare, il d4 da sottrarre e i PF in più alle cure restano al tavolo: dipendono dai tipi di creature scelti.",
   },
   "xanathar-onda-di-marea": {
     shape: "line",

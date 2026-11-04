@@ -625,6 +625,7 @@ const SPELL_CAST_SAVE_ABILITIES = Object.freeze(Object.fromEntries(Object.entrie
     "true-polymorph",
     "vicious-mockery",
     "weird",
+    "xanathar-disperdere",
     "xanathar-drago-illusorio",
     "xanathar-metamorfosi-di-massa",
     "xanathar-rintocco-dei-morti",
@@ -645,6 +646,7 @@ const SPELL_CAST_SAVE_ONLY_IF_UNWILLING = new Set([
   "resilient-sphere",
   "seeming",
   "true-polymorph",
+  "xanathar-disperdere",
   "xanathar-metamorfosi-di-massa",
 ]);
 

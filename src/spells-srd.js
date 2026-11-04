@@ -610,6 +610,10 @@ const TARGET_MODE_OVERRIDES = Object.freeze({
   "programmed-illusion": "self",
   "project-image": "self",
   "transport-via-plants": "self",
+  // Lotto P3-11, the same: a door, a gate, a fortress.
+  "demiplane": "self",
+  "gate": "self",
+  "xanathar-fortezza-possente": "self",
   // Xanathar: the creature touched breathes the cone later, with its action; at the cast there is no cone to place.
   "xanathar-soffio-del-drago": "selected",
   "spiritual-weapon": "self",
@@ -693,9 +697,20 @@ const TARGETING_OVERRIDES = Object.freeze({
     baseSlot: 7,
   }),
   "animal-shapes": Object.freeze({ unbounded: true }),
-  "teleport": Object.freeze({ resolver: "passenger-capacity" }),
+  // 2014: the caster and up to eight willing creatures.
+  "teleport": Object.freeze({ maximum: 9 }),
   "dimension-door": Object.freeze({ resolver: "passenger-capacity" }),
-  "astral-projection": Object.freeze({ resolver: "passenger-capacity" }),
+  "astral-projection": Object.freeze({ maximum: 9 }),
+  "plane-shift": Object.freeze({ maximum: 9 }),
+  "tasha-sogno-del-velo-celeste": Object.freeze({ maximum: 9 }),
+  // 2014: the caster and up to five willing creatures.
+  "word-of-recall": Object.freeze({ maximum: 6 }),
+  // Xanathar: up to five creatures.
+  "xanathar-disperdere": Object.freeze({ maximum: 5 }),
+  // 2014: one corpse or pile of bones, two more for each slot level above the 3rd.
+  "animate-dead": Object.freeze({ baseMaximum: 1, additionalPerSlotAbove: 2, baseSlot: 3 }),
+  // 2014: three corpses, and one more for each slot level above the 6th.
+  "create-undead": Object.freeze({ baseMaximum: 3, additionalPerSlotAbove: 1, baseSlot: 6 }),
   // 2014: the caster and up to ten willing creatures.
   "wind-walk": Object.freeze({ maximum: 11 }),
   "mass-cure-wounds": Object.freeze({ maximum: 6 }),
@@ -1571,6 +1586,27 @@ const SPELL_EFFECTS = Object.freeze({
       summaryParts: Object.freeze([
         Object.freeze({ id: "expeditious-retreat-bonus-dash", label: "Scatto: az. bonus" }),
       ]),
+    }),
+  ]),
+  // 2014: immune to psychic damage (a real defense, for the consoles) and to being charmed. The rest stays at the table.
+  "mind-blank": Object.freeze([
+    Object.freeze({
+      id: "mind-blank-immunities",
+      kind: "buff",
+      label: "Imm. psichici · Affascinato",
+      detail: "Immune ai danni psichici e alla condizione affascinato. Nessun effetto ne percepisce le emozioni o ne legge i pensieri, e gli incantesimi di divinazione non lo raggiungono.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "damage-defense-immunity-psychic", label: "Imm. psichici" }),
+        Object.freeze({ id: "mind-blank-charmed-immunity", label: "Imm. Affascinato" }),
+        Object.freeze({ id: "mind-blank-no-divination", label: "No divinazione" }),
+      ]),
+      mechanics: Object.freeze({
+        damageDefenses: Object.freeze({ immunities: Object.freeze(["psychic"]) }),
+        conditionImmunities: Object.freeze({
+          names: Object.freeze(["Affascinato"]),
+          label: "Vuoto mentale: immunità",
+        }),
+      }),
     }),
   ]),
   "foresight": Object.freeze([

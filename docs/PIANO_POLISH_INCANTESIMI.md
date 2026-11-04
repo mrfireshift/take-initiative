@@ -1,6 +1,6 @@
 # Polishing degli incantesimi (piano)
 
-Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 e D6 fatti)**. Questo piano guida la
+Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 fatto (lotti da 1 a 11 e D6: 477 incantesimi letti su 477, 167 corretti); restano P4 e P5**. Questo piano guida la
 revisione di tutti i 477 incantesimi prima di aggiungere nuove capacità. Per ognuno si controlla:
 
 - **A, l'interpretazione:** il motore fa ciò che dice il testo 2014?
@@ -513,6 +513,32 @@ Restano al tavolo, senza contraddizioni: il TS Intelligenza e i 6d6 di Contattar
 
 Provato al banco: i 21 senza bersaglio; Modificare memoria con i due esiti e con il danno; Sembrare su quattro creature; Miraggio arcano con Termina; Forma eterea allo slot 7, Sogno, Celare, Legame telepatico, Visione del vero. Test in
 `test/spellPolishLot10.test.js`.
+
+#### Lotto 11 (fatto il 4/11): gli ultimi 45
+
+Gli 11 tracciati dei livelli più alti e i 34 solo registrati. I registrati non si bloccano mai: il pulsante è **Registra lancio** e i bersagli servono solo al registro. Per
+loro si guarda che il limite e il TS mostrati non contraddicano il testo.
+
+| Difetto | Incantesimi | Correzione |
+|---|---|---|
+| Non si lanciavano senza spuntare una creatura, che il testo non ha | Portale, Semipiano, Fortezza Possente | Il lancio non chiede bersagli, la pill sta sul caster |
+| Una difesa scritta nel testo, e nessun effetto | Vuoto mentale | Immunità vera ai danni psichici e ad Affascinato (`damageDefenses`, `conditionImmunities`), come le difese decise nel lotto 5. Il resto nel dettaglio |
+| Il limite di bersagli non era quello del testo | Proiezione astrale, Teletrasporto (senza limite), Spostamento planare, Sogno del Velo Celeste, Parola del ritiro, Disperdere, Animare morti, Creare non morti (uno) | Nove con il caster; sei con il caster; cinque; uno e due per slot; tre e uno per slot |
+| Il TS non si vedeva | Disperdere | TS Saggezza, se non è consenziente |
+| La sagoma non diceva che cosa resta al tavolo | Tempio degli Dèi | Una nota: il TS di chi entra, il d4 da sottrarre, i PF in più alle cure |
+
+Dubbio per il proprietario: **Rimuovi maledizione** è solo registrato, ma il testo termina tutte le maledizioni, e Scagliare maledizione e Sortilegio dicono di finire con
+questo incantesimo. Il motore sa già terminarli (Resurrezione pura, `stabilizeSpellRules.js`). Sarebbe la stessa cosa sul bersaglio toccato: è una capacità nuova, non aggiunta.
+
+Errore mio: la prima nota del Tempio degli Dèi non compariva. Nel catalogo c'era già la voce, e un oggetto con due chiavi uguali tiene l'ultima senza dire nulla. L'ha
+trovato il banco; ora un test vieta le chiavi doppie.
+
+Provato al banco: i blocchi di tutti i 45; Portale, Semipiano e Fortezza senza bersagli; Vuoto mentale con le difese di Sera e un Blocca persone che la paralizza comunque, e con Charme su
+persone che non scrive Affascinato; i nuovi limiti ai loro slot; Disperdere registrato con il TS; Sogno del Velo Celeste su tre creature; Tempio degli Dèi con Termina. Test in
+`test/spellPolishLot11.test.js`.
+
+**Esito di P3.** I 477 incantesimi sono letti: 167 corretti, 310 senza difetti. Il difetto più diffuso erano i bersagli chiesti a incantesimi che non ne hanno (59 casi), poi le
+scadenze sbagliate, le difese scritte solo come etichette, le note mai arrivate al pannello e le durate per slot. Le capacità ancora da costruire sono nel piano di automazione.
 
 ### P4, i workflow che la prova non copre ancora (B)
 
