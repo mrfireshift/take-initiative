@@ -337,15 +337,17 @@ export function bootBossActions(documentRef=document, overrides={}) {
     return badge;
   }
   // Actor Profile defenses relevant to this action; a click ignores one for this resolution only (explicit, locks the draft).
-  // counts: a single target's, said on the chip, whose line has room; a group's row is narrow and says them on a line of its own.
-  function defenseChips(id,onChange,counts=null) {
+  // counts: what each one did to the damage (defenseCountsFor), said on its chip.
+  function defenseChips(id,onChange,counts=[]) {
     const effective=markReadyFor(id)?bossMarkedDefenses(defensesOf(id)):defensesOf(id);
     const rows=markNonmagicalDefenses(relevantDamageDefenses(effective,bossActionDamageComponents(draft.action),ignoredFor(id)),targetById(id)?.metadata?.[META_KEY]?.initiativeCard);
     if(evasionFor(id))rows.push({type:EVASION_DEFENSE,defense:"evasion",ignored:ignoredFor(id).includes(EVASION_DEFENSE)});
     if(!rows.length) return null;
     const wrap=node("span","","defense-chips");wrap.dataset.defensesFor=id;
     for(const row of rows) {
-      const chip=button(row.type===EVASION_DEFENSE?"Elusione":counts?damageDefenseCount({...row,...counts.find(entry=>entry.type===row.type)}):damageDefenseTag({...row,nonmagical:""}),"defense-chip");chip.dataset.defenseType=row.type;
+      const tag=row.type===EVASION_DEFENSE?"Elusione":damageDefenseTag(row);
+      const count=counts.find(entry=>entry.type===row.type);
+      const chip=button(count?damageDefenseCount({...row,...count}):tag,"defense-chip");chip.dataset.defenseType=row.type;chip.dataset.defenseTag=tag;
       chip.setAttribute("aria-pressed",String(!row.ignored));chip.disabled=busy;
       chip.title=row.ignored?"Ignorata in questa risoluzione: clic per riapplicarla":row.nonmagical?`Vale solo contro danni ${row.nonmagical}: clic per ignorarla in questa risoluzione`:"Dal profilo attore: clic per ignorarla in questa risoluzione";
       chip.addEventListener("click",event=>{
@@ -1415,13 +1417,13 @@ export function bootBossActions(documentRef=document, overrides={}) {
       const item=targetById(id),outcome=draft.outcomes[id] || "";
       const row=node("div","","group-row");row.dataset.targetId=id;
       const name=node("span","","group-name");const title=node("span","","group-title");
-      // First line: the name alone (it must stay readable); HP and chips share the second line.
+      // The name alone on its first line (it must stay readable), the HP on the second.
       const label=node("span",item?.name || id,"group-label");label.title=item?.name || id;title.appendChild(label);
       name.appendChild(title);
       const details=node("span","","group-details");details.appendChild(node("small",item?hpText(item):"non nel tracker","group-hp"));
       name.appendChild(details);
-      // Second line: defenses and immunity, so the name and HP keep the first line.
-      let chips=item?defenseChips(id,()=>{renderGroupTargets();renderGroupState();}):null;
+      // Defenses and immunity: a line of their own across the row (CSS), with what each one did to the damage.
+      let chips=item?defenseChips(id,()=>{renderGroupTargets();renderGroupState();},outcome?defenseCountsFor(id,outcome):[]):null;
       const mark=item?markBadge(id):null;
       if(mark){if(!chips){chips=node("span","","defense-chips");chips.dataset.defensesFor=id;}chips.appendChild(mark);}
       if(multiArea()?.innerRadius) {
@@ -1443,13 +1445,17 @@ export function bootBossActions(documentRef=document, overrides={}) {
         const badge=node("small","Immune","immune-badge");badge.title=`Già immune a ${draft.action.execution.onPassed.immunity.condition} di ${draft.action.name}: subisce i danni, non la condizione.`;
         chips.appendChild(badge);
       }
-      if(chips)details.appendChild(chips);
       row.appendChild(name);
+      if(chips)row.appendChild(chips);
       const damageCell=node("span","","group-damage");
-      // Under the row, once the damage is known: what its defenses did to it.
-      const countLine=node("span","","group-count");
-      const renderCount=()=>{const text=outcome?defenseCountsFor(id,outcome).filter(entry=>!entry.ignored).map(entry=>damageDefenseCount(entry)).join(" · "):"";countLine.textContent=text;countLine.hidden=!text;};
-      renderCount();
+      // Typing on the row redraws only its total and these counts: a rebuilt row would lose the caret.
+      const renderCounts=()=>{
+        const counts=defenseCountsFor(id,outcome);
+        for(const chip of chips?.querySelectorAll?.("[data-defense-type]") || []) {
+          const count=counts.find(entry=>entry.type===chip.dataset.defenseType);
+          chip.textContent=count?damageDefenseCount(count):chip.dataset.defenseTag;
+        }
+      };
       if(attackGroup() && outcome==="hit") {
         // One damage roll per hit, typed on the row; only the row total is redrawn while typing.
         const typed=node("span","","row-damage");typed.dataset.damageFor=id;
@@ -1460,7 +1466,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
           input.title=`${capitalize(bossDamageTypeLabel(component.type))} ${component.formula}`;input.setAttribute("aria-label",`Danni ${bossDamageTypeLabel(component.type)} di ${item?.name || id}`);
           input.addEventListener("input",()=>{
             draft.targetAmounts={...draft.targetAmounts,[id]:{...(draft.targetAmounts?.[id] || {}),[component.id]:input.value}};
-            lockDraft();damageCell.textContent="−"+groupRowDamage("hit",id);renderCount();renderGroupState();persistDraft();
+            lockDraft();damageCell.textContent="−"+groupRowDamage("hit",id);renderCounts();renderGroupState();persistDraft();
           });
           typed.appendChild(input);
         }
@@ -1486,7 +1492,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       row.appendChild(tag);
       const remove=button("×","icon-button group-remove");remove.title=`Togli ${item?.name || id}`;remove.setAttribute("aria-label",remove.title);remove.disabled=busy;
       remove.addEventListener("click",()=>{if(!busy)setGroup(draft.targetIds.filter(entry=>entry!==id));});
-      row.appendChild(remove);row.appendChild(countLine);list.appendChild(row);
+      row.appendChild(remove);list.appendChild(row);
     }
     if(offer) {
       clear(offer);offer.hidden=!draft.groupSuggestion;
