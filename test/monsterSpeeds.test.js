@@ -113,7 +113,7 @@ const moving = (extra = {}) => buildSpeedCheckSnapshot({
   ...extra,
 });
 
-test("ai giocatori: del mostro nascosto solo il turno, del visibile la modalità in uso, del PG tutto", () => {
+test("ai giocatori: di chi è nascosto a loro solo il turno, dell'alleato la modalità in uso, del PG tutto", () => {
   const hidden = speedSnapshotForPlayers(moving({ hiddenFromPlayers: true, nonPlayerCreature: true }));
   assert.deepEqual([hidden.turnKey, hidden.disabled, hidden.available, hidden.name, hidden.itemId, hidden.movementModes, hidden.totalMeters, hidden.speedMeters],
     ["1:0:a", true, false, "", "", [], 0, 0]);

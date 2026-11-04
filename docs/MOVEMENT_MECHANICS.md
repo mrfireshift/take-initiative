@@ -180,11 +180,11 @@ Il GM elabora il movimento e trasmette lo stato sul canale `speed-state`.
 | Token di turno | Pagine del GM | Altri client | Avvisi di movimento |
 |---|---|---|---|
 | PG visibile | tutto | tutto (`ALL`, un solo messaggio) | `ALL` |
-| Altra creatura visibile | tutto (`LOCAL`) | il movimento, con la sola modalità in uso (`REMOTE`) | `LOCAL` |
-| Token nascosto, anche un PG | tutto (`LOCAL`) | solo il turno e `disabled` (`REMOTE`) | `LOCAL` |
+| Alleato visibile | tutto (`LOCAL`) | il movimento, con la sola modalità in uso (`REMOTE`) | `LOCAL` |
+| Nemico, neutrale o token nascosto, anche un PG | tutto (`LOCAL`) | solo il turno e `disabled` (`REMOTE`) | `LOCAL` |
 
-Se il GM nasconde o mostra il token, o ne cambia la fazione, durante il turno, lo
-stato viene ritrasmesso subito. Il filtro riguarda ciò che il plugin mostra: come
+Un token senza fazione conta come neutrale. Se il GM nasconde o mostra il token, o ne
+cambia la fazione, durante il turno, lo stato viene ritrasmesso subito. Il filtro riguarda ciò che il plugin mostra: come
 per il resto, i metadata di un token nascosto arrivano comunque ai client.
 
 ## Quota e volo

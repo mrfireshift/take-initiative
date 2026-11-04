@@ -454,8 +454,38 @@ function itemEdit(edit) {
 }
 const nothingToShow = (snapshot) => [snapshot.disabled, snapshot.available, snapshot.name, snapshot.itemId, snapshot.movementModes, snapshot.totalMeters];
 
-test("a hidden monster's movement stays with the GM: the others hear only that there is nothing to show", async () => {
-  const hidden = creature({ speeds: { fly: 24 } });
+test("the players see nothing of an enemy's or a neutral's movement, visible as it is; the GM sees all of it", async () => {
+  for (const attitude of ["enemy", "neutral", ""]) {
+    const item = creature({ speeds: { fly: 24 } });
+    if (attitude) item.metadata[META_KEY].attitude = attitude;
+    else delete item.metadata[META_KEY].attitude;
+    const api = await runtime({ items: [item, token("ally")] });
+    await ready();
+    await move(api, 0, 1);
+    assert.equal(env.snapshot.totalMeters, 1.5, "the GM's own tracker");
+    assert.deepEqual(stateMessages("LOCAL").at(-1).movementModes.map(({ id }) => id), ["walk", "fly"], "the GM's compact tab");
+    assert.equal(stateMessages("ALL").filter((snapshot) => snapshot.name).length, 0, attitude);
+    const told = stateMessages("REMOTE");
+    assert.ok(told.length, attitude);
+    for (const snapshot of told) assert.deepEqual(nothingToShow(snapshot), [true, false, "", "", [], 0], attitude);
+  }
+});
+
+test("a faction edited during the turn: the table follows", async () => {
+  await runtime({ items: [creature(), token("ally")] });
+  await ready();
+  assert.deepEqual(nothingToShow(stateMessages("REMOTE").at(-1)), [true, false, "", "", [], 0]);
+  env.broadcasts.length = 0;
+  await metadataEdit((meta) => { meta.attitude = "ally"; });
+  assert.equal(stateMessages("ALL").at(-1).name, "hero");
+  env.broadcasts.length = 0;
+  await metadataEdit((meta) => { meta.attitude = "neutral"; });
+  assert.deepEqual(nothingToShow(stateMessages("REMOTE").at(-1)), [true, false, "", "", [], 0]);
+  assert.equal(stateMessages("LOCAL").at(-1).name, "hero");
+});
+
+test("a token hidden by the GM stays with the GM even when it is an ally: the others hear only that there is nothing to show", async () => {
+  const hidden = creature({ attitude: "ally", speeds: { fly: 24 } });
   hidden.visible = false;
   const api = await runtime({ items: [hidden, token("ally")] });
   api.mountSpeedCheckStateBroadcast();
@@ -475,7 +505,7 @@ test("a hidden monster's movement stays with the GM: the others hear only that t
 });
 
 test("shown or hidden by the GM during its turn, the table follows the token", async () => {
-  await runtime({ items: [creature(), token("ally")] });
+  await runtime({ items: [creature({ attitude: "ally" }), token("ally")] });
   await ready();
   assert.equal(stateMessages("ALL").at(-1).name, "hero");
   env.broadcasts.length = 0;
@@ -489,8 +519,8 @@ test("shown or hidden by the GM during its turn, the table follows the token", a
   assert.equal(stateMessages("REMOTE").length, 0);
 });
 
-test("a visible monster shows its movement and the mode it uses, not the other modes of its stat block", async () => {
-  const api = await runtime({ items: [creature({ speeds: { fly: 24, burrow: 6 } }), token("ally")] });
+test("a visible ally shows its movement and the mode it uses, not the other modes of its stat block", async () => {
+  const api = await runtime({ items: [creature({ attitude: "ally", speeds: { fly: 24, burrow: 6 } }), token("ally")] });
   await ready();
   assert.deepEqual(stateMessages("LOCAL").at(-1).movementModes.map(({ id }) => id), ["walk", "fly", "burrow"], "the GM chooses among them");
   const told = stateMessages("REMOTE").at(-1);

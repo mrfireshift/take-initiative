@@ -114,9 +114,9 @@ export function buildSpeedCheckSnapshot(state, enabled = true, movementLimited =
   };
 }
 
-// What the other clients receive of a snapshot (velocità dei mostri, D2). A hidden token: only that its turn has nothing
-// to show. A non-PC: its movement in the mode it is using, not the other modes of its stat block. Otherwise all of it,
-// the same object: the caller then has one message to send.
+// What the other clients receive of a snapshot (velocità dei mostri, D2). A token hidden from them (hidden by the GM, an
+// enemy, a neutral): only that its turn has nothing to show. An ally: its movement in the mode it is using, not the other
+// modes of its stat block. A PC: all of it, the same object, so the caller has one message to send.
 export function speedSnapshotForPlayers(snapshot) {
   if (snapshot?.hiddenFromPlayers === true) {
     return buildSpeedCheckSnapshot({ turnKey: snapshot.turnKey, disabled: true }, snapshot.enabled, false);
@@ -127,7 +127,7 @@ export function speedSnapshotForPlayers(snapshot) {
   return snapshot;
 }
 
-// Who hears of a movement warning (D2): the table for a PC's, only the GM for a non-PC's or a hidden token's.
+// Who hears of a movement warning (D2): the table for a visible PC's, only the GM for anyone else's.
 export function speedWarningDestination(state) {
   return state?.nonPlayerCreature === true || state?.hiddenFromPlayers === true ? "LOCAL" : "ALL";
 }

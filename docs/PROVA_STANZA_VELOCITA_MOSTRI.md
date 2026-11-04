@@ -47,11 +47,13 @@ Il banco non può provare due cose, che qui contano più delle altre:
 
 Tieni le due finestre affiancate.
 
-- [ ] **Drago visibile, tavolo:** riquadro con nome e movimento, senza selettore. Nella vista estesa il dettaglio non elenca le altre modalità.
-- [ ] **Drago oltre la velocità:** con Limita movimento spento, trascinalo oltre 24 m. **Movimento esaurito** compare sul GM e non sul tavolo.
-- [ ] **Drago nascosto:** nascondilo prima del suo turno. Nel suo turno il tavolo non mostra né riquadro né card; il GM vede tutto come prima. Muovilo anche oltre la velocità: sul tavolo non compare nulla.
-- [ ] **Nascosto durante il turno:** mostralo e il riquadro compare sul tavolo; nascondilo e sparisce.
-- [ ] **PG oltre la velocità:** l'avviso compare su entrambe le finestre, come prima.
+- [ ] **Nemico visibile:** nel turno del drago il tavolo non mostra il widget del movimento, in nessuna delle due viste; il GM lo vede come sempre.
+- [ ] **Nemico oltre la velocità:** con Limita movimento spento, trascina il drago oltre 24 m. **Movimento esaurito** compare sul GM e non sul tavolo.
+- [ ] **Neutrale:** cambia la fazione della Banshee in Neutrale. Nel suo turno il tavolo non mostra il widget.
+- [ ] **Alleato:** cambia la fazione del drago in Alleato durante il suo turno. Il widget compare sul tavolo, senza selettore; nella vista estesa il dettaglio non elenca le altre modalità. Oltre la velocità l'avviso resta solo al GM. Rimettilo Nemico: il widget sparisce.
+- [ ] **Alleato nascosto:** nascondilo durante il suo turno e il widget sparisce dal tavolo; mostralo e torna.
+- [ ] **Nemico nascosto:** nascondilo prima del suo turno. Nel suo turno il tavolo non mostra né widget né card; il GM vede tutto come prima.
+- [ ] **PG oltre la velocità:** il widget si vede su entrambe le finestre e l'avviso compare su entrambe, come prima.
 - [ ] **PG nascosto:** nel suo turno il tavolo non mostra nulla, e l'avviso compare solo sul GM.
 
 ## 5. Libertà di movimento

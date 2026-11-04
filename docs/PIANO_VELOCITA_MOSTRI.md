@@ -8,8 +8,9 @@ modalità di movimento dello statblock.
 ## Decisioni
 
 - **D1, chi viene tracciato:** ogni non PG con una velocità sulla scheda, anche scritta a mano. Senza velocità resta spento.
-- **D2, cosa vede il tavolo:** un mostro nascosto solo il GM; uno visibile mostra lo stato del movimento a tutti, ma gli
-  avvisi vanno solo al GM.
+- **D2, cosa vede il tavolo:** il widget del movimento ai giocatori solo per PG e alleati visibili; di nemici, neutrali e
+  token nascosti solo il GM. Gli avvisi di ogni non PG vanno solo al GM. Corretta dall'utente il 04/11, dopo il lotto 4:
+  prima un mostro visibile mostrava lo stato a tutti.
 - **D3, Limita movimento:** stesso comportamento dei PG: acceso, riporta indietro anche i non PG.
 - **D4, modalità di partenza:** quella dell'ultimo turno; al primo turno la camminata, o la prima disponibile se non cammina.
 - **D5, scavo:** quinta modalità «Scavare».
@@ -34,10 +35,11 @@ modalità di movimento dello statblock.
    il ritorno indietro non guardava già l'attitudine (D3). I volanti importati lo sono anche per le zone che chiedono una
    modalità (Controllare i venti). Una velocità tolta dalla scheda a metà turno spegne subito il controllo, anche per i
    PG: prima il token non si muoveva più fino al turno dopo. Ogni turno extra di un Paragon ha il suo movimento.
-3. **Il tavolo.** ✅ Fatto (04/11). D2: del token nascosto, anche di un PG, agli altri client arriva solo il turno e che non
-   c'è nulla da mostrare (`speedSnapshotForPlayers`); se il GM lo nasconde o lo mostra durante il turno, il tavolo segue. Un
-   non PG visibile mostra a tutti il movimento e la modalità in uso, non le altre del suo statblock. Gli avvisi di un non PG
-   o di un token nascosto vanno solo al GM (`LOCAL`), quelli di un PG a tutti come prima. D6: la linguetta compatta ha, per
+3. **Il tavolo.** ✅ Fatto (04/11). D2: di un nemico, un neutrale o un token nascosto, anche di un PG, agli altri client
+   arriva solo il turno e che non c'è nulla da mostrare (`speedSnapshotForPlayers`); se il GM lo nasconde o lo mostra, o ne
+   cambia la fazione, durante il turno, il tavolo segue. Un alleato visibile mostra a tutti il movimento e la modalità in
+   uso, non le altre del suo statblock. Gli avvisi di un non PG o di un token nascosto vanno solo al GM (`LOCAL`), quelli di
+   un PG a tutti come prima. D6: la linguetta compatta ha, per
    il GM e con più di una modalità, un selettore nativo: stessi 154 px, una parola breve e i soli metri, con le caselle nel
    title; la griglia degli strumenti non è toccata. Un non PG scrive sul token solo quando si muove o il GM cambia modalità,
    non a inizio turno. Resta la scrittura di chi è sotto Libertà di movimento: «spendi movimento» del suo promemoria

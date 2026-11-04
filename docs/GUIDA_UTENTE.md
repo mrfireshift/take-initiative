@@ -886,8 +886,8 @@ Cosa vede il tavolo durante il turno:
 | Creatura di turno | I giocatori vedono | Avvisi di movimento |
 |---|---|---|
 | PG visibile | tutto | a tutti |
-| Altra creatura visibile | il movimento e la modalità in uso, non le altre del suo statblock | solo al GM |
-| Token nascosto, anche un PG | niente | solo al GM |
+| Alleato visibile | il movimento e la modalità in uso, non le altre del suo statblock | solo al GM |
+| Nemico, neutrale o token nascosto, anche un PG | niente | solo al GM |
 
 **Limita movimento** riporta indietro chi va oltre il limite, mostri compresi.
 Una creatura a velocità 0, per esempio Afferrata, non si trascina durante il suo

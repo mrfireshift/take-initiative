@@ -328,10 +328,17 @@ function isNonPlayerCreature(item) {
   return String(item?.metadata?.[META_KEY]?.attitude || "").toLowerCase() !== "pc";
 }
 
+// The players see the movement of their own side only (velocità dei mostri, D2): not a hidden token's, not an enemy's
+// or a neutral's. A token with no attitude is a neutral, as in the tracker.
+function isHiddenFromPlayers(item) {
+  const attitude = String(item?.metadata?.[META_KEY]?.attitude || "").toLowerCase();
+  return item?.visible === false || !["pc", "ally"].includes(attitude);
+}
+
 // Who the movement is for follows the token (D2): hidden or shown by the GM, or its attitude edited, during its turn.
 function syncMovementAudience(state, item) {
   if (state.disabled) return;
-  const hiddenFromPlayers = item.visible === false;
+  const hiddenFromPlayers = isHiddenFromPlayers(item);
   const nonPlayerCreature = isNonPlayerCreature(item);
   if (state.hiddenFromPlayers === hiddenFromPlayers && state.nonPlayerCreature === nonPlayerCreature) return;
   Object.assign(state, { hiddenFromPlayers, nonPlayerCreature });
@@ -862,7 +869,7 @@ async function loadMovementState(turn, { itemId: requestedItemId = "", boardToke
     sceneEpoch,
     generation,
     disabled: false,
-    hiddenFromPlayers: item.visible === false,
+    hiddenFromPlayers: isHiddenFromPlayers(item),
     nonPlayerCreature,
     speedProfile: profile,
     baseSpeedMeters,
