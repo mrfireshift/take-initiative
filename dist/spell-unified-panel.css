@@ -1533,6 +1533,22 @@ select:disabled {
   letter-spacing: .08em;
 }
 
+/* What the label cannot say: how a cantrip's dice grow, or the dice of each outcome. Under the field, in its column. */
+.unified-review-effect-input:has(.unified-field__hint) {
+  flex-wrap: wrap;
+  width: auto;
+  max-width: 220px;
+  row-gap: 3px;
+}
+
+.unified-review-effect-input .unified-field__hint {
+  flex: 1 0 100%;
+  margin: 0;
+  color: var(--unified-muted);
+  font-size: var(--obrt-type-caption);
+  line-height: 1.2;
+}
+
 .unified-review-effect-input input {
   width: 6ch;
   min-width: 6ch;
