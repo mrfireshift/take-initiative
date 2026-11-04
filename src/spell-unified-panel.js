@@ -1438,8 +1438,8 @@ export function bootSpellUnifiedPanel(
   });
 
   // An area-subset placement selects first the creatures of its preselection (spellAreaRules.js): the caster's side
-  // for a heal or a blessing, the other side for a harm; the neutrals only on their own side. The GM then adds or
-  // removes from the list, within the targets' limit.
+  // for a heal or a blessing, the other side for a harm; the neutrals only on their own side; or everyone but the
+  // caster. The GM then adds or removes from the list, within the targets' limit.
   const sideOfFaction = (value) => {
     const faction = String(value || "").trim().toLocaleLowerCase("it");
     if (["pc", "ally", "friendly"].includes(faction)) return "party";
@@ -1451,6 +1451,7 @@ export function bootSpellUnifiedPanel(
     if (!preselect) return ids;
     const candidatesById = new Map((state.targetCandidates || []).map((candidate) => [candidate.key, candidate]));
     const casterId = String(state.session.casterId || "").trim();
+    if (preselect === "others") return ids.filter((id) => id !== casterId);
     const caster = state.casters.find((item) => item.id === casterId);
     const casterSide = sideOfFaction(candidatesById.get(casterId)?.faction || caster?.metadata?.[`${ID}/meta`]?.attitude);
     const otherSide = casterSide === "party" ? "enemy" : casterSide === "enemy" ? "party" : "";
@@ -1559,6 +1560,7 @@ export function bootSpellUnifiedPanel(
     if (!composition?.visible) return [];
     return expandAnimatedObjectComposition(
       state.session.castContext?.[composition.key || "composition"],
+      { slotLevel: state.session.slotLevel },
     );
   };
 

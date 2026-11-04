@@ -250,12 +250,12 @@ test("le pill con scadenza speciale non ereditano una durata errata dal parent",
 test("le difese PHB multi-componente dichiarano summaryParts senza perdere mechanics", () => {
   const expected = {
     "phb2014-aura-di-purezza": [
-      { id: "aura-of-purity-poison-resistance", label: "Res. veleno" },
+      { id: "damage-defense-resistance-poison", label: "Res. veleno" },
       { id: "aura-of-purity-disease-immunity", label: "Imm. malattie" },
       { id: "aura-of-purity-condition-save-advantage", label: "Vant. TS condizioni" },
     ],
     "phb2014-aura-di-vita": [
-      { id: "aura-of-life-necrotic-resistance", label: "Res. necrotici" },
+      { id: "damage-defense-resistance-necrotic", label: "Res. necrotici" },
       { id: "aura-of-life-hit-point-maximum", label: "Max PF protetto" },
       { id: "aura-of-life-heal-at-zero", label: "+1 PF a 0" },
     ],
@@ -277,7 +277,7 @@ test("Morte Apparente separa protezioni persistenti senza duplicare le condizion
   const [effect] = getSpellEffects("phb2014-morte-apparente");
 
   assert.deepEqual(effect.summaryParts, [
-    { id: "feign-death-damage-resistance", label: "Res. danni (no psichici)" },
+    { id: "damage-defense-resistance-all-but-psychic", label: "Res. danni (no psichici)" },
     { id: "feign-death-speed-zero", label: "Vel 0" },
     { id: "feign-death-disease-poison-suspended", label: "Malattie/veleno sospesi" },
   ]);

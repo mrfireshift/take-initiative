@@ -418,10 +418,11 @@ function placementPayload(value) {
     explicitTargetLock: result.targetLocked !== undefined
       || result.locked !== undefined
       || preview?.targetLocked !== undefined,
+    // Modifica bersagli: the GM's list replaces the area's own, or a creature unticked there would come back.
     targetIds: uniqueIds([
       ...(Array.isArray(result.confirmedTargetIds) ? result.confirmedTargetIds : []),
       ...(Array.isArray(result.targetIds) ? result.targetIds : []),
-      ...(Array.isArray(preview?.targetIds) ? preview.targetIds : []),
+      ...(result.targetsEdited !== true && Array.isArray(preview?.targetIds) ? preview.targetIds : []),
     ]),
     ...(anchorTargetId ? { anchorTargetId } : {}),
     previewSnapshot: preview ? normalizePreview(preview) : null,
@@ -1349,7 +1350,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
       session[compositionKey],
       null,
     );
-    const compositionValidation = validateAnimatedObjectComposition(composition);
+    const compositionValidation = validateAnimatedObjectComposition(composition, { slotLevel });
     if (!composition) addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.COMPOSITION_REQUIRED);
     else if (!compositionValidation.valid) {
       addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.COMPOSITION_INVALID);

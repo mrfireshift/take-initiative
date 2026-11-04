@@ -140,7 +140,7 @@ test("la tranche 1 dichiara summaryParts esatte e mantiene detail/reminder", () 
       { id: "shadow-of-moil-obscured", label: "Oscurato" },
       // CAP-REACTION: the id of the resistance its mechanics declare, so it shows once.
       { id: "damage-defense-resistance-radiant", label: "Res. radiosi" },
-      { id: "shadow-of-moil-melee-retaliation", label: "Ritorsione mischia" },
+      { id: "shadow-of-moil-melee-retaliation", label: "Ritorsione entro 3 m" },
     ],
   );
 });

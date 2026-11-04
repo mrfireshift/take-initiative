@@ -205,8 +205,8 @@ export async function nextTurn() {
 }
 
 // Cast from the panel. outcomes: "failed" for everyone by default, or { id: outcome }; damage and healing fill their field.
-export async function castFromPanel({ spellId, caster = "dars", slot = null, variant = "", at = null, toward = null, targets = [], outcomes = "failed", damage = 10, healing = 8 }) {
-  await selectOnMap([]);
+export async function castFromPanel({ spellId, caster = "dars", slot = null, variant = "", at = null, toward = null, targets = [], untick = [], outcomes = "failed", damage = 10, healing = 8, mapSelection = [] }) {
+  await selectOnMap(mapSelection);
   await openPanel(spellId, caster, slot);
   const report = {};
   if (variant) {
@@ -218,11 +218,22 @@ export async function castFromPanel({ spellId, caster = "dars", slot = null, var
     }
   }
   if (hasPlacement()) await place(at, toward);
-  for (const target of targets) {
-    if (!checkedTargets().includes(target)) {
+  const pendingRows = () => [
+    ...targets.filter((target) => !checkedTargets().includes(target)),
+    ...untick.filter((target) => checkedTargets().includes(target)),
+  ];
+  const toggleRows = async () => {
+    for (const target of pendingRows()) {
       doc().querySelector(`.unified-target-row[data-target-key="${target}"] input[type=checkbox]`)?.click();
       await sleep(180);
     }
+  };
+  await toggleRows();
+  // Rows still locked after the placement: Modifica bersagli opens them, as the GM does.
+  if (pendingRows().length) {
+    [...doc().querySelectorAll("button")].find((button) => /Modifica bersagli/.test(button.textContent))?.click();
+    await sleep(350);
+    await toggleRows();
   }
   report.selected = checkedTargets();
   report.save = doc().querySelector("[data-cast-save]")?.textContent || null;
@@ -369,6 +380,57 @@ export async function zoneRun({ spellId, caster = "dars", slot = null, variant =
     log.afterTermina = scene();
     log.zonesAfterTermina = zonesDrawn().length;
   }
+  log.errors = errors.slice();
+  return log;
+}
+
+// A prepared spell (a smite, Ensnaring Strike): the cast on the caster's turn, the popup at the token, the target selected on
+// the map, the damage and the outcome, Risolvi. Then a round with its reminders answered. A fresh page: it uses the selection.
+export async function preparedRun({ spellId, caster = "dars", slot = null, target = "goblin-a", outcome = "failed", damage = 3, turns = 5, answer = "failed", dice = 7 }) {
+  await setupBench();
+  await advanceTo(caster);
+  const log = { spellId, cast: await castFromPanel({ spellId, caster, slot }) };
+  await sleep(1500);
+  const frame = () => [...document.querySelectorAll("iframe")].find((entry) => /spell-active-resolution/.test(entry.src || ""));
+  if (!frame()) { log.errors = [...errors, "no resolution popup"]; return log; }
+  guard(frame().contentWindow);
+  await sleep(600);
+  await selectOnMap([target]);
+  await sleep(700);
+  const popup = () => frame()?.contentDocument;
+  const visible = () => [...popup().querySelectorAll("button")].filter((button) => button.offsetParent !== null);
+  log.popup = popup().body.innerText.replace(/\n+/g, " | ").slice(0, 300);
+  const field = popup().querySelector("#attackDamage");
+  if (field) {
+    field.value = String(damage);
+    field.dispatchEvent(new (frame().contentWindow.Event)("input", { bubbles: true }));
+    field.dispatchEvent(new (frame().contentWindow.Event)("change", { bubbles: true }));
+    await sleep(200);
+  }
+  visible().find((button) => button.textContent.trim() === (outcome === "passed" ? "Superato" : outcome === "immune" ? "Immune" : "Fallito"))?.click();
+  await sleep(250);
+  const resolve = visible().find((button) => /^Risolvi/.test(button.textContent.trim()));
+  log.resolveDisabled = resolve?.disabled ?? null;
+  resolve?.click();
+  await sleep(1300);
+  log.afterResolve = { target: snapshotCreature(target), caster: snapshotCreature(caster) };
+  log.round = [];
+  let seen = scene();
+  for (let step = 0; step < turns; step += 1) {
+    const active = await nextTurn();
+    const shown = reminderNotices();
+    const entry = { active };
+    if (shown.length) {
+      entry.shown = shown;
+      entry.answered = await answerAll(answer, dice);
+      await sleep(300);
+    }
+    const now = scene();
+    const changes = changedSince(seen, now);
+    if (shown.length || Object.keys(changes).length) log.round.push({ ...entry, changes });
+    seen = now;
+  }
+  log.final = { target: snapshotCreature(target), caster: snapshotCreature(caster) };
   log.errors = errors.slice();
   return log;
 }

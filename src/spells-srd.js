@@ -597,7 +597,13 @@ const TARGETING_OVERRIDES = Object.freeze({
   "longstrider": Object.freeze({ baseMaximum: 1, additionalPerSlotAbove: 1, baseSlot: 1 }),
   "enhance-ability": Object.freeze({ baseMaximum: 1, additionalPerSlotAbove: 1, baseSlot: 2 }),
   "fly": Object.freeze({ baseMaximum: 1, additionalPerSlotAbove: 1, baseSlot: 3 }),
-  "tasha-fortezza-della-mente": Object.freeze({ baseMaximum: 1, additionalPerSlotAbove: 1, baseSlot: 3 }),
+  // With more than one target, within 9 m of each other (Tasha's Cauldron).
+  "tasha-fortezza-della-mente": Object.freeze({
+    baseMaximum: 1,
+    additionalPerSlotAbove: 1,
+    baseSlot: 3,
+    spatial: Object.freeze({ mode: "pairwise-distance", maxMeters: 9 }),
+  }),
   "xanathar-sonnellino": Object.freeze({ baseMaximum: 3, additionalPerSlotAbove: 1, baseSlot: 3 }),
   "xanathar-metamorfosi-di-massa": Object.freeze({ maximum: 10 }),
   "magic-missile": Object.freeze({

@@ -36,9 +36,9 @@ const SPELL_AREA_PERSISTENCE = Object.freeze(["preview", "spell"]);
 const SPELL_AREA_TARGET_FILTERS = Object.freeze(["all", "hostile", "friendly", "non-hostile"]);
 export const SPELL_AREA_SELECTION_MODES = Object.freeze(["area", "manual", "area-subset"]);
 const SPELL_AREA_SELECTION_POLARITIES = Object.freeze(["include", "exclude"]);
-// The creatures an area-subset placement selects first: the caster's side (a heal) or the others (a harm); the
-// GM then adds or removes from the list.
-const SPELL_AREA_PRESELECTIONS = Object.freeze(["friendly", "hostile"]);
+// The creatures an area-subset placement selects first: the caster's side (a heal), the other side (a harm), or
+// everyone but the caster, whatever the side; the GM then adds or removes from the list.
+const SPELL_AREA_PRESELECTIONS = Object.freeze(["friendly", "hostile", "others"]);
 const SPELL_AREA_EFFECT_MODES = Object.freeze([
   "on-confirm",
   "while-inside",
@@ -48,6 +48,9 @@ const SPELL_ZONE_OWNERS = Object.freeze(["caster"]);
 const SPELL_ZONE_MOVEMENTS = Object.freeze(["fixed", "manual", "drift"]);
 // A zone that counts only who is entirely inside it (2014: Silence, Stinking Cloud; Forcecage's cage).
 const FULLY_INSIDE_ZONE_SPELL_IDS = new Set(["forcecage", "silence", "stinking-cloud"]);
+// A zone that applies to whom the caster chooses (2014: Hallow): who stays unticked at the cast is left out of it, and so
+// is the caster unless ticked. Who comes in later is in.
+const UNSELECTED_STAY_OUT_ZONE_SPELL_IDS = new Set(["hallow"]);
 export const SPELL_ZONE_MOVEMENT_MODES = Object.freeze(["action", "bonus-action"]);
 export const SPELL_ZONE_MOVEMENT_ECONOMIES = Object.freeze(["action", "bonus-action"]);
 
@@ -752,6 +755,12 @@ const FRIENDLY_SUBSET_TARGETING = Object.freeze({
   preselect: "friendly",
 });
 const PLACEMENT_ONLY_TARGETING_BY_SPELL = Object.freeze({
+  // The creatures the caster designates: everyone in the area first; the caster in the list, ticked by hand.
+  "hallow": Object.freeze({
+    ...CASTER_INCLUDED_TARGETING,
+    selectionMode: "area-subset",
+    preselect: "others",
+  }),
   "holy-aura": FRIENDLY_SUBSET_TARGETING,
   // Up to six creatures of the caster's choice in the sphere, the caster too.
   "mass-cure-wounds": FRIENDLY_SUBSET_TARGETING,
@@ -765,7 +774,11 @@ const SELF_CAST_AURA_TARGETING_BY_SPELL = Object.freeze({
     ...SELF_CAST_AURA_TARGETING,
     includeCaster: true,
   }),
-  "phb2014-aura-di-purezza": SELF_CAST_AURA_TARGETING,
+  // "Each nonhostile creature in the aura": the enemies stay out of it. The caster keeps the pill of the cast.
+  "phb2014-aura-di-purezza": Object.freeze({
+    ...SELF_CAST_AURA_TARGETING,
+    filter: "non-hostile",
+  }),
   "phb2014-aura-di-vita": Object.freeze({
     ...SELF_CAST_AURA_TARGETING,
     filter: "non-hostile",
@@ -2663,10 +2676,11 @@ function catalogAreaRule(spec) {
       label: "Res. veleno / vant. TS / no malattie",
       detail: "Resistenza ai veleni e vantaggio ai TS contro varie condizioni.",
       summaryParts: [
-        { id: "aura-of-purity-poison-resistance", label: "Res. veleno" },
+        { id: "damage-defense-resistance-poison", label: "Res. veleno" },
         { id: "aura-of-purity-disease-immunity", label: "Imm. malattie" },
         { id: "aura-of-purity-condition-save-advantage", label: "Vant. TS condizioni" },
       ],
+      mechanics: { damageDefenses: { resistances: ["poison"] } },
     }],
     "phb2014-aura-di-vita": [{
       id: "aura-of-life-zone",
@@ -2674,12 +2688,12 @@ function catalogAreaRule(spec) {
       label: "Res. necrotici / max PF / +1 PF a 0",
       detail: "Resistenza ai danni necrotici e protezione della vita nell'aura.",
       summaryParts: [
-        { id: "aura-of-life-necrotic-resistance", label: "Res. necrotici" },
+        { id: "damage-defense-resistance-necrotic", label: "Res. necrotici" },
         { id: "aura-of-life-hit-point-maximum", label: "Max PF protetto" },
         { id: "aura-of-life-heal-at-zero", label: "+1 PF a 0" },
       ],
       mechanics: {
-        damageResistances: ["necrotic"],
+        damageDefenses: { resistances: ["necrotic"] },
         hitPointMaximumProtected: true,
         healingAtTurnStart: {
           amount: 1,
@@ -2922,6 +2936,7 @@ function catalogAreaRule(spec) {
           ...(spec.initialSave ? { initialSave: { ...spec.initialSave } } : {}),
           ...(spec.initialSaveByChoice ? { initialSaveByChoice: { ...spec.initialSaveByChoice } } : {}),
           ...(spec.instantChoices ? { instantChoices: [...spec.instantChoices] } : {}),
+          ...(UNSELECTED_STAY_OUT_ZONE_SPELL_IDS.has(spec.spellId) ? { unselectedStayOut: true } : {}),
           membershipTargeting: {
             filter: [
               "guardian-of-faith",

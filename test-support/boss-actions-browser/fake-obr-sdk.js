@@ -85,7 +85,7 @@ function createHost(win) {
       async setHeight(id, height) { const p = state.popovers.get(id); if (p) { p.height = height; host.onPopover?.("resize", p); } },
     }),
     modal: ns("modal", { open: async () => {}, close: async () => {} }),
-    viewport: ns("viewport", { getWidth: async () => win.innerWidth, getHeight: async () => win.innerHeight }),
+    viewport: ns("viewport", { getWidth: async () => win.innerWidth, getHeight: async () => win.innerHeight, transformPoint: async (point) => point }),
     notification: ns("notification", { show: async (message) => console.info("[notification]", message) }),
     contextMenu: ns("contextMenu", { create: async () => {}, remove: async () => {} }),
     tool: ns("tool", {}), action: ns("action", { getHeight: async () => 0, setHeight: async () => {}, onOpenChange: () => () => {} }),

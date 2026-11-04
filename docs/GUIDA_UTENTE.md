@@ -157,11 +157,13 @@ quel personaggio.
   registro, ma non servono. Nel pannello il pulsante si chiama **Registra
   lancio**; nella console attacchi la riga del lancio dice quale slot è stato
   speso.
-- Protezione dai veleni, Protezione dall'energia e Invulnerabilità danno
-  difese vere finché durano: la console attacchi e la console boss dimezzano
-  o azzerano il danno di quel tipo, e il GM può ignorare il chip della difesa
-  per un singolo attacco. Le altre etichette dei benefici (Armatura magica, Pelle
-  coriacea, Pelle di pietra…) sono promemoria per il tavolo.
+- Protezione dai veleni, Protezione dall'energia, Invulnerabilità, Aura di
+  Purezza, Aura di Vita, Fortezza della Mente e Morte Apparente danno difese vere
+  finché durano: la console attacchi e la console boss dimezzano o azzerano il
+  danno di quel tipo, e il GM può ignorare il chip della difesa per un singolo
+  attacco. Nei danni degli incantesimi ad area il dimezzamento resta al GM. Le
+  altre etichette dei benefici (Armatura magica, Pelle coriacea, Pelle di pietra…)
+  sono promemoria per il tavolo.
 - Protezione dai veleni al lancio toglie anche **Avvelenato**: una sola volta se
   la creatura ne ha più d'uno, perché neutralizza un veleno solo, e il plugin
   sceglie il primo in elenco. Nulla se «Applica condizioni dell'incantesimo» è
@@ -172,7 +174,7 @@ quel personaggio.
   mai oltre il massimo, annullabile dalla cronologia. Catapulta, Intimorire infernale, Sussurri
   dissonanti e Inaridire chiedono l'esito del TS e il danno, con i dadi dello
   slot.
-- Sonno e Trama ipnotica finiscono quando la creatura subisce danno: l'etichetta
+- Sonno, Sonnellino e Trama ipnotica finiscono quando la creatura subisce danno: l'etichetta
   sparisce da sola solo su quella creatura. Per svegliarla senza danno si
   rimuove l'etichetta a mano.
 - Sonno e Spruzzo colorato non hanno TS: tra i bersagli una riga dice la riserva
@@ -185,6 +187,12 @@ quel personaggio.
   TS e il pannello non lo chiede. Bagliore solare e Drago illusorio
   propongono a inizio turno la nuova linea o il soffio, come Invocare il
   fulmine.
+- Santificare: dopo la sagoma sono spuntate tutte le creature nell'area, tranne
+  il caster, che resta in lista senza spunta: spuntalo se l'effetto vale anche
+  per lui. Togli la spunta a chi non deve subirlo: resta fuori dalla zona finché
+  dura, senza etichetta né promemoria, anche se esce e rientra. Chi arriva dopo
+  ne fa parte. Il TS Carisma è per ora un promemoria: chi lo supera ignora
+  l'effetto al tavolo, ma l'etichetta resta, perché la zona la rimette.
 - Trabocchetto: chi entra nel cerchio o lo attraversa fa il TS Destrezza; chi
   fallisce resta Trattenuto e ritenta a fine turno. Quando la trappola è
   scattata e nessuno resta trattenuto, l'incantesimo si termina a mano.
@@ -238,8 +246,8 @@ quel personaggio.
   un dardo alla volta.
 - Animare oggetti: nella sezione **Oggetti animati** aggiungi gli oggetti per
   taglia con **−** e **+**; ogni scheda mostra PF, CA e Schianto della taglia,
-  l'intestazione gli oggetti e il peso usato su 10, e il **+** si spegne
-  quando un altro oggetto lo supererebbe. Poi **Posiziona oggetti** li mette
+  l'intestazione gli oggetti e il peso usato su 10, più 2 per ogni slot oltre
+  il 5°, e il **+** si spegne quando un altro oggetto lo supererebbe. Poi **Posiziona oggetti** li mette
   sulla mappa uno alla volta.
 - Alcuni incantesimi hanno un contatore, che la loro pill mostra al posto dei
   round e che a zero termina l'incantesimo. Immagine speculare parte con 3
@@ -536,6 +544,7 @@ Alcuni li danno da soli:
 - **Caratteristica potenziata, Resistenza dell'orso**: il pannello chiede i 2d6 tirati. Con più bersagli lo stesso tiro vale per tutti. I temporanei rimasti spariscono quando finisce l'incantesimo.
 - **Armatura di Agathys**: 5 per livello di slot. Finché restano, le console attacchi e Boss propongono **Applica N** dopo un colpo in mischia, per i danni da freddo all'attaccante: applicali prima di confermare il colpo. Quando i temporanei finiscono, l'etichetta sparisce.
 - **Trasformazione di Tenser**: 50, che restano anche dopo la fine dell'incantesimo.
+- **Guardiano della Natura, Grande Albero**: 10, che spariscono quando finisce l'incantesimo.
 - **Eroismo**: immunità a Spaventato e, a inizio di ogni turno del bersaglio, un promemoria con il modificatore da incantatore già inserito (si ricava da CD e livello della scheda di chi lancia; se mancano, lo scrivi tu). Premi **Applica PF temporanei** o **Ignora**. Quelli rimasti spariscono alla fine della concentrazione. Uno Spaventato già presente al lancio lo togli a mano.
 - **Flusso di Energia Negativa**: per un non morto premi **Non morto** al posto dell'esito del TS, e inserisci il tiro di 5d12: riceve metà del tiro come temporanei, senza danni. Il tipo di creatura lo indichi sempre tu. Chi viene ucciso riceve l'etichetta **Si rianima come zombi**, con il promemoria al prossimo turno di chi ha lanciato; il token dello zombi lo aggiungi tu.
 - **Capacità di classe**: Entità Simbiotica, Tomba di Levistus, Chiamata alla caccia, Totem spirituale (Orso), Aura tempestosa (Tundra, all'attivazione; nei turni dopo dalla Console effetti manuali) e Impeto selvaggio (Viti Oscure, che chiede l'1d12 tirato) li danno all'attivazione. Santuario del crepuscolo offre **Applica PF temporanei** nel promemoria di fine turno. Questi temporanei non scadono da soli con la capacità: se serve, togli i rimasti dalla card.

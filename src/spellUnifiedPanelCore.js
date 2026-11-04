@@ -2404,7 +2404,7 @@ function validationFor(contract, session, placement) {
     const key = text(contract.presentation.composition?.key) || "composition";
     const value = session.castContext?.[key];
     if (!value) add("composition", "composition-required");
-    else if (!validateAnimatedObjectComposition(value).valid) {
+    else if (!validateAnimatedObjectComposition(value, { slotLevel: session.slotLevel }).valid) {
       add("composition", "composition-invalid");
     }
   }

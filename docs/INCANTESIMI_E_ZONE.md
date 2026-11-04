@@ -94,7 +94,8 @@ I benefici passivi del 2014 (Armatura magica, Pelle coriacea, Faro di
 speranza, Previsione, Suggestione e gli altri del lotto L1) mettono sui
 bersagli la pill con le mini pill del beneficio. Sono informative (CA, tiri e
 vantaggi restano al tavolo), tranne le difese di Protezione dai veleni,
-Protezione dall'energia e Invulnerabilità: la pill porta
+Protezione dall'energia, Invulnerabilità, Aura di Purezza, Aura di Vita,
+Fortezza della Mente e Morte Apparente: la pill porta
 `mechanics.damageDefenses` e la console attacchi e la console boss le
 applicano ai danni come le difese del profilo, con il chip che il GM può
 ignorare, finché l'incantesimo dura. Pelle di pietra resta informativa: vale
@@ -114,7 +115,9 @@ Risveglio, Allucinazione mortale e Labirinto completano i loro testi 2014.
 Con il lotto L3 le zone del catalogo possono avere effetti per variante
 (`CATALOG_MEMBERSHIP_EFFECTS_BY_CHOICE` in `src/spellAreaRules.js`): Cerchio
 magico (protezione o prigione), Santificare (la protezione più uno dei 10
-effetti) e Pirotecnica (Fuochi d'artificio o Fumo). Muro di sabbia, Muro di
+effetti, per le creature spuntate al lancio: `zonePolicy.unselectedStayOut`
+scrive gli altri in `exemptCreatureIds`, caster compreso se non spuntato) e
+Pirotecnica (Fuochi d'artificio o Fumo). Muro di sabbia, Muro di
 forza e Proibizione diventano zone sulla mappa; Globo di invulnerabilità passa
 da aura mobile a zona immobile, come dice il testo. Proibizione e
 Antipatia/simpatia hanno i loro trigger d'ingresso e di inizio turno.

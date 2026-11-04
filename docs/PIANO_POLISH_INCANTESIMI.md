@@ -1,6 +1,6 @@
 # Polishing degli incantesimi (piano)
 
-Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1, 2, 3, 4 e D6 fatti)**. Questo piano guida la
+Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1, 2, 3, 4, 5 e D6 fatti)**. Questo piano guida la
 revisione di tutti i 477 incantesimi prima di aggiungere nuove capacità. Per ognuno si controlla:
 
 - **A, l'interpretazione:** il motore fa ciò che dice il testo 2014?
@@ -299,8 +299,56 @@ Hadar a inizio e fine turno; Vento con il token che esce e rientra, fino a Termi
 turno per turno; Percezione delle Bestie; Catapulta a 25 m; Incuti Paura e Corona di Follia con il TS superato; Scagliare maledizione
 con l'azione persa; Creare Falò, Diavoletto di Polvere, Spirito Guaritore, Cordone di Frecce, Duello Obbligato, Scudiscio Mentale,
 Estasiare; Forma gassosa nelle due viste; Protezione dai veleni con due veleni, con l'annullamento e con le condizioni spente, che il
-Registro segna «− Avvelenato». **Non provata:** la risoluzione preparata di Colpo Intrappolante, perché il banco non apre
-il suo popup: i dadi per slot sono coperti dal calcolo, non dal percorso intero. Test in `test/spellPolishLot4.test.js`.
+Registro segna «− Avvelenato». La risoluzione preparata di Colpo Intrappolante è stata provata nel lotto 5, quando il banco ha imparato ad
+aprire quel popup. Test in `test/spellPolishLot4.test.js`.
+
+#### Lotto 5 (fatto il 4/11): i 40 successivi
+
+Gli ultimi di 3° livello, quelli di 4° e i primi di 5°.
+
+| Difetto | Incantesimi | Correzione |
+|---|---|---|
+| Proteggeva anche i nemici nell'aura | Aura di Purezza | Filtro «non ostili», come Aura di Vita. Il caster ha la pill del lancio |
+| Chi subiva danni restava Privo di sensi | Sonnellino | Finisce col danno, come Sonno, solo su quella creatura. Prono resta |
+| Il Grande Albero non dava i 10 PF temporanei | Guardiano della Natura | Dati dal lancio, nello stesso comando della pill. Finiscono con la forma |
+| Il limite di oggetti non cresceva con lo slot | Animare oggetti | 10 di peso, più 2 per ogni slot sopra il 5°, nel pannello e all'esecuzione (`animatedObjectsMaximumCost`) |
+| La ritorsione diceva «in mischia» | Ombra di Moil | Il dato era giusto, il testo no: ogni attacco da entro 3 m |
+| Non diceva i 9 m tra i bersagli | Fortezza della Mente | Il pannello ora li dice. Limite: non li misura (sotto) |
+| Resistenze solo etichetta: le console non dimezzavano | Fortezza della Mente, Aura di Purezza, Aura di Vita, Morte Apparente | `mechanics.damageDefenses`, come Protezione dai veleni. Il campo `damageResistances` non lo leggeva nessuno. Morte Apparente ha 12 tipi e una sola micropill, «Res. danni (no psichici)» |
+| L'effetto andava a tutti nell'area, caster compreso, e togliere una spunta non contava | Santificare | Selezione `area-subset` con `preselect: "others"`: tutti spuntati tranne il caster, che sta in lista e si spunta a mano. Chi resta senza spunta, e il caster se non spuntato, è in `exemptCreatureIds` finché la zona dura (`zonePolicy.unselectedStayOut`). Chi arriva dopo ne fa parte |
+| Togliere una spunta dopo Modifica bersagli bloccava il lancio con «Registra un esito per ogni bersaglio» | Tutti gli incantesimi ad area senza scelta dei bersagli (Palla di Fuoco) | Il comando riuniva le spunte con la lista dell'area (`placementPayload`). Ora vale la lista del GM, e la zona conserva quella dell'area come base |
+| Dopo Modifica bersagli la riga fuori dall'area restava spenta | Gli incantesimi «a scelta» (`area-subset`: Cura ferite di massa e gli altri) | La lista ora si apre davvero. Il test non lo vedeva: spuntava la casella anche se spenta |
+
+Decisioni del proprietario sui dubbi del lotto, il 4/11:
+- **Contagio resta com'è.** Il testo chiede un attacco e il pannello non ha l'esito del colpo: un colpo mancato non si registra. Spostarlo
+  sulla corsia dei TS costerebbe troppo: tocca il conteggio dei tre TS e i promemoria delle malattie.
+- **Santificare in due passi.** Le spunte e il caster sono fatti. Il TS Carisma resta un promemoria fino a P4 (sotto).
+- **Le quattro resistenze sono difese vere.** Le leggono la console attacchi, la console Boss e le reazioni. L'esecutore ad area no: è già in P4.
+
+Limiti rimasti:
+- **Fortezza della Mente** dice i 9 m tra i bersagli ma non li misura. La corsia lifecycle controlla solo la gittata dal caster.
+- **Santificare:** chi resta senza spunta non ha neanche la pill «Santificato», che è un promemoria. La protezione dei tipi esclusi, per il
+  testo, vale per chiunque sia dentro.
+
+Falsi allarmi, da non riaprire: Frecce Infuocate ha il pulsante spento solo nel turno del lancio. Il promemoria dopo il danno di Nemici in
+Abbondanza compare, ma dopo il popup di concentrazione se anche il caster ha subito danni. Muro d'Acqua ha la forma circolare tra le scelte.
+
+Il banco è cresciuto: `viewport.transformPoint` nel finto SDK, senza il quale il popup delle risoluzioni preparate non si apriva, `preparedRun`
+per provarle, e in `castFromPanel` `untick`, `mapSelection` e il clic su Modifica bersagli quando le righe sono bloccate.
+
+Provato al banco, con il servizio di sfondo vero: Aura di Purezza con nemici, Mira che esce e rientra, Termina; Sonnellino col danno; il Grande
+Albero fino a Termina; Animare oggetti nel pannello, allo slot 6 e tornando al 5; Fortezza della Mente a due bersagli; Punizione Accecante,
+Punizione Demoralizzante e Colpo Intrappolante dal popup vero; Frecce Infuocate; Fulgore Nauseante; Sfera della Tempesta; Sudario Spirituale;
+Aura di Vitalità e di Vita; Compulsione; Nemici in Abbondanza e Dominare Bestie col danno; Interdizione alla morte a 30 danni; Contagio;
+Telecinesi; Santificare; i due muri; Onda di Marea; Anatema Elementale; Scudo di fuoco; Morte Apparente; Arma Elementale allo slot 5. **Non
+provate:** le pedine di Animare oggetti e di Mano arcana sulla mappa, che il banco non disegna: coperte dai test. Test in
+`test/spellPolishLot5.test.js`.
+
+Provato al banco dopo le decisioni: le resistenze con `damageDefensesForItem` sulle creature vere, anche uscendo dall'aura e dopo Termina;
+Morte Apparente nella vista compatta, dove ha una sola micropill, e in quella estesa, dove la pill dell'incantesimo non ne mostra. Santificare
+con una spunta tolta, con il caster aggiunto, con la selezione del caster sulla mappa e senza nessuno nell'area; chi esce e rientra; chi arriva
+dopo; Annulla e Termina. Palla di Fuoco con un bersaglio tolto e uno aggiunto da fuori, che ha scritto i danni giusti. Cura ferite di massa con
+una riga fuori dall'area.
 
 ### P4, i workflow che la prova non copre ancora (B)
 
@@ -308,6 +356,11 @@ il suo popup: i dadi per slot sono coperti dal calcolo, non dal percorso intero.
 - La console attacchi e il lancio dalle schede dei mostri.
 - Le resistenze nei danni ad area: l'esecutore ad area non legge il tipo di danno né le difese del bersaglio, a differenza
   della console attacchi. Da verificare e, se serve, da decidere.
+- Santificare: un pulsante vero per il TS Carisma. Chi lo supera ignora l'effetto aggiuntivo finché non esce dall'area, e oggi la zona gli
+  rimette l'etichetta al controllo successivo.
+- Un falso «ingresso nell'area» al lancio per il caster che sta dentro la zona: la sagoma lo esclude, la zona lo conta, e la base dei trigger
+  non lo ha. Visto al banco su Nube di Pugnali; stessi dati per Sfera infuocata, Crescita di spine, Spirito Guaritore e Proibizione. Santificare
+  l'ha risolto mettendo il caster nella sagoma.
 - Un giro automatico al banco sui casi complessi.
 - I casi che oggi la prova esclude, sulla lista delle eccezioni del test: Animare oggetti, i teletrasporti, i ritorni in vita.
 

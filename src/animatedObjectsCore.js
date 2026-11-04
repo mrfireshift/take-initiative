@@ -77,6 +77,13 @@ const SIZE_DEFINITIONS = [
 ];
 
 export const ANIMATED_OBJECTS_MAX_COST = 10;
+
+// 2014: two more objects for each slot level above the 5th.
+export function animatedObjectsMaximumCost(slotLevel = null) {
+  const slot = Math.floor(Number(slotLevel));
+  return ANIMATED_OBJECTS_MAX_COST + (slot > 5 ? (Math.min(slot, 9) - 5) * 2 : 0);
+}
+
 export const ANIMATED_OBJECT_COMMON_STATS = Object.freeze({
   constitution: 10,
   intelligence: 3,
@@ -133,7 +140,8 @@ export function animatedObjectCompositionCount(value) {
   );
 }
 
-export function validateAnimatedObjectComposition(value) {
+export function validateAnimatedObjectComposition(value, { slotLevel = null } = {}) {
+  const maximumCost = animatedObjectsMaximumCost(slotLevel);
   const source = sourceCounts(value);
   const counts = normalizeAnimatedObjectComposition(source);
   const errors = [];
@@ -149,19 +157,19 @@ export function validateAnimatedObjectComposition(value) {
   const cost = animatedObjectCompositionCost(counts);
   const count = animatedObjectCompositionCount(counts);
   if (!count) errors.push("composition-empty");
-  if (cost > ANIMATED_OBJECTS_MAX_COST) errors.push("composition-limit-exceeded");
+  if (cost > maximumCost) errors.push("composition-limit-exceeded");
   return {
     valid: errors.length === 0,
     errors: [...new Set(errors)],
     counts,
     cost,
     count,
-    maximumCost: ANIMATED_OBJECTS_MAX_COST,
+    maximumCost,
   };
 }
 
-export function expandAnimatedObjectComposition(value) {
-  const validation = validateAnimatedObjectComposition(value);
+export function expandAnimatedObjectComposition(value, options = {}) {
+  const validation = validateAnimatedObjectComposition(value, options);
   if (!validation.valid) return [];
   const result = [];
   for (const size of ANIMATED_OBJECT_SIZES) {

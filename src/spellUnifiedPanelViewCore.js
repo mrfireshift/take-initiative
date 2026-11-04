@@ -3,6 +3,7 @@ import {
   spellPanelValidationMessage,
 } from "./spellUnifiedPanelCore.js";
 import { isTeleportSpell } from "./spellTeleportCore.js";
+import { animatedObjectsMaximumCost } from "./animatedObjectsCore.js";
 import { spellCastTemporaryHpHint, spellCastTemporaryHpRollRange, spellCastTemporaryHpRule, spellUndeadTemporaryHpAmount } from "./spellTemporaryHpRules.js";
 import { ID } from "./constants.js";
 import { buildSharedHpPreview } from "./sharedHpViewCore.js";
@@ -894,7 +895,10 @@ export function buildUnifiedPanelViewModel({
   const selectionPolarity = targeting.selectionPolarity === "exclude"
     ? "exclude"
     : "include";
-  const placementCandidateIds = isAreaSubset && workflow.placement.confirmed === true
+  // Modifica bersagli opens the list to any creature, the ones outside the area too.
+  const placementCandidateIds = isAreaSubset
+    && workflow.placement.confirmed === true
+    && workflow.placement.targetsEdited !== true
     ? new Set(Array.isArray(session?.placement?.targetIds)
       ? session.placement.targetIds
       : (Array.isArray(session?.placement?.preview?.targetIds)
@@ -1152,8 +1156,8 @@ export function buildUnifiedPanelViewModel({
         required: inputs.composition?.required === true,
         key: asText(composition.key) || "composition",
         label: asText(composition.label) || "Combinazione",
-        hint: "Il costo totale non può superare 10 oggetti.",
-        maximumCost: Number(composition.maximumCost) || 10,
+        hint: `Il costo totale non può superare ${animatedObjectsMaximumCost(session?.slotLevel)} oggetti.`,
+        maximumCost: animatedObjectsMaximumCost(session?.slotLevel),
         placement: asText(composition.placement) || "one-by-one",
         counts: clone(compositionCounts),
         options: Array.isArray(composition.options) ? clone(composition.options) : [],

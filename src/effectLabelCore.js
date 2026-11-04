@@ -341,12 +341,12 @@ const EFFECT_SUMMARY_PARTS = Object.freeze({
     Object.freeze({ id: "tensers-martial-proficiency", label: "Comp. marziali" }),
   ]),
   "aura-of-purity": Object.freeze([
-    Object.freeze({ id: "aura-of-purity-poison-resistance", label: "Res. veleno" }),
+    Object.freeze({ id: "damage-defense-resistance-poison", label: "Res. veleno" }),
     Object.freeze({ id: "aura-of-purity-disease-immunity", label: "Imm. malattie" }),
     Object.freeze({ id: "aura-of-purity-condition-save-advantage", label: "Vant. TS condizioni" }),
   ]),
   "aura-of-life": Object.freeze([
-    Object.freeze({ id: "aura-of-life-necrotic-resistance", label: "Res. necrotici" }),
+    Object.freeze({ id: "damage-defense-resistance-necrotic", label: "Res. necrotici" }),
     Object.freeze({ id: "aura-of-life-hit-point-maximum", label: "Max PF protetto" }),
     Object.freeze({ id: "aura-of-life-heal-at-zero", label: "+1 PF a 0" }),
   ]),
@@ -355,12 +355,12 @@ const EFFECT_SUMMARY_PARTS = Object.freeze({
     Object.freeze({ id: "circle-of-power-zero-save-damage", label: "TS riuscito: 0 danni" }),
   ]),
   "aura-of-purity-zone": Object.freeze([
-    Object.freeze({ id: "aura-of-purity-poison-resistance", label: "Res. veleno" }),
+    Object.freeze({ id: "damage-defense-resistance-poison", label: "Res. veleno" }),
     Object.freeze({ id: "aura-of-purity-disease-immunity", label: "Imm. malattie" }),
     Object.freeze({ id: "aura-of-purity-condition-save-advantage", label: "Vant. TS condizioni" }),
   ]),
   "aura-of-life-zone": Object.freeze([
-    Object.freeze({ id: "aura-of-life-necrotic-resistance", label: "Res. necrotici" }),
+    Object.freeze({ id: "damage-defense-resistance-necrotic", label: "Res. necrotici" }),
     Object.freeze({ id: "aura-of-life-hit-point-maximum", label: "Max PF protetto" }),
     Object.freeze({ id: "aura-of-life-heal-at-zero", label: "+1 PF a 0" }),
   ]),
@@ -385,11 +385,11 @@ const EFFECT_SUMMARY_PARTS = Object.freeze({
     Object.freeze({ id: "elemental-resistances-reaction-immunity", label: "Reaz.: Imm. tipo" }),
   ]),
   "intellect-fortress": Object.freeze([
-    Object.freeze({ id: "intellect-fortress-psychic-resistance", label: "Res. psichici" }),
+    Object.freeze({ id: "damage-defense-resistance-psychic", label: "Res. psichici" }),
     Object.freeze({ id: "intellect-fortress-mental-save-advantage", label: "Vant. TS Int/Sag/Car" }),
   ]),
   "feign-death-protections": Object.freeze([
-    Object.freeze({ id: "feign-death-damage-resistance", label: "Res. danni (no psichici)" }),
+    Object.freeze({ id: "damage-defense-resistance-all-but-psychic", label: "Res. danni (no psichici)" }),
     Object.freeze({ id: "feign-death-speed-zero", label: "Vel 0" }),
     Object.freeze({ id: "feign-death-disease-poison-suspended", label: "Malattie/veleno sospesi" }),
   ]),
@@ -557,6 +557,11 @@ function damageDefenseSummaryParts(mechanics) {
       .filter((type, index, values) => DAMAGE_DEFENSE_TYPE_LABELS[type] && values.indexOf(type) === index);
     if (!types.length) return [];
     if (types.length === allTypes.length) return [{ id: `damage-defense-${kind}-all`, label: `${tag} tutti i danni` }];
+    // All types but one: one micropill, not twelve (Feign Death: everything but psychic).
+    if (types.length === allTypes.length - 1) {
+      const missing = allTypes.find((type) => !types.includes(type));
+      return [{ id: `damage-defense-${kind}-all-but-${missing}`, label: `${tag} danni (no ${DAMAGE_DEFENSE_TYPE_LABELS[missing]})` }];
+    }
     return types.map((type) => ({ id: `damage-defense-${kind}-${type}`, label: `${tag} ${DAMAGE_DEFENSE_TYPE_LABELS[type]}` }));
   });
 }

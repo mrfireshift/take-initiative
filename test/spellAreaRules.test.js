@@ -989,7 +989,7 @@ test("le zone senza TS conservano geometria, ciclo di vita ed effetti di members
     "Res. veleno / vant. TS / no malattie",
   );
   assert.deepEqual(purityAura.effectPolicy.effect.summaryParts, [
-    { id: "aura-of-purity-poison-resistance", label: "Res. veleno" },
+    { id: "damage-defense-resistance-poison", label: "Res. veleno" },
     { id: "aura-of-purity-disease-immunity", label: "Imm. malattie" },
     { id: "aura-of-purity-condition-save-advantage", label: "Vant. TS condizioni" },
   ]);
@@ -1002,12 +1002,12 @@ test("le zone senza TS conservano geometria, ciclo di vita ed effetti di members
     "Res. necrotici / max PF / +1 PF a 0",
   );
   assert.deepEqual(lifeAura.effectPolicy.effect.summaryParts, [
-    { id: "aura-of-life-necrotic-resistance", label: "Res. necrotici" },
+    { id: "damage-defense-resistance-necrotic", label: "Res. necrotici" },
     { id: "aura-of-life-hit-point-maximum", label: "Max PF protetto" },
     { id: "aura-of-life-heal-at-zero", label: "+1 PF a 0" },
   ]);
   assert.deepEqual(lifeAura.effectPolicy.effect.mechanics, {
-    damageResistances: ["necrotic"],
+    damageDefenses: { resistances: ["necrotic"] },
     hitPointMaximumProtected: true,
     healingAtTurnStart: {
       amount: 1,

@@ -81,12 +81,12 @@ test("il fallback legacy riusa i cluster del batch difensivo e ricorrente", () =
       { id: "tensers-martial-proficiency", label: "Comp. marziali" },
     ],
     "aura-of-purity-zone": [
-      { id: "aura-of-purity-poison-resistance", label: "Res. veleno" },
+      { id: "damage-defense-resistance-poison", label: "Res. veleno" },
       { id: "aura-of-purity-disease-immunity", label: "Imm. malattie" },
       { id: "aura-of-purity-condition-save-advantage", label: "Vant. TS condizioni" },
     ],
     "aura-of-life-zone": [
-      { id: "aura-of-life-necrotic-resistance", label: "Res. necrotici" },
+      { id: "damage-defense-resistance-necrotic", label: "Res. necrotici" },
       { id: "aura-of-life-hit-point-maximum", label: "Max PF protetto" },
       { id: "aura-of-life-heal-at-zero", label: "+1 PF a 0" },
     ],
@@ -120,11 +120,11 @@ test("il fallback legacy copre anche le varianti difensive persistenti", () => {
       { id: "elemental-resistances-reaction-immunity", label: "Reaz.: Imm. tipo" },
     ],
     "intellect-fortress": [
-      { id: "intellect-fortress-psychic-resistance", label: "Res. psichici" },
+      { id: "damage-defense-resistance-psychic", label: "Res. psichici" },
       { id: "intellect-fortress-mental-save-advantage", label: "Vant. TS Int/Sag/Car" },
     ],
     "feign-death-protections": [
-      { id: "feign-death-damage-resistance", label: "Res. danni (no psichici)" },
+      { id: "damage-defense-resistance-all-but-psychic", label: "Res. danni (no psichici)" },
       { id: "feign-death-speed-zero", label: "Vel 0" },
       { id: "feign-death-disease-poison-suspended", label: "Malattie/veleno sospesi" },
     ],

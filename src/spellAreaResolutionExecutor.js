@@ -1889,10 +1889,16 @@ async function buildPlan(command, runtime) {
   // non soltanto i target che il save workflow decide di tracciare.
   // Spell come Unto usano track:false: senza questa baseline, i token già
   // presenti al cast verrebbero scambiati per nuovi ingressi al primo reconcile.
+  // Hallow: who stays unticked at the cast, and the caster unless ticked, is left out of the zone for good.
+  const staticZoneUnselectedIds = staticZonePlacement && placementRule?.zonePolicy?.unselectedStayOut === true
+    ? uniqueIds([casterId, ...confirmedSpellAreaTargetIds(placement, allItems.map((item) => item.id))])
+      .filter((id) => !commandTargetIds.includes(id))
+    : [];
   const staticZoneCastMemberIds = staticZonePlacement
-    ? targetScopedStaticZone
+    ? (targetScopedStaticZone
       ? staticZoneTargetIds
-      : confirmedSpellAreaTargetIds(placement, allItems.map((item) => item.id))
+      : confirmedSpellAreaTargetIds(placement, allItems.map((item) => item.id)))
+      .filter((id) => !staticZoneUnselectedIds.includes(id))
     : [];
   const committedStaticZonePlacement = staticZonePlacement
     && !spellZoneChoiceIsInstant(placementRule, placementRuleChoice)
@@ -1992,7 +1998,7 @@ async function buildPlan(command, runtime) {
       : [];
   const compositionKey = text(placementRule?.composition?.key) || "composition";
   const compositionObjects = boardToken && placementRule?.composition
-    ? expandAnimatedObjectComposition(command?.spell?.castContext?.[compositionKey])
+    ? expandAnimatedObjectComposition(command?.spell?.castContext?.[compositionKey], { slotLevel: command?.spell?.slotLevel })
     : [];
   const batchPlacements = boardToken && placementRule?.composition
     ? (Array.isArray(placement?.preview?.positions) ? placement.preview.positions : [])
@@ -2056,15 +2062,18 @@ async function buildPlan(command, runtime) {
       preview: placement.preview,
       ruleChoice: placementRuleChoice,
       targetIds: staticZoneCastMemberIds,
-      exemptCreatureIds: castContextFor({
-        spell,
-        resolution: resolved,
-        command,
-        mobileAura,
-        boardToken,
-        placement,
-        caster,
-      })?.prismaticWall?.exemptCreatureIds || [],
+      exemptCreatureIds: [
+        ...(castContextFor({
+          spell,
+          resolution: resolved,
+          command,
+          mobileAura,
+          boardToken,
+          placement,
+          caster,
+        })?.prismaticWall?.exemptCreatureIds || []),
+        ...staticZoneUnselectedIds,
+      ],
       followCaster: placementRule?.zonePolicy?.followCaster === true,
       casterOrigin: caster?.position,
     }) : []),

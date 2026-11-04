@@ -16,6 +16,10 @@ const SPELL_CAST_TEMPORARY_HP_BY_CHOICE = Object.freeze({
   "enhance-ability": Object.freeze({
     "bears-endurance": Object.freeze({ die: "2d6", base: 0, effectId: "constitution-check-advantage" }),
   }),
+  // Guardian of Nature, Great Tree: 10 among the benefits of the form, which lasts as long as the spell.
+  "xanathar-guardiano-della-natura": Object.freeze({
+    "great-tree": Object.freeze({ base: 10, effectId: "great-tree-benefits" }),
+  }),
 });
 
 // CAP-TEMP, lotto T3e (Xanathar): Negative Energy Flood on an undead: no save, half the roll as temporary hit points. The

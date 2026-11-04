@@ -543,7 +543,7 @@ export const PHB2014_EFFECTS = Object.freeze({
     label: "Res. danni tranne psichici / velocità 0",
     detail: "Resistenza a tutti i danni tranne gli psichici, velocità 0; malattie e veleno restano sospesi.",
     summaryParts: Object.freeze([
-      Object.freeze({ id: "feign-death-damage-resistance", label: "Res. danni (no psichici)" }),
+      Object.freeze({ id: "damage-defense-resistance-all-but-psychic", label: "Res. danni (no psichici)" }),
       Object.freeze({ id: "feign-death-speed-zero", label: "Vel 0" }),
       Object.freeze({ id: "feign-death-disease-poison-suspended", label: "Malattie/veleno sospesi" }),
     ]),
@@ -551,6 +551,13 @@ export const PHB2014_EFFECTS = Object.freeze({
       movement: Object.freeze({
         setMeters: 0,
         label: "Morte Apparente",
+      }),
+      // Resistance to every damage type but psychic (the ids of DAMAGE_TYPES, damageDefensesCore.js).
+      damageDefenses: Object.freeze({
+        resistances: Object.freeze([
+          "acid", "bludgeoning", "cold", "fire", "force", "lightning",
+          "necrotic", "piercing", "poison", "radiant", "slashing", "thunder",
+        ]),
       }),
     }),
     manualRemoval: true,
@@ -563,12 +570,12 @@ export const PHB2014_EFFECTS = Object.freeze({
     label: "Res. veleno / vant. TS / no malattie",
     detail: "Resistenza al veleno, immunità alle malattie e vantaggio ai TS contro accecato, affascinato, assordato, avvelenato, paralizzato, spaventato e stordito.",
     summaryParts: Object.freeze([
-      Object.freeze({ id: "aura-of-purity-poison-resistance", label: "Res. veleno" }),
+      Object.freeze({ id: "damage-defense-resistance-poison", label: "Res. veleno" }),
       Object.freeze({ id: "aura-of-purity-disease-immunity", label: "Imm. malattie" }),
       Object.freeze({ id: "aura-of-purity-condition-save-advantage", label: "Vant. TS condizioni" }),
     ]),
     mechanics: Object.freeze({
-      damageResistances: Object.freeze(["poison"]),
+      damageDefenses: Object.freeze({ resistances: Object.freeze(["poison"]) }),
       diseaseImmunity: true,
       savingThrow: Object.freeze({
         advantageAgainst: Object.freeze([
@@ -589,12 +596,12 @@ export const PHB2014_EFFECTS = Object.freeze({
     label: "Res. necrotici / max PF / +1 PF a 0",
     detail: "Resistenza ai danni necrotici, massimo PF non riducibile e recupero di 1 PF a inizio turno quando si è a 0 PF.",
     summaryParts: Object.freeze([
-      Object.freeze({ id: "aura-of-life-necrotic-resistance", label: "Res. necrotici" }),
+      Object.freeze({ id: "damage-defense-resistance-necrotic", label: "Res. necrotici" }),
       Object.freeze({ id: "aura-of-life-hit-point-maximum", label: "Max PF protetto" }),
       Object.freeze({ id: "aura-of-life-heal-at-zero", label: "+1 PF a 0" }),
     ]),
     mechanics: Object.freeze({
-      damageResistances: Object.freeze(["necrotic"]),
+      damageDefenses: Object.freeze({ resistances: Object.freeze(["necrotic"]) }),
       hitPointMaximumProtected: true,
       healingAtTurnStart: Object.freeze({ amount: 1, whenAtHp: 0 }),
     }),

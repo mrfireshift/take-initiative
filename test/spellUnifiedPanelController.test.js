@@ -1582,6 +1582,7 @@ test("Cura ferite di massa: the area selects the caster's side, the GM edits the
   assert.equal(panel.state.session.placement.state, "confirmed");
   assert.equal(panel.state.model.placement.actionLabel, "Riposiziona area");
   const caster = targetInput(root, "caster-a");
+  assert.equal(caster.disabled, false, "a real checkbox ignores the click while disabled");
   caster.checked = true;
   await caster.emit("change");
   await settle(4);
@@ -1631,6 +1632,61 @@ test("Cura ferite di massa: a map selection while the area is drawn never replac
   await settle(10);
   assert.equal(areaCommands.length, 1);
   assert.deepEqual(areaCommands[0].targeting.targetIds, ["ally-a"]);
+  await panel.destroy();
+});
+
+// Hallow's area counts the caster too, so the zone knows who stands in it.
+class AreaWithCasterBroadcast extends FakeBroadcast {
+  async sendMessage(channel, data) {
+    this.calls.push({ channel, data });
+    if (channel === SPELL_AREA_PLACEMENT_CHANNEL) {
+      if (data.type === "start") this.pendingPlacement = data;
+      if (data.type === "confirm") {
+        this.pendingPlacement = null;
+        this.emit(channel, { type: "result", requestId: data.requestId, status: "confirmed",
+          preview: { label: "Area confermata", targetIds: ["caster-a", "ally-a", "enemy-a"] } });
+      }
+    }
+  }
+}
+
+test("Santificare: the area ticks everyone but the caster, the rows stay open, and the command takes the ticks", async () => {
+  const areaCommands = [];
+  const { root, panel } = boot({
+    provider: healProvider(),
+    broadcast: new AreaWithCasterBroadcast(),
+    route: { status: "ready", spellId: "hallow", session: { casterId: "caster-a", slotLevel: 5, variant: "fear" } },
+    areaExecutor: async (command) => {
+      areaCommands.push(command);
+      return { status: "applied", changedIds: command.targeting.targetIds, historyEntryId: "h", undoAvailable: true };
+    },
+  });
+  await settle();
+  await requiredNode(root, "[data-placement-action]").click();
+  await settle(3);
+  await requiredNode(root, "[data-placement-confirm]").click();
+  await settle(8);
+  assert.deepEqual(panel.state.session.targetIds, ["ally-a", "enemy-a"], "both sides, not the caster");
+
+  const caster = targetInput(root, "caster-a");
+  assert.equal(caster.disabled, false, "no Modifica bersagli needed for the caster standing in the area");
+  caster.checked = true;
+  await caster.emit("change");
+  await settle(4);
+  const enemy = targetInput(root, "enemy-a");
+  assert.equal(enemy.disabled, false);
+  enemy.checked = false;
+  await enemy.emit("change");
+  await settle(4);
+  assert.deepEqual(panel.state.session.targetIds, ["ally-a", "caster-a"]);
+
+  const primary = requiredNode(root, '[data-primary-action="apply"]');
+  assert.equal(primary.disabled, false);
+  await primary.click();
+  await settle(10);
+  assert.equal(areaCommands.length, 1);
+  assert.equal(areaCommands[0].valid, true, JSON.stringify(areaCommands[0].errors));
+  assert.deepEqual(areaCommands[0].targeting.targetIds, ["ally-a", "caster-a"]);
   await panel.destroy();
 });
 

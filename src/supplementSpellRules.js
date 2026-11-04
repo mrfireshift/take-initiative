@@ -111,9 +111,17 @@ export const SUPPLEMENT_AUTOMATION = Object.freeze({
       }),
     }),
   }),
+  // As for Sleep: the sleeper wakes if it takes damage or someone shakes it awake (removed by hand), on that creature only.
   "xanathar-sonnellino": Object.freeze({
     mode: "automatic",
     conditions: Object.freeze(["Privo di sensi"]),
+    conditionOptions: Object.freeze({
+      "Privo di sensi": Object.freeze({
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        mechanics: Object.freeze({ endsOnDamage: true }),
+      }),
+    }),
   }),
   "xanathar-urlo-psichico": Object.freeze({
     mode: "confirm",
@@ -742,11 +750,11 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     id: "shadow-of-moil",
     kind: "buff",
     label: "Oscurato · Res. radiosi · ritorsione",
-    detail: "Il caster è pesantemente oscurato, resiste ai radiosi e danneggia chi lo colpisce in mischia.",
+    detail: "Il caster è pesantemente oscurato, resiste ai radiosi e danneggia chi lo colpisce da entro 3 metri, anche a distanza.",
     summaryParts: Object.freeze([
       Object.freeze({ id: "shadow-of-moil-obscured", label: "Oscurato" }),
       Object.freeze({ id: "damage-defense-resistance-radiant", label: "Res. radiosi" }),
-      Object.freeze({ id: "shadow-of-moil-melee-retaliation", label: "Ritorsione mischia" }),
+      Object.freeze({ id: "shadow-of-moil-melee-retaliation", label: "Ritorsione entro 3 m" }),
     ]),
     // CAP-REACTION: a real resistance; an attacker within 3 m that hits takes 2d8 necrotic (offered by the consoles).
     mechanics: Object.freeze({
@@ -845,9 +853,12 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     label: "Res. psichici · vant. TS Int/Sag/Car",
     detail: "Resistenza ai danni psichici e vantaggio ai tiri salvezza su Intelligenza, Saggezza e Carisma.",
     summaryParts: Object.freeze([
-      Object.freeze({ id: "intellect-fortress-psychic-resistance", label: "Res. psichici" }),
+      Object.freeze({ id: "damage-defense-resistance-psychic", label: "Res. psichici" }),
       Object.freeze({ id: "intellect-fortress-mental-save-advantage", label: "Vant. TS Int/Sag/Car" }),
     ]),
+    mechanics: Object.freeze({
+      damageDefenses: Object.freeze({ resistances: Object.freeze(["psychic"]) }),
+    }),
   })]),
   "tasha-miscela-caustica-di-tasha": Object.freeze([Object.freeze({
     id: "caustic-acid",

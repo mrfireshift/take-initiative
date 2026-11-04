@@ -71,7 +71,9 @@ test("le condizioni indipendenti dal parent conservano la propria durata", () =>
       },
     },
   }]);
-  assert.deepEqual(getProposedConditions(getSpellDefinition("Sonnellino")), ["Privo di sensi"]);
+  const [catnap] = getProposedConditions(getSpellDefinition("Sonnellino"));
+  assert.equal(catnap.name, "Privo di sensi");
+  assert.equal(catnap.options.mechanics.endsOnDamage, true);
 });
 
 test("Pirotecnica e Cerimonia impostano la durata in base alla scelta", () => {
@@ -184,7 +186,7 @@ test("le varianti difensive dichiarano summaryParts per ogni scelta persistente"
       { id: "elemental-resistances-reaction-immunity", label: "Reaz.: Imm. tipo" },
     ]],
     ["tasha-fortezza-della-mente", "", [
-      { id: "intellect-fortress-psychic-resistance", label: "Res. psichici" },
+      { id: "damage-defense-resistance-psychic", label: "Res. psichici" },
       { id: "intellect-fortress-mental-save-advantage", label: "Vant. TS Int/Sag/Car" },
     ]],
     ["xanathar-guardiano-della-natura", "primal-beast", [
