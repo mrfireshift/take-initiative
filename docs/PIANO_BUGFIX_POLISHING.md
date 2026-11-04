@@ -114,8 +114,8 @@ Lotti fatti:
   - MP-06 è ritirato: l'origine dei coni dalla mediana del lato è voluta (commit `e47131c3`).
   - Linee: 20 caselle dalla prima accanto al caster, una sola fila da un vertice.
   - Onda tonante: cubo con una faccia sul caster.
-  - Aree istantanee «entro N metri» ed emanazioni dei mostri: caselle contate dall'impronta del token, diagonali comprese.
-  - Gittata in caselle, con i piedi a 1,5 m ogni 5.
+  - Aree istantanee «entro N metri» ed emanazioni dei mostri: caselle contate dall'impronta del token, diagonali comprese. Cambiato il 4/11: sono cerchi di quel raggio attorno al token (`docs/AREE_SU_GRIGLIA.md`, D-B).
+  - Gittata in caselle, con i piedi a 1,5 m ogni 5. La misura in caselle è stata cambiata il 4/11: la gittata è il raggio di un cerchio (`docs/AREE_SU_GRIGLIA.md`, D-C).
   - «Aspetto area» non tocca le zone degli incantesimi.
   - La guida ora descrive la regola vera di cerchio e cono.
   - Test in `areaGeometryFixes`, `aoeGeometryCore` e `spellAreaPlacementCore`; quello della conversione in piedi è adeguato alla decisione D-C.

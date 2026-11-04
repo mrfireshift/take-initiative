@@ -59,7 +59,7 @@ export async function loadCounterspellScene(casterId) {
   ]);
   const caster = items.find((item) => item.id === casterId) || null;
   const unit = String(scale?.parsed?.unit || "").trim();
-  const context = { dpi: Math.max(1, Number(dpi) || 1), multiplier: Math.max(0, Number(scale?.parsed?.multiplier) || 1) };
+  const context = { dpi: Math.max(1, Number(dpi) || 1), multiplier: Math.max(0, Number(scale?.parsed?.multiplier) || 1), spellRange: true };
   const rangeLimit = /^(ft|feet|piedi)/iu.test(unit) ? 60 : 18;
   const candidates = items
     .filter((item) => item.id !== casterId && item.layer === "CHARACTER" && !item.attachedTo && item.metadata?.[META_KEY])

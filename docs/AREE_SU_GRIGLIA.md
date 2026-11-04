@@ -78,17 +78,22 @@ Non riguarda le regole di gioco: è lo stile grafico delle zone già sulla mappa
 | # | Decisione | Esito |
 |---|---|---|
 | D-A | Cerchi: metodo Template (casella coperta anche in parte) come diceva la guida, o centro della casella (≈ metà coperta, DMG) come fa il codice | resta il codice (DMG); guida, riferimento e risoluzione dei problemi corretti |
-| D-B | Emanazioni «entro N metri»: distanza in caselle dal bordo del token (diagonali comprese) | sì, solo per le aree scritte «entro»; i «raggio» restano cerchi |
-| D-C | Gittata delle aree: caselle (PHB, diagonale = 1) o linea d'aria | caselle, come la variante su griglia del PHB |
+| D-B | Emanazioni «entro N metri»: distanza in caselle dal bordo del token (diagonali comprese) | sì, solo per le aree scritte «entro»; i «raggio» restano cerchi. **Cambiata il 4/11/2026:** salvo un'area scritta come cubo o quadrato, si intende sempre il raggio di un cerchio, misurato dal bordo del token |
+| D-C | Gittata delle aree: caselle (PHB, diagonale = 1) o linea d'aria | caselle, come la variante su griglia del PHB. **Cambiata il 4/11/2026: linea d'aria.** La gittata è il raggio di un cerchio attorno al caster, e così si disegna |
 
 ## 6. Cosa è stato fatto (lotto L25)
 
 - **MP-03**: lunghezza delle linee in [0, lunghezza), anche per la fascia del Muro di fuoco. La linea centrale è allineata alla griglia secondo la larghezza: per una larghezza dispari passa dai centri delle caselle. Il Fulmine va dalla casella accanto al caster per 20 caselle; un muro largo 1,5 m da un vertice prende una fila. Cambiano le caselle dei muri già sulla mappa.
 - **MP-04**: Onda tonante è un rettangolo 4,5 × 4,5 m con origine accanto al caster (`AREA_OVERRIDES.thunderwave`), come il cubo dei mostri.
-- **MP-07 (D-B)**: `metric: "grid"` sulle regole istantanee scritte «entro» e sulle emanazioni dei mostri. L'area (`buildWithinDistanceArea`) prende le caselle a non più di N caselle dall'impronta del token. Metrica e impronta viaggiano con l'anteprima, l'area salvata e la riselezione; il contorno è un quadrato.
+- **MP-07 (D-B)**: `metric: "grid"` sulle regole istantanee scritte «entro» e sulle emanazioni dei mostri. Dal 4/11/2026 (D-B cambiata) l'area è un cerchio di quel raggio dall'impronta del token (`buildFootprintEmanationArea`): a 1,5 m da un token Medio le caselle in diagonale restano fuori. Il valore `grid` non indica più un conteggio in caselle: dice che l'area si misura dal token e non da un punto. Metrica e impronta viaggiano con l'anteprima, l'area salvata e la riselezione. La console attacchi propone gli stessi bersagli (`pcAttackNearbyIds`). La portata delle armi in mischia non è un'area e resta in caselle (`bossReachFeet`).
   - Regole segnate: Parola divina, Braccia di Hadar, Onda distruttiva, Parola radiosa, Rombo di tuono, Passo del tuono, Turbine di spade.
-  - Le aure e le zone scritte «entro» restano cerchi, perché la loro appartenenza si ricalcola altrove (`spellAuraController.js` e il controllo dell'attraversamento): Investitura della fiamma, Sudario spirituale, Cerchio di potere, Passo senza tracce, Parlare con i vegetali, Scossa tellurica. Sono un seguito possibile.
+  - Le aure e le zone scritte «entro» erano già cerchi (`spellAuraController.js` e il controllo dell'attraversamento): Investitura della fiamma, Sudario spirituale, Cerchio di potere, Passo senza tracce, Parlare con i vegetali, Scossa tellurica.
   - I testi di Turbine di spade, Sudario spirituale e Scossa tellurica non escono dai PDF: la classificazione viene dal testo 2014 ed è da controllare sul manuale.
-- **MP-09 (D-C)**: i piedi valgono 0,3 m (5 ft = 1,5 m) e la gittata si conta in caselle con la diagonale a una (`spellAreaOriginWithinRange`). L'anteprima della gittata è un quadrato.
+- **MP-09 (D-C)**: i piedi valgono 0,3 m (5 ft = 1,5 m). La gittata era contata in caselle con la diagonale a una, con l'anteprima quadrata; dal 4/11/2026 è in linea d'aria, con l'anteprima circolare.
+  - La conversione dei piedi era arrivata solo allo strumento d'area. Dal 4/11/2026 vale anche per il pannello, le azioni attive, Intermittenza e il movimento delle zone: prima la casella al bordo della gittata risultava fuori su una scena in piedi. Restano fisiche le unità della quota (`distance3dCore.js`).
+  - Punto sulla mappa: `spellAreaOriginWithinRange`.
+  - Bersagli: `gridRangeDistance`, dalle caselle occupate più vicine. La usano la gittata dal caster, la distanza tra i bersagli, Catena di fulmini, i teletrasporti, il ritorno di Intermittenza, le capacità di classe e il Controincantesimo. Dal lotto 3 del polishing vale per ogni incantesimo con bersagli scelti (`docs/PIANO_POLISH_INCANTESIMI.md`).
+  - Una casella vicina vale una anche in diagonale. Il contatto, gli attacchi a 1,5 m delle azioni attive (Arma spirituale, Spada arcana), la mano di Maximilian e il passeggero di Porta dimensionale la raggiungono; solo un'area scritta «entro 1,5 m» la lascia fuori.
+  - Restano in caselle lo strumento Distanza 3D e l'anello della Mano arcana (`gridPlanarDistance`), la portata in mischia dei mostri (`bossReachFeet`) e il movimento dei token (`measureSquareGridCells`).
 - **MP-10**: «Aspetto area» non ricolora più le zone degli incantesimi; la guida dice cosa ricolora.
 - **MP-06**: ritirato, scelta voluta.

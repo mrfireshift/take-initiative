@@ -5,6 +5,7 @@ import {
   gridFootprintSize,
   gridGeometryFromBounds,
   gridPlanarDistance,
+  gridRangeDistance,
   spatialDistance,
 } from "./distance3dCore.js";
 import { isSpellBoardTokenActor } from "./spellBoardTokenCore.js";
@@ -116,7 +117,8 @@ export function measureItems(origin, target, context) {
   };
   const originGeometry = geometry(origin);
   const targetGeometry = geometry(target);
-  const planar = gridPlanarDistance(
+  // context.spellRange: a spell's range is a circle (Counterspell). The ruler keeps counting squares.
+  const planar = (context?.spellRange === true ? gridRangeDistance : gridPlanarDistance)(
     originGeometry.position,
     targetGeometry.position,
     context?.dpi,

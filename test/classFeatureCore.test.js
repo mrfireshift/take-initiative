@@ -520,6 +520,20 @@ test("la portata usa l'ingombro dei token e rifiuta bersagli oltre il limite", (
   assert.equal(classFeatureTargetWithinRange(source, far, 2, 150), false);
 });
 
+// The owner's decision of 4/11/2026: a range is the radius of a circle; a touch still reaches the diagonal neighbour.
+test("la portata delle capacità è un cerchio, e il contatto raggiunge la diagonale", () => {
+  const token = (cellsX, cellsY) => ({
+    position: { x: 75 + cellsX * 150, y: 75 + cellsY * 150 },
+    size: { width: 150, height: 150 },
+  });
+  const withinCells = (cellsX, cellsY, limit) => classFeatureTargetWithinRange(token(0, 0), token(cellsX, cellsY), limit, 150);
+  assert.equal(withinCells(1, 1, 1), true, "a touch");
+  assert.equal(withinCells(2, 0, 1), false);
+  assert.equal(withinCells(12, 0, 12), true, "18 m, straight");
+  assert.equal(withinCells(8, 8, 12), true);
+  assert.equal(withinCells(9, 9, 12), false, "12,7 cells: 9 counted in squares");
+});
+
 test("terminare Ira rimuove anche le varianti collegate", () => {
   const result = planClassFeatureDeactivation({
     instances: [

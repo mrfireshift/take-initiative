@@ -101,13 +101,14 @@ test("il tracker include le durate persistenti e il solo istantaneo con effetto 
 // Dissonant Whispers joins them as a discrete save with damage (lotto L2).
 // 17 with Power Word Heal, resolved on one creature in the area command (CAP-CLEANSE).
 // 19 con Duello Obbligato e Corona di Follia, che chiedono l'esito del TS (decisione D6 del polishing).
-test("HP rapidi riceve le 19 spell PHB con area, trigger spaziale, TS discreto con danno o cura con pulizia", () => {
+test("HP rapidi riceve le 20 spell PHB con area, trigger spaziale, TS discreto con danno o cura con pulizia", () => {
   const ids = getAreaSaveSpellOptions()
     .filter((option) => spell(option.id).source === "phb2014")
     .map((option) => option.id);
 
   assert.deepEqual(ids, [
     "phb2014-braccia-di-hadar",
+    "phb2014-dardo-stregato",
     "phb2014-duello-obbligato",
     "phb2014-raffica-di-spine",
     "phb2014-sussurri-dissonanti",
@@ -223,8 +224,9 @@ test("le pill con scadenza speciale non ereditano una durata errata dal parent",
     remaining: 1,
     anchor: "next-turn",
   });
+  // "Fino al suo turno successivo": the reactions come back when that turn starts (lot 3 of the polish).
   assert.deepEqual(getAreaSaveAutomation("Braccia di Hadar").failed[0].expiry, {
-    mode: "turn-end",
+    mode: "turn-start",
     actor: "target",
     remaining: 1,
     anchor: "next-turn",

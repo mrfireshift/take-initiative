@@ -25,9 +25,9 @@ test("L25: Onda tonante è un cubo di 4,5 m con una faccia sul caster, come il c
 });
 
 
-// MP-09: on a "5 ft" scene the farthest Fireball (150 ft = 30 cells, stored as 45 m) was refused, and a diagonal was
-// measured as the crow flies instead of in cells as the grid variant of the PHB counts it.
-test("L25: gittata in caselle come nella variante su griglia del PHB, piedi da 1,5 m ogni 5", async () => {
+// MP-09: on a "5 ft" scene the farthest Fireball (150 ft = 30 cells, stored as 45 m) was refused. The owner's decision of
+// 4/11 replaces D-C: a range is the radius of a circle, so a diagonal is measured as the crow flies, not in cells.
+test("L25: la gittata è il raggio di un cerchio, piedi da 1,5 m ogni 5", async () => {
   const { spellAreaOriginWithinRange } = await import("../src/spellAreaPlacementCore.js");
   const fireball = { value: 45, unit: "m", measure: "range" };
   const at = (cellsX, cellsY, scale) => spellAreaOriginWithinRange({ origin: { x: 50 + cellsX * 100, y: 50 + cellsY * 100 },
@@ -36,42 +36,74 @@ test("L25: gittata in caselle come nella variante su griglia del PHB, piedi da 1
   const metres = { multiplier: 1.5, unit: "m" };
   assert.equal(at(30, 0, feet), true, "30 cells on a 5 ft scene");
   assert.equal(at(31, 0, feet), false);
-  assert.equal(at(30, 30, metres), true, "30 cells in diagonal: 30 cells");
-  assert.equal(at(30, 31, metres), false);
+  assert.equal(at(30, 0, metres), true, "the radius, straight");
+  assert.equal(at(0, 30, metres), true);
+  assert.equal(at(31, 0, metres), false);
+  assert.equal(at(21, 21, metres), true, "inside the circle: 29,7 cells");
+  assert.equal(at(22, 22, metres), false, "outside the circle: 31,1 cells");
+  assert.equal(at(30, 30, metres), false, "the corner of the old square");
 });
 
-test("L25: l'anteprima della gittata è il quadrato che il conteggio in caselle raggiunge", async () => {
+// A touch and the 1,5 m melee attacks of the active actions (Spiritual Weapon, Arcane Sword) are not circles: the diagonal
+// neighbour stays in reach. Only an area written "within 1,5 m" leaves the diagonal out.
+test("L25: a 1,5 m una casella vicina resta raggiungibile, anche in diagonale", async () => {
+  const { spellAreaOriginWithinRange } = await import("../src/spellAreaPlacementCore.js");
+  const at = (cellsX, cellsY) => spellAreaOriginWithinRange({ origin: { x: 50 + cellsX * 100, y: 50 + cellsY * 100 },
+    casterOrigin: { x: 50, y: 50 }, range: { value: 1.5, unit: "m" }, dpi: 100, scale: { multiplier: 1.5, unit: "m" } });
+  assert.equal(at(1, 0), true);
+  assert.equal(at(-1, 1), true, "the diagonal");
+  assert.equal(at(2, 0), false);
+  assert.equal(at(2, 1), false);
+});
+
+// MP-09 reached only the area tool on 29/10: the other measures of a range still took a "5 ft" square for 1,524 m.
+test("L25: ogni misura di una gittata conta 5 ft come 1,5 m", async () => {
+  const { readFileSync } = await import("node:fs");
+  for (const file of ["spellAreaPlacementCore.js", "spellUnifiedPanelSceneProvider.js", "spellActiveResolutionValidation.js",
+    "spell-active-resolution.js", "spellZoneMovementCore.js"]) {
+    const source = readFileSync(new URL(`../src/${file}`, import.meta.url), "utf8");
+    assert.match(source, /\bft: 0\.3,/, file);
+    assert.doesNotMatch(source, /\bft: 0\.3048/, file);
+  }
+});
+
+test("L25: l'anteprima della gittata è il cerchio di quel raggio", async () => {
   const { readFileSync } = await import("node:fs");
   const tool = readFileSync(new URL("../src/aoeTargetTool.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   const preview = tool.slice(tool.indexOf("function spellRangePreviewPath("), tool.indexOf("function radiusLabel("));
-  assert.match(preview, /\[Command\.MOVE, origin\.x - radius, origin\.y - radius\]/);
-  assert.match(preview, /\[Command\.LINE, origin\.x \+ radius, origin\.y \+ radius\]/);
-  assert.doesNotMatch(preview, /type: "circle"/);
+  assert.match(preview, /type: "circle"/);
+  assert.doesNotMatch(preview, /Command\.LINE/);
 });
 
-// MP-07 (decision D-B): an area written "each creature within N feet of you" is a range, counted in cells from the
-// caster's space with diagonals in, as the attack console proposes it; an area written as a radius stays a circle.
-test("L25: le aree «entro N metri» contano le caselle dal token, diagonali comprese, come la proposta della console", async () => {
-  const { buildArea, buildWithinDistanceArea } = await import("../src/aoeGeometryCore.js");
-  const { bossReachFeet } = await import("../src/bossActionsViewCore.js");
-  // Medium caster on cell (0,0): within 5 ft = the 8 cells around it and its own.
-  const medium = buildArea("circle", { x: 50, y: 50 }, { x: 150, y: 50 }, 100, { x: 0, y: 0 }, { metric: "grid", footprint: { widthCells: 1, heightCells: 1 } });
-  assert.equal(medium.cells.length, 9);
-  assert.ok(medium.cells.some((cell) => cell.x === 100 && cell.y === 100), "the diagonal cell is in");
-  // The plain circle (a radius) leaves the diagonals out.
-  assert.equal(buildArea("circle", { x: 50, y: 50 }, { x: 150, y: 50 }, 100, { x: 0, y: 0 }).cells.length, 5);
-  // Large caster on cells (0..1, 0..1): within 5 ft = 4 × 4.
-  const large = buildWithinDistanceArea({ x: 100, y: 100 }, { widthCells: 2, heightCells: 2 }, 1, 100, { x: 0, y: 0 });
-  assert.equal(large.cells.length, 16);
+// MP-07 (decision D-B, changed by the owner on 4/11): an area written "each creature within N feet of you" is a circle of
+// that radius from the caster's space, as the attack console proposes it. Only an area written as a cube is a square.
+test("L25: le aree «entro N metri» sono cerchi di quel raggio attorno al token, come la proposta della console", async () => {
+  const { buildArea } = await import("../src/aoeGeometryCore.js");
+  const { pcAttackNearbyIds } = await import("../src/pcAttackCore.js");
+  const within = (footprint, centre, cells) => buildArea("circle", centre, { x: centre.x + cells * 100, y: centre.y }, 100, { x: 0, y: 0 },
+    { metric: "grid", footprint });
+  const one = { widthCells: 1, heightCells: 1 };
+  const two = { widthCells: 2, heightCells: 2 };
+  // Medium caster on cell (0,0): within 5 ft = its cell and the 4 next to it, the same cells as any circle of that radius.
+  const medium = within(one, { x: 50, y: 50 }, 1);
+  assert.equal(medium.cells.length, 5);
+  assert.equal(medium.cells.some((cell) => cell.x === 100 && cell.y === 100), false, "the diagonal cell is out");
+  assert.deepEqual(medium.cells, buildArea("circle", { x: 50, y: 50 }, { x: 150, y: 50 }, 100, { x: 0, y: 0 }).cells);
+  assert.equal(medium.points, undefined, "no square to draw");
+  // Large caster on cells (0..1, 0..1): within 5 ft = 4 × 4 without the corners.
+  const large = within(two, { x: 100, y: 100 }, 1);
+  assert.equal(large.cells.length, 12);
+  assert.equal(large.cells.some((cell) => cell.x === 200 && cell.y === 200), false, "the corner is out");
   // Same answer as the console's proposal for a creature anywhere around a Large monster, 10 ft.
-  const monster = { min: { x: 0, y: 0 }, max: { x: 200, y: 200 } };
-  const area = buildWithinDistanceArea({ x: 100, y: 100 }, { widthCells: 2, heightCells: 2 }, 2, 100, { x: 0, y: 0 });
+  const monster = { id: "monster", bounds: { min: { x: 0, y: 0 }, max: { x: 200, y: 200 } } };
+  const area = within(two, { x: 100, y: 100 }, 2);
   const inArea = new Set(area.cells.map((cell) => `${cell.x / 100},${cell.y / 100}`));
   for (let column = -4; column <= 5; column += 1) {
     for (let row = -4; row <= 5; row += 1) {
       if (column >= 0 && column <= 1 && row >= 0 && row <= 1) continue;
-      const bounds = { min: { x: column * 100, y: row * 100 }, max: { x: column * 100 + 100, y: row * 100 + 100 } };
-      assert.equal(inArea.has(`${column},${row}`), bossReachFeet(monster, bounds, 100, 5) <= 10, `cell ${column},${row}`);
+      const creature = { id: "creature", bounds: { min: { x: column * 100, y: row * 100 }, max: { x: column * 100 + 100, y: row * 100 + 100 } } };
+      const proposed = pcAttackNearbyIds({ centerId: "monster", rows: [monster, creature], dpi: 100, feetPerCell: 5, radiusFeet: 10 });
+      assert.equal(inArea.has(`${column},${row}`), proposed.length === 1, `cell ${column},${row}`);
     }
   }
 });
@@ -93,14 +125,14 @@ test("L25: le regole «entro» sono segnate, quelle a raggio no; il segno arriva
   assert.deepEqual([reviewed.preview.metric, reviewed.preview.footprint], ["grid", { widthCells: 2, heightCells: 2 }]);
 });
 
-test("L25: lo strumento porta la metrica «entro» nelle opzioni, nell'area salvata, nella riselezione e la disegna quadrata", async () => {
+test("L25: lo strumento porta la metrica «entro» nelle opzioni, nell'area salvata e nella riselezione, e la disegna come un cerchio", async () => {
   const { readFileSync } = await import("node:fs");
   const tool = readFileSync(new URL("../src/aoeTargetTool.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   const section = (from, to) => tool.slice(tool.indexOf(from), tool.indexOf(to, tool.indexOf(from)));
   assert.match(section("function spellAreaGeometryOptions(", "function previewPath("), /\.\.\.areaMetricFields\(rule, state\),/);
   assert.match(section("function persistentAreaMetadata(", "async function persistArea("), /\.\.\.areaMetricFields\(state\.rule, state\),/);
   assert.match(section("function translatedAreaFromItem(", "\n}\n"), /metadata\.metric === "grid" \? \{ metric: "grid", footprint: metadata\.footprint \}/);
-  assert.match(section("function geometryCommands(", "function isBossEmanation("), /area\.metric === "grid" && Array\.isArray\(area\.points\)/);
+  assert.doesNotMatch(section("function geometryCommands(", "function isBossEmanation("), /area\.metric === "grid"/);
 });
 
 // MP-10: «Aspetto area» recoloured the spells' zones already on the map too (Moonbeam and Wall of Fire lost their theme).

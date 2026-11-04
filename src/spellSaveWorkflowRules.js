@@ -471,6 +471,45 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
       maxMeters: 18,
     },
   }),
+  "xanathar-morsa-del-gelo": workflowRule({
+    spellId: "xanathar-morsa-del-gelo",
+    ability: "con",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 0,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 18,
+    },
+  }),
+  // An attack roll: a hit is the branch of a failed save, a miss the branch of an immune creature (nothing happens and no
+  // concentration stays). The ability is the workflow's own, no save is asked.
+  "phb2014-dardo-stregato": workflowRule({
+    spellId: "phb2014-dardo-stregato",
+    ability: "dex",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 1,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 9,
+    },
+    outcomeOptions: ["failed", "immune"],
+    outcomeLabels: { failed: "Colpito", immune: "Mancato" },
+  }),
+  "ray-of-enfeeblement": workflowRule({
+    spellId: "ray-of-enfeeblement",
+    ability: "con",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 2,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 18,
+    },
+    outcomeOptions: ["failed", "immune"],
+    outcomeLabels: { failed: "Colpito", immune: "Mancato" },
+  }),
   // A save with damage on one creature (lotto L2, 2014 texts); the damage by outcome is in spellCastResolutionRules.js.
   "xanathar-catapulta": workflowRule({
     spellId: "xanathar-catapulta",
@@ -732,6 +771,7 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
       maxMeters: 18,
     },
   }),
+  // An attack roll, then a save: only a hit reaches the save, and a miss deals nothing.
   "phb2014-raggio-di-infermita": workflowRule({
     spellId: "phb2014-raggio-di-infermita",
     ability: "con",
@@ -742,6 +782,7 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
       mode: "caster-range",
       maxMeters: 18,
     },
+    outcomeLabels: { immune: "Mancato" },
   }),
   "eyebite": workflowRule({
     spellId: "eyebite",

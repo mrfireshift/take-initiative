@@ -2015,6 +2015,8 @@ async function buildPlan(command, runtime) {
       position: entry.position,
       ...(entry.objectSize ? { objectSize: entry.objectSize } : {}),
       ...(placementRule?.composition ? { batch: true, number: index + 1 } : {}),
+      // The GM's exception to the range, given on the map (aoeTargetTool.js).
+      ...(placement?.preview?.rangeOverride === true ? { rangeOverride: true } : {}),
     })),
   ];
   const previousStaticZoneItems = terminalResolutionRequest

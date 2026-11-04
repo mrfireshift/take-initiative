@@ -295,7 +295,10 @@ function areaMessageForResult(result) {
   const code = String(result?.errors?.[0]?.code || "").trim();
   // CAP-STABILIZE: why the spell refuses this creature, in the words of stabilizeSpellRules.js.
   if (code === "stabilize-target-invalid" && result.errors[0].message) return result.errors[0].message;
-  return AREA_FEEDBACK_MESSAGES[code]
+  // A spatial refusal keeps its reason in the message (spellAreaResolutionExecutor.js: the range, the destination).
+  const spatialReason = code === "spatial-validation-failed" ? String(result.errors[0].message || "").trim() : "";
+  return AREA_FEEDBACK_MESSAGES[spatialReason]
+    || AREA_FEEDBACK_MESSAGES[code]
     || (result?.status === SPELL_UNIFIED_AREA_STATUS.NOOP
       ? "Nessuna modifica da applicare."
       : "Applicazione non riuscita.");
@@ -816,7 +819,7 @@ export function bootSpellUnifiedPanel(
   const targetingSelectionFeedback = (errors = []) => {
     const spatial = state.contract?.presentation?.targeting?.spatialRules || {};
     if (errors.includes("primary-out-of-range")) {
-      return `Il bersaglio primario supera la portata di ${spatial.primaryRangeMeters || ""} m.`;
+      return `Il bersaglio primario supera la portata di ${spatial.primaryRangeMeters || ""} m. Scegli lo stesso bersaglio di nuovo per ignorarla.`;
     }
     if (errors.includes("secondary-out-of-range")) {
       return `Seleziona i bersagli secondari entro ${spatial.secondaryRangeMeters || ""} m dal primario.`;
@@ -833,6 +836,86 @@ export function bootSpellUnifiedPanel(
     } catch {
       return null;
     }
+  };
+
+  const usesCasterRange = () => {
+    const targeting = state.contract?.presentation?.targeting;
+    return targeting?.spatialRules?.mode === "caster-range" || !!targeting?.casterRange;
+  };
+
+  const targetLabels = (ids) => [...ids].map((id) => (
+    state.targetCandidates.find((entry) => entry.key === id)?.label || "Bersaglio"
+  ));
+
+  const casterRangeFeedback = (invalidIds) => {
+    const targeting = state.contract?.presentation?.targeting;
+    const meters = targeting?.casterRange?.maxMeters ?? targeting?.spatialRules?.maxMeters;
+    const names = targetLabels(invalidIds);
+    return `Oltre la gittata${meters ? ` di ${String(meters).replace(".", ",")} m` : ""}: ${names.join(", ")}. ${names.length > 1 ? "Spuntali" : "Spuntalo"} di nuovo per ignorarla.`;
+  };
+
+  // The exception to the range, for what the map does not know (Distant Spell, Spell Sniper, a familiar's touch): the same
+  // target chosen again after its refusal, which says how. No button, and it lasts as long as the selection of this cast.
+  const grantCasterRangeException = (id) => {
+    patchSession({
+      rangeRefusedIds: (state.session.rangeRefusedIds || []).filter((entry) => entry !== id),
+      rangeOverrideIds: uniqueIds([...(state.session.rangeOverrideIds || []), id]),
+    }, { clearFeedback: false });
+  };
+
+  const dropCasterRangeException = (id) => {
+    if (!(state.session.rangeOverrideIds || []).includes(id)
+      && !(state.session.rangeRefusedIds || []).includes(id)) return;
+    patchSession({
+      rangeRefusedIds: (state.session.rangeRefusedIds || []).filter((entry) => entry !== id),
+      rangeOverrideIds: (state.session.rangeOverrideIds || []).filter((entry) => entry !== id),
+    }, { clearFeedback: false });
+  };
+
+  // The targets the caster cannot reach leave the panel's selection, and the panel says who. The map's selection follows only
+  // a click in the panel: writing it back in reaction to a change of the map could chase another writer for ever.
+  const applyCasterRangeValidation = async (ids, validation, { writeMapSelection = true } = {}) => {
+    const invalidIds = new Set(validation?.invalidDistanceTargetIds || []);
+    const nextIds = ids.filter((id) => !invalidIds.has(id));
+    const nextTargetSet = new Set(nextIds);
+    const nextOutcomes = Object.fromEntries(
+      Object.entries(state.session.outcomes || {})
+        .filter(([id]) => nextTargetSet.has(id)),
+    );
+    const nextTargetContext = Object.fromEntries(
+      Object.entries(state.session.targetContext || {})
+        .filter(([id]) => nextTargetSet.has(id)),
+    );
+    patchSession({
+      targetIds: nextIds,
+      primaryTargetId: nextTargetSet.has(state.session.primaryTargetId)
+        ? state.session.primaryTargetId
+        : "",
+      outcomes: nextOutcomes,
+      targetContext: nextTargetContext,
+      rangeRefusedIds: uniqueIds([...(state.session.rangeRefusedIds || []), ...invalidIds]),
+      ...(invalidIds.size
+        ? { feedback: { state: "error", message: casterRangeFeedback(invalidIds) } }
+        : {}),
+    }, { clearFeedback: !invalidIds.size });
+    if (writeMapSelection) await writeSelection(nextIds);
+  };
+
+  // A selection that does not pass from the checkboxes: the one on the map, the one the panel opens with, a new caster.
+  const enforceCasterRange = async () => {
+    const ids = uniqueIds(state.session.targetIds || []);
+    if (!usesCasterRange() || !ids.length || !sceneAvailable()
+      || state.session.placement?.targetLocked === true) return;
+    const operation = captureSceneOperation("spell-panel-target-range");
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    const validation = await validateTargetSelection({
+      contract: state.contract,
+      session: { ...state.session, targetIds: ids },
+      targetIds: ids,
+    });
+    if (!sceneLifecycle.isCurrent(operation) || !validation?.invalidDistanceTargetIds?.length) return;
+    // The selection may have changed while the scene was read: only these leave it.
+    await applyCasterRangeValidation(uniqueIds(state.session.targetIds || []), validation, { writeMapSelection: false });
   };
 
   const applyPrimarySecondarySelection = async (ids) => {
@@ -856,6 +939,8 @@ export function bootSpellUnifiedPanel(
         return;
       }
       const primaryTargetId = sceneIds[0];
+      // The exception to the range: the primary target refused before, chosen again.
+      if ((state.session.rangeRefusedIds || []).includes(primaryTargetId)) grantCasterRangeException(primaryTargetId);
       const validation = await validateTargetSelection({
         contract: state.contract,
         session: {
@@ -873,6 +958,7 @@ export function bootSpellUnifiedPanel(
           primaryTargetId: "",
           outcomes: {},
           targetContext: {},
+          rangeRefusedIds: uniqueIds([...(state.session.rangeRefusedIds || []), primaryTargetId]),
           feedback: { state: "error", message: targetingSelectionFeedback(validation.errors) },
         }, { clearFeedback: false });
         await writeSelection([]);
@@ -1077,6 +1163,7 @@ export function bootSpellUnifiedPanel(
       outcomes,
       targetContext,
     });
+    void enforceCasterRange();
   };
 
   const refreshTeleportPassengerCandidates = async (operation = null) => {
@@ -2891,6 +2978,7 @@ export function bootSpellUnifiedPanel(
           ...(runtimeOverrides.lifecycleExecutor
             ? { executor: runtimeOverrides.lifecycleExecutor }
             : {}),
+          validateCasterRange: (input) => provider.validateCasterRange?.(input),
           extraOperations: slotSpend.extraOperations,
           castCost: slotSpend.spellCost,
       },
@@ -3040,6 +3128,9 @@ export function bootSpellUnifiedPanel(
       }
       patchSession({
         casterId,
+        // The exception to the range was given for the distance from the other caster.
+        rangeRefusedIds: [],
+        rangeOverrideIds: [],
         ...(isTeleportSpell(state.contract?.spell?.id)
           ? { passengerId: "", targetIds: [] }
           : {}),
@@ -3057,6 +3148,7 @@ export function bootSpellUnifiedPanel(
       }
       const concentrations = await provider.getCasterConcentrations?.(casterId) || {};
       state.concentrationSummary = concentrationSummary(concentrations);
+      await enforceCasterRange();
       render();
     },
     onPassengerChange: async (passengerId) => {
@@ -3164,38 +3256,24 @@ export function bootSpellUnifiedPanel(
       if (checked) targetIds.add(key);
       else targetIds.delete(key);
       let nextIds = uniqueIds([...targetIds]);
-      if (state.contract?.presentation?.targeting?.spatialRules?.mode === "caster-range") {
+      if (usesCasterRange()) {
         const operation = captureSceneOperation("spell-panel-target-selection");
         if (!sceneLifecycle.isCurrent(operation)) return;
+        const excepted = checked && (state.session.rangeRefusedIds || []).includes(key);
+        if (excepted) grantCasterRangeException(key);
+        else if (!checked) dropCasterRangeException(key);
         const validation = await validateTargetSelection({
           contract: state.contract,
           session: { ...state.session, targetIds: nextIds },
           targetIds: nextIds,
         });
         if (!sceneLifecycle.isCurrent(operation)) return;
-        const invalidIds = new Set(validation?.invalidDistanceTargetIds || []);
-        nextIds = nextIds.filter((id) => !invalidIds.has(id));
-        const nextTargetSet = new Set(nextIds);
-        const nextOutcomes = Object.fromEntries(
-          Object.entries(state.session.outcomes || {})
-            .filter(([id]) => nextTargetSet.has(id)),
-        );
-        const nextTargetContext = Object.fromEntries(
-          Object.entries(state.session.targetContext || {})
-            .filter(([id]) => nextTargetSet.has(id)),
-        );
-        patchSession({
-          targetIds: nextIds,
-          primaryTargetId: nextTargetSet.has(state.session.primaryTargetId)
-            ? state.session.primaryTargetId
-            : "",
-          outcomes: nextOutcomes,
-          targetContext: nextTargetContext,
-          ...(invalidIds.size
-            ? { feedback: { state: "error", message: targetingSelectionFeedback(validation.errors) } }
-            : {}),
-        }, { clearFeedback: !invalidIds.size });
-        await writeSelection(nextIds);
+        await applyCasterRangeValidation(nextIds, validation);
+        if (excepted && !validation?.invalidDistanceTargetIds?.length) {
+          patchSession({
+            feedback: { state: "info", message: `Gittata ignorata per ${targetLabels([key]).join(", ")}.` },
+          }, { clearFeedback: false });
+        }
         return;
       }
       if (isPostPlacement) {
@@ -3589,6 +3667,8 @@ export function bootSpellUnifiedPanel(
           patchSession({ targetIds: selectedIds });
         }
       }
+      await enforceCasterRange();
+      if (!sceneAvailable()) return false;
       if (spellUnifiedPanelShouldAutoStartPlacement(route)) {
         await startPlacement();
       }

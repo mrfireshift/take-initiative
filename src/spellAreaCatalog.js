@@ -666,6 +666,16 @@ function selfRange(value) {
   return text === "self" || text.startsWith("incantatore");
 }
 
+// How far from its caster a spell's targets can be, from the range its text gives. A touch is 1,5 m, which reaches the
+// neighbouring cells (distance3dCore.gridRangeSquares); "Incantatore (raggio di N metri)" is that radius. Null when the
+// map has nothing to measure: self, sight, unlimited, special.
+export function spellTargetRangeMeters(spell) {
+  const text = String(spell?.range || "").trim().toLocaleLowerCase("it");
+  if (text === "sight" || text === "vista") return null;
+  if (selfRange(text)) return text.includes("raggio") ? metricNumber(text) || null : null;
+  return rangeMeters(text) || null;
+}
+
 function defaultOrigin(shape, spellRange) {
   if (!selfRange(spellRange)) return "point";
   return ["cone", "line", "rectangle"].includes(shape)

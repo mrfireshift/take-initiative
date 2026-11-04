@@ -2701,7 +2701,7 @@ async function prepareEffectsSideEffects(plan, command) {
           conflicts: [{ reason: "spell-board-token-caster-missing", itemId: casterId || null }],
         };
       }
-      if (!spellAreaOriginWithinRange({
+      if (descriptor.rangeOverride !== true && !spellAreaOriginWithinRange({
         origin: position,
         casterOrigin,
         range: { value: rule.creationRangeMeters, unit: "m" },

@@ -116,6 +116,15 @@ test("the popup's scene: the other creatures nearest first, the ghoul out of Cou
   assert.deepEqual(counterspellSlotOptions(sceneItems[2]).map((option) => option.level), [3, 4, 5, 6, 7, 8, 9], "a monster picks its level");
 });
 
+// The owner's decision of 4/11/2026: a range is the radius of a circle, not a count of squares.
+test("Counterspell's 60 ft are a circle: the diagonal is measured in a straight line", async () => {
+  const sera = () => loadCounterspellScene("mira").then((scene) => scene.candidates.find((entry) => entry.item.id === "sera"));
+  sceneItems.find((item) => item.id === "sera").position = { x: 800, y: 800 };
+  assert.equal((await sera()).inRange, true, "56,6 ft");
+  sceneItems.find((item) => item.id === "sera").position = { x: 900, y: 900 };
+  assert.equal((await sera()).inRange, false, "63,6 ft: 45 ft counted in squares");
+});
+
 test("one command: Mira's slot and reaction, Sera's lost slot, the countered spell named; one Undo gives all back", async () => {
   const result = await castCounterspell({
     casterId: "mira",

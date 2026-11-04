@@ -279,6 +279,7 @@ function resolveSpatialTargeting(
     pairwiseDistancesMeters = [],
     casterDistancesMeters = {},
     validateSpatial = true,
+    rangeOverrideIds = [],
   } = {},
 ) {
   const spatial = spatialRule(rule);
@@ -332,7 +333,10 @@ function resolveSpatialTargeting(
     }
   } else if (spatial.mode === "caster-range") {
     const distances = normalizedCasterDistances(casterDistancesMeters);
+    // The GM's exception to the range, target by target (spell-unified-panel.js).
+    const overridden = new Set(normalizedIds(rangeOverrideIds));
     for (const targetId of targetIds) {
+      if (overridden.has(targetId)) continue;
       const distance = distances.get(targetId);
       if (!Number.isFinite(distance)) {
         if (!errors.includes("caster-distance-unavailable")) {
@@ -386,6 +390,7 @@ export function resolveSpellSaveTargeting({
   targetContexts = {},
   outcomes = {},
   ignoreTargetLimit = false,
+  rangeOverrideIds = [],
 } = {}) {
   const normalizedSpellId = String(spellId || "").trim();
   const workflowRule = resolveRule(rule, normalizedSpellId);
@@ -442,6 +447,7 @@ export function resolveSpellSaveTargeting({
     pairwiseDistancesMeters,
     casterDistancesMeters,
     validateSpatial,
+    rangeOverrideIds,
   });
 
   if (duplicateTargetIds.length) errors.push("duplicate-targets");

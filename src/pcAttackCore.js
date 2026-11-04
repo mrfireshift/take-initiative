@@ -32,7 +32,7 @@ import {
   pcAttackActivationLimitKey, pcAttackActivationLimit, pcAttackActivationDealsDamage, pcAttackActivationEffect, getPcAttackActivation,
   pcAttackActivationRollBonus, pcAttackModesForCard,
 } from "./pcAttackActivationCatalog.js";
-import { bossReachFeet } from "./bossActionsViewCore.js";
+import { areaHitsBounds, buildFootprintEmanationArea, gridFootprintCells } from "./aoeGeometryCore.js";
 import { PC_ATTACK_CANTRIPS, PC_ATTACK_SAVE_LABELS, getPcAttackCantrip, pcAttackCantripDice, pcAttackWeaponCantripDice } from "./pcAttackCantripCatalog.js";
 import { PC_ATTACK_SPELLS, getPcAttackSpell, pcAttackSpellCount, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
 import { abilitySaveDC, totalCharacterLevel } from "./abilityModifiersCore.js";
@@ -964,13 +964,23 @@ export function pcAttackMonsterAreaNote(attack, card = {}) {
   return `${where}${pcAttackSaveLabel(attack, card)}${effects.length ? `: ${effects.join(", ")}` : ""}.`;
 }
 
-// Creatures near a token (3C): the edge-to-edge grid distance of the area tool, within radiusFeet. The caster's
+// Creatures near a token (3C): the circle of the area tool around the token's space, of radius radiusFeet. The caster's
 // emanation (area cantrips) or the target's (Bursting Arrow); the centre itself never counts.
 export function pcAttackNearbyIds({ centerId, rows = [], dpi, feetPerCell, radiusFeet } = {}) {
   const center = rows.find((row) => row?.id === centerId);
-  if (!center?.bounds || !(radiusFeet > 0)) return [];
+  const cell = Number(dpi);
+  const squares = Math.round(Number(radiusFeet) / Number(feetPerCell));
+  if (!center?.bounds || !(radiusFeet > 0) || !(cell > 0) || !(squares > 0)) return [];
+  const { min, max } = center.bounds;
+  const area = buildFootprintEmanationArea(
+    { x: (Number(min.x) + Number(max.x)) / 2, y: (Number(min.y) + Number(max.y)) / 2 },
+    gridFootprintCells(center.bounds, cell),
+    squares,
+    cell,
+    { x: Number(min.x), y: Number(min.y) },
+  );
   return rows.filter((row) => row?.id && row.id !== centerId && row.bounds)
-    .filter((row) => { const reach = bossReachFeet(center.bounds, row.bounds, dpi, feetPerCell); return reach !== null && reach <= radiusFeet; })
+    .filter((row) => areaHitsBounds(area, row.bounds))
     .map((row) => row.id);
 }
 

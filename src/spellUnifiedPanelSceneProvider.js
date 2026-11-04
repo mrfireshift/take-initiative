@@ -1,5 +1,5 @@
 import { ID } from "./constants.js";
-import { gridGeometryFromBounds, gridPlanarDistance } from "./distance3dCore.js";
+import { gridGeometryFromBounds, gridRangeDistance } from "./distance3dCore.js";
 import { areaHitsBounds, buildArea, buildCircleArea } from "./aoeGeometryCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import {
@@ -36,6 +36,7 @@ import {
 } from "./spellBoardTokenCore.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "./spellStaticZoneCore.js";
 import { getSpellAreaRuleForPlacement, getSpellAreaRules } from "./spellAreaRules.js";
+import { spellTargetRangeMeters } from "./spellAreaCatalog.js";
 import { getMobileAuraRule, SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 import { pendingSpellZoneTriggerActivations } from "./spellZoneTriggerCore.js";
 import { turbineSizeFromToken } from "./xanatharTurbineCore.js";
@@ -53,15 +54,16 @@ const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
 const CONC_META_KEY = `${ID}/concentration`;
 
+// Feet as D&D counts them (5 ft = 1,5 m), as the spell ranges do (docs/AREE_SU_GRIGLIA.md, MP-09).
 const GRID_UNIT_METERS = Object.freeze({
   m: 1,
   meter: 1,
   meters: 1,
   metro: 1,
   metri: 1,
-  ft: 0.3048,
-  foot: 0.3048,
-  feet: 0.3048,
+  ft: 0.3,
+  foot: 0.3,
+  feet: 0.3,
 });
 
 export const SPELL_UNIFIED_VIRTUAL_IDS = Object.freeze([
@@ -404,7 +406,7 @@ function distanceBetween(first, second, geometry) {
   const from = geometry.byId.get(first);
   const to = geometry.byId.get(second);
   if (!from || !to) return null;
-  return gridPlanarDistance(
+  return gridRangeDistance(
     from.position,
     to.position,
     geometry.dpi,
@@ -412,6 +414,38 @@ function distanceBetween(first, second, geometry) {
     from.size,
     to.size,
   ).distance;
+}
+
+// The targets a cast cannot reach from its caster. No caster, a token the scene cannot measure or the GM's exception
+// (rangeOverrideIds: the target chosen again after the refusal) stay with the GM.
+async function targetsBeyondCasterRange(obr, { maxMeters, casterId, targetIds, items = null, rangeOverrideIds = [] }) {
+  const overridden = new Set(uniqueSceneIds(rangeOverrideIds));
+  const ids = uniqueSceneIds(targetIds).filter((id) => !overridden.has(id));
+  const maximum = Number(maxMeters);
+  if (!(maximum > 0) || !text(casterId) || !ids.length) return [];
+  const geometry = await sceneGeometry(obr, [casterId, ...ids], items);
+  return ids.filter((id) => {
+    const distance = distanceBetween(casterId, id, geometry);
+    return Number.isFinite(distance) && distance > maximum + 1e-6;
+  });
+}
+
+// The spell's range on a cast that does not pass from the area command (the spell lifecycle lane).
+export async function validateSpellCasterRange(obr, { contract = null, session = {}, items = null } = {}) {
+  const targeting = contract?.presentation?.targeting;
+  const invalidTargetIds = await targetsBeyondCasterRange(obr, {
+    maxMeters: targeting?.casterRange?.maxMeters
+      ?? (targeting?.spatialRules?.mode === "caster-range" ? targeting.spatialRules.maxMeters : null),
+    casterId: session?.casterId,
+    targetIds: session?.targetIds,
+    items,
+    rangeOverrideIds: session?.rangeOverrideIds,
+  });
+  return {
+    valid: invalidTargetIds.length === 0,
+    errors: invalidTargetIds.length ? ["caster-range-exceeded"] : [],
+    invalidTargetIds,
+  };
 }
 
 function circleCommands(radius, Command) {
@@ -543,7 +577,7 @@ export async function getSpellAreaSpatialValidation(
         ? geometry.byId.get(passengerId)
         : null;
       destinationDistanceMeters = destination && casterGeometry
-        ? gridPlanarDistance(
+        ? gridRangeDistance(
           destination,
           casterGeometry.position,
           geometry.dpi,
@@ -576,7 +610,9 @@ export async function getSpellAreaSpatialValidation(
     // a finite measured distance can be rejected automatically.
     const invalidDestination = destination !== null
       && Number.isFinite(destinationDistanceMeters)
-      && (!(maxMeters > 0) || destinationDistanceMeters > maxMeters + 1e-6);
+      && (!(maxMeters > 0) || destinationDistanceMeters > maxMeters + 1e-6)
+      // The GM's exception, given on the map (aoeTargetTool.js).
+      && preview?.rangeOverride !== true;
     const passengerOutOfRange = Number.isFinite(passengerDistanceMeters)
       && (!(passengerMaxMeters > 0) || passengerDistanceMeters > passengerMaxMeters + 1e-6);
     const invalidPassengerIds = passengerId
@@ -619,7 +655,7 @@ export async function getSpellAreaSpatialValidation(
     const distancesMeters = Object.fromEntries(targetIds.map((id) => {
       const target = geometry.byId.get(id);
       if (!target) return [id, null];
-      const measured = gridPlanarDistance(
+      const measured = gridRangeDistance(
         handPosition,
         target.position,
         geometry.dpi,
@@ -724,7 +760,9 @@ export async function validateSpellUnifiedTargetSelection(
       },
     });
     const maximum = Number(spatialRules?.maxMeters);
+    const overridden = new Set(uniqueSceneIds(session?.rangeOverrideIds));
     const invalidDistanceTargetIds = normalizedTargetIds.filter((targetId) => {
+      if (overridden.has(targetId)) return false;
       const distance = Number(spatial?.casterDistancesMeters?.[targetId]);
       return !(maximum > 0) || !Number.isFinite(distance) || distance > maximum + 1e-6;
     });
@@ -735,7 +773,16 @@ export async function validateSpellUnifiedTargetSelection(
     };
   }
   if (text(spatialRules?.mode) !== "primary-and-secondary-range") {
-    return { valid: true, errors: [], invalidDistanceTargetIds: [] };
+    // The range of the spell's text, also where a rule measures the targets from each other.
+    const range = await validateSpellCasterRange(obr, {
+      contract,
+      session: { ...session, targetIds },
+    });
+    return {
+      valid: range.valid,
+      errors: range.errors,
+      invalidDistanceTargetIds: range.invalidTargetIds,
+    };
   }
   const normalizedTargetIds = uniqueSceneIds(targetIds);
   const primaryId = text(session?.primaryTargetId);
@@ -763,6 +810,7 @@ export async function validateSpellUnifiedTargetSelection(
     secondaryDistancesMeters: spatial.secondaryDistancesMeters,
     rule,
     ignoreTargetLimit: session?.ignoreTargetLimit === true,
+    rangeOverrideIds: session?.rangeOverrideIds,
   });
 }
 
@@ -945,6 +993,7 @@ export async function validateSpellAreaSceneSpatial(
       secondaryDistancesMeters: spatial.secondaryDistancesMeters,
       rule,
       ignoreTargetLimit: command?.targeting?.ignoreTargetLimit === true,
+      rangeOverrideIds: command?.targeting?.rangeOverrideIds,
     });
     return { valid: result.valid, errors: [...result.errors] };
   }
@@ -965,6 +1014,18 @@ export async function validateSpellAreaSceneSpatial(
         },
       }
       : null;
+  // The range of the spell's text on a cast, unless the rule already measures it. A pairwise rule measures the targets
+  // from each other; a zone trigger, an active action or a prepared resolution has no range from the caster to check.
+  if (command?.source?.kind === "cast" && targetingRule?.targeting?.spatial?.mode !== "caster-range") {
+    const beyond = await targetsBeyondCasterRange(obr, {
+      maxMeters: spellTargetRangeMeters(spell),
+      casterId: command?.spell?.casterId || caster?.id,
+      targetIds,
+      items,
+      rangeOverrideIds: command?.targeting?.rangeOverrideIds,
+    });
+    if (beyond.length) return { valid: false, errors: ["caster-range-exceeded"] };
+  }
   if (!targetingRule) return { valid: true, errors: [] };
   const result = resolveSpellSaveTargeting({
     spellId: spell.id,
@@ -974,6 +1035,7 @@ export async function validateSpellAreaSceneSpatial(
     choiceValue: command?.spell?.choiceValue,
     targetContexts: command?.targeting?.targetContexts || {},
     ignoreTargetLimit: command?.targeting?.ignoreTargetLimit === true,
+    rangeOverrideIds: command?.targeting?.rangeOverrideIds,
     ...spatial,
   });
   return { valid: result.valid, errors: [...result.errors] };
@@ -1396,6 +1458,7 @@ export function createSpellUnifiedPanelSceneProvider(obr, { sceneLifecycle = nul
       getInitiativeActorId: async () => (await getAppliedAt(obr))?.actorId || null,
     }),
     validateTargetSelection: (input) => validateSpellUnifiedTargetSelection(obr, input),
+    validateCasterRange: (input) => validateSpellCasterRange(obr, input),
     showTargetingReference,
     clearTargetingReference,
     getSelection: () => Promise.resolve(obr?.player?.getSelection?.()).catch(() => []),

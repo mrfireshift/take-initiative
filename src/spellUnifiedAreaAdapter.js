@@ -338,6 +338,7 @@ export function buildSpellUnifiedAreaCommand({
     targetContexts: session?.targetContext || {},
     outcomes: session?.outcomes || {},
     ignoreTargetLimit: session?.ignoreTargetLimit === true,
+    rangeOverrideIds: session?.rangeOverrideIds || [],
     ...(contract?.presentation?.phase?.plan?.attack?.primaryDamageMode === "final-applied"
       ? {}
       : { attackOutcome: session?.attackOutcome || "" }),

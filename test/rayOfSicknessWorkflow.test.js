@@ -45,7 +45,7 @@ function command({ outcome = "failed", damageAmount = 11, slotLevel = 1, targetI
   });
 }
 
-test("Raggio di Infermità tratta Cast come colpo già confermato e non espone Colpito/Mancato", () => {
+test("Raggio di Infermità chiede il TS di chi è colpito, e un colpo mancato non applica nulla", () => {
   const spell = getSpellDefinition(SPELL_ID);
   const model = contract(1);
 
@@ -53,9 +53,14 @@ test("Raggio di Infermità tratta Cast come colpo già confermato e non espone C
   assert.deepEqual(spellAttackResolutionChoiceOptions(spell), []);
   assert.equal(model.presentation.outcomes.mode, "save");
   assert.deepEqual(
-    model.presentation.outcomes.options.map((entry) => entry.value),
-    ["passed", "failed", "immune"],
+    model.presentation.outcomes.options.map((entry) => [entry.value, entry.label]),
+    [
+      ["passed", "Superato"],
+      ["failed", "Fallito"],
+      ["immune", "Mancato"],
+    ],
   );
+  assert.equal(model.presentation.outcomes.save.ability, "con");
   assert.equal(model.presentation.controls.includes("attack-outcomes"), false);
   assert.equal(model.presentation.controls.includes("save-outcomes"), true);
 });

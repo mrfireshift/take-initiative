@@ -253,6 +253,7 @@ export function resolveSaveSpellResolution({
   validateSpatial = true,
   targetContexts = {},
   ignoreTargetLimit = false,
+  rangeOverrideIds = [],
 } = {}) {
   const inputTargetIds = Array.isArray(targetIds) ? targetIds : [];
   const targets = uniqueIds(targetIds);
@@ -273,6 +274,7 @@ export function resolveSaveSpellResolution({
       targetContexts,
       outcomes,
       ignoreTargetLimit,
+      rangeOverrideIds,
     })
     : null;
   const automaticOutcomes = targeting?.targetContext?.automaticOutcomeByTarget || {};

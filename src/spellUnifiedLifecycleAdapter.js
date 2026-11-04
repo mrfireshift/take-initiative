@@ -417,6 +417,24 @@ export async function executeSpellUnifiedLifecycle({
     };
   }
 
+  // The spell's range from its caster: beyond it nothing is applied and nothing is spent. A failed read stays with the GM.
+  if (typeof runtime.validateCasterRange === "function") {
+    const range = await Promise.resolve()
+      .then(() => runtime.validateCasterRange({ contract, session }))
+      .catch(() => null);
+    if (range?.valid === false) {
+      return {
+        status: SPELL_UNIFIED_LIFECYCLE_STATUS.REJECTED,
+        changedIds: [],
+        error: normalizedError({
+          code: "caster-range-exceeded",
+          message: "Un bersaglio supera la portata del caster.",
+        }),
+        request: null,
+      };
+    }
+  }
+
   if (typeof runtime.isCurrent === "function"
     && runtime.sceneEpoch != null
     && !runtime.isCurrent(runtime.sceneEpoch)) {

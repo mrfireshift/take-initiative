@@ -619,6 +619,20 @@ con lo slot scelto («Danno · 10d6»). Se gli esiti tirano dadi diversi, sotto 
 campo trovi quelli di ciascun esito. Per un trucchetto trovi come crescono i dadi
 col livello del personaggio, che il pannello non conosce.
 
+**La gittata.** Il pannello dice anche quanto possono essere lontani i bersagli
+(«Bersagli entro 18 m»). Si misura in linea d'aria dal bordo dei token, senza contare
+la quota. Un bersaglio più lontano esce dai bersagli e il pannello dice chi è. Il
+contatto arriva alle caselle vicine, anche in diagonale. Vale anche per il lancio
+rapido, che in quel caso apre il pannello.
+
+Se la mappa non sa tutto (Incantesimo distante, Tiratore di incantesimi), **ripeti il
+gesto**: spunta di nuovo il bersaglio rifiutato e la gittata è ignorata per quel
+lancio, come ricorda la riga dei bersagli. Per un'area o un teletrasporto riprova
+sullo stesso punto della mappa: un doppio clic non basta.
+
+Se l'incantesimo richiede un tiro per colpire, l'esito è **Colpito** o **Mancato**.
+Un colpo mancato spende lo slot e non lascia effetti, e il danno non viene chiesto.
+
 **Lancio rapido o pannello.** Dalla console 🗡️, dal menu ⚡ e dal libro nella
 scheda il lancio è rapido: con il bersaglio selezionato sulla mappa, il tiro
 salvezza si considera fallito. Se non serve altro, l'incantesimo si applica subito

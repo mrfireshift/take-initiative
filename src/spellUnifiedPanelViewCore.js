@@ -341,6 +341,24 @@ function targetFilterModel(candidates, targetFilters = {}) {
   };
 }
 
+function metersText(value) {
+  return String(value).replace(".", ",");
+}
+
+// The rule of the spell, with the range of its text: both for Hold Person, which also measures its targets from each other.
+// It also keeps saying when the GM has ignored the range for a target: the message that says so does not last.
+function targetingSpatialLabel(targeting = {}, session = null) {
+  const range = targeting.casterRange?.maxMeters;
+  const selected = new Set(Array.isArray(session?.targetIds) ? session.targetIds : []);
+  const excepted = (Array.isArray(session?.rangeOverrideIds) ? session.rangeOverrideIds : [])
+    .filter((id) => selected.has(id)).length;
+  return [
+    range ? `Bersagli entro ${metersText(range)} m` : "",
+    spatialRuleLabel(targeting.spatialRules),
+    excepted ? `Gittata ignorata per ${excepted === 1 ? "1 bersaglio" : `${excepted} bersagli`}` : "",
+  ].filter(Boolean).join(" · ");
+}
+
 function spatialRuleLabel(spatial = null) {
   if (!spatial || typeof spatial !== "object") return "";
   if (asText(spatial.label)) return asText(spatial.label);
@@ -353,9 +371,10 @@ function spatialRuleLabel(spatial = null) {
       secondary ? `Secondari entro ${secondary} m` : "",
     ].filter(Boolean).join(" · ");
   }
-  if (mode === "caster-range") return primary ? `Bersagli entro ${primary} m` : "";
+  const maximum = primary ?? spatial.maxMeters;
+  if (mode === "caster-range") return maximum ? `Bersagli entro ${metersText(maximum)} m` : "";
   if (mode === "pairwise-distance") {
-    return primary ? `Distanza massima tra bersagli: ${primary} m` : "Distanze tra bersagli";
+    return maximum ? `Distanza massima tra bersagli: ${metersText(maximum)} m` : "Distanze tra bersagli";
   }
   if (mode === "action-range") return primary ? `Portata: ${primary} m` : "";
   if (mode === "teleport") {
@@ -1176,7 +1195,7 @@ export function buildUnifiedPanelViewModel({
           ? "Porta Dimensionale"
         : targeting.filter ? `Filtro: ${targeting.filter}` : "Bersagli compatibili",
       spatialRules: clone(targeting.spatialRules),
-      spatialLabel: spatialRuleLabel(targeting.spatialRules),
+      spatialLabel: targetingSpatialLabel(targeting, session),
       teleport: teleport?.available === true
         ? {
           available: true,

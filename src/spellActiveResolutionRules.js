@@ -120,6 +120,8 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       resolutionKind: "single-save",
       manualSaveAtTable: true,
       assumedOutcome: "failed",
+      // No new save, and no pill that says one.
+      checkLabel: "",
       subjectMode: "none",
       requiresTargets: false,
       requiresParentInstance: true,
@@ -437,6 +439,8 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       resolutionKind: "single-save",
       manualSaveAtTable: true,
       assumedOutcome: "failed",
+      // Automatic damage: no save, and no pill that says one.
+      checkLabel: "",
       subjectMode: "none",
       requiresTargets: false,
       requiresParentInstance: true,
@@ -472,6 +476,8 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       resolutionKind: "single-save",
       manualSaveAtTable: true,
       assumedOutcome: "failed",
+      // Automatic damage: no save, and no pill that says one.
+      checkLabel: "",
       subjectMode: "none",
       requiresTargets: false,
       requiresParentInstance: true,

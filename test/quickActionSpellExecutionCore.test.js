@@ -165,7 +165,8 @@ test("le spell save discrete senza input irrisolti diventano direct in modo para
       targetIds: ["target"],
     }).eligible;
   });
-  // 25 with the spells that ask the outcome of their save since decision D6 of the polish.
+  // 25 with the spells that ask the outcome of their save since decision D6 of the polish; Ray of Enfeeblement, lot 3: the
+  // quick launch takes its attack as a hit, as it did before it asked.
   assert.deepEqual(candidates.map((spell) => spell.id), [
     "animal-friendship",
     "bane",
@@ -185,6 +186,7 @@ test("le spell save discrete senza input irrisolti diventano direct in modo para
     "modify-memory",
     "phantasmal-killer",
     "planar-binding",
+    "ray-of-enfeeblement",
     "suggestion",
     "xanathar-charme-sui-mostri",
     "xanathar-incuti-paura",

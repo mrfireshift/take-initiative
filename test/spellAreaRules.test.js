@@ -919,9 +919,10 @@ test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () =>
   // Disintegrate, Finger of Death, Power Word Kill and Feeblemind (CAP-HP-BRANCH); 25 and 160 with Heal, Power
   // Word Heal, Lesser Restoration and Dispel Magic (CAP-CLEANSE); 26 and 161 with Magic Missile; 27 and 162 with
   // Negative Energy Flood (CAP-TEMP); 33 and 168 with the six spells of CAP-STABILIZE; 170 with the two of lotto G1 of CAP-TERRAIN.
-  // 54 and 191 with the 21 spells of decision D6 of the polish.
-  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 54);
-  assert.equal(AREA_POPOVER_SPELL_IDS.length, 191);
+  // 54 and 191 with the 21 spells of decision D6 of the polish; 58 and 195 with Frostbite, Earthen Grasp, Witch Bolt and
+  // Ray of Enfeeblement (lot 3).
+  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 58);
+  assert.equal(AREA_POPOVER_SPELL_IDS.length, 195);
   assert.equal(AREA_SAVE_SPELL_IDS.includes("phb2014-fame-di-hadar"), false);
   assert.equal(
     AREA_PLACEMENT_ONLY_SPELL_IDS.includes("phb2014-fame-di-hadar"),

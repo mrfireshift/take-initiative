@@ -20,6 +20,7 @@ import { executeSpellUnifiedLifecycle } from "./spellUnifiedLifecycleAdapter.js"
 import {
   getSpellAreaSpatialValidation,
   validateSpellAreaSceneSpatial,
+  validateSpellCasterRange,
 } from "./spellUnifiedPanelSceneProvider.js";
 import { getSpellDefinition } from "./spells-srd.js";
 import { planSpellCastCost } from "./spellSlotSpendCore.js";
@@ -226,6 +227,7 @@ export async function executeDirectQuickAction({
         spell,
       ),
       executor: executeSpellApplication,
+      validateCasterRange: (input) => validateSpellCasterRange(OBR, input),
       extraOperations,
       castCost: spellCost,
     },

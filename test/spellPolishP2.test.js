@@ -186,8 +186,8 @@ test("every cast that asks for the outcome of a save says which save it is", () 
   const silent = [...new Set(records
     .filter((record) => record.outcome === "failed" && record.askedSave && !record.castSave)
     .map((record) => record.id))];
-  // Telekinesis asks for the outcome of a contest, not of a save.
-  assert.deepEqual(silent, ["telekinesis"]);
+  // Telekinesis asks for the outcome of a contest, not of a save. An attack asks for "Colpito" or "Mancato".
+  assert.deepEqual(silent.sort(), ["phb2014-dardo-stregato", "ray-of-enfeeblement", "telekinesis"]);
 });
 
 test("the abilities of the panel come from one source each", () => {

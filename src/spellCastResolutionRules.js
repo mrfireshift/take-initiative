@@ -169,6 +169,17 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
     initialHP: true,
     successfulSaveDamage: "none",
   }),
+  "xanathar-morsa-del-gelo": Object.freeze({
+    initialHP: true,
+    successfulSaveDamage: "none",
+  }),
+  // Its first hit; the later ones are the active action, with the plain 1d12.
+  "phb2014-dardo-stregato": Object.freeze({
+    initialHP: true,
+  }),
+  "ray-of-enfeeblement": Object.freeze({
+    initialHP: false,
+  }),
   // Lotto L2 (2014 texts): the dice by slot; the GM enters the final damage.
   "xanathar-catapulta": Object.freeze({
     initialHP: true,
@@ -288,8 +299,10 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
     initialHP: true,
     successfulSaveDamage: "full",
   }),
+  // Who passes the save is neither hurt nor held: the hand stays, and can reach for someone else.
   "xanathar-stretta-della-terra-di-maximilian": Object.freeze({
     initialHP: true,
+    successfulSaveDamage: "none",
   }),
   "xanathar-sciame-di-palle-di-neve-di-snilloc": Object.freeze({
     initialHP: true,
@@ -374,6 +387,15 @@ export function spellSaveDamageFactor(spellOrId, outcome) {
   return null;
 }
 
+// Nobody takes the damage: a miss, an immune creature, a passed save that spares it. There is nothing to roll.
+export function spellCastSparesEveryTarget(spellOrId, targetIds = [], outcomes = {}) {
+  const ids = Array.isArray(targetIds) ? targetIds : [];
+  return ids.length > 0 && ids.every((targetId) => {
+    const outcome = String(outcomes?.[targetId] || "").trim().toLocaleLowerCase("it");
+    return outcome === "immune" || (outcome === "passed" && spellSaveDamageFactor(spellOrId, outcome) === "zero");
+  });
+}
+
 // Decision D4 of docs/PIANO_POLISH_INCANTESIMI.md: the panel proposes the dice of every cast with a damage field. These are
 // the spells whose rule has no damageByOutcome, because both outcomes roll the same dice: the save only halves or spares them.
 const castDice = (formula, baseSlot = 0, additionalPerSlotAbove = 0, extra = {}) => Object.freeze({
@@ -413,7 +435,11 @@ const SPELL_CAST_DAMAGE_DICE = Object.freeze({
   "wall-of-thorns": castDice("7d8", 6, 1),
   "xanathar-aculeo-mentale": castDice("3d8", 2, 1),
   "xanathar-alba": castDice("4d10"),
-  "xanathar-coltello-di-ghiaccio": castDice("2d6", 1, 1),
+  "xanathar-coltello-di-ghiaccio": castDice("2d6", 1, 1, {
+    hint: "L'esplosione. Prima il tiro per colpire: 1d10 perforanti al bersaglio se colpisce, da applicare a parte.",
+  }),
+  "xanathar-morsa-del-gelo": cantripDice("1d6"),
+  "phb2014-dardo-stregato": castDice("1d12", 1, 1),
   "xanathar-creare-falo": cantripDice("1d8"),
   "xanathar-immolazione": castDice("8d6"),
   "xanathar-muro-di-luce": castDice("4d8", 5, 1),
@@ -440,6 +466,7 @@ const spellIdOf = (spellOrId) => String(
 // A cantrip's dice grow with the character's level, which the panel does not know: the hint says how.
 export function spellCantripDamageHint(spellOrId) {
   const definition = SPELL_CAST_DAMAGE_DICE[spellIdOf(spellOrId)];
+  if (definition?.hint) return definition.hint;
   const match = definition?.cantrip ? definition.formula.match(/^(\d+)d(\d+)$/iu) : null;
   if (!match) return "";
   const [count, sides] = [Number(match[1]), match[2]];
@@ -571,7 +598,6 @@ const SPELL_CAST_SAVE_ABILITIES = Object.freeze(Object.fromEntries(Object.entrie
     "thunderwave",
     "xanathar-alba",
     "xanathar-infestazione",
-    "xanathar-morsa-del-gelo",
     "xanathar-muro-di-luce",
     "xanathar-orrido-avvizzimento-di-abi-dalzim",
     "xanathar-parola-radiosa",

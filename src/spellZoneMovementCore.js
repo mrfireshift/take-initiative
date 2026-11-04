@@ -11,15 +11,16 @@ import {
   translatedZoneArea,
 } from "./spellStaticZoneCore.js";
 
+// Feet as D&D counts them (5 ft = 1,5 m), as the spell ranges do (docs/AREE_SU_GRIGLIA.md, MP-09).
 const UNIT_METERS = Object.freeze({
   m: 1,
   meter: 1,
   meters: 1,
   metro: 1,
   metri: 1,
-  ft: 0.3048,
-  foot: 0.3048,
-  feet: 0.3048,
+  ft: 0.3,
+  foot: 0.3,
+  feet: 0.3,
 });
 
 const EPSILON = 1e-7;

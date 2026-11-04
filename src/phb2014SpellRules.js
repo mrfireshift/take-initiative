@@ -167,9 +167,9 @@ export const PHB2014_SAVE_AUTOMATION = Object.freeze({
     debuffRule(
       "No reazioni",
       "arms-of-hadar-no-reactions",
-      "Non può effettuare reazioni fino alla fine del proprio turno successivo.",
+      "Non può effettuare reazioni fino all'inizio del proprio turno successivo.",
       {
-        expiry: nextTurn("turn-end", "target"),
+        expiry: nextTurn("turn-start", "target"),
         independent: true,
         summaryParts: Object.freeze([
           Object.freeze({ id: "arms-of-hadar-no-reactions", label: "No reaz." }),

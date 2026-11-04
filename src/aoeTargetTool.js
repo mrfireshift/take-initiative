@@ -33,6 +33,7 @@ import {
   spellAreaRangeCells,
   spellAreaOriginAdjacentToCaster,
   spellAreaOriginWithinRange,
+  spellAreaRangeRetry,
 } from "./spellAreaPlacementCore.js";
 import {
   BOSS_ACTION_AREA_SPELL_ID,
@@ -406,6 +407,21 @@ async function restoreSpellPlacementTool(previousTool) {
   if (modeId) await OBR.tool.activateMode(toolId, modeId).catch(() => {});
 }
 
+// The exception to the range (spellAreaPlacementCore.spellAreaRangeRetry): true on the second try on a refused point, and the
+// placement says so to whoever measures it again (a teleport's destination, a board token).
+function grantRangeException(origin, dpi) {
+  const runtime = spellPlacementSession;
+  if (!runtime) return false;
+  const now = Date.now();
+  if (spellAreaRangeRetry(runtime.refusedRangePoint, { origin, dpi, now })) {
+    runtime.refusedRangePoint = null;
+    runtime.rangeOverride = true;
+    return true;
+  }
+  runtime.refusedRangePoint = { origin, at: now };
+  return false;
+}
+
 async function closeSpellPlacement(status, {
   error = "",
   reason = "",
@@ -431,7 +447,9 @@ async function closeSpellPlacement(status, {
       ? { context: runtime.context }
       : {}),
     status: completed.phase,
-    preview: completed.preview,
+    preview: runtime.rangeOverride && completed.preview
+      ? { ...completed.preview, rangeOverride: true }
+      : completed.preview,
     ...(completed.error ? { error: completed.error } : {}),
     ...(reason ? { reason } : {}),
   });
@@ -761,13 +779,6 @@ function geometryCommands(area) {
   if (area?.clippedToParent || area?.ring || area?.areaRole === "side-band") {
     return boundaryCommands(area.cells);
   }
-  // "Within N feet": the square the cell count reaches, drawn from its corners.
-  if (area?.type === "circle" && area.metric === "grid" && Array.isArray(area.points)) {
-    const commands = [[Command.MOVE, area.points[0].x, area.points[0].y]];
-    for (const corner of area.points.slice(1)) commands.push([Command.LINE, corner.x, corner.y]);
-    commands.push([Command.CLOSE]);
-    return commands;
-  }
   if (area?.type === "circle" && (area.footprint?.halfWidth > 0 || area.footprint?.halfHeight > 0)) {
     return footprintEmanationCommands(area);
   }
@@ -821,8 +832,8 @@ function footprintEmanationCommands(area) {
   ];
 }
 
-// An area written "within N feet" (rule geometry metric "grid"): counted from the caster's space. The metric and the
-// caster's footprint travel with the area (placement, stored metadata) so every rebuild finds the same cells.
+// An area written "within N feet" (rule geometry metric "grid"): a circle of that radius from the caster's space. The
+// metric and the caster's footprint travel with the area (placement, stored metadata) so every rebuild finds the same cells.
 function areaMetricFields(rule, state = {}) {
   return rule?.geometry?.metric === "grid"
     ? { metric: "grid", footprint: gridFootprintCells(state.casterBounds, state.dpi) }
@@ -876,14 +887,12 @@ function spellRangePreviewPath(origin, radius, strokeWidth) {
     "#ef4444",
     "#ef4444",
   );
-  // The range is counted in cells with a diagonal worth one (spellAreaOriginWithinRange): what it reaches is a square.
-  preview.commands = [
-    [Command.MOVE, origin.x - radius, origin.y - radius],
-    [Command.LINE, origin.x + radius, origin.y - radius],
-    [Command.LINE, origin.x + radius, origin.y + radius],
-    [Command.LINE, origin.x - radius, origin.y + radius],
-    [Command.CLOSE],
-  ];
+  // A range is the radius of a circle around the caster (spellAreaOriginWithinRange).
+  preview.commands = geometryCommands({
+    type: "circle",
+    origin,
+    radius,
+  });
   return preview;
 }
 
@@ -1338,12 +1347,16 @@ async function prepareDrag(state) {
           unit: state.unit,
         },
       });
-      if (!inRange) {
+      if (!inRange && !grantRangeException(pointPlacementPosition(state), state.dpi)) {
         state.cancelled = true;
         if (activeDrag === state) activeDrag = null;
-        await OBR.notification.show("Il punto scelto supera la portata dell'incantesimo.", "WARNING");
+        await OBR.notification.show(
+          "Il punto scelto supera la portata dell'incantesimo. Riprova sullo stesso punto per ignorarla.",
+          "WARNING",
+        );
         return;
       }
+      if (!inRange) void OBR.notification.show("Gittata ignorata per questo punto.", "INFO");
     }
     if (isDirectPointSelection(state)) {
       state.ready = true;
@@ -1665,20 +1678,22 @@ async function finishDrag(state) {
   ) {
     const position = renderBoardTokenPlacement(state);
     if (!position) return;
-    if (!spellAreaOriginWithinRange({
+    const inRange = spellAreaOriginWithinRange({
       origin: position,
       casterOrigin: spellPlacementSession.casterOrigin,
       range: state.rule.placement.range,
       dpi: state.dpi,
       scale: { multiplier: state.multiplier, unit: state.unit },
-    })) {
+    });
+    if (!inRange && !grantRangeException(position, state.dpi)) {
       state.finishing = false;
       await OBR.notification.show(
-        "La casella scelta supera la portata dell'incantesimo.",
+        "La casella scelta supera la portata dell'incantesimo. Riprova sulla stessa casella per ignorarla.",
         "WARNING",
       );
       return;
     }
+    if (!inRange) void OBR.notification.show("Gittata ignorata per questa casella.", "INFO");
     const batch = spellPlacementSession.batch;
     if (batch?.objects?.length) {
       const object = currentBatchObject(spellPlacementSession);

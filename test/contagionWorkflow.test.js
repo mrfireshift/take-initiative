@@ -169,12 +169,13 @@ function turnEndNotice(items) {
   }).find((notice) => notice.target?.id === "target");
 }
 
-test("Contagio usa il lifecycle persistente standard: un target, Contatto manuale, scelta obbligatoria, nessun attacco automatico", () => {
+test("Contagio usa il lifecycle persistente standard: un target, Contatto misurato, scelta obbligatoria, nessun attacco automatico", () => {
   const spell = getSpellDefinition("contagion");
   const contract = buildSpellUnifiedPanelContract({ spell });
   assert.equal(contract.presentation.targeting.mode, SPELL_UNIFIED_TARGETING_MODES.DISCRETE);
   assert.equal(contract.presentation.targeting.limit.maximum, 1);
-  assert.equal(contract.presentation.targeting.spatialRules.label, "Portata: Contatto · verifica manuale");
+  assert.equal(contract.presentation.targeting.spatialRules.mode, "caster-range");
+  assert.equal(contract.presentation.targeting.spatialRules.maxMeters, 1.5);
   assert.equal(contract.presentation.caster.required, true);
   assert.equal(contract.presentation.inputs.variant.required, true);
   assert.equal(contract.presentation.inputs.outcomes.visible, false);

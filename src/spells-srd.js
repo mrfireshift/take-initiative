@@ -579,11 +579,7 @@ const TARGETING_OVERRIDES = Object.freeze({
     spatial: Object.freeze({ mode: "caster-range", maxMeters: 18 }),
   }),
   "contagion": Object.freeze({
-    spatial: Object.freeze({
-      mode: "manual",
-      label: "Portata: Contatto · verifica manuale",
-      requiresCaster: true,
-    }),
+    spatial: Object.freeze({ mode: "caster-range", maxMeters: 1.5, requiresCaster: true }),
   }),
   "aid": Object.freeze({ maximum: 3 }),
   // One creature, or two within 1,5 m of each other (the distance stays at the table).
@@ -2314,6 +2310,7 @@ const SAVE_RULES_FROM_AUTOMATION = new Set([
   "dominate-person",
   "hideous-laughter",
   "phantasmal-killer",
+  "ray-of-enfeeblement",
   "xanathar-charme-sui-mostri",
   "xanathar-incuti-paura",
 ]);

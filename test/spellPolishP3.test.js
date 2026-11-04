@@ -560,3 +560,7 @@ test("Decisions of lot 2: the panel proposes the pool of Sleep and Color Spray, 
   });
   assert.equal(view.targets.hpPool, "7d8");
 });
+
+test("Sword Burst strikes the other creatures around the caster, never the caster", () => {
+  assert.equal(getSpellAreaRuleById("tasha-turbine-di-spade:cast").targeting.includeCaster, false);
+});

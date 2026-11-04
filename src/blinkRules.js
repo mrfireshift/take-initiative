@@ -1,7 +1,7 @@
 // The runtime excerpt of the Italian reference: the full file loads only where its text is shown.
 import blinkReferenceData from "./spell-reference-it-runtime.json" with { type: "json" };
 import {
-  gridPlanarDistance,
+  gridRangeDistance,
   gridScaleParts,
 } from "./distance3dCore.js";
 import { buildTerminationResumeOperation } from "./spellTerminationGatewayCore.js";
@@ -191,6 +191,8 @@ export function blinkMetersPerCell(scale = {}) {
   const multiplier = Number.isFinite(parts.multiplier) && parts.multiplier > 0
     ? parts.multiplier
     : 1.5;
+  // Feet as D&D counts them (5 ft = 1,5 m), as the spell ranges do (docs/AREE_SU_GRIGLIA.md, MP-09).
+  if (["ft", "foot", "feet"].includes(parts.unit)) return multiplier * 0.3;
   return multiplier * (Number.isFinite(parts.unitMeters) && parts.unitMeters > 0
     ? parts.unitMeters
     : 1);
@@ -212,7 +214,7 @@ export function blinkReturnDistance({
     || !Number.isFinite(safeMultiplier) || safeMultiplier <= 0) {
     return null;
   }
-  return gridPlanarDistance(
+  return gridRangeDistance(
     departure,
     chosen,
     safeDpi,

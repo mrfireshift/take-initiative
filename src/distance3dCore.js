@@ -150,18 +150,39 @@ export function gridGeometryFromBounds(bounds, dpi) {
   };
 }
 
-export function gridPlanarDistance(from, to, dpi, gridMultiplier, fromSize = {}, toSize = {}) {
+function nearestCellGaps(from, to, dpi, fromSize, toSize) {
   const safeDpi = Math.max(1, finiteNumber(dpi, 1));
-  const scale = Math.max(0, finiteNumber(gridMultiplier, 1));
   const fromHalfSpanX = Math.max(0, (finiteNumber(fromSize?.width, safeDpi) / safeDpi - 1) / 2);
   const fromHalfSpanY = Math.max(0, (finiteNumber(fromSize?.height, safeDpi) / safeDpi - 1) / 2);
   const toHalfSpanX = Math.max(0, (finiteNumber(toSize?.width, safeDpi) / safeDpi - 1) / 2);
   const toHalfSpanY = Math.max(0, (finiteNumber(toSize?.height, safeDpi) / safeDpi - 1) / 2);
   const centerDx = Math.abs(finiteNumber(to?.x) - finiteNumber(from?.x)) / safeDpi;
   const centerDy = Math.abs(finiteNumber(to?.y) - finiteNumber(from?.y)) / safeDpi;
-  const dxSquares = Math.max(0, centerDx - fromHalfSpanX - toHalfSpanX);
-  const dySquares = Math.max(0, centerDy - fromHalfSpanY - toHalfSpanY);
+  return {
+    dxSquares: Math.max(0, centerDx - fromHalfSpanX - toHalfSpanX),
+    dySquares: Math.max(0, centerDy - fromHalfSpanY - toHalfSpanY),
+  };
+}
+
+export function gridPlanarDistance(from, to, dpi, gridMultiplier, fromSize = {}, toSize = {}) {
+  const scale = Math.max(0, finiteNumber(gridMultiplier, 1));
+  const { dxSquares, dySquares } = nearestCellGaps(from, to, dpi, fromSize, toSize);
   const squares = Math.max(dxSquares, dySquares);
+  return { squares, distance: squares * scale };
+}
+
+// A range is the radius of a circle, in a straight line (the owner's decision of 4/11/2026). A neighbouring cell stays one
+// square away, diagonal included: touch and a reach of 1,5 m towards one creature are not circles.
+export function gridRangeSquares(dxSquares, dySquares) {
+  const steps = Math.max(Math.abs(dxSquares), Math.abs(dySquares));
+  return steps <= 1 + 1e-9 ? steps : Math.hypot(dxSquares, dySquares);
+}
+
+// gridPlanarDistance for a range: the same nearest occupied cells, measured by gridRangeSquares.
+export function gridRangeDistance(from, to, dpi, gridMultiplier, fromSize = {}, toSize = {}) {
+  const scale = Math.max(0, finiteNumber(gridMultiplier, 1));
+  const { dxSquares, dySquares } = nearestCellGaps(from, to, dpi, fromSize, toSize);
+  const squares = gridRangeSquares(dxSquares, dySquares);
   return { squares, distance: squares * scale };
 }
 

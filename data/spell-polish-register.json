@@ -616,9 +616,9 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -656,9 +656,9 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -1761,9 +1761,9 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -1961,9 +1961,9 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -2041,9 +2041,9 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -2141,9 +2141,9 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -3581,9 +3581,9 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -3841,9 +3841,9 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -4704,9 +4704,9 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -4786,18 +4786,18 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
+        "note": "Niente tiro per colpire: l'effetto valeva sempre. Ora Colpito e Mancato."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Colpito: pill; TS Cos a fine turno del bersaglio, superato toglie tutto."
       }
     },
     {
@@ -4908,9 +4908,9 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -5432,9 +5432,9 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -6036,9 +6036,9 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -6476,9 +6476,9 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -6556,9 +6556,9 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -6716,18 +6716,18 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": "P2: TS superato senza danno, dal testo."
+        "state": "corretto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
+        "note": "Il campo danni ora dice che è l'esplosione; l'1d10 del colpo resta da applicare a parte."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Il campo dice Danno 3d6 al 2° e l'indicazione sul colpo."
       }
     },
     {
@@ -6856,10 +6856,10 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
+        "note": "Tiro e danno nella console attacchi; dal pannello registra il lancio."
       },
       "sweep": {
         "runs": 2,
@@ -7496,18 +7496,18 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
+        "note": "Dal pannello nessun esito e nessun danno. Ora corsia dei TS, come Scheggia della Mente."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "TS superato: nulla, senza chiedere il danno."
       }
     },
     {
@@ -7716,9 +7716,9 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -7858,10 +7858,10 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
+        "note": "Tiro e danno nella console attacchi; dal pannello registra il lancio."
       },
       "sweep": {
         "runs": 2,
@@ -7878,9 +7878,9 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -8118,18 +8118,18 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
+        "note": "Danno e Trattenuto anche con TS superato. Ora chiede l'esito; la mano resta."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Nel pannello esiti e TS Forza; la mano sulla mappa no: lo strumento del banco non disegna le pedine."
       }
     },
     {
@@ -8298,9 +8298,9 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -8598,10 +8598,10 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
+        "note": "Il colpo è un attacco con arma in console; dal pannello solo l'etichetta."
       },
       "sweep": {
         "runs": 2,
@@ -8618,10 +8618,10 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
+        "note": "Tiro e danno nella console attacchi; dal pannello registra il lancio."
       },
       "sweep": {
         "runs": 2,
@@ -8638,10 +8638,10 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
+        "note": "Tiro e danno nella console attacchi; dal pannello registra il lancio."
       },
       "sweep": {
         "runs": 2,
@@ -8678,9 +8678,9 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -8778,10 +8778,10 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
+        "note": "Tiro e danno nella console attacchi; dal pannello registra il lancio."
       },
       "sweep": {
         "runs": 2,
@@ -8798,9 +8798,9 @@
       "level": 0,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -8818,9 +8818,9 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -8838,10 +8838,10 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
+        "note": "Le reazioni tornavano un turno dopo: ora all'inizio del turno del bersaglio."
       },
       "sweep": {
         "runs": 2,
@@ -8849,7 +8849,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Pill No reazioni (F) in entrambe le viste, TS Forza, formula 2d6."
+        "note": "No reazioni finisce all'inizio del turno del bersaglio. Prende solo i bersagli nel cerchio di 3 m."
       }
     },
     {
@@ -8878,18 +8878,18 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
+        "note": "Niente colpo né primo danno. Ora Colpito e Mancato, 1d12 per slot; il Ripeti non dice più un TS."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Colpito: 2d12 al 2°, pill e concentrazione, Ripeti a inizio turno del caster. Mancato: nulla, nessuna concentrazione."
       }
     },
     {
@@ -8918,10 +8918,10 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
+        "note": "Tiro e danno nella console attacchi; dal pannello registra il lancio."
       },
       "sweep": {
         "runs": 2,
@@ -8938,9 +8938,9 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -8958,9 +8958,9 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -8978,9 +8978,9 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -9018,18 +9018,18 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
-        "note": ""
+        "state": "corretto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
+        "note": "Un colpo mancato non si poteva registrare. Ora Superato, Fallito e Mancato."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "Mancato: nulla. Superato: danno pieno. Fallito: danno e Avvelenato."
       }
     },
     {
@@ -9038,9 +9038,9 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -9058,9 +9058,9 @@
       "level": 1,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -9138,9 +9138,9 @@
       "level": 2,
       "group": "automatizzato",
       "reading": {
-        "state": "da-leggere",
-        "lot": null,
-        "date": null,
+        "state": "letto",
+        "lot": "P3-3",
+        "date": "2026-11-04",
         "note": ""
       },
       "sweep": {
@@ -9148,8 +9148,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "6d4 al 3°: promemoria a inizio turno e all'ingresso; Termina toglie la zona."
       }
     },
     {

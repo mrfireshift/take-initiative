@@ -111,8 +111,9 @@ function coneFor(origin, toward) {
 }
 // Circle: one click on the centre. Emanation: centred on the caster token as soon as the tool starts.
 function circleFor(rawCentre, footprint = null) {
-  // Like the real tool, a circle is centred on a grid intersection.
-  const centre = { x: Math.round(rawCentre.x / GRID) * GRID, y: Math.round(rawCentre.y / GRID) * GRID };
+  // Like the real tool, a circle is centred on a grid intersection; an emanation on its token, so on a cell for an odd footprint.
+  const snap = (value, cells) => (footprint && cells % 2 === 1 ? (Math.floor(value / GRID) + 0.5) * GRID : Math.round(value / GRID) * GRID);
+  const centre = { x: snap(rawCentre.x, footprint?.widthCells), y: snap(rawCentre.y, footprint?.heightCells) };
   placement.origin = centre;
   const rule = ruleOf(placement);
   const cells = Math.round(rule.geometry.size.value / 1.5);
@@ -122,7 +123,7 @@ function circleFor(rawCentre, footprint = null) {
     return { end, ringInnerSquares, area: buildArea("circle", centre, end, GRID, centre, { ring: true, ringInnerSquares }) };
   }
   // An emanation radiates from the cells the boss token occupies (as the real tool does).
-  return { end, area: footprint ? buildFootprintEmanationArea(centre, footprint, cells, GRID, { x: 0, y: 0 }) : buildCircleArea(centre, end, GRID) };
+  return { end, area: footprint ? buildFootprintEmanationArea(centre, footprint, cells, GRID, { x: Math.floor(centre.x / GRID) * GRID, y: Math.floor(centre.y / GRID) * GRID }) : buildCircleArea(centre, end, GRID) };
 }
 const placementShape = () => ruleOf(placement)?.geometry.shape;
 // The grid corner nearest to a point: the anchor the real tool gives its cell snaps.

@@ -60,7 +60,7 @@ function placement({
   };
 }
 
-function castCommand({ targetIds = ["target"], damageAmount = 7, spatialValidation = null } = {}) {
+function castCommand({ targetIds = ["target"], damageAmount = 7, spatialValidation = null, outcome = "failed" } = {}) {
   return buildSpellAreaResolutionCommand({
     contract: contract(),
     spellId: SPELL_ID,
@@ -70,6 +70,7 @@ function castCommand({ targetIds = ["target"], damageAmount = 7, spatialValidati
     targetIds,
     candidateTargetIds: targetIds,
     placement: placement(),
+    outcomes: Object.fromEntries(targetIds.map((targetId) => [targetId, outcome])),
     hp: { mode: "damage", amount: damageAmount },
     ...(spatialValidation ? { spatialValidation } : {}),
     sceneEpoch: 4,
@@ -104,20 +105,23 @@ function state(plan, id) {
   return plan.states.find((entry) => entry.id === id);
 }
 
-test("SP-B03E.1 — cast piazza la mano, afferra subito e applica danno senza workflow TS", () => {
+test("SP-B03E.1 — cast piazza la mano e chiede il TS: chi fallisce subisce il danno ed è trattenuto, chi supera nulla", () => {
   const model = contract();
   const currentSpell = spell();
-  const command = castCommand({
-    spatialValidation: {
-      mode: "placement-range",
-      maxMeters: 1.5,
-      distancesMeters: { target: 1.5 },
-      invalidTargetIds: [],
-    },
-  });
+  const spatialValidation = {
+    mode: "placement-range",
+    maxMeters: 1.5,
+    distancesMeters: { target: 1.5 },
+    invalidTargetIds: [],
+  };
+  const command = castCommand({ spatialValidation });
+  const passed = castCommand({ spatialValidation, outcome: "passed" });
 
+  assert.equal(passed.valid, true, passed.errors?.join(", "));
+  assert.equal(passed.hp.outcomeFactors.target, "zero");
+  assert.equal(passed.resolution.conditionApplications.length, 0);
   assert.equal(getSpellSaveWorkflowRule(SPELL_ID), null);
-  assert.equal(spellSaveDamageFactor(SPELL_ID, "passed"), null);
+  assert.equal(spellSaveDamageFactor(SPELL_ID, "passed"), "zero");
   assert.equal(currentSpell.boardToken?.spellId, SPELL_ID);
   assert.equal(currentSpell.boardToken?.sizeCategory, "Medium");
   assert.equal(currentSpell.boardToken?.spaceCells, 1);
@@ -128,7 +132,8 @@ test("SP-B03E.1 — cast piazza la mano, afferra subito e applica danno senza wo
   assert.equal(model.presentation.targeting.limit.maximum, 1);
   assert.equal(model.presentation.inputs.targets.visible, true);
   assert.equal(model.presentation.inputs.damage.visible, true);
-  assert.equal(model.presentation.inputs.outcomes.visible, false);
+  assert.equal(model.presentation.inputs.outcomes.visible, true);
+  assert.equal(model.presentation.outcomes.save.ability, "str");
   assert.equal(model.execution.hasTokens, true);
   assert.equal(model.execution.castHasHP, true);
 
@@ -200,6 +205,7 @@ test("SP-B03E.1 — UX cast: placement prima, poi target e danno", () => {
 
   session = updateSpellPanelSession(session, {
     targetIds: ["target"],
+    outcomes: { target: "failed" },
     hpValues: { damage: 7 },
   });
   model = buildUnifiedPanelViewModel({

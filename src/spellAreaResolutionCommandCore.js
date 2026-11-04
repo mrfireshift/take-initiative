@@ -45,6 +45,7 @@ import { QUICK_HP_FACTORS } from "./quickHpCore.js";
 import { normalizeMonsterActionContext } from "./monsterActionContextCore.js";
 import {
   getSpellCastResolutionRule,
+  spellCastSparesEveryTarget,
   spellSaveDamageFactor,
 } from "./spellCastResolutionRules.js";
 import {
@@ -465,6 +466,7 @@ function normalizePreview(value) {
     "targetIds",
     "anchorTargetId",
     "anchorOrigin",
+    "rangeOverride",
   ]) {
     if (value[key] !== undefined) preview[key] = serializable(value[key]);
   }
@@ -802,6 +804,7 @@ function chainTargeting({
   targetIds,
   errors,
   ignoreTargetLimit = false,
+  rangeOverrideIds = [],
 }) {
   const spatial = chainSpatialSnapshot(input, primaryTargetId, targetIds);
   const result = resolveChainLightningTargeting({
@@ -813,6 +816,7 @@ function chainTargeting({
     secondaryDistancesMeters: spatial.secondaryDistancesMeters,
     validateDistances: input.validateSpatial !== false,
     ignoreTargetLimit,
+    rangeOverrideIds,
   });
   addErrors(errors, result.errors);
   return result;
@@ -898,7 +902,8 @@ function normalizeHp(
     && !boardTokenInitial
     && !automaticAuraInitial
     && !emptyInitialZone
-    && !omitDamageInput;
+    && !omitDamageInput
+    && !spellCastSparesEveryTarget(contract?.spell?.id, targetIds, outcomes.byTarget);
   const mode = text(
     rawHp.mode
       || input.hpMode
@@ -1291,6 +1296,8 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   const ignoreTargetLimit = sourceInput.ignoreTargetLimit !== undefined
     ? sourceInput.ignoreTargetLimit === true
     : session.ignoreTargetLimit === true;
+  // The GM's exception to the range, target by target (spell-unified-panel.js).
+  const rangeOverrideIds = uniqueIds(firstDefined(sourceInput.rangeOverrideIds, session.rangeOverrideIds, []));
 
   const activeAction = selectedActionFor(contract, actionId);
   if (actionId && !activeAction) addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.ACTIVE_ACTION_INVALID);
@@ -1581,6 +1588,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
       targetIds,
       errors,
       ignoreTargetLimit,
+      rangeOverrideIds,
     })
     : null;
   const targetCapacity = targetingCapacity({
@@ -1764,6 +1772,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
       validateSpatial: sourceInput.validateSpatial !== false,
       targetContexts,
       ignoreTargetLimit,
+      rangeOverrideIds,
     });
     addErrors(errors, resolutionResult.errors);
   }
@@ -1880,6 +1889,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
       locked,
       spatialValidation,
       ignoreTargetLimit,
+      ...(rangeOverrideIds.length ? { rangeOverrideIds } : {}),
       capacity: targetCapacity,
       allowEmptyTargets,
     },

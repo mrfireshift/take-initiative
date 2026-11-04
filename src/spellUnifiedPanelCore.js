@@ -29,6 +29,7 @@ import {
   spellZoneChoiceIsInstant,
   spellZoneInitialSaveForChoice,
 } from "./spellAreaRules.js";
+import { spellTargetRangeMeters } from "./spellAreaCatalog.js";
 import {
   getSpellTeleportRule,
   isTeleportSpell,
@@ -56,6 +57,7 @@ import {
   getSpellCastResolutionRule,
   spellCastSaveAbility,
   spellCastSaveOnlyIfUnwilling,
+  spellCastSparesEveryTarget,
   spellHasExplicitInitialHPPolicy,
 } from "./spellCastResolutionRules.js";
 import {
@@ -851,10 +853,20 @@ function targetingDescriptor({
     selectedRuleTargeting,
     spellTargeting: spell?.targeting,
   });
+  // The range of the spell's text, measured at each cast by the scene provider. It is not one of the spatial rules: those
+  // require a caster and send the quick launch to the panel. Without a caster or a measure it stays with the GM.
+  const targetRangeMeters = mode === SPELL_UNIFIED_TARGETING_MODES.DISCRETE
+    && !selectedAction
+    && !chainRule
+    && spatialRules?.mode !== "caster-range"
+    && (text(phasePlan.phase) || "cast") === "cast"
+    ? spellTargetRangeMeters(spell)
+    : null;
   return {
     mode,
     source,
     subjectMode,
+    ...(targetRangeMeters ? { casterRange: { maxMeters: targetRangeMeters, source: "spell-range" } } : {}),
     areaAnchor: spellPhaseUsesPrimaryTargetAnchor(phasePlan)
       ? "primary-target"
       : null,
@@ -1946,6 +1958,8 @@ export function createSpellPanelSession({
   targetIds = [],
   passengerId = "",
   ignoreTargetLimit = false,
+  rangeRefusedIds = [],
+  rangeOverrideIds = [],
   primaryTargetId = "",
   outcomes = {},
   attackOutcome = "",
@@ -1992,6 +2006,9 @@ export function createSpellPanelSession({
     targetIds: unique(targetIds),
     passengerId: text(passengerId),
     ignoreTargetLimit: ignoreTargetLimit === true,
+    // The exception to the range: a target refused once, then chosen again (spell-unified-panel.js).
+    rangeRefusedIds: unique(rangeRefusedIds),
+    rangeOverrideIds: unique(rangeOverrideIds),
     primaryTargetId: text(primaryTargetId),
     outcomes: recordValue(outcomes),
     attackOutcome: text(attackOutcome).toLocaleLowerCase("it"),
@@ -2073,6 +2090,8 @@ function resetRuntimeState(current) {
     targetIds: [],
     passengerId: "",
     ignoreTargetLimit: false,
+    rangeRefusedIds: [],
+    rangeOverrideIds: [],
     primaryTargetId: "",
     outcomes: {},
     attackOutcome: "",
@@ -2454,6 +2473,7 @@ function validationFor(contract, session, placement) {
   }
   if (inputs.damage?.required
     && !preparedHailMiss
+    && !spellCastSparesEveryTarget(contract?.spell?.id, session.targetIds, session.outcomes)
     && !initialZoneResolutionMayHaveNoTargets(contract, session.targetIds)
     && !emptyPlacedDamageCast(contract, session.targetIds)
     && !hasSessionValue(session.hpValues.damage)) {
@@ -2611,7 +2631,8 @@ function primaryActionFor(contract, session, validation, placement, activeAction
   if (execution.lane === SPELL_UNIFIED_PANEL_LANES.AREA_TRANSACTION
     && session.targetIds.length > 0
     && !isZoneCast
-    && !isAuraCast) {
+    && !isAuraCast
+    && !isBoardTokenCast) {
     const count = session.targetIds.length;
     return {
       id: "apply",

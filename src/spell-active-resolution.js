@@ -456,9 +456,10 @@ function gridMetersPerCell(scale = {}) {
   const parsed = scale?.parsed && typeof scale.parsed === "object" ? scale.parsed : scale;
   const multiplier = Number(parsed?.multiplier);
   const unit = String(parsed?.unit || "").trim().toLocaleLowerCase("it");
+  // Feet as D&D counts them (5 ft = 1,5 m), as the spell ranges do (docs/AREE_SU_GRIGLIA.md, MP-09).
   const unitMeters = {
     m: 1, meter: 1, meters: 1, metro: 1, metri: 1,
-    ft: 0.3048, foot: 0.3048, feet: 0.3048, cm: 0.01, km: 1000,
+    ft: 0.3, foot: 0.3, feet: 0.3, cm: 0.01, km: 1000,
   }[unit] || 1;
   return (Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1.5) * unitMeters;
 }
@@ -1948,8 +1949,9 @@ function renderActiveMicropills() {
     }
 
     // 5. Conseguenza del save
-    // An attack's damage carries the default onSave "none": without a save there is no save pill.
-    const savePills = saveArea || singleSave;
+    // An attack's damage carries the default onSave "none": without a save there is no save pill. Nor with a check in its
+    // place (checkLabel): the damage of Witch Bolt's repeat or of Arcane Hand's crush has no save to pass.
+    const savePills = (saveArea || singleSave) && typeof checkLabel !== "string";
     if (savePills && (payload?.action?.save?.halfOnSuccess || payload?.action?.damage?.onSave === "half")) {
       pills.push("½ successo");
     } else if (savePills && (payload?.action?.damage?.onSave === "none" || payload?.action?.save?.noDamageOnSuccess)) {
@@ -1969,7 +1971,7 @@ function renderActiveMicropills() {
     }
 
     // 7. Boundary sintetici
-    if (manualSaveAtTable()) {
+    if (manualSaveAtTable() && checkLabel !== "") {
       pills.push("Al tavolo");
     }
     if (telekinesis) {

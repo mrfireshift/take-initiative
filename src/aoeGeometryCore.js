@@ -218,52 +218,6 @@ export function buildFootprintEmanationArea(center, footprint, squares, dpi, gri
   };
 }
 
-// "Each creature within N feet of you": a distance counted in cells from the token's space, a diagonal step worth one
-// as in the grid variant of the PHB (docs/AREE_SU_GRIGLIA.md, D-B). A cell is inside when it is at most N cells from
-// the nearest cell the token occupies: a square around the token, diagonals included. The token's own cells are in.
-export function buildWithinDistanceArea(center, footprint, squares, dpi, gridOrigin = center) {
-  const origin = finitePoint(center);
-  const safeDpi = Math.max(1, Number(dpi) || 1);
-  const outer = Math.max(1, Math.round(Number(squares) || 1));
-  const widthCells = Math.max(1, Math.round(Number(footprint?.widthCells) || 1));
-  const heightCells = Math.max(1, Math.round(Number(footprint?.heightCells) || 1));
-  const cellsOrigin = finitePoint(gridOrigin);
-  const halfWidth = ((widthCells - 1) / 2) * safeDpi;
-  const halfHeight = ((heightCells - 1) / 2) * safeDpi;
-  const radius = outer * safeDpi;
-  const reachX = outer + Math.ceil(widthCells / 2) + 2;
-  const reachY = outer + Math.ceil(heightCells / 2) + 2;
-  const baseColumn = Math.floor((origin.x - cellsOrigin.x) / safeDpi);
-  const baseRow = Math.floor((origin.y - cellsOrigin.y) / safeDpi);
-  const cells = [];
-  for (let column = baseColumn - reachX; column <= baseColumn + reachX; column += 1) {
-    for (let row = baseRow - reachY; row <= baseRow + reachY; row += 1) {
-      const cell = cellRect(cellsOrigin, column, row, safeDpi);
-      const point = cellCenter(cell);
-      const dx = Math.max(0, Math.abs(point.x - origin.x) - halfWidth);
-      const dy = Math.max(0, Math.abs(point.y - origin.y) - halfHeight);
-      if (Math.max(dx, dy) <= radius + EPSILON) cells.push(cell);
-    }
-  }
-  const outerX = halfWidth + radius + safeDpi / 2;
-  const outerY = halfHeight + radius + safeDpi / 2;
-  return {
-    type: "circle",
-    metric: "grid",
-    origin,
-    radius,
-    squares: outer,
-    cells,
-    footprint: { widthCells, heightCells, halfWidth, halfHeight },
-    points: [
-      { x: origin.x - outerX, y: origin.y - outerY },
-      { x: origin.x + outerX, y: origin.y - outerY },
-      { x: origin.x + outerX, y: origin.y + outerY },
-      { x: origin.x - outerX, y: origin.y + outerY },
-    ],
-  };
-}
-
 export function buildCircleBandArea(
   start,
   end,
@@ -794,9 +748,9 @@ export function buildArea(
       ringInnerSquares: options?.ringInnerSquares,
     });
   }
-  // An area written "within N feet of you" (rule geometry metric "grid"), measured from the caster's space.
+  // An area written "within N feet of you" (rule geometry metric "grid"): a circle of that radius from the caster's space.
   if (options?.metric === "grid" && !options?.ring) {
-    return buildWithinDistanceArea(start, options.footprint, snappedAreaLength(start, end, dpi), dpi, gridOrigin);
+    return buildFootprintEmanationArea(start, options.footprint, snappedAreaLength(start, end, dpi), dpi, gridOrigin);
   }
   return buildCircleArea(start, end, dpi, gridOrigin, options);
 }

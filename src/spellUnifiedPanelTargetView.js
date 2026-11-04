@@ -256,7 +256,7 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
   section.append(filterBar);
 
   const spatialLabel = String(targets.spatialLabel || "").trim();
-  if (targets.spatialRules && spatialLabel) {
+  if (spatialLabel) {
     section.append(createNode(documentRef, "div", {
       className: "unified-target-spatial",
       text: spatialLabel,

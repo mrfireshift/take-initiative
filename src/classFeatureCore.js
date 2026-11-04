@@ -1,4 +1,4 @@
-import { gridPlanarDistance } from "./distance3dCore.js";
+import { gridRangeDistance } from "./distance3dCore.js";
 import { normalizeEffectSaveReminders } from "./effectSaveReminderCore.js";
 import { abilityModifier } from "./abilityModifiersCore.js";
 import { SPELL_SLOT_CAPACITY_TYPE, isSpellSlotPool, spellSlotPoolMaximum } from "./spellSlotCore.js";
@@ -227,7 +227,7 @@ export function classFeatureTargetWithinRange(
   if (!sourceGeometry?.position || !targetGeometry?.position) return true;
   const limit = Number(rangeCells);
   if (!Number.isFinite(limit) || limit < 0) return true;
-  const planar = gridPlanarDistance(
+  const planar = gridRangeDistance(
     sourceGeometry.position,
     targetGeometry.position,
     dpi,

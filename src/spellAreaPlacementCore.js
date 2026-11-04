@@ -1,4 +1,5 @@
 import { ID } from "./constants.js";
+import { gridRangeSquares } from "./distance3dCore.js";
 
 export const SPELL_AREA_PLACEMENT_CHANNEL = `${ID}/spell-area-placement`;
 
@@ -300,10 +301,22 @@ export function spellAreaOriginWithinRange({
   if (!origin || !casterOrigin) return false;
   const point = finitePoint(origin);
   const caster = finitePoint(casterOrigin);
-  // Counted in cells as the grid variant of the PHB does: a diagonal step is one cell, like a straight one.
-  const distanceCells = Math.max(Math.abs(point.x - caster.x), Math.abs(point.y - caster.y))
-    / Math.max(1, Number(dpi) || 1);
+  // A range is the radius of a circle around the caster, as the crow flies (the owner's decision of 4/11, replacing D-C).
+  const cell = Math.max(1, Number(dpi) || 1);
+  const distanceCells = gridRangeSquares((point.x - caster.x) / cell, (point.y - caster.y) / cell);
   return distanceCells * gridMetersPerCell(scale) <= rangeMeters + 1e-9;
+}
+
+// The exception to a range on the map, for what the map does not know (Distant Spell): the same point tried again after its
+// refusal, which says how. No button. A double click is not a second try: it is one gesture, gone before the refusal is read.
+export const SPELL_AREA_RANGE_RETRY_MS = 500;
+
+export function spellAreaRangeRetry(refused = null, { origin = null, dpi = 1, now = 0 } = {}) {
+  const before = finitePointOrNull(refused?.origin);
+  const point = finitePointOrNull(origin);
+  if (!before || !point) return false;
+  return Math.hypot(point.x - before.x, point.y - before.y) < Math.max(1, Number(dpi) || 1) / 2
+    && Number(now) - Number(refused.at) >= SPELL_AREA_RANGE_RETRY_MS;
 }
 
 export function createSpellAreaPlacementSession({
@@ -375,7 +388,7 @@ export function reviewSpellAreaPlacement(session, preview) {
       ...(type === "circle" && Number.isFinite(radius) && radius > 0
         ? { radius }
         : {}),
-      // "Within N feet": counted from the caster's space (aoeGeometryCore.buildWithinDistanceArea).
+      // "Within N feet": a circle of that radius from the caster's space (aoeGeometryCore.buildFootprintEmanationArea).
       ...(type === "circle" && preview.metric === "grid"
         ? {
           metric: "grid",

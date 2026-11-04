@@ -706,7 +706,7 @@ da questo audit.
 | CLEANUP | 119 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 360 |
-| TURN_TRIGGER | 108 |
+| TURN_TRIGGER | 109 |
 
 ### Stato di integrazione console unificata
 

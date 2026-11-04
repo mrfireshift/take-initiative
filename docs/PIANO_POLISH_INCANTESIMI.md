@@ -1,6 +1,6 @@
 # Polishing degli incantesimi (piano)
 
-Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1 e 2 e D6 fatti)**. Questo piano guida la
+Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1, 2, 3 e D6 fatti)**. Questo piano guida la
 revisione di tutti i 477 incantesimi prima di aggiungere nuove capacità. Per ognuno si controlla:
 
 - **A, l'interpretazione:** il motore fa ciò che dice il testo 2014?
@@ -98,8 +98,8 @@ solo registrati richiedono un controllo veloce. Per ogni lotto: il registro segn
 proprietario del progetto, le correzioni passano dal banco. Altri 65 incantesimi hanno dadi di danno nel testo e nessun
 campo al lancio: molti sono giusti (punizioni, evocazioni, promemoria), vanno classificati qui.
 
-Già annotati per questa lettura: il tiro per colpire di Coltello di Ghiaccio non è gestito; Stretta della Terra di
-Maximilian ha il campo danni ma non chiede gli esiti; i round successivi di Tempesta di Vendetta.
+Già annotati per questa lettura: i round successivi di Tempesta di Vendetta; Muro di pietra. I 65 incantesimi con dadi nel testo
+e senza campo al lancio: quelli del lotto 3 sono classificati lì.
 
 **Dal lotto 2 la lettura non si ferma ai dati.** Per ogni incantesimo si guarda anche che cosa succede davvero: chi entra
 nell'area, se ogni promemoria di TS compare nel momento che il testo dice, che cosa fa con un TS superato e con uno fallito,
@@ -192,6 +192,65 @@ ha trovato quasi tutto al banco, non nei dati:
 Provato al banco, con il servizio di sfondo vero e lanciando nel turno del caster: si veda `bench` nel registro. La × anche nella
 vista compatta, dal cassetto degli effetti. Non provati: lo spostamento di Bagliore lunare e di Sfera infuocata, il cambio di
 direzione di Folata di vento, il Vortice di Controllare acqua, il ripetere di Riscaldare il metallo.
+
+#### Lotto 3 (fatto il 4/11): la gittata dal caster, poi i 40 successivi
+
+**La gittata dal caster, chiesta dal proprietario il 4/11.** Blocca persone passava a 19 m: 220 incantesimi con i bersagli
+scelti a mano non misuravano la gittata, e sulla corsia «lifecycle» non c'era proprio un controllo.
+
+- **Da dove viene:** dal testo dell'incantesimo (`spellTargetRangeMeters`). Contatto è 1,5 m, «Incantatore (raggio di N metri)» è
+  quel raggio. Personale, vista, illimitata e speciale non si misurano.
+- **Come si misura:** in linea d'aria dalle caselle occupate più vicine (`gridRangeDistance`). Una casella vicina vale una anche
+  in diagonale: il contatto la raggiunge.
+- **Dove agisce:** un bersaglio fuori gittata esce dai bersagli del pannello, che dice chi è, sia dalla casella sia dalla selezione
+  sulla mappa, all'apertura e cambiando caster. All'applicazione il controllo si ripete: se il token si è spostato il lancio è
+  rifiutato, senza applicare né spendere nulla. Il lancio rapido, fuori gittata, apre il pannello. Il controllo non riscrive la
+  selezione della mappa quando reagisce a un suo cambiamento: al banco questo faceva rincorrere due scrittori e bloccava la pagina.
+- **L'eccezione, chiesta dal proprietario il 4/11:** per ciò che la mappa non sa (Incantesimo distante, Tiratore di incantesimi, il
+  tocco di un famiglio) basta ripetere il gesto, senza nuovi pulsanti, e il rifiuto dice come. Un bersaglio rifiutato si spunta di
+  nuovo; un punto rifiutato sulla mappa si riprova, ma un doppio clic non conta (`spellAreaRangeRetry`, 500 ms). Vale per quel
+  lancio: nel comando `targeting.rangeOverrideIds`, bersaglio per bersaglio, e nell'area `preview.rangeOverride`, che teletrasporti
+  e pedine rispettano quando rimisurano. Il pannello lo ricorda accanto alla gittata. Togliendo il bersaglio l'eccezione decade.
+  In Catena di fulmini vale per il primario, non per i 9 m da lui.
+- **Che cosa resta come prima:** il controllo non è una regola spaziale (`targeting.casterRange`), quindi non chiede un caster e il
+  lancio rapido in gittata applica subito. Senza caster o senza una misura decide il GM. Le zone non cambiano: la loro gittata
+  la misura lo strumento d'area. I trigger, le azioni attive e le risoluzioni preparate non la misurano.
+- **Limite:** la misura è sul piano: la quota non conta. Incantesimo distante e Tiratore di incantesimi non raddoppiano la gittata
+  da soli: l'eccezione la ignora.
+
+Il pannello dice la gittata tra i bersagli: «Bersagli entro 18 m · Distanza massima tra bersagli: 9 m».
+
+**I 40 letti.** Trucchetti da Xanathar e Tasha, incantesimi di 1° e 2° livello:
+
+| Difetto | Incantesimi | Correzione |
+|---|---|---|
+| Danno e Trattenuto anche con il TS superato | Stretta della Terra di Maximilian | Chiede l'esito. Chi supera non subisce nulla; la mano e la concentrazione restano, e può afferrare qualcun altro |
+| Dal pannello nessun esito e nessun danno, e l'etichetta anche a chi supera | Morsa del Gelo | Corsia dei TS, come Scheggia della Mente |
+| Niente tiro per colpire e niente primo danno | Dardo Stregato | «Colpito» o «Mancato» e il danno, 1d12 per slot. Con un colpo mancato nessuna pill e nessuna concentrazione |
+| Niente tiro per colpire: l'effetto valeva sempre | Raggio di affaticamento, Raggio di Infermità | «Colpito» e «Mancato», o «Superato», «Fallito» e «Mancato» dove c'è anche il TS |
+| Un turno di troppo | Braccia di Hadar | Le reazioni tornano all'inizio del turno del bersaglio, come dice il testo |
+| Il popup diceva un TS che non esiste | Ripeti di Dardo Stregato e di Debilitazione, attraversamento di Prigione Mentale | `checkLabel` vuoto: danno automatico |
+| Il danno era obbligatorio anche se nessuno lo subiva | Ogni lancio con esiti | `spellCastSparesEveryTarget`: un colpo mancato, un immune, un TS superato che annulla il danno |
+| Il rifiuto di una misura diceva solo «La validazione spaziale non è riuscita» | Ogni rifiuto sulla corsia di area | Il pannello mostra il motivo |
+| Il campo danni non diceva di quale danno si trattasse | Coltello di Ghiaccio | Indicazione nel campo: è l'esplosione; l'1d10 del colpo si applica a parte |
+
+Le decisioni prese su questi incantesimi, da rivedere se non convincono:
+- Stretta della Terra e Raggio di Infermità avevano un test che voleva il contrario: «senza workflow TS», «Cast come colpo già
+  confermato». Risalivano ad agosto, senza una decisione scritta, e oggi che lo slot si spende al lancio il colpo mancato deve
+  potersi registrare.
+- Dal lancio rapido Raggio di affaticamento e Dardo Stregato considerano il colpo a segno, come il TS fallito della decisione D6.
+
+Classificati, nessun difetto: Rintocco dei Morti, Frusta di Spine, Lenza Elettrizzante, Lama Verdefiamma, Globo Cromatico e Dardo di Caos
+dal pannello registrano il lancio perché tiro e danno stanno nella console attacchi (`pcAttackCantripCatalog.js`,
+`pcAttackSpellCatalog.js`). Lama Roboante dal pannello mette solo l'etichetta: il colpo è un attacco con arma in console.
+
+Limite rimasto: il colpo di Coltello di Ghiaccio non è registrato. Servirebbe un bersaglio primario in un lancio ad area.
+
+Provato al banco, con il servizio di sfondo vero: la gittata su ogni percorso, l'eccezione dal pannello fino all'applicazione su
+entrambe le corsie e in Catena di fulmini, e sullo strumento vero della mappa con Palla di fuoco; gli esiti di Dardo Stregato, dei due raggi e di Morsa
+del Gelo, il promemoria di Raggio di affaticamento a fine turno del bersaglio, il «Ripeti» a inizio turno del caster, la scadenza di
+Braccia di Hadar, Nube di Pugnali all'ingresso e a inizio turno. **Non provata:** la mano di Stretta della Terra sulla mappa: lo
+strumento del banco non disegna le pedine. L'esecuzione con TS superato e fallito è coperta dai test (`test/spellPolishLot3.test.js`).
 
 ### P4, i workflow che la prova non copre ancora (B)
 

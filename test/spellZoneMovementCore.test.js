@@ -121,6 +121,11 @@ test("la conversione DPI/scala misura la distanza della zona in metri", () => {
   );
 });
 
+test("su una scena in piedi 5 ft valgono 1,5 m, come le gittate", () => {
+  const distance = spellZoneMovementDistanceMeters({ x: 0, y: 0 }, { x: 600, y: 0 }, 100, { parsed: { multiplier: 5, unit: "ft" } });
+  assert.ok(Math.abs(distance - 9) < 1e-9, "6 squares are the 9 m of the text");
+});
+
 test("Bagliore Lunare accetta 18 m e rifiuta il movimento oltre il limite", () => {
   const accepted = movement("moonbeam:cast", { x: 600, y: 0 });
   assert.equal(accepted.valid, true);

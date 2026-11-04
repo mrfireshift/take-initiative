@@ -346,6 +346,27 @@ test("il ritorno al turno successivo usa departurePosition e lascia la destinazi
   assert.equal(fallback.valid, true);
 });
 
+// The owner's decision of 4/11/2026: "within 3 m" is the radius of a circle, not a count of squares.
+test("il ritorno di Intermittenza entro 3 m è un cerchio", () => {
+  const at = (cellsX, cellsY) => validateBlinkReturnPlacement({
+    departurePosition: { x: 100, y: 100 },
+    chosenPosition: { x: 100 + cellsX * 100, y: 100 + cellsY * 100 },
+    dpi: 100,
+    scale: { parsed: { multiplier: 1.5, unit: "m" } },
+  });
+  assert.equal(at(2, 0).valid, true, "3 m, straight");
+  assert.equal(at(1, 1).valid, true);
+  assert.equal(at(2, 1).valid, false, "3,35 m");
+  assert.deepEqual(at(2, 2).errors, ["blink-return-out-of-range"], "4,24 m: 3 m counted in squares");
+  const feet = validateBlinkReturnPlacement({
+    departurePosition: { x: 100, y: 100 },
+    chosenPosition: { x: 300, y: 100 },
+    dpi: 100,
+    scale: { parsed: { multiplier: 5, unit: "ft" } },
+  });
+  assert.equal(feet.valid, true, "on a 5 ft scene 2 squares are the 3 m of the text");
+});
+
 test("Undo Blink resta disponibile dopo il tick di round per cast, d20 e teleport", () => {
   const material10 = blinkEntry({ turns: 10 });
   const ethereal10 = blinkEntry({

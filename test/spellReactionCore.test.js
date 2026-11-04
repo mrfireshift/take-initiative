@@ -38,6 +38,7 @@ mock.module("../src/spellUnifiedPanelSceneProvider.js", {
   exports: {
     getSpellAreaSpatialValidation: async () => ({}),
     validateSpellAreaSceneSpatial: async () => ({ valid: true, errors: [] }),
+    validateSpellCasterRange: async () => ({ valid: true, errors: [], invalidTargetIds: [] }),
   },
 });
 

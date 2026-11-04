@@ -85,10 +85,11 @@ test("Bursting Arrow: the die hits the target and each creature kept around it, 
     attackInstanceId: "burst-2", turnState: ownTurn, expectedDefenses: {} }), /bersaglio subisce già/);
 });
 
-test("the creatures near a token: edge-to-edge grid distance, never the centre", () => {
+// The owner's decision of 4/11: "within N feet" is the radius of a circle, so at 5 ft the diagonal cell is out.
+test("the creatures near a token: the circle of the area tool, never the centre", () => {
   const cell = (id, x, y) => ({ id, bounds: { min: { x: x * 100, y: y * 100 }, max: { x: x * 100 + 100, y: y * 100 + 100 }, width: 100, height: 100 } });
   const rows = [cell("lyra", 5, 5), cell("imp", 6, 5), cell("orc", 4, 4), cell("ghoul", 7, 5), cell("far", 9, 9)];
-  assert.deepEqual(pcAttackNearbyIds({ centerId: "lyra", rows, dpi: 100, feetPerCell: 5, radiusFeet: 5 }), ["imp", "orc"]);
+  assert.deepEqual(pcAttackNearbyIds({ centerId: "lyra", rows, dpi: 100, feetPerCell: 5, radiusFeet: 5 }), ["imp"]);
   assert.deepEqual(pcAttackNearbyIds({ centerId: "lyra", rows, dpi: 100, feetPerCell: 5, radiusFeet: 10 }), ["imp", "orc", "ghoul"]);
   assert.deepEqual(pcAttackNearbyIds({ centerId: "nobody", rows, dpi: 100, feetPerCell: 5, radiusFeet: 10 }), []);
 });

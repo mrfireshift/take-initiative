@@ -706,9 +706,9 @@ export function validateSpellAreaRule(rule) {
   };
 }
 
-// Instant areas the 2014 texts write "each creature within N feet of you" (or "within range" of a Self range): a range,
-// counted in cells from the caster's space with diagonals in, not a circle (docs/AREE_SU_GRIGLIA.md, D-B). Auras and
-// zones that move or persist keep their circle for now: their membership is recomputed elsewhere.
+// Instant areas the 2014 texts write "each creature within N feet of you" (or "within range" of a Self range): a circle of
+// that radius, measured from the caster's space, so a Large caster reaches as far as a Medium one (docs/AREE_SU_GRIGLIA.md,
+// D-B as changed on 4/11/2026). Only an area written as a cube is a square.
 const WITHIN_DISTANCE_RULE_IDS = new Set([
   "divine-word:cast",
   "phb2014-braccia-di-hadar:cast",
@@ -806,6 +806,7 @@ const CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS = new Set([
   "xanathar-parola-radiosa",
   "xanathar-rombo-di-tuono",
   "xanathar-scossa-tellurica",
+  "tasha-turbine-di-spade",
 ]);
 // Saves on the creatures the caster chooses in the area, the others first.
 const AREA_SUBSET_SAVE_SPELL_IDS = new Set([
@@ -3946,7 +3947,7 @@ export function getPcMonsterAreaRuleById(ruleId) {
       cube: { geometry: { shape: "rectangle", size: meters(feetToMetres(feet), "length"), width: meters(feetToMetres(feet), "width") }, placement: fromToken },
       sphere: { geometry: { shape: "circle", size: meters(feetToMetres(feet), "radius") },
         placement: { origin: "point", direction: "none", anchor: "world", range: null } },
-      // A monster's "each creature within N feet of it": counted in cells from its space, like the console's proposal.
+      // A monster's "each creature within N feet of it": a circle of that radius from its space, like the console's proposal.
       emanation: { geometry: { shape: "circle", size: meters(feetToMetres(feet), "radius"), metric: "grid" },
         placement: { origin: "caster", direction: "none", anchor: "caster", range: null } },
     }[shape];

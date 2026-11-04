@@ -51,6 +51,8 @@ export function resolveChainLightningTargeting({
   validateDistances = true,
   rule = CHAIN_LIGHTNING_TARGETING,
   ignoreTargetLimit = false,
+  // The GM's exception to the spell's range: it reaches the primary target only, the 9 m from it are not a range of the caster.
+  rangeOverrideIds = [],
 } = {}) {
   const errors = [];
   const normalizedSpellId = String(spellId || "").trim();
@@ -103,6 +105,7 @@ export function resolveChainLightningTargeting({
       addError(errors, "primary-distance-unavailable");
     } else if (
       Number(primaryDistanceMeters) > Number(rule.primaryRangeMeters) + 1e-9
+      && !uniqueIds(rangeOverrideIds).includes(normalizedPrimaryId)
     ) {
       addError(errors, "primary-out-of-range");
       invalidDistanceTargetIds.push(normalizedPrimaryId);

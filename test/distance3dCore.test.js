@@ -4,6 +4,7 @@ import {
   gridFootprintSize,
   gridGeometryFromBounds,
   gridPlanarDistance,
+  gridRangeDistance,
   elevationInputToCanonical,
   gridScaleParts,
   normalizeElevation,
@@ -69,6 +70,18 @@ test("misura dalla casella esterna dei token grandi", () => {
   );
   assert.equal(result.squares, 2);
   assert.equal(result.distance, 3);
+});
+
+// The owner's decision of 4/11/2026: a range is the radius of a circle. The ruler (gridPlanarDistance) still counts squares.
+test("la gittata è in linea d'aria tra le caselle occupate, e una casella vicina vale una", () => {
+  const at = (cellsX, cellsY) => gridRangeDistance({ x: 0, y: 0 }, { x: cellsX * 150, y: cellsY * 150 }, 150, 1.5);
+  assert.equal(at(1, 0).distance, 1.5);
+  assert.equal(at(1, 1).distance, 1.5, "the diagonal neighbour: a touch reaches it");
+  assert.equal(at(2, 0).distance, 3);
+  assert.ok(Math.abs(at(2, 1).squares - Math.sqrt(5)) < 1e-9);
+  assert.ok(Math.abs(at(2, 2).distance - 1.5 * Math.hypot(2, 2)) < 1e-9, "4,24 m, not the 3 m of the squares");
+  const large = gridRangeDistance({ x: 0, y: 0 }, { x: 375, y: 375 }, 150, 1.5, { width: 300, height: 300 }, { width: 150, height: 150 });
+  assert.ok(Math.abs(large.squares - Math.hypot(2, 2)) < 1e-9, "from the outer cell of a large token");
 });
 
 test("converte la distanza in pixel usando DPI e scala della griglia", () => {

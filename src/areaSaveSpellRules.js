@@ -162,6 +162,12 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   "phb2014-duello-obbligato",
   // No save: darts that always hit, split among the targets (magicMissileCore.js).
   "magic-missile",
+  // Lot 3 of docs/PIANO_POLISH_INCANTESIMI.md. A save at the cast: the cantrip's damage and its label (Frostbite), the hand's
+  // grip (Earthen Grasp). An attack that leaves an effect: the same outcomes under other names, "Colpito" and "Mancato".
+  "xanathar-morsa-del-gelo",
+  "xanathar-stretta-della-terra-di-maximilian",
+  "phb2014-dardo-stregato",
+  "ray-of-enfeeblement",
 ]);
 
 export const MULTI_TARGET_SAVE_SPELL_ID_SET = new Set(
@@ -332,6 +338,12 @@ export const AREA_SAVE_EFFECT_RULES = Object.freeze({
   }),
   "tasha-scheggia-della-mente": Object.freeze({
     failedEffectIds: Object.freeze(["next-saving-throw-penalty"]),
+  }),
+  "xanathar-morsa-del-gelo": Object.freeze({
+    failedEffectIds: Object.freeze(["next-weapon-attack-disadvantage"]),
+  }),
+  "phb2014-dardo-stregato": Object.freeze({
+    failedEffectIds: Object.freeze(["witch-bolt-link"]),
   }),
   "holy-aura": Object.freeze({
     failedEffectIds: Object.freeze(["holy-aura-protection"]),

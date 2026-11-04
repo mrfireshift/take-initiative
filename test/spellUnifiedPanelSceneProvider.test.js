@@ -537,6 +537,94 @@ test("il provider applica la validazione spaziale del workflow save", async () =
   assert.equal(result.errors.includes("caster-range-exceeded"), true);
 });
 
+// The owner's decision of 4/11/2026: a range is the radius of a circle, not a count of squares.
+test("la gittata dei bersagli è un cerchio: la diagonale si misura in linea d'aria", async () => {
+  const items = [character("caster", "Caster"), character("target", "Target")];
+  const exceeded = async (cellsX, cellsY) => {
+    const [x, y] = [cellsX * 150, cellsY * 150];
+    const obr = fakeObr(items, {
+      geometryById: {
+        caster: { min: { x: 0, y: 0 }, max: { x: 150, y: 150 } },
+        target: { min: { x, y }, max: { x: x + 150, y: y + 150 } },
+      },
+    });
+    const result = await validateSpellAreaSceneSpatial(obr, {
+      command: {
+        spell: { spellId: "banishment", casterId: "caster", slotLevel: 4 },
+        targeting: {
+          mode: "discrete",
+          targetIds: ["target"],
+          targetContexts: { target: { planeOrigin: "current-plane" } },
+        },
+      },
+      spell: { id: "banishment" },
+      items,
+      targetIds: ["target"],
+      caster: items[0],
+    });
+    return result.errors.includes("caster-range-exceeded");
+  };
+  assert.equal(await exceeded(12, 0), false, "18 m, straight");
+  assert.equal(await exceeded(13, 0), true);
+  assert.equal(await exceeded(8, 8), false, "16,97 m");
+  assert.equal(await exceeded(9, 9), true, "19,09 m: 13,5 m counted in squares");
+});
+
+// MP-09: feet as D&D counts them. With 0.3048 the 12th square of a 60 ft range was 18,29 m, out of the 18 m of the rule.
+test("su una scena in piedi la casella al limite della gittata è dentro", async () => {
+  const items = [character("caster", "Caster"), character("target", "Target")];
+  const obr = fakeObr(items, {
+    geometryById: {
+      caster: { min: { x: 0, y: 0 }, max: { x: 150, y: 150 } },
+      target: { min: { x: 1800, y: 0 }, max: { x: 1950, y: 150 } },
+    },
+  });
+  obr.scene.grid.getScale = async () => ({ parsed: { multiplier: 5, unit: "ft" } });
+  const result = await validateSpellAreaSceneSpatial(obr, {
+    command: {
+      spell: { spellId: "banishment", casterId: "caster", slotLevel: 4 },
+      targeting: {
+        mode: "discrete",
+        targetIds: ["target"],
+        targetContexts: { target: { planeOrigin: "current-plane" } },
+      },
+    },
+    spell: { id: "banishment" },
+    items,
+    targetIds: ["target"],
+    caster: items[0],
+  });
+  assert.equal(result.errors.includes("caster-range-exceeded"), false);
+});
+
+test("Catena di fulmini misura i 9 m dal primario in linea d'aria", async () => {
+  const items = [
+    character("caster", "Caster"),
+    character("primary", "Primario"),
+    character("secondary", "Secondario"),
+  ];
+  const validate = (cellsX, cellsY) => {
+    const [x, y] = [300 + cellsX * 150, cellsY * 150];
+    const obr = fakeObr(items, {
+      geometryById: {
+        caster: { min: { x: 0, y: 0 }, max: { x: 150, y: 150 } },
+        primary: { min: { x: 300, y: 0 }, max: { x: 450, y: 150 } },
+        secondary: { min: { x, y }, max: { x: x + 150, y: y + 150 } },
+      },
+    });
+    return validateSpellUnifiedTargetSelection(obr, {
+      contract: buildSpellUnifiedPanelContract({ spellId: "chain-lightning" }),
+      session: { casterId: "caster", slotLevel: 6, primaryTargetId: "primary" },
+      targetIds: ["primary", "secondary"],
+    });
+  };
+  assert.equal((await validate(6, 0)).valid, true, "9 m, straight");
+  assert.equal((await validate(4, 4)).valid, true, "8,49 m");
+  const diagonal = await validate(5, 5);
+  assert.equal(diagonal.valid, false, "10,61 m: 7,5 m counted in squares");
+  assert.ok(diagonal.errors.includes("secondary-out-of-range"));
+});
+
 test("l'area ancorata mantiene il primary di una pedina grande e rifiuta anchor stale", async () => {
   const items = [
     character("large-primary", "Primario grande"),
@@ -672,6 +760,25 @@ test("Dimension Door misura separatamente gittata della destinazione e prossimit
   assert.equal(diagonalPassenger.passengerAdjacent, true);
   assert.equal(diagonalPassenger.passengerDistanceMeters > 1.5, true);
   assert.deepEqual(diagonalPassenger.invalidPassengerIds, []);
+
+  // The owner's decision of 4/11/2026: the 150 m are a circle, here 169,7 m in a straight line and 120 m in squares.
+  const diagonalDestination = await getSpellAreaSpatialValidation(obr, {
+    contract,
+    session: {
+      casterId: "caster",
+      placement: {
+        ...placement,
+        preview: {
+          ...placement.preview,
+          position: { x: 12000, y: 12000 },
+          start: { x: 12000, y: 12000 },
+          end: { x: 12150, y: 12150 },
+        },
+      },
+    },
+    items,
+  });
+  assert.equal(diagonalDestination.invalidDestination, true);
 
   const farPassengerObr = fakeObr([
     items[0],
