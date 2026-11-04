@@ -157,6 +157,12 @@ quel personaggio.
   registro, ma non servono. Nel pannello il pulsante si chiama **Registra
   lancio**; nella console attacchi la riga del lancio dice quale slot è stato
   speso.
+- Gli incantesimi senza una creatura nel testo (Luce, Luci danzanti, Mano
+  magica, Illusione minore, Prestidigitazione, Taumaturgia, Randello incantato,
+  Pietra Magica, Disco fluttuante, Scritto illusorio, Immagine silenziosa) non
+  chiedono bersagli: la pill sta sul caster. Quelli che durano finché non vengono
+  dissolti (Giara magica, Fiamma perenne, Bocca magica…) non scadono da soli:
+  la pill mostra **M** e la togli a mano.
 - Protezione dai veleni, Protezione dall'energia, Invulnerabilità, Aura di
   Purezza, Aura di Vita, Fortezza della Mente, Morte Apparente, Investitura del
   Ghiaccio, Investitura della Fiamma e Abito Ultraterreno danno difese vere
@@ -808,6 +814,11 @@ Parlare con i vegetali resta pill e aura: rendere il terreno normale o difficile
 decide al tavolo. Boschetto Druidico si lancia e resta tracciato con la sua zona, ma
 quadrati liberi e alberi sono da gestire a mano.
 
+Tempesta di vendetta chiede il TS del primo round: chi lo supera non subisce nulla,
+chi lo fallisce subisce 2d6 ed è assordato per 5 minuti, anche se la tempesta finisce
+prima. Dal secondo round pioggia acida, fulmini, grandine e vento si risolvono al
+tavolo: non rilanciarla, perché un secondo lancio sostituirebbe la tempesta.
+
 Le resistenze di Scudo di fuoco, Ombra di Moil, Interdizione primordiale,
 Vincolo di interdizione e Assorbire elementi valgono davvero nelle console.
 Interdizione primordiale ha nel ⚡ le cinque **Immunità: tipo**: la reazione
@@ -1039,7 +1050,10 @@ Parola divina, Parola radiosa, Lentezza, Onda distruttiva) spuntano per primi i
 bersagli giusti: la parte del caster per una cura o una benedizione, la parte
 avversaria per un danno. Togli o aggiungi le spunte dalla lista, entro il limite
 di bersagli. **Modifica bersagli** lascia l'area dov'è e apre la lista a
-qualsiasi creatura; **Riposiziona area** la ridisegna. Nel registro e nella
+qualsiasi creatura; **Riposiziona area** la ridisegna. Sotto il pulsante dell'area il
+pannello dice ciò che la sagoma non può disegnare: per Tempesta di fuoco è il riquadro
+dei dieci cubi, per Sciame di meteore una sola delle quattro esplosioni; da lì togli o
+aggiungi le creature con **Modifica bersagli**. Nel registro e nella
 Cronologia un lancio senza TS (una cura, Parola del potere uccidere, Dissolvi
 magie) compare come incantesimo, non come tiro salvezza.
 

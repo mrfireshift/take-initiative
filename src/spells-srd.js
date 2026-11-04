@@ -550,6 +550,19 @@ const TARGET_MODE_OVERRIDES = Object.freeze({
   // Nothing to choose: a wall and a phantom watchdog stand where the caster puts them, the pill stays with the caster.
   "wall-of-stone": "self",
   "faithful-hound": "self",
+  // Lotto P3-8: no creature in the text. Lights, a hand, an illusion, a disc, a script, pebbles, the caster's own stick:
+  // the pill stays with the caster, who ends them.
+  "dancing-lights": "self",
+  "floating-disk": "self",
+  "illusory-script": "self",
+  "light": "self",
+  "mage-hand": "self",
+  "minor-illusion": "self",
+  "prestidigitation": "self",
+  "shillelagh": "self",
+  "silent-image": "self",
+  "thaumaturgy": "self",
+  "xanathar-pietra-magica": "self",
   // Xanathar: the creature touched breathes the cone later, with its action; at the cast there is no cone to place.
   "xanathar-soffio-del-drago": "selected",
   "spiritual-weapon": "self",
@@ -591,6 +604,9 @@ const TARGETING_OVERRIDES = Object.freeze({
   "acid-splash": Object.freeze({ maximum: 2 }),
   // "Any number of creatures" (2014 texts).
   "beacon-of-hope": Object.freeze({ unbounded: true }),
+  "mass-heal": Object.freeze({ unbounded: true }),
+  // Xanathar: six columns, two more for each slot level above the 6th. Under a creature, one each.
+  "xanathar-ossa-della-terra": Object.freeze({ baseMaximum: 6, additionalPerSlotAbove: 2, baseSlot: 6 }),
   "feather-fall": Object.freeze({ maximum: 5 }),
   "prayer-of-healing": Object.freeze({ maximum: 6 }),
   "mass-healing-word": Object.freeze({ maximum: 6 }),
@@ -778,6 +794,18 @@ const SPELL_EXPIRY = Object.freeze({
   "power-word-stun": Object.freeze({ mode: "manual" }),
   // 2014: until it is dispelled.
   "imprisonment": Object.freeze({ mode: "manual" }),
+  // Lotto P3-8: until dispelled, or until something the plugin does not see. With no rounds to count, their pill fell back
+  // on one round and vanished at the next turn of the caster: it stays until the GM takes it away.
+  "arcane-lock": Object.freeze({ mode: "manual" }),
+  "astral-projection": Object.freeze({ mode: "manual" }),
+  "continual-flame": Object.freeze({ mode: "manual" }),
+  "creation": Object.freeze({ mode: "manual" }),
+  "instant-summons": Object.freeze({ mode: "manual" }),
+  "magic-jar": Object.freeze({ mode: "manual" }),
+  "magic-mouth": Object.freeze({ mode: "manual" }),
+  "programmed-illusion": Object.freeze({ mode: "manual" }),
+  "sequester": Object.freeze({ mode: "manual" }),
+  "simulacrum": Object.freeze({ mode: "manual" }),
   "teleportation-circle": Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
   "transport-via-plants": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
   "true-strike": Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),

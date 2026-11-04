@@ -763,6 +763,12 @@ export function renderPlacementStage(documentRef, model, callbacks = {}) {
     unlock.addEventListener("click", () => callbacks.onPlacementUnlock?.());
     details.append(unlock);
   }
+  if (placement.note) {
+    details.append(createNode(documentRef, "div", {
+      className: "unified-placement-note",
+      text: placement.note,
+    }));
+  }
   section.append(details);
   if (placement.error) {
     section.append(createNode(documentRef, "div", {

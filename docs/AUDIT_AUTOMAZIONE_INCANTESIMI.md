@@ -702,8 +702,8 @@ da questo audit.
 | --- | ---: |
 | ACTIVE_ACTION | 51 |
 | AREA_GEOMETRY | 140 |
-| CAST | 278 |
-| CLEANUP | 119 |
+| CAST | 277 |
+| CLEANUP | 129 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 360 |
 | TURN_TRIGGER | 110 |

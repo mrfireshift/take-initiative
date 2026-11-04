@@ -305,7 +305,7 @@ const AREA_OVERRIDES = Object.freeze({
     rangeMeters: 18,
   },
   "color-spray": {
-    note: "Dopo la sagoma, sblocca la selezione e mantieni soltanto le creature coperte dal totale di dadi",
+    note: "Dopo la sagoma, con Modifica bersagli tieni soltanto le creature coperte dal totale di dadi",
   },
   "divine-word": {
     shape: "circle",
@@ -359,6 +359,7 @@ const AREA_OVERRIDES = Object.freeze({
     sizeMeters: 6,
     origin: "point",
     rangeMeters: 1.5,
+    note: "La sagoma mostra l'esplosione delle rune, raggio 6 m; il glifo copre al massimo 3 m di diametro. Innesco e incantesimo custodito restano al tavolo.",
   },
   "hypnotic-pattern": {
     shape: "square",
@@ -419,7 +420,20 @@ const AREA_OVERRIDES = Object.freeze({
     note: "Posiziona la sfera dove si trova il glifo. Cosa lo innesca e la prova per scorgerlo restano al tavolo.",
   },
   "sleep": {
-    note: "Dopo la sagoma, sblocca la selezione e mantieni soltanto le creature coperte dal totale di dadi",
+    note: "Dopo la sagoma, con Modifica bersagli tieni soltanto le creature coperte dal totale di dadi",
+  },
+  // Lotto P3-8: what the shape cannot say, until CAP-MULTIAREA and CAP-SEQUENCE.
+  "fire-storm": {
+    note: "La sagoma è il riquadro che contiene i dieci cubi di 3 m: con Modifica bersagli togli chi resta fuori dai cubi.",
+  },
+  "meteor-swarm": {
+    note: "La sagoma è una sola delle quattro esplosioni: con Modifica bersagli aggiungi chi è nelle altre. Chi è in più esplosioni subisce l'effetto una volta.",
+  },
+  "storm-of-vengeance": {
+    note: "Il TS è quello del primo round. Dal secondo round pioggia acida, fulmini, grandine e vento restano al tavolo.",
+  },
+  "xanathar-boschetto-druidico": {
+    note: "La sagoma mostra il cubo minimo, 9 m di lato; il massimo è 27 m. Gli effetti scelti restano al tavolo.",
   },
   "xanathar-coltello-di-ghiaccio": {
     shape: "circle",
@@ -529,7 +543,7 @@ const AREA_OVERRIDES = Object.freeze({
     rangeMeters: 36,
     placementOptional: false,
     initialSave: { ability: "str" },
-    note: "Linea retta fino a 15 m; forme continue diverse ammesse dal RAW restano manuali.",
+    note: "Linea retta fino a 15 m; le altre forme continue ammesse dal testo restano al tavolo.",
   },
   "xanathar-muro-di-luce": {
     shape: "line",
@@ -615,6 +629,7 @@ const AREA_OVERRIDES = Object.freeze({
     widthMeters: 15,
     origin: "point",
     rangeMeters: SIGHT_RANGE_METERS,
+    note: "Lo spostamento del muro, l'altezza che cala e i danni dei round successivi restano al tavolo.",
   },
 });
 

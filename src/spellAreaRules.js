@@ -774,6 +774,11 @@ const SELF_CAST_AURA_TARGETING_BY_SPELL = Object.freeze({
     ...SELF_CAST_AURA_TARGETING,
     includeCaster: true,
   }),
+  // "A sphere surrounds the caster": nobody to choose, and the magic of the caster stops inside it too.
+  "antimagic-field": Object.freeze({
+    ...SELF_CAST_AURA_TARGETING,
+    includeCaster: true,
+  }),
   // "Each nonhostile creature in the aura": the enemies stay out of it. The caster keeps the pill of the cast.
   "phb2014-aura-di-purezza": Object.freeze({
     ...SELF_CAST_AURA_TARGETING,
@@ -818,6 +823,7 @@ const NO_CONFIRM_AREA_SAVE_SPELL_IDS = new Set([
 ]);
 const SELF_CAST_AURA_SPELL_IDS = new Set([
   "antilife-shell",
+  "antimagic-field",
   "pass-without-trace",
   "phb2014-aura-di-purezza",
   "phb2014-aura-di-vita",
@@ -3382,7 +3388,7 @@ export const SPELL_AREA_RULES = Object.freeze([
         skipLinkedConditions: ["Accecato"],
       }],
     },
-    placementNote: "RAW: muro verticale fino a 27 m × 9 m × 2,5 cm oppure sfera di diametro massimo 9 m. Il runtime rappresenta la parete come linea a larghezza minima di una casella e la sfera come cerchio; altezza e requisito di visuale restano verifiche manuali.",
+    placementNote: "Muro verticale fino a 27 m × 9 m × 2,5 cm, oppure sfera di diametro massimo 9 m. Il muro è disegnato come una linea larga una casella, la sfera come un cerchio; altezza e visuale restano al tavolo.",
   }),
   defineRule({
     id: "web:cast",

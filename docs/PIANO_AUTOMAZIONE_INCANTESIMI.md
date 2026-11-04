@@ -645,9 +645,9 @@ Piccole, senza HP, utili subito al tavolo:
 3. **Dadi nella registrazione.** Per gli incantesimi registrati che hanno
    dadi (Guarigione) il pannello può
    mostrare i dadi al livello dello slot scelto, come fa per gli altri.
-4. **Dati di bersaglio.** Guarigione di massa usa ancora il limite di un
-   bersaglio predefinito: va dichiarato «qualunque numero di creature»
-   (`TARGETING_OVERRIDES`).
+4. **Dati di bersaglio (fatto il 4 novembre).** Guarigione di massa dichiara
+   «qualunque numero di creature» (`TARGETING_OVERRIDES`), Ossa della Terra sei
+   colonne e due per slot.
 
 ## 7. Manutenzione
 

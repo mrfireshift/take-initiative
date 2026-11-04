@@ -105,8 +105,8 @@
     "smokeCategories": {
       "ACTIVE_ACTION": 51,
       "AREA_GEOMETRY": 140,
-      "CAST": 278,
-      "CLEANUP": 119,
+      "CAST": 277,
+      "CLEANUP": 129,
       "CONCENTRATION": 218,
       "PERSISTENCE": 360,
       "TURN_TRIGGER": 110
@@ -5203,6 +5203,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CLEANUP",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -5233,6 +5234,7 @@
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -5279,6 +5281,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -6033,7 +6036,6 @@
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
         "AREA_GEOMETRY",
-        "CAST",
         "CLEANUP",
         "CONCENTRATION",
         "PERSISTENCE"
@@ -6050,8 +6052,7 @@
       "coverage": [
         "tracking",
         "aree:aura",
-        "lifecycle",
-        "TS"
+        "lifecycle"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -6069,7 +6070,7 @@
           "aura"
         ],
         "triggerIds": [],
-        "saveAutomation": true,
+        "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [],
@@ -6077,7 +6078,6 @@
         "movementMechanics": false,
         "smokeCategories": [
           "AREA_GEOMETRY",
-          "CAST",
           "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
@@ -6101,7 +6101,6 @@
           "visibleInputs": [
             "caster",
             "slot",
-            "targets",
             "placement"
           ]
         },
@@ -6129,7 +6128,6 @@
         "smokeRequired": true,
         "smokeCategories": [
           "AREA_GEOMETRY",
-          "CAST",
           "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
@@ -7007,6 +7005,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CLEANUP",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -7037,6 +7036,7 @@
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -7083,6 +7083,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -12089,6 +12090,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CLEANUP",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -12119,6 +12121,7 @@
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -12165,6 +12168,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -14111,12 +14115,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -18270,6 +18273,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CLEANUP",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -18302,6 +18306,7 @@
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -18348,6 +18353,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -19418,6 +19424,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CLEANUP",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -19448,6 +19455,7 @@
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -19494,6 +19502,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -22058,6 +22067,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CLEANUP",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -22092,6 +22102,7 @@
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -22137,6 +22148,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -23528,11 +23540,10 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
-            "caster",
-            "targets"
+            "caster"
           ]
         },
         "cast": {
@@ -23592,6 +23603,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CLEANUP",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -23624,6 +23636,7 @@
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -23670,6 +23683,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -23990,12 +24004,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -29772,11 +29785,10 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
-            "caster",
-            "targets"
+            "caster"
           ]
         },
         "cast": {
@@ -30013,11 +30025,10 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
-            "caster",
-            "targets"
+            "caster"
           ]
         },
         "cast": {
@@ -30666,11 +30677,10 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
-            "caster",
-            "targets"
+            "caster"
           ]
         },
         "cast": {
@@ -38991,11 +39001,10 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
-            "caster",
-            "targets"
+            "caster"
           ]
         },
         "cast": {
@@ -39778,11 +39787,10 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
-            "caster",
-            "targets"
+            "caster"
           ]
         },
         "cast": {
@@ -40341,6 +40349,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CLEANUP",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -40376,6 +40385,7 @@
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -40422,6 +40432,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -42749,11 +42760,10 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
-            "caster",
-            "targets"
+            "caster"
           ]
         },
         "cast": {
@@ -47264,12 +47274,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -48351,6 +48360,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CLEANUP",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -48381,6 +48391,7 @@
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -48427,6 +48438,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -50082,6 +50094,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CLEANUP",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -50112,6 +50125,7 @@
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -50158,6 +50172,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -52453,11 +52468,10 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
-            "caster",
-            "targets"
+            "caster"
           ]
         },
         "cast": {
@@ -53315,8 +53329,7 @@
         "lifecycle",
         "TS",
         "status:Assordato",
-        "movimento",
-        "varianti"
+        "movimento"
       ],
       "assessment": "parziale: revisione curata",
       "priority": "P1",
@@ -53396,7 +53409,6 @@
           "visibleInputs": [
             "caster",
             "slot",
-            "variant",
             "targets",
             "placement",
             "outcomes",

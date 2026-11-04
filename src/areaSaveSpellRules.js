@@ -529,6 +529,14 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
     ),
   ]),
   "divine-word": noPersistentEffect,
+  // The cast: who fails is deafened for 5 minutes, even if the storm ends first. The later rounds stay at the table.
+  "storm-of-vengeance": failedAutomation([
+    conditionRule("Assordato", {
+      expiry: rounds(50),
+      independent: true,
+      manualRemoval: true,
+    }),
+  ], { track: false }),
   "glyph-of-warding": noPersistentEffect,
   "guardian-of-faith": noPersistentEffect,
   "gust-of-wind": noPersistentEffect,
@@ -1028,25 +1036,6 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
           },
         ),
       ]),
-      replaceBase: true,
-    }),
-  ]),
-  "storm-of-vengeance": Object.freeze([
-    Object.freeze({
-      id: "round-1",
-      label: "Round 1: Assordato",
-      automation: failedAutomation([
-        conditionRule("Assordato", {
-          expiry: rounds(50),
-          independent: true,
-          manualRemoval: true,
-        }),
-      ], { track: false }),
-    }),
-    Object.freeze({
-      id: "later-rounds",
-      label: "Round successivo: solo danno",
-      automation: noPersistentEffect,
       replaceBase: true,
     }),
   ]),

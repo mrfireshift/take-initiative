@@ -533,6 +533,8 @@ function placementDescriptor(rule, primaryTargetAnchor = false) {
     centered: placement.centered === true,
     range: placement.range ? cloneValue(placement.range) : null,
     choice: text(rule.placementChoice) || null,
+    // What the shape cannot say, written for the GM: Wall of Ice's panels, Sleep's hit points.
+    note: text(rule.placementNote) || null,
     policy,
     required: policy === SPELL_PANEL_PLACEMENT_POLICIES.REQUIRED,
     automatic,

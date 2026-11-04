@@ -214,6 +214,7 @@ function placementLabels(placement, contract = null) {
       : "Disegna l'area sulla mappa e confermala per acquisire i bersagli.",
     rules: clone(placement?.rules || []),
     rulesLabel: ruleNames.join(" / "),
+    note: (placement?.rules || []).map((rule) => asText(rule?.note)).find(Boolean) || "",
     choice: asText(placement?.choice),
     choices: clone(placement?.choices || []),
     choiceRequired: placement?.choiceRequired === true,

@@ -201,6 +201,8 @@ export function spellOverviewGroupCanTerminate(group, staticZoneCount = 0) {
 export function spellTurnsLabel(turns = [], counters = [], concentrating = false) {
   const exact = Array.from(new Set(counters.filter((value) => /[IF]\s[CB]/.test(value))));
   if (exact.length) return exact.join(" / ");
+  // A manual end has no rounds to count, whatever the pill records.
+  if (counters.length && counters.every((value) => value === "M")) return "rimozione manuale";
   const values = turns.filter(Number.isFinite);
   if (!values.length) return concentrating ? "" : "Durata non indicata";
   if (values.some((value) => value > 10)) return "";

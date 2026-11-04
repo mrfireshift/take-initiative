@@ -231,9 +231,8 @@ test("the formula grows with the slot as the texts say, and keeps what does not 
   }
 });
 
-test("a variant whose dice change round by round proposes none", () => {
-  assert.equal(spellSaveDamageFormula("storm-of-vengeance", "failed", 9, "round-1"), "2d6");
-  assert.equal(spellSaveDamageFormula("storm-of-vengeance", "failed", 9, "later-rounds"), "");
+test("the storm proposes the dice of its cast: the later rounds stay at the table", () => {
+  assert.equal(spellSaveDamageFormula("storm-of-vengeance", "failed", 9), "2d6");
 });
 
 test("a cantrip says how its dice grow with the character's level", () => {
@@ -280,7 +279,6 @@ test("the panel's damage field proposes the dice on every cast of the sweep", ()
   const exempt = new Set(["legacy-tashas-mind-whip"]);
   const plain = [...new Set(records
     .filter((record) => record.damageLabel === "Danno" && !exempt.has(record.id))
-    .filter((record) => !(record.id === "storm-of-vengeance" && record.variant === "later-rounds"))
     .map((record) => `${record.id}/${record.variant}`))];
   assert.deepEqual(plain, []);
   assert.equal(runsOf("fireball").failed.damageLabel, "Danno · 8d6");

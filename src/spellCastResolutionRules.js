@@ -48,6 +48,8 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
     }),
   }),
   "xanathar-creare-falo": Object.freeze({ initialHP: true, successfulSaveDamage: "none" }),
+  // "On a failed save, 2d6 thunder damage": the text gives no half on a success.
+  "storm-of-vengeance": Object.freeze({ initialHP: true, successfulSaveDamage: "none" }),
   // Xanathar. The thunder where the caster was; the teleport stays at the table (CAP-TELEPORT).
   "xanathar-passo-del-tuono": Object.freeze({ initialHP: true }),
   // Xanathar. The meteor of the cast, on its 1,5 m; the others stay at the table (CAP-MULTIAREA).
@@ -430,8 +432,8 @@ const SPELL_CAST_DAMAGE_DICE = Object.freeze({
   "meteor-swarm": castDice("20d6+20d6"),
   "ray-of-frost": cantripDice("1d8"),
   "shatter": castDice("3d8", 2, 1),
-  // The later rounds of the storm change dice round by round: only the first has one formula.
-  "storm-of-vengeance": castDice("2d6", 0, 0, { choices: Object.freeze(["round-1"]) }),
+  // The thunder of the cast. The later rounds change effect and dice round by round and stay at the table (CAP-SEQUENCE).
+  "storm-of-vengeance": castDice("2d6"),
   "sunbeam": castDice("6d8"),
   "sunburst": castDice("12d6"),
   "thunderwave": castDice("2d8", 1, 1),

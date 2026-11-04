@@ -1,6 +1,6 @@
 # Polishing degli incantesimi (piano)
 
-Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1, 2, 3, 4, 5, 6, 7 e D6 fatti)**. Questo piano guida la
+Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 in corso (lotti 1, 2, 3, 4, 5, 6, 7, 8 e D6 fatti)**. Questo piano guida la
 revisione di tutti i 477 incantesimi prima di aggiungere nuove capacità. Per ognuno si controlla:
 
 - **A, l'interpretazione:** il motore fa ciò che dice il testo 2014?
@@ -98,7 +98,7 @@ solo registrati richiedono un controllo veloce. Per ogni lotto: il registro segn
 proprietario del progetto, le correzioni passano dal banco. Altri 65 incantesimi hanno dadi di danno nel testo e nessun
 campo al lancio: molti sono giusti (punizioni, evocazioni, promemoria), vanno classificati qui.
 
-Già annotati per questa lettura: i round successivi di Tempesta di Vendetta; Muro di pietra. I 65 incantesimi con dadi nel testo
+Già annotati per questa lettura, e chiusi: i round successivi di Tempesta di Vendetta (lotto 8); Muro di pietra (lotto 7). I 65 incantesimi con dadi nel testo
 e senza campo al lancio: quelli del lotto 3 sono classificati lì.
 
 **Dal lotto 2 la lettura non si ferma ai dati.** Per ogni incantesimo si guarda anche che cosa succede davvero: chi entra
@@ -289,8 +289,8 @@ Limiti rimasti:
   appartenenza per tutti i suoi effetti, e danni e terreno difficile valgono anche sul bordo.
 - **Fuochi di Pirotecnica:** la zona resta disegnata fino alla fine della durata, senza alcun effetto per chi vi entra.
 
-Rimandati ai loro lotti, trovati provando il Vento: **Campo antimagia e Cerchio di Potere** chiedono una creatura selezionata anche se
-l'area è fissata sul caster, quindi da soli non si lanciano; Cerchio di Potere non conta il caster tra chi ne beneficia.
+Rimandati ai loro lotti, trovati provando il Vento e chiusi dopo: **Campo antimagia** (lotto 8) e **Cerchio di Potere** (lotto 6) chiedevano una
+creatura selezionata anche se l'area è fissata sul caster, quindi da soli non si lanciavano; Cerchio di Potere non conta il caster tra chi ne beneficia.
 
 Classificati, nessun difetto: Ferocia Primordiale e Infestazione si risolvono nella console attacchi.
 
@@ -418,6 +418,43 @@ Provato al banco: le due Parole del potere sopra e sotto soglia; Antipatia con i
 fedele senza bersagli; Soffio del Drago su un goblin; Passo del Tuono allo slot 4; Minuscole Meteore allo slot 5; Aura sacra e Calmare emozioni;
 Nube incendiaria e Oscurità della Follia turno per turno; Corona di Stelle allo slot 8; Drago Illusorio; Fatale; Urlo Psichico; Regressione
 mentale; Esplosione solare; Sfera congelante allo slot 7; i lanci solo registrati. Test in `test/spellPolishLot7.test.js`.
+
+#### Lotto 8 (fatto il 4/11): i 40 successivi
+
+Gli ultimi 8 che aspettano una capacità, 11 su misura, i 2 da verificare e i primi 19 tracciati. Anche qui la capacità resta da costruire: si
+guarda che il lancio di oggi non contraddica il testo e non blocchi il tavolo.
+
+| Difetto | Incantesimi | Correzione |
+|---|---|---|
+| Non si lanciavano senza spuntare una creatura, che il testo non ha | Luce, Luci danzanti, Mano magica, Illusione minore, Prestidigitazione, Taumaturgia, Randello incantato, Pietra Magica, Disco fluttuante, Scritto illusorio, Immagine silenziosa | Il lancio non chiede bersagli, la pill sta sul caster. Il rilancio sostituisce la pill, come dice il testo di Luce e Randello |
+| Non si lanciava, e non prendeva il caster | Campo anti-magia | Aura che si lancia da sola; il caster è nella sfera |
+| Con il TS superato dimezzava i danni | Tempesta di vendetta | Superato: nulla. Fallito: 2d6 e Assordato per 5 minuti |
+| Una modalità che riparte da capo | Tempesta di vendetta | «Round successivo» chiedeva di sostituire la concentrazione: zona nuova, durata di nuovo a 10 round e, per chi tiene il conto, un altro slot. Tolta: i round successivi restano al tavolo (CAP-SEQUENCE) |
+| Dura finché non viene dissolto, e la pill spariva dopo un round | Giara magica, e fuori dal lotto Serratura arcana, Fiamma perenne, Evocazione istantanea, Bocca magica, Illusione programmata, Celare, Simulacro, Proiezione astrale, Creazione | Scadenza manuale. Senza round da contare il lancio ricadeva su un round. Corretti tutti insieme: stesso dato, stesso difetto, nessuna lettura da aspettare |
+| «Durata: 1 round» per una pill con scadenza manuale | Tutte le pill manuali, nell'elenco degli incantesimi attivi | «Durata: rimozione manuale» (`spellTurnsLabel`) |
+| Il limite era un bersaglio | Guarigione di massa, Ossa della Terra | Qualunque numero; sei colonne e due per slot |
+| **Le note della sagoma non arrivavano mai al pannello** | 20 incantesimi che le avevano, fra cui Muro di ghiaccio, Sonno, Simbolo, Muro di forza | Una riga sotto il pulsante dell'area (`placementDescriptor`, `renderPlacementStage`). Le note scritte per sviluppatori («RAW», «runtime») ora parlano al GM; Sonno e Spruzzo colorato dicono **Modifica bersagli**, il pulsante che c'è davvero |
+| La sagoma non diceva che cosa rappresenta | Tempesta di fuoco, Sciame di meteore, Tsunami, Tempesta di vendetta, Glifo di interdizione, Boschetto Druidico | Una nota per ciascuno: il riquadro dei dieci cubi, una sola delle quattro esplosioni, l'esplosione delle rune, il cubo minimo, ciò che resta al tavolo |
+
+Scelte da confermare: togliere «Round successivo» a Tempesta di vendetta, e la riga di nota nel pannello, che compare su 26 incantesimi.
+
+Deciso dal proprietario il 4/11: **Allarme** resta senza avviso quando una creatura entra. Disegna la zona e dura le sue 8 ore; in combattimento si usa
+poco, e da riaprire c'è poco.
+
+Non controllati: il Manto del Crociato non ha testo, resta pill e concentrazione. I tracciati dei prossimi lotti possono avere lo stesso difetto del
+bersaglio: 76 dei 91 che restano chiedono una creatura, e per alcuni il testo non sembra nominarla (Occhio arcano, Trucco della corda, Destriero
+fantomatico, le evocazioni). Si legge uno per uno, perché per altri la creatura c'è. Forme animali, Metamorfosi, Imprigionare, Messaggio e Caduta
+morbida la chiedono a ragione.
+
+Falsi allarmi, da non riaprire: Simbolo mostra la nota quando si attiva, perché la sagoma arriva lì e non al lancio. Il raggio di 6 m del Glifo è
+l'esplosione delle rune, non un errore sui 3 m di diametro. Il Muro di ghiaccio chiede il TS a chi lo attraversa anche se la sezione è intatta: la riga
+dice di farlo solo per una sezione distrutta, che resta a CAP-STRUCTURE.
+
+Provato al banco: gli 11 senza bersaglio e il rilancio di tre; Campo anti-magia con ingresso, uscita, caster che si sposta e Termina; Tempesta di
+vendetta con i tre esiti, e il secondo lancio confermato, che ridisegna la zona e riporta la durata a 10 (lo slot in più viene dal codice: i PG del banco
+non tengono il conto); Giara magica e Fiamma perenne dopo due round; Tsunami con Termina dal pannello; Muro di ghiaccio allo slot 7; Glifo, Boschetto e
+Allarme; Modifica bersagli su Sciame di meteore e Tempesta di fuoco; i limiti di bersagli; Imprigionare con i due esiti; i tracciati del lotto. Le pill
+in vista espansa e compatta. Test in `test/spellPolishLot8.test.js`.
 
 ### P4, i workflow che la prova non copre ancora (B)
 
