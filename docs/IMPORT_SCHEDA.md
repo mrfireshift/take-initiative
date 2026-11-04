@@ -124,7 +124,9 @@ metri come `speed`: `{ "fly": "80 ft", "swim": "40 ft", "climb": "20 ft",
 `speed` a oggetto, `{ "walk": "40 ft", "fly": "80 ft" }`), `conditionImmunities` (le condizioni a cui il mostro è
 immune, in inglese o in italiano: la console lo segna «Immune») ed
 `"evasion": true` (il tratto Elusione). Le distanze sono in piedi come negli statblock (`10`,
-`"10 ft"`) oppure in metri (`"3 m"`).
+`"10 ft"`) oppure in metri (`"3 m"`). Le velocità di `speeds` compaiono nel
+riquadro **Altre velocità** della scheda e diventano le modalità del
+[tracker movimento](GUIDA_UTENTE.md#8-movimento-e-condizioni-di-dd-2014).
 
 ```json
 {
@@ -310,7 +312,8 @@ Sopra le sezioni compare cosa la console registra e, in **Al tavolo**, cosa
 resta da gestire a mano: le azioni senza danni né tiro salvezza, gli effetti
 al colpo che le regole non leggono (malattie, trascinamenti, riduzione dei PF
 massimi: restano nella nota), le difese condizionali (per esempio la resistenza alle armi non
-magiche, segnalata e non importata). Tratti e reazioni sono elencati con il
+magiche, segnalata e non importata), le velocità valide solo in una forma o in
+un caso («owl form only»), che non diventano modalità. Tratti e reazioni sono elencati con il
 rimando alla scheda Capacità della console. Nomi di mostri e azioni restano in
 inglese.
 

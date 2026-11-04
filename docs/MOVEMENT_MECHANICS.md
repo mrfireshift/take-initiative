@@ -7,16 +7,29 @@ di movimento tramite lo stesso contratto.
 
 ## Modalità supportate
 
-Il profilo espone quattro modalità:
+Il profilo espone cinque modalità:
 
 - `walk`: camminare;
 - `fly`: volare;
 - `swim`: nuotare;
-- `climb`: scalare.
+- `climb`: scalare;
+- `burrow`: scavare.
 
 La velocità salvata nella scheda personaggio rimane la velocità base di
 camminare. Le altre modalità esistono soltanto quando un effetto le concede o
 le copia da una modalità esistente.
+
+Le velocità dello statblock di un mostro (`monster.speeds` nella scheda) entrano
+nel profilo come un effetto passivo che le concede, quindi condizioni e
+incantesimi valgono anche per loro. Se la velocità base è nulla, quell'effetto
+toglie anche `walk` (`suppressModes`) e la creatura parte dalla prima modalità
+che ha.
+
+Lo Speed Tracker segue ogni creatura con almeno una modalità a velocità base
+positiva, qualunque sia la sua fazione; le altre restano spente e il loro token
+si muove libero. Le voci virtuali dell'ordine (tana, azioni epiche) non hanno un
+token e restano spente. Ogni turno extra di un Paragon è un turno dello stesso
+token, con il suo movimento.
 
 Il cambio modalità non azzera il movimento consumato. Tutte le modalità
 condividono la distanza totale già percorsa nel turno, come previsto dalle
@@ -145,12 +158,34 @@ Nel campo turnale `speedCheckMovement` vengono conservati soltanto:
 - modalità attiva;
 - stato necessario a ricostruire il costo del movimento del turno.
 
+Un PG scrive questo campo a inizio turno. Un'altra creatura lo scrive solo
+quando si muove o quando il GM ne cambia la modalità, così un mostro fermo non
+scrive nulla. Fa eccezione chi ha `movement.escape` o Libertà di movimento
+(`hasMovementEscape`), perché il reminder `Spendi 1,5 m` lavora su quel campo.
+
 Ogni segmento registrato conserva il costo effettivamente addebitato, inclusi
 terreno difficile e modificatori direzionali. Il percorso usato da Undo non
 ricalcola le condizioni correnti: sottrae il costo già registrato del segmento.
 
-La modalità selezionata vale quindi per il turno corrente e viene abbandonata
+Per un PG la modalità selezionata vale per il turno corrente: il turno dopo
+riparte da `walk`. Un'altra creatura riparte dalla modalità dell'ultimo turno,
+letta da questo stesso campo. In entrambi i casi la modalità viene abbandonata
 automaticamente se l'effetto che la concedeva termina.
+
+## Cosa ricevono gli altri client
+
+Il GM elabora il movimento e trasmette lo stato sul canale `speed-state`.
+`speedSnapshotForPlayers` decide cosa ricevono gli altri client:
+
+| Token di turno | Pagine del GM | Altri client | Avvisi di movimento |
+|---|---|---|---|
+| PG visibile | tutto | tutto (`ALL`, un solo messaggio) | `ALL` |
+| Altra creatura visibile | tutto (`LOCAL`) | il movimento, con la sola modalità in uso (`REMOTE`) | `LOCAL` |
+| Token nascosto, anche un PG | tutto (`LOCAL`) | solo il turno e `disabled` (`REMOTE`) | `LOCAL` |
+
+Se il GM nasconde o mostra il token, o ne cambia la fazione, durante il turno, lo
+stato viene ritrasmesso subito. Il filtro riguarda ciò che il plugin mostra: come
+per il resto, i metadata di un token nascosto arrivano comunque ai client.
 
 ## Quota e volo
 
@@ -184,6 +219,11 @@ la quota precedente viene ripristinata.
   `Speed Tracker` è attivo sullo stesso turno, aggiorna anche il movimento
   consumato. In assenza del tracker il reminder resta una conferma manuale del
   costo RAW.
+- Una creatura a velocità 0 viene riportata indietro anche con il limite al
+  movimento spento, che sia un PG o no: per spostarla a mano si spegne lo Speed
+  Tracker.
+- Le zone leggono le modalità dalla scheda sul token: un omonimo che le ha solo
+  nel registro della stanza non vola per loro, ma vola per lo Speed Tracker.
 - Le trasformazioni che consentono di alternare forma normale e speciale
   richiederanno un'azione esplicita in una fase successiva.
 

@@ -76,7 +76,7 @@ Nel profilo Online, nella vista estesa, sopra il nome di ogni PG assegnato c'è 
 
 Nella vista giocatori i PF dei PG restano visibili. La modalità estesa può mostrare anche i PF degli alleati, mentre quella compatta privilegia i soli PG; neutrali e nemici non espongono i propri PF ai giocatori. Quando un valore non è visibile non viene lasciato un testo o una barra vuota. Gli strumenti di amministrazione non sono interattivi per i giocatori.
 
-Un token che il GM tiene nascosto non arriva ai giocatori in nessuna forma: niente card nel loro tracker, niente barra né aure sulla mappa, niente avviso di turno, promemoria, avvisi di concentrazione o animazioni che lo riguardano; la selezione del GM inviata al tavolo lo esclude. Durante il suo turno il tracker dei giocatori lascia evidenziata l'ultima card attiva visibile. Il GM lo riconosce dal ritratto oscurato con l'occhio barrato al centro. Quando il GM lo mostra, la sua card compare subito.
+Un token che il GM tiene nascosto non arriva ai giocatori in nessuna forma: niente card nel loro tracker, niente barra né aure sulla mappa, niente avviso di turno, promemoria, avvisi di concentrazione o di movimento, stato del movimento o animazioni che lo riguardano; la selezione del GM inviata al tavolo lo esclude. Durante il suo turno il tracker dei giocatori lascia evidenziata l'ultima card attiva visibile. Il GM lo riconosce dal ritratto oscurato con l'occhio barrato al centro. Quando il GM lo mostra, la sua card compare subito.
 
 ## 3. Impostare le card
 
@@ -854,12 +854,38 @@ Per geometrie, trigger supportati, azioni attive e copertura residua consulta
 ## 8. Movimento e condizioni di D&D 2014
 
 Il tracker movimento usa la velocità salvata nella scheda dell'attore e conta
-le caselle percorse nel turno. Il profilo supporta camminare, volare, nuotare e
-scalare quando una condizione o un incantesimo concede la modalità. Cambiare
-modalità non azzera la distanza già consumata.
+le caselle percorse nel turno. Segue ogni creatura che ha una velocità sulla
+scheda, che sia un PG, un alleato o un nemico; senza velocità resta spento e il
+token si muove libero. Il profilo supporta camminare, volare, nuotare, scalare
+e scavare: una modalità c'è quando la concede una condizione o un incantesimo,
+oppure quando viene dallo statblock importato (riquadro **Altre velocità**
+della scheda). Chi non cammina non ha la voce Camminare e parte dalla prima
+modalità che ha. Cambiare modalità non azzera la distanza già consumata.
+
+Un PG parte a piedi a ogni turno. Le altre creature ripartono dalla modalità
+dell'ultimo turno: un drago in volo resta in volo. Un mostro importato prima di
+questa funzione ha solo la camminata: per le altre velocità si reimporta lo
+statblock.
 
 Il pulsante Movimento nella vista compatta mostra solo il riepilogo;
-l'interfaccia completa resta nel layout esteso.
+l'interfaccia completa resta nel layout esteso. Quando la creatura di turno ha
+più modalità, il GM le sceglie anche dalla linguetta del movimento: mostra la
+modalità e i soli metri, con le caselle nel suggerimento.
+
+Cosa vede il tavolo durante il turno:
+
+| Creatura di turno | I giocatori vedono | Avvisi di movimento |
+|---|---|---|
+| PG visibile | tutto | a tutti |
+| Altra creatura visibile | il movimento e la modalità in uso, non le altre del suo statblock | solo al GM |
+| Token nascosto, anche un PG | niente | solo al GM |
+
+**Limita movimento** riporta indietro chi va oltre il limite, mostri compresi.
+Una creatura a velocità 0, per esempio Afferrata, non si trascina durante il suo
+turno nemmeno con Limita movimento spento: per spostarla a mano si spegne
+**Movimento tracciato**, oppure la si sposta fuori dal suo turno. Se togli la
+velocità dalla scheda durante il turno, il tracker si spegne subito per quella
+creatura.
 
 Le seguenti condizioni modificano automaticamente la velocità:
 

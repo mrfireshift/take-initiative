@@ -1,6 +1,7 @@
 // Velocità dei mostri, lotto 1: le velocità oltre la camminata, dallo statblock al profilo del mostro sulla scheda.
 // Lotto 2: quelle stesse velocità nel motore, come effetto passivo.
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { resolveMovementProfile } from "../src/movementProfileCore.js";
 import { fiveToolsMonsterToStatblock } from "../src/fiveToolsMonsterCore.js";
@@ -153,6 +154,39 @@ test("la linguetta compatta: il GM di chi ha più modalità le sceglie e legge i
   assert.deepEqual(compactSpeedReadout(several), { summary: "3/24 m · (2/16)", modes: [], activeLabel: "" }, "il giocatore");
   const single = moving({ movementModes: [{ id: "fly", label: "Volare", speedMeters: 7.5 }], speedMeters: 7.5 });
   assert.deepEqual(compactSpeedReadout(single, { gm: true }), { summary: "3/7,5 m · (2/5)", modes: [], activeLabel: "" }, "il GM con una modalità sola");
+});
+
+test("la linguetta e il tracker parlano dello stesso comando", () => {
+  const source = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
+  const page = source("../compact-round-tab.html");
+  for (const id of ["speed-mode-control", "speed-mode-label", "speed-mode"]) assert.match(page, new RegExp(`id="${id}"`));
+  assert.match(source("../src/compactRoundTab.js"), /type: "set-movement-mode",\s+mode: speedModeSelect\.value,\s+\}, \{ destination: "LOCAL" \}/);
+  assert.match(source("../src/initiativeList.js"), /event\?\.data\?\.type === "set-movement-mode"\) setSpeedCheckMovementMode\(event\.data\.mode\)/);
+});
+
+test("dai mostri di 5eTools al motore: chi si muove parte con una velocità vera, chi non si muove resta spento", () => {
+  const { monster: bestiary } = JSON.parse(readFileSync(new URL("../test-support/fivetools-srd-monsters.json", import.meta.url), "utf8"));
+  assert.ok(bestiary.length);
+  const engineOf = (monster) => {
+    const { block } = fiveToolsMonsterToStatblock(monster);
+    const parsed = parseCharacterSheetImport(JSON.stringify({ kind: "monster", ...block }));
+    const speed = parsed.sections?.stats?.speed ?? null;
+    const instance = monsterSpeedsMovementInstance({ speed, monster: sanitizeMonsterProfile(parsed.monster) }, speed);
+    return { speed, profile: resolveMovementProfile(speed, instance ? [instance] : []) };
+  };
+  for (const monster of bestiary) {
+    const { speed, profile } = engineOf(monster);
+    assert.ok(profile.hasMovementModes && profile.speedMeters > 0 && !profile.blocked, monster.name);
+    assert.equal(profile.movementModes.some(({ id }) => id === "walk"), speed > 0, monster.name);
+    assert.equal(profile.summary, "", monster.name);
+  }
+  const silver = engineOf(bestiary.find(({ name }) => name === "Adult Silver Dragon")).profile;
+  assert.deepEqual(modesOf(silver), [["walk", 12], ["fly", 24]]);
+  const base = { name: "Prova", source: "MM", ac: [12], hp: { average: 9 }, action: [{ name: "Tocco", entries: ["{@atk ms} {@hit 4} to hit, reach 5 ft., one target. {@h}5 ({@damage 1d6 + 2}) necrotic damage."] }] };
+  const banshee = engineOf({ ...base, speed: { walk: 0, fly: { number: 40, condition: "(hover)" }, canHover: true } });
+  assert.deepEqual([banshee.speed, banshee.profile.activeMode, banshee.profile.speedMeters, modesOf(banshee.profile)], [null, "fly", 12, [["fly", 12]]]);
+  const shrieker = engineOf({ ...base, speed: { walk: 0 } });
+  assert.equal(shrieker.profile.hasMovementModes, false, "uno Stridente non si muove: il tracker resta spento");
 });
 
 test("la modalità di partenza: quella del turno se è lo stesso; quella dell'ultimo per i non PG, la camminata per i PG", () => {

@@ -42,7 +42,13 @@ modalità di movimento dello statblock.
    title; la griglia degli strumenti non è toccata. Un non PG scrive sul token solo quando si muove o il GM cambia modalità,
    non a inizio turno. Resta la scrittura di chi è sotto Libertà di movimento: «spendi movimento» del suo promemoria
    (`reminderResolutionCore.js`) lavora su quella, e così Annulla resta com'era.
-4. **Verifica.** Test, banco in entrambe le viste, documentazione, prova in stanza.
+4. **Verifica.** ✅ Fatta (04/11), tranne la prova in stanza, che è dell'utente: la lista è in
+   [Prova in stanza: velocità dei mostri](PROVA_STANZA_VELOCITA_MOSTRI.md). Tutti i mostri di sette bestiari, dall'import al
+   motore con le funzioni del plugin: su 1633, 1630 tracciati (683 con altre modalità; 56 partono senza camminare, 42 in
+   volo e 14 a nuoto), 1 spento perché non si muove (Shrieker), 2 senza blocco, nessuna violazione. Banco, con l'import vero
+   dalla scheda (Adult Silver Dragon da 5eTools, Banshee dal JSON) e il tracker vero: entrambe le viste, Afferrato e
+   Indebolimento, selettore con clic e tastiera veri. Documenti: guida utente (sezione 8), contratto del movimento,
+   importazione.
 
 ## Fuori da questo piano
 
