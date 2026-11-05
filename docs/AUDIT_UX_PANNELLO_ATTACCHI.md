@@ -114,21 +114,22 @@ Approvate il 04/11/2026.
 Provato su una scena reale, il pannello sembrava ancora compresso e senza gerarchia nelle capacità. Cambiano solo i testi e la disposizione: danni, PF e registrazione restano uguali.
 
 - **Altezza costante.** Lotto 6 annullato.
-- **Tipo di attacco.** `Mischia` e `Distanza` non occupano più una riga: stanno sul selettore e nelle righe del menu. Sotto restano, se ci sono, bonus e portata.
+- **Tipo di attacco.** `Mischia` e `Distanza` non occupano più una riga: stanno solo sul selettore, non nelle righe del menu, come ha deciso l'utente il 05/11.
 - **Capacità.** L'elenco ha di nuovo uno sfondo suo, con una linea fra i gruppi. Le righe sono in colonna: nome, costo allineato a sinistra, usi a destra.
 - **Pill senza contesto.** `Su di sé` e `Su un bersaglio` diventano parole accanto al titolo della scheda: `Ira  Su di sé`. La scheda ha il suo riquadro.
 - **Aria.** Testata 40 px, 12 px fra i blocchi, righe dell'elenco 30 px.
-- **Riquadri in più.** Hanno uno sfondo anche il danno, la tabella delle creature e la prova contrapposta della manovra. Non erano richiesti: si possono togliere.
+- **Riquadri in più.** Hanno uno sfondo anche il danno, la tabella delle creature e la prova contrapposta della manovra. Non erano richiesti: l'utente li ha confermati il 05/11.
 - **Titoli vuoti.** `Extra al colpo` compare solo sopra qualcosa; altrimenti `+ Danno extra` sta sulla riga del danno, come nelle aree. `Effetto del colpo` passa sotto gli extra.
 - **Dati dell'attacco sopra il danno.** Dopo una seconda prova, `+5 al tiro · portata 1,5 m` e allo stesso modo TS, area e ricarica passano in cima al riquadro del danno; nelle aree, che non hanno riquadro, subito sopra il danno. Vanno a capo fra una parte e l'altra, col `·` in fondo alla riga.
 - **Sotto il selettore.** Resta `Multiattacco`, allineato al testo del selettore anche nelle aree, e il nome dell'attacco quando manca il menu che lo dice.
+- **Esito già premuto.** Un incantesimo senza tiro, come Dardo incantato, ha un solo esito: `Colpito` è già premuto, deciso dall'utente il 05/11. Non conta come scelta del GM: la mappa continua a guidare il bersaglio, e si può chiudere o cambiare attacco senza conferma finché non si scrive il danno. Il fuoco passa alla casella del danno solo se il pannello è già in uso, per non togliere la tastiera alla mappa. Il pulsante resta visibile.
 - **Testi tagliati.** La casella del danno mostra solo formule fino a 6 caratteri: una più lunga resta accanto. `Etichetta` non ha più l'esempio, che passa nel suggerimento.
 - **Dettagli.** Uno stacco fra dati, testo e «Ai livelli superiori».
 
 Al banco, sui 38 stati:
 
 - 32 stati hanno più di 40 px vuoti (mediana 177, massimo 257): è il prezzo dell'altezza costante.
-- Scorrono due stati: le manovre di 172 px, un incantesimo a dardi di 3 px.
+- Scorrono due stati: le manovre di 172 px, un incantesimo a dardi di 5 px.
 - I nomi lunghi si tagliano prima: `Mischia` divide il selettore col nome, che resta intero nel suggerimento.
 
 ## Prova in stanza del lotto 1
@@ -177,7 +178,9 @@ Al banco, sui 38 stati:
 ## Prova in stanza dopo la prova dell'utente
 
 - [ ] **Altezza:** la finestra resta di 560 px, qualunque scheda si apra.
-- [ ] **Attacco di un PG:** `Mischia` sul selettore e nelle righe del menu, nessuna riga sotto.
+- [ ] **Attacco di un PG:** `Mischia` sul selettore, non nelle righe del menu, e nessuna riga sotto.
+- [ ] **Dardo incantato:** appena aperto `Colpito` è già premuto e il bersaglio segue ancora la mappa. Scrivi il danno e premi Invio: il dardo dopo è pronto, sullo stesso bersaglio, con lo slot speso una volta sola. Chiudendo prima di scrivere non chiede conferma.
+- [ ] **Dardo incantato al turno di un altro:** con la console aperta sul dardo e nessun danno scritto, al cambio di turno la console segue il turno senza fermarsi; con un danno scritto si ferma e aspetta il GM.
 - [ ] **Attacco di un mostro:** `+14 al tiro · portata 3 m` in cima al riquadro del danno, sopra `Perforanti`; sotto il selettore solo `Multiattacco`.
 - [ ] **Incantesimo con slot:** prima il selettore dello slot, poi `Senza tiro per colpire`, poi il danno.
 - [ ] **Capacità:** `Utilizzabili` e `Altre capacità` nello stesso riquadro, separate da una linea. Costi in colonna, usi a destra, `Ira  Su di sé` nel titolo della scheda.

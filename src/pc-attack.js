@@ -70,7 +70,7 @@ async function defaultPcAttackUndo(entryId,{epoch}) {
 // attackMode: an arrow that replaces the attack roll (Seeking, Piercing); area: the creatures of an area attack.
 function emptyDraft(action,targetId=null,spellId="",attackMode="") {
   const components=pcAttackResolvedAction(action,spellId,attackMode)?.components || [];
-  return {targetId,spellId,attackMode,modeAmount:"",outcome:"",amounts:Object.fromEntries(components.map(component=>[component.id,""])),ignored:[],
+  return {targetId,spellId,attackMode,modeAmount:"",outcome:"",onlyOutcome:false,amounts:Object.fromEntries(components.map(component=>[component.id,""])),ignored:[],
     riders:{},activations:{},extras:[],woven:{spellId:"",amount:"",secondaryTargetId:"",secondaryAmount:""},
     area:{members:{},proposalKey:""},attackInstanceId:newAttackId(),
     // A leveled attack spell (lotto L4): the cast this registration belongs to, its slot, the type picked, matching d8.
@@ -85,8 +85,9 @@ export function defaultCantripId(action,sourceItem,pickerEntries=[]) {
   const last=sourceItem?.metadata?.[`${ID}/meta`]?.pcAttackState?.lastAttack?.spellId;
   return choices.includes(last) ? last : choices[0] || "";
 }
-// The map selection drives the target until the GM has decided something for this attack.
-const draftLocked=draft=>!!draft.outcome || Object.values(draft.amounts).some(value=>value!=="")
+// The map selection drives the target until the GM has decided something for this attack. An outcome the console pressed
+// itself, because it is the only one, is no decision.
+const draftLocked=draft=>(!!draft.outcome && !draft.onlyOutcome) || Object.values(draft.amounts).some(value=>value!=="")
   || Object.values(draft.riders).some(rider=>rider.on && !rider.auto) || Object.values(draft.activations || {}).some(activation=>activation.on) || draft.extras.length>0
   // An area attack's saves (Immune is the console's own, not the GM's).
   || Object.values(draft.area?.members || {}).some(member=>member.on && member.outcome && member.outcome!=="immune");
@@ -334,6 +335,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const areaRuleId=attack=>attack?.monster?pcMonsterAreaRuleId(attack.area,attack.components?.[0]?.type)
     :pcBreathAreaRuleId(attack?.area?.shape,breathAreaType(attack));
   let presentation=null,draft=null,busy=false,committing=false,invalidated=false,lastUndo=null;
+  let focusOnlyOutcome=false;
   // Eldritch Blast: the beams registered in this console for the cantrip in use (one registration per beam).
   let beamTally={spellId:"",count:0};
   const attackerCard=()=>presentation?.item?.metadata?.[META_KEY]?.initiativeCard || {};
@@ -1028,7 +1030,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const pickerShown=()=>!!picker && !picker.hidden;
   // Whether the picker writes the entry's name: the line under it then leaves it out (renderPicker).
   let pickerNamesEntry=false;
-  // The kind of attack beside the name, on the menu's button and rows: the line under it then leaves it out.
+  // The kind of attack beside the name, on the menu's button: the line above the damage then leaves it out.
   let pickerNamesRange=false;
   const entryRange=entry=>{
     if(entry?.mode==="maneuver") return RANGE_LABELS.melee;
@@ -1121,9 +1123,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         entry.tab!=="attacks" && entry.mode==="attack"?{text:"Console",title:"Si risolve nella console"}:null,entry.concentration?{text:"Conc.",title:"Concentrazione"}:null,
         entry.ritual?{text:"Rit.",title:"Rituale"}:null,inProgress(entry)?{text:"in corso",title:"Lancio in corso: raggi o dardi ancora da registrare"}:null]).filter(Boolean);
     const rowTags=entry=>[capitalized(rowCost(entry)),...rowParts(entry).map(part=>part.text),exhausted(entry)?"esaurita":""].filter(Boolean).join(" · ");
-    // The cells after the name, on the columns of the list (pc-attack.html): the kind of attack, the cost, the marks.
+    // The cells after the name, on the columns of the list (pc-attack.html): the cost, the marks.
     const rowCells=entry=>{
-      const range=node("span",entryRange(entry),"picker-row-range"),costBox=node("span","","picker-row-cost"),marks=node("span","","picker-row-marks"),cost=rowCost(entry);
+      const costBox=node("span","","picker-row-cost"),marks=node("span","","picker-row-marks"),cost=rowCost(entry);
       if(cost) costBox.append(costTag(cost));
       rowParts(entry).forEach((part,index)=>{
         const span=node("span",part.text,part.uses?"uses-badge":"");
@@ -1132,7 +1134,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         if(index) marks.append(node("span","·","tag-sep"));
         marks.append(span);
       });
-      return [range,costBox,marks];
+      return [costBox,marks];
     };
     const groupOf=entry=>entry.tab==="features"?entry.group:favourite(entry)?"pinned":entry.level;
     const groupTitle=group=>group==="pinned"?"★ Preferiti":group==="usable"?"Utilizzabili":group==="other"?"Altre capacità":Number.isInteger(group)?`${group}° livello`
@@ -1205,7 +1207,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       if(!asDropdown) setMenuOpen(false);
       else {
         pickerNamesRange=!!entryRange(current);
-        dropdownButton.replaceChildren(node("span",`${current.pinned?"★ ":""}${plainLabel(current.label)}`,"picker-row-name"),...rowCells(current),node("span","","picker-dropdown-caret"));
+        dropdownButton.replaceChildren(node("span",`${current.pinned?"★ ":""}${plainLabel(current.label)}`,"picker-row-name"),node("span",entryRange(current),"picker-row-range"),...rowCells(current),node("span","","picker-dropdown-caret"));
         dropdownButton.title=label(current);dropdownButton.disabled=busy;
         if(busy) setMenuOpen(false);
         for(const row of pickerMenu?.querySelectorAll("button") || []){row.setAttribute("aria-pressed",String(row.dataset.pickerKey===current.key));row.disabled=busy;}
@@ -1968,8 +1970,17 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const amount=box.querySelector(`[data-${kind}-id="${id}"]`)?.querySelector(`[data-${kind}-field="amount"]`);
     if(amount && !amount.hidden && !amount.disabled) amount.focus?.();
   }
+  // One outcome is no choice (Magic Missile hits without a roll): the console presses it, and the GM goes on to the damage.
+  function pressOnlyOutcome() {
+    const options=isArea()?[]:pcAttackOutcomesFor(resolved());
+    const only=options.length===1;
+    if(only){focusOnlyOutcome||=!draft.onlyOutcome;draft.outcome=options[0];}
+    else if(draft.onlyOutcome) draft.outcome="";
+    draft.onlyOutcome=only;
+  }
   function renderOutcomes() {
     renderMode();
+    pressOnlyOutcome();
     // An area attack has a save for each creature: no single outcome (the block stays for the arrow picker).
     outcomes.hidden=isArea();
     if(outcomeBlock) outcomeBlock.hidden=isArea();
@@ -2038,7 +2049,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(reaction && ownTurnSeen){ownTurnSeen=false;useReaction=false;reactionSignature="";}
     // Just spent by the attack registered here: the status line says so, the warning waits for the next attack's outcome.
     if(!reaction?.used) reactionSpentBy="";
-    const quiet=!!reaction?.used && reactionSpentBy===sourceId && !draft?.outcome;
+    const quiet=!!reaction?.used && reactionSpentBy===sourceId && (!draft?.outcome || !!draft.onlyOutcome);
     reactionRow.hidden=!reaction || quiet;
     if(!reaction || quiet){reactionSignature="";return;}
     const signature=JSON.stringify([reaction.used,useReaction,busy]);
@@ -2052,6 +2063,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     reactionRow.replaceChildren(label);
   }
   function renderState() {
+    // As after a click on the outcome, once the fields can take it; only inside a panel already in use: opening on its own,
+    // the console must not take the keyboard away from the map.
+    if(focusOnlyOutcome && !busy){focusOnlyOutcome=false;if(documentRef.hasFocus?.())focusDamage();}
     renderReaction();
     renderTargetReactions();
     // The hit effect follows the outcome, which a click changes without a full render (fase 5, lotto 4).

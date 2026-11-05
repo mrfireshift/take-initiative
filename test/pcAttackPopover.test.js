@@ -885,6 +885,76 @@ test("an attack with decisions asks before switching, and stays when the GM decl
   assert.equal(f.controller.getDraft().outcome, "");
 });
 
+test("the kind of attack stands only on the selector, not in the menu's rows", async () => {
+  const f = fixture({ actions: [sword, axe], attacker: { initiativeCard: { quickActions: [sword, axe] } } }); await f.controller.ready; await tick();
+  assert.equal(f.$("pc-attack-picker-dropdown-button").querySelector(".picker-row-range").textContent, "Mischia");
+  const rows = f.$("pc-attack-picker-menu").querySelectorAll("button");
+  assert.ok(rows.length >= 2);
+  for (const row of rows) {
+    assert.equal(row.querySelector(".picker-row-range"), null);
+    assert.doesNotMatch(textOf(row), /Mischia/);
+  }
+});
+
+const noRollSpells = sanitizeQuickAction({ id: "spells", label: "Incantesimi", kind: "attack", source: { kind: "spell", spellIds: ["magic-missile", "guiding-bolt"] } });
+const noRollCaster = { initiativeCard: { characterBuild: [{ classId: "mago", level: 5 }] }, classFeatureState: { resources: { "spell-slot-1": { current: 3 } } } };
+const spellRow = (f, key) => f.$("pc-attack-picker-list").querySelector(`[data-picker-key="${key}"]`);
+const pressedOutcomes = (f) => f.$("pc-attack-outcomes").querySelectorAll("button").filter((button) => button.getAttribute("aria-pressed") === "true").map((button) => button.dataset.outcome);
+
+test("a spell that hits without a roll: its only outcome is already pressed, and that is no decision of the GM", async () => {
+  const asked = [];
+  const f = fixture({ actions: [sword, noRollSpells], attacker: noRollCaster, confirm: (message) => { asked.push(message); return false; } });
+  await f.controller.ready; await tick();
+  await pickerTabs(f)[1].click(); await tick();
+  assert.equal(f.controller.getDraft().spellId, "magic-missile");
+  assert.equal(f.controller.getDraft().outcome, "hit");
+  assert.deepEqual(pressedOutcomes(f), ["hit"], "no click needed");
+  assert.equal(f.$("pc-attack-apply").disabled, true, "nothing is recorded by itself: the target and the damage are still to come");
+  await f.select(["ghoul"]);
+  assert.equal(f.controller.getDraft().targetId, "ghoul");
+  await f.select(["imp"]);
+  assert.equal(f.controller.getDraft().targetId, "imp", "the map still drives the target");
+  await f.keydown("Escape");
+  assert.deepEqual(asked, [], "nothing to lose: it closes without asking");
+  assert.deepEqual(f.closed.length, 1);
+});
+
+test("a spell that hits without a roll: a typed amount locks the draft, and another spell gives its choice back", async () => {
+  const f = fixture({ actions: [sword, noRollSpells], attacker: noRollCaster }); await f.controller.ready; await tick();
+  await pickerTabs(f)[1].click(); await tick();
+  await f.select(["ghoul"]);
+  await typeAmounts(f, ["4"]);
+  await f.select(["imp"]);
+  assert.equal(f.controller.getDraft().targetId, "ghoul", "an amount is a decision");
+  await spellRow(f, "spells::guiding-bolt").click(); await tick();
+  assert.equal(f.controller.getDraft().spellId, "guiding-bolt");
+  assert.equal(f.controller.getDraft().outcome, "", "a roll to make: nothing is pressed for it");
+  assert.deepEqual(pressedOutcomes(f), []);
+  await f.outcome("hit").click();
+  await f.select(["imp"]);
+  assert.equal(f.controller.getDraft().targetId, "ghoul", "an outcome chosen by hand locks it as ever");
+  await spellRow(f, "spells::magic-missile").click(); await tick();
+  assert.deepEqual(pressedOutcomes(f), ["hit"], "and back: pressed again");
+});
+
+test("a spell that hits without a roll: dart after dart, type and Enter; the focus moves only inside a panel in use", async () => {
+  const quiet = fixture({ actions: [noRollSpells, sword], actionId: "spells", attacker: noRollCaster }); await quiet.controller.ready; await tick();
+  assert.deepEqual(pressedOutcomes(quiet), ["hit"]);
+  assert.ok(!quiet.inputs().includes(quiet.documentRef.activeElement), "opening on its own, the console leaves the keyboard to the map");
+  const f = fixture({ actions: [sword, noRollSpells], attacker: noRollCaster }); await f.controller.ready; await tick();
+  f.documentRef.hasFocus = () => true;
+  await f.select(["ghoul"]);
+  await pickerTabs(f)[1].click(); await tick();
+  assert.equal(f.documentRef.activeElement, f.inputs()[0], "chosen in the panel: straight to the damage");
+  await typeAmounts(f, ["4"]);
+  await f.keydown("Enter"); await tick();
+  assert.equal(f.calls.length, 1);
+  assert.deepEqual([f.calls[0].outcome, f.calls[0].targetId, f.calls[0].componentAmounts], ["hit", "ghoul", { c1: 4 }]);
+  assert.deepEqual(pressedOutcomes(f), ["hit"], "the next dart is ready");
+  assert.equal(f.controller.getDraft().targetId, "ghoul");
+  assert.equal(f.documentRef.activeElement, f.inputs()[0], "and its damage waits for the keyboard");
+});
+
 test("the attack spells tab and a single entry", async () => {
   const f = fixture({ actions: [sword, attackSpells] }); await f.controller.ready; await tick();
   await pickerTabs(f)[1].click(); await tick();
@@ -1141,6 +1211,24 @@ test("a console holding decisions waits: the bar offers the move, after a confir
   await button.click(); await tick(); await tick();
   assert.equal(f.sources.at(-1), "imp");
   assert.equal(bar.hidden, true);
+});
+
+test("a spell that hits without a roll: the turn moves on freely until a damage is typed", async () => {
+  const open = async (bus) => {
+    const f = fixture({ broadcast: bus.broadcast, actions: [sword, noRollSpells], attacker: noRollCaster }); await f.controller.ready; await tick();
+    await pickerTabs(f)[1].click(); await tick();
+    await f.select(["ghoul"]);
+    return f;
+  };
+  const freeBus = followBroadcast(), free = await open(freeBus);
+  assert.deepEqual(pressedOutcomes(free), ["hit"]);
+  await freeBus.follow("imp", "Imp"); await tick();
+  assert.equal(free.sources.at(-1), "imp", "only the outcome it pressed itself: nothing holds the console");
+  const heldBus = followBroadcast(), held = await open(heldBus);
+  await typeAmounts(held, ["4"]);
+  await heldBus.follow("imp", "Imp");
+  assert.equal(held.sources.includes("imp"), false, "a damage typed holds it");
+  assert.match(textOf(held.$("pc-attack-follow")), /È il turno di Imp\./);
 });
 
 test("a turn back to the console's actor clears the bar; a clean console closes on a turn with nothing to show", async () => {

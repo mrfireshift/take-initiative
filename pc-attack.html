@@ -103,7 +103,7 @@
     /* The spells tab: a list by level instead of a select (every spell in view, one click each), in a box of its own: where
        the list ends and the card of what is chosen begins. A short list is as tall as its rows (filterPicker). The rows take
        the list's columns, so that the cost starts at one point on every row and the uses end on the right. */
-    .picker-list, .picker-menu { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-content: start; row-gap: 2px; }
+    .picker-list, .picker-menu { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-content: start; row-gap: 2px; }
     .picker-list { flex: 0 1 auto; min-height: 132px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
     .picker-list[data-short="true"] { min-height: 0; }
     .picker-list > .picker-level, .picker-list > .picker-row, .picker-menu > .picker-row { grid-column: 1 / -1; }
@@ -151,8 +151,8 @@
     .picker-level[data-slots]::after { content: attr(data-slots); letter-spacing: 0; text-transform: none; font-weight: var(--obrt-weight-semibold); font-variant-numeric: tabular-nums; color: var(--muted); }
     .picker-level[data-slots-zero="true"]::after { color: var(--warn-text); }
     .picker-row-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    /* After the name: the kind of attack, the cost from one left edge, the marks and the uses against the right. An empty
-       cell takes no room. */
+    /* After the name: the cost from one left edge, the marks and the uses against the right, and on the menu's button the
+       kind of attack first. An empty cell takes no room. */
     .picker-row-range, .picker-row-cost, .picker-row-marks { flex: 0 0 auto; color: var(--muted); font-size: var(--obrt-type-secondary); white-space: nowrap; }
     .picker-row-range:not(:empty), .picker-row-cost:not(:empty), .picker-row-marks:not(:empty) { padding-left: 10px; }
     .picker-row-marks { justify-self: end; text-align: right; }
