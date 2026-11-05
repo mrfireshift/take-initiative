@@ -911,6 +911,7 @@ test("a spell that hits without a roll: its only outcome is already pressed, and
   assert.deepEqual(pressedOutcomes(f), ["hit"], "no click needed");
   assert.deepEqual([f.$("pc-attack-outcomes").hidden, f.$("pc-attack-outcome-block").hidden], [true, true], "nothing to choose: no button");
   assert.equal(facts(f), "Senza tiro per colpire", "the line above the damage says why");
+  assert.equal(f.$("pc-attack-cantrip-note").textContent, "Dardi: 3 con questo slot; il primo spende lo slot. Registra un dardo alla volta, anche sullo stesso bersaglio.", "and the note does not say it again");
   assert.equal(f.$("pc-attack-apply").disabled, true, "nothing is recorded by itself: the target and the damage are still to come");
   await f.select(["ghoul"]);
   assert.equal(f.controller.getDraft().targetId, "ghoul");
