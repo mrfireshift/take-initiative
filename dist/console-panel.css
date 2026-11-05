@@ -8,7 +8,21 @@
   /* Every list of the panel keeps one pitch, 28 px: spells, features, actions, menus, extras and creatures. */
   --list-row: 26px;
   --list-gap: 2px;
+  /* The action costs' colours (Baldur's Gate 3). */
+  --cost-action: #4ade80;
+  --cost-bonus: #fb923c;
+  --cost-reaction: #c084fc;
 }
+/* Action costs, as in Baldur's Gate 3: Azione green (circle), Azione bonus orange (triangle), Reazione purple (diamond), on
+   the list rows, the feature's pill, the fixed row and the spell popups' header. */
+.cost-tag[data-cost] { font-weight: var(--obrt-weight-bold); white-space: nowrap; }
+.cost-tag[data-cost]::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 4px; vertical-align: 1px; background: currentColor; }
+.cost-tag[data-cost="action"] { color: var(--cost-action); }
+.cost-tag[data-cost="action"]::before { border-radius: 50%; }
+.cost-tag[data-cost="bonus"] { color: var(--cost-bonus); }
+.cost-tag[data-cost="bonus"]::before { width: 8px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.cost-tag[data-cost="reaction"] { color: var(--cost-reaction); }
+.cost-tag[data-cost="reaction"]::before { width: 6px; height: 6px; transform: rotate(45deg); }
 .glass-shell { position: relative; }
 /* The header says who acts, on one line: what it does is under the picker. Its grip stands apart from the name, and both
    off the window's edge. */

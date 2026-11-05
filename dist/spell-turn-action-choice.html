@@ -5,55 +5,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Azione incantesimo</title>
     <link rel="stylesheet" href="/ui-typography.css" />
-    <link rel="stylesheet" href="/ui-scrollbars.css" />
+    <link rel="stylesheet" href="/popover-glass.css" />
+    <link rel="stylesheet" href="/console-shell.css" />
+    <link rel="stylesheet" href="/console-panel.css" />
     <link rel="stylesheet" href="/spell-popover.css" />
     <style>
-      #app {
-        width:calc(100% - 8px); height:auto; min-height:0; margin:4px;
-        background:linear-gradient(135deg,rgba(76,29,149,.32),rgba(30,41,59,.18) 62%),rgba(15,23,42,.14);
-        -webkit-backdrop-filter:blur(6px) saturate(120%); backdrop-filter:blur(6px) saturate(120%);
-      }
-      .actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin-top:auto; }
-      #app[data-mode="direct"] .actions { grid-template-columns:repeat(2,minmax(0,1fr)); margin-top:4px; }
-      #app[data-mode="compact"] .actions { grid-template-columns:minmax(0,1fr); margin-top:4px; }
-      .action { min-height:62px; padding:8px; text-align:left; border-color:rgba(196,181,253,.4); background:rgba(76,29,149,.18); }
-      .action:hover:not(:disabled) { border-color:rgba(221,214,254,.85); background:rgba(109,40,217,.38); }
-      .action strong { display:block; font-size:12px; line-height:1.1; }
-      .action span { display:block; margin-top:4px; color:rgba(226,232,240,.68); font-size: var(--obrt-type-micro, 10px); line-height:1.2; }
-      #app[data-spell="telekinesis"] .actions { margin-top:4px; }
-      .action--telekinesis { min-height:30px; padding:5px 8px; text-align:center; }
-      .action--telekinesis strong { font-weight:700; }
-      .action--compact { min-height:28px; padding:4px 8px; border-color:#ddd6fe; background:linear-gradient(#8b5cf6,#6d28d9); text-align:center; }
-      .action--compact:hover:not(:disabled) { border-color:#ddd6fe; background:linear-gradient(#8b5cf6,#6d28d9); filter:brightness(1.12); }
+      .header-copy { display: flex; align-items: center; gap: var(--obrt-space-xs); cursor: grab; }
+      .header-copy .drag-grip { order: 0; }
+      /* The choices in a box, one per row at the lists' pitch: the name on the left, what it does on the right. */
+      .actions { display: grid; grid-template-columns: auto minmax(0, 1fr); row-gap: var(--list-gap); padding: 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
+      .action { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; column-gap: var(--obrt-space-xl); min-height: 30px; padding: 1px 8px; border-color: transparent; background: transparent; font-weight: var(--obrt-weight-regular); text-align: left; }
+      .action:hover:not(:disabled) { background: var(--obrt-hover); }
+      .action strong { font-weight: var(--obrt-weight-semibold); white-space: nowrap; }
+      .action span { min-width: 0; color: var(--muted); font-size: var(--obrt-type-secondary); line-height: 1.25; text-align: right; text-wrap: pretty; }
+      /* A single action is no list: the main button. */
+      #app[data-mode="compact"] .actions { grid-template-columns: minmax(0, 1fr); padding: 0; border: 0; background: none; }
+      .action--compact { display: block; min-height: var(--obrt-h-control-lg); padding: 0 var(--obrt-space-md); border-color: var(--obrt-btn-primary-border); background: var(--obrt-btn-primary-bg); font-weight: var(--obrt-weight-bold); text-align: center; }
+      .action--compact:hover:not(:disabled) { background: var(--obrt-btn-primary-bg-hover); }
       .action--compact strong { font:inherit; }
-      .action--direct { text-align:center; }
-      .action--direct span { min-height:22px; }
-      .field { display:grid; grid-template-columns:64px minmax(0,1fr); align-items:center; gap:7px; }
-      .field label { color:#ddd6fe; font-size:11px; font-weight:800; }
+      .field { display:grid; grid-template-columns:var(--form-label) minmax(0,1fr); align-items:center; column-gap:var(--obrt-space-md); }
+      .field label { color:var(--muted); font-size:var(--obrt-type-secondary); font-weight:var(--obrt-weight-regular); }
     </style>
-    <script type="module" crossorigin src="/assets/spellTurnActionChoice-Bwp1l4kS.js"></script>
+    <script type="module" crossorigin src="/assets/spellTurnActionChoice-B7eQysSB.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
     <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
     <link rel="modulepreload" crossorigin href="/assets/distance3dCore-aaV57Xzg.js">
     <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-Bpe1qDxK.js">
-    <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BnDt_jrR.js">
+    <link rel="modulepreload" crossorigin href="/assets/popoverDrag--L1JqoSi.js">
   </head>
   <body>
-    <main id="app">
+    <main id="app" class="glass-shell" data-glass-popover="1">
       <div class="header">
         <div class="header-copy" data-drag-handle draggable="true" title="Trascina per spostare">
-          <div class="eyebrow" hidden></div>
-          <h1 id="title">Azione</h1>
+          <span class="drag-grip" aria-hidden="true"></span>
+          <div class="heading-title-group">
+            <h1 id="title" class="title">Azione</h1>
+            <div id="subtitle" class="subtitle" hidden></div>
+          </div>
         </div>
-        <button id="close" type="button" aria-label="Chiudi">×</button>
+        <button id="close" class="icon-button" type="button" title="Chiudi" aria-label="Chiudi">×</button>
       </div>
-      <div id="hint" class="hint" hidden></div>
-      <div id="targetField" class="field" hidden>
-        <label for="target">Bersaglio</label>
-        <select id="target"><option value="">Seleziona il bersaglio</option></select>
-      </div>
-      <div id="status" class="status" hidden></div>
-      <div id="actions" class="actions"></div>
+      <div class="panel"><div class="view">
+        <div id="hint" class="hint" hidden></div>
+        <div id="targetField" class="field" hidden>
+          <label for="target">Bersaglio</label>
+          <select id="target"><option value="">Seleziona il bersaglio</option></select>
+        </div>
+        <div id="actions" class="actions"></div>
+      </div></div>
+      <footer class="status-bar"><p id="status" class="status" role="status" aria-live="polite" hidden></p></footer>
     </main>
   </body>
 </html>

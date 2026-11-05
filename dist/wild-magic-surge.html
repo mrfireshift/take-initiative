@@ -7,110 +7,114 @@
   <link rel="stylesheet" href="/ui-typography.css" />
   <link rel="stylesheet" href="/popover-glass.css" />
   <link rel="stylesheet" href="/console-shell.css" />
+  <link rel="stylesheet" href="/console-panel.css" />
   <style>
-    /* The surge's colours: a violet that drifts to magenta, as the d100 decides. */
-    :root { --chaos: #c084fc; --chaos-hot: #f472b6; --chaos-deep: rgba(88, 28, 135, .55); }
-    .header { padding-left: var(--obrt-space-lg); background: linear-gradient(110deg, rgba(88, 28, 135, .42), rgba(157, 23, 77, .28)); }
-    .drag-grip { flex: 0 0 auto; order: -1; width: 8px; height: 16px; margin-right: 2px; opacity: .45; background-image: radial-gradient(circle, #fff 1px, transparent 1.4px); background-size: 4px 4px; }
-    .roll-card { position: relative; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 14px; padding: 14px; border: 1px solid rgba(192, 132, 252, .45); border-radius: var(--obrt-radius-lg, 12px); overflow: hidden;
+    /* The surge's own: the plugin's glass tinted fuchsia and the d100's card. The rest is the consoles'. */
+    :root { --obrt-popover-glass: rgba(112, 30, 110, .62); }
+    /* The glass fills its window: a shadow around it would only show in the corners, cut square by the iframe. */
+    .glass-shell { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07); }
+    /* When the groups do not fit the panel scrolls: the view keeps its height, and the panel its margin at the bottom. */
+    .panel > .view { flex: none; }
+    .roll-card { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 14px; padding: var(--obrt-space-xl); border: 1px solid rgba(192, 132, 252, .45); border-radius: var(--obrt-radius-md);
       background: radial-gradient(circle at 12% 30%, rgba(244, 114, 182, .28), transparent 55%), linear-gradient(150deg, rgba(59, 7, 100, .78), rgba(15, 23, 42, .78)); }
-    .roll-card::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: conic-gradient(from 0deg, transparent, rgba(192, 132, 252, .14), transparent 30%); animation: swirl 9s linear infinite; }
-    @keyframes swirl { to { transform: rotate(1turn); } }
-    .d100 { position: relative; z-index: 1; width: 86px; height: 86px; display: grid; place-items: center; clip-path: polygon(50% 0, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
+    .d100 { width: 72px; height: 72px; display: grid; place-items: center; clip-path: polygon(50% 0, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
       background: linear-gradient(160deg, #a855f7, #831843); box-shadow: inset 0 0 18px rgba(0, 0, 0, .45); }
-    .d100 input { width: 64px; padding: 0; border: 0; background: transparent; color: #fff; font-family: var(--obrt-font-display, inherit); font-size: 30px; font-weight: 800; text-align: center; text-shadow: 0 2px 4px rgba(0, 0, 0, .6); -moz-appearance: textfield; }
+    .d100 input { width: 60px; padding: 0; border: 0; outline: none; background: transparent; color: #fff; font-size: 26px; font-weight: var(--obrt-weight-heavy); font-variant-numeric: tabular-nums; text-align: center; text-shadow: 0 2px 4px rgba(0, 0, 0, .6); -moz-appearance: textfield; }
     .d100 input::-webkit-outer-spin-button, .d100 input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    .d100 input::placeholder { color: rgba(255, 255, 255, .45); }
+    .d100 input::placeholder { color: rgba(255, 255, 255, .55); font-size: 18px; font-weight: var(--obrt-weight-bold); }
     .d100.flash { animation: flash .5s ease; }
     @keyframes flash { 40% { filter: brightness(1.6) saturate(1.4); transform: rotate(-6deg) scale(1.06); } }
-    .roll-side { position: relative; z-index: 1; display: grid; gap: 8px; }
+    .roll-side { min-width: 0; display: grid; gap: var(--obrt-space-sm); }
     .roll-side .caption { color: #f5d0fe; }
-    .roll-hint { margin: 0; color: rgba(255, 255, 255, .72); font-size: var(--obrt-type-secondary); }
-    .roll-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-    .small.chaos { border-color: rgba(192, 132, 252, .55); background: rgba(126, 34, 206, .35); color: #f5f3ff; }
-    .outcome { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-left: 3px solid var(--chaos); border-radius: var(--obrt-radius-md); background: var(--surface-row); }
-    .outcome-head { display: flex; align-items: center; gap: 8px; }
-    .range { padding: 2px 8px; border-radius: var(--obrt-radius-pill); background: linear-gradient(90deg, #7e22ce, #be185d); color: #fff; font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: .06em; }
-    .auto-tag { margin-left: auto; padding: 1px 7px; border-radius: var(--obrt-radius-pill); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); }
-    .auto-tag[data-auto="true"] { border: 1px solid rgba(134, 239, 172, .4); background: rgba(21, 128, 61, .3); color: #bbf7d0; }
-    .auto-tag[data-auto="false"] { border: 1px solid rgba(253, 230, 138, .42); background: rgba(161, 98, 7, .3); color: var(--warn-text); }
-    .effect { margin: 0; line-height: 1.45; }
-    .action-line { display: flex; align-items: center; gap: 6px; color: #f5d0fe; font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-semibold); }
-    .note { margin: 0; color: var(--warn-text); font-size: var(--obrt-type-secondary); }
-    .extra { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-    .extra input[type=number] { width: 72px; min-height: 27px; padding: 2px 6px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); }
-    details.builder { border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
-    details.builder summary { padding: 8px 10px; cursor: pointer; color: var(--muted); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-semibold); }
-    .builder-grid { display: grid; grid-template-columns: 1fr 64px 92px; gap: 6px; padding: 0 10px 10px; }
-    .builder-grid input, .builder-grid select { min-height: 27px; padding: 2px 6px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); }
-    .builder-grid .wide { grid-column: 1 / -1; }
-    .builder-row { display: flex; gap: 6px; }
-    .builder-row select { width: 64px; }
-    .tides { display: flex; align-items: center; gap: 8px; color: var(--info-text); font-size: var(--obrt-type-secondary); }
-    .tides input { accent-color: var(--chaos); }
-    .apply-row { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 10px var(--obrt-space-xl); border-top: 1px solid var(--line); }
-    .apply { background: linear-gradient(90deg, #7e22ce, #be185d); }
-    .apply:not(:disabled):hover { filter: brightness(1.12); }
+    .roll-hint { margin: 0; color: rgba(255, 255, 255, .72); font-size: var(--obrt-type-secondary); line-height: 1.3; text-wrap: pretty; }
+    .roll-actions { display: flex; gap: var(--obrt-space-sm); }
+    /* The row of the table, in a box: its range, its text, what Applica does with it. */
+    .outcome { display: grid; gap: var(--obrt-space-sm); padding: var(--obrt-space-lg) var(--obrt-space-xl); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
+    .outcome-head { display: flex; align-items: center; justify-content: space-between; gap: var(--obrt-space-md); }
+    .range { font-weight: var(--obrt-weight-bold); font-variant-numeric: tabular-nums; }
+    .auto-tag { color: var(--muted); font-size: var(--obrt-type-secondary); }
+    .auto-tag[data-auto="true"] { color: #bbf7d0; }
+    .effect { margin: 0; line-height: 1.4; text-wrap: pretty; }
+    .inline { min-width: 0; display: flex; align-items: center; gap: var(--obrt-space-sm); }
+    /* The pill of the GM's own, folded in its box until it is asked for. */
+    .builder { scroll-margin-bottom: var(--obrt-space-xl); padding: 0 var(--obrt-space-xl); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
+    .builder summary { min-height: var(--obrt-h-control-md); }
+    .builder[open] { padding-bottom: var(--obrt-space-lg); }
+    .builder[open] summary { margin-bottom: 0; }
+    .builder-rows { display: grid; gap: var(--obrt-space-sm); }
+    .builder input { width: 100%; min-width: 0; min-height: var(--obrt-h-control-md); padding: 0 var(--obrt-space-md); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); outline: none; background: var(--surface); }
+    .builder input:focus { border-color: rgba(96, 165, 250, .7); }
+    .builder input::placeholder { color: rgba(255, 255, 255, .42); }
+    .builder select { min-height: var(--obrt-h-control-md); padding: 0 var(--obrt-space-md); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); }
+    .builder .small { flex: none; min-height: var(--obrt-h-control-md); font-weight: var(--obrt-weight-semibold); }
+    #pill-icon { flex: 0 0 64px; width: 64px; }
+    #pill-duration { flex: 0 0 52px; width: 52px; text-align: center; font-variant-numeric: tabular-nums; }
+    #pill-unit { flex: 1 1 0; min-width: 0; }
+    /* No chips in this row: its message in the middle, beside the button. */
+    .apply-row .total { grid-row: 1 / span 2; }
+    /* Messages: a bar at the bottom, only while there is something to say. */
+    .status-bar:has(> .status:empty) { display: none; }
   </style>
-  <script type="module" crossorigin src="/assets/wildMagicSurge-BUQPN-Uk.js"></script>
+  <script type="module" crossorigin src="/assets/wildMagicSurge-Csxvy497.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
   <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3dCore-aaV57Xzg.js">
-  <link rel="modulepreload" crossorigin href="/assets/blinkRules-DZBRTYeT.js">
+  <link rel="modulepreload" crossorigin href="/assets/blinkRules-CSn7atRh.js">
   <link rel="modulepreload" crossorigin href="/assets/quickHpCore-B-UpYtUG.js">
   <link rel="modulepreload" crossorigin href="/assets/deathSaveCore-BHeheoEn.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectSaveReminderCore-CQUQyo9W.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-BegYSU8F.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectSaveReminderCore-DR1kDxDg.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-DmwlANIo.js">
   <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
   <link rel="modulepreload" crossorigin href="/assets/privatePackCore-BvP_zfiY.js">
   <link rel="modulepreload" crossorigin href="/assets/classFeatureDescriptions-8-O96-Fm.js">
   <link rel="modulepreload" crossorigin href="/assets/effectLabelCore-BVOJN7Do.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-DvPwfWlb.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-CyVgtWv8.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-CdDyG0T-.js">
-  <link rel="modulepreload" crossorigin href="/assets/spells-srd-Fa7dgSme.js">
-  <link rel="modulepreload" crossorigin href="/assets/buffPresetCore-DPE1MXTx.js">
-  <link rel="modulepreload" crossorigin href="/assets/monsterActionContextCore-DDyPly_x.js">
+  <link rel="modulepreload" crossorigin href="/assets/spells-srd-CFzMqKNJ.js">
+  <link rel="modulepreload" crossorigin href="/assets/buffPresetCore-DUR7C1c1.js">
+  <link rel="modulepreload" crossorigin href="/assets/monsterActionContextCore-CWDvRKsk.js">
   <link rel="modulepreload" crossorigin href="/assets/spellCastPhaseCore-CFLjxkuS.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellAreaRules-X1xyFrQ1.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-DLYWhF3J.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-wueeVpTJ.js">
-  <link rel="modulepreload" crossorigin href="/assets/wildMagicSurgeCore-CZ487Pzw.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellAreaRules-DIGQ9qgf.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-CqujpAE0.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-BuEpHtTc.js">
+  <link rel="modulepreload" crossorigin href="/assets/wildMagicSurgeCore-CexpcXn8.js">
   <link rel="modulepreload" crossorigin href="/assets/sharedHpCore-DSNA-HTg.js">
   <link rel="modulepreload" crossorigin href="/assets/bossLinkResistanceCore-BnYd3cot.js">
-  <link rel="modulepreload" crossorigin href="/assets/perfProbe-CMpePRND.js">
-  <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-BG8pPlJH.js">
+  <link rel="modulepreload" crossorigin href="/assets/perfProbe-CS7fHQj7.js">
+  <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-Bh6BXPzd.js">
   <link rel="modulepreload" crossorigin href="/assets/sceneEpoch-B8A8dIDk.js">
   <link rel="modulepreload" crossorigin href="/assets/sceneItemEvents-DPr5kuM4.js">
   <link rel="modulepreload" crossorigin href="/assets/fiveToolsArchiveCore-tLcUxIcx.js">
   <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-D27kjyro.js">
-  <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-GNQgZOar.js">
+  <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-DKE0NotR.js">
   <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-gGdnlg7u.js">
-  <link rel="modulepreload" crossorigin href="/assets/history-D_GBz-mK.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-BKaQwCen.js">
-  <link rel="modulepreload" crossorigin href="/assets/conditions-Dnpz-Ele.js">
+  <link rel="modulepreload" crossorigin href="/assets/history-DyGjoTCl.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-IWrIFTRF.js">
+  <link rel="modulepreload" crossorigin href="/assets/conditions-f9eOSOQA.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-D9UI-Ijo.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeStyle-BBl-cwqV.js">
   <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-2NI10rhQ.js">
   <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-Bpe1qDxK.js">
   <link rel="modulepreload" crossorigin href="/assets/customAuraCore-Cig87-uH.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-Cl1skzF9.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-BBVqnv45.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-DEmgo-pA.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-Cb3QWSiD.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3d-BOi7eVk5.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-DC7xwP-H.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-Dhf-K75C.js">
   <link rel="modulepreload" crossorigin href="/assets/speedCheckCore-BCfPg9NS.js">
-  <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-CQvhhTSX.js">
-  <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-BuE5fW0w.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellbookCore-B67x6sIA.js">
-  <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-w5zoo0aK.js">
+  <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-DsOmrrib.js">
+  <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-C7ohqdcW.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellbookCore-CiKH7Dna.js">
+  <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-DPdij-5d.js">
   <link rel="modulepreload" crossorigin href="/assets/bossActionProfileCore-_twrh-vn.js">
-  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-DTytPvK5.js">
+  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-CSnIq_pu.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenTrackerCore-6TeJmD1_.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellbookCatalog-nm5WRppM.js">
-  <link rel="modulepreload" crossorigin href="/assets/speciesHpTraitCore-620eAemh.js">
-  <link rel="modulepreload" crossorigin href="/assets/speciesInnateSpellCore-BGBTmGdI.js">
-  <link rel="modulepreload" crossorigin href="/assets/reactionTrackerCore-D7QEadZp.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureRuntime-DdPtPKO6.js">
-  <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BnDt_jrR.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellbookCatalog-BrFQs2XS.js">
+  <link rel="modulepreload" crossorigin href="/assets/speciesHpTraitCore-D6kXQN3x.js">
+  <link rel="modulepreload" crossorigin href="/assets/speciesInnateSpellCore-BaC_NGS4.js">
+  <link rel="modulepreload" crossorigin href="/assets/reactionTrackerCore-CX8_ugv7.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureRuntime-CwEgnmDy.js">
+  <link rel="modulepreload" crossorigin href="/assets/popoverDrag--L1JqoSi.js">
+  <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-C3HxbaX8.js">
 </head>
 <body>
   <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/wild-magic-surge">
@@ -128,34 +132,40 @@
           <div class="roll-side">
             <span class="caption">Risultato del d100</span>
             <p class="roll-hint">Scrivi il numero tirato al tavolo: il motore trova la riga e applica l'esito dove può.</p>
-            <div class="roll-actions"><button class="small chaos" id="random" type="button" title="Tira il d100 qui">🎲 Tira qui</button></div>
+            <div class="roll-actions"><button class="small" id="random" type="button" title="Tira il d100 qui">🎲 Tira qui</button></div>
           </div>
         </div>
         <section class="outcome" id="outcome" hidden>
           <div class="outcome-head"><span class="range" id="range"></span><span class="auto-tag" id="auto-tag"></span></div>
           <p class="effect" id="effect"></p>
-          <div class="action-line" id="action-line"></div>
-          <p class="note" id="note" hidden></p>
-          <div class="extra" id="heal-row" hidden>
-            <span>Totale</span><input id="heal-total" type="number" min="1" inputmode="numeric" aria-label="Totale dei PF recuperati" />
-            <button class="small chaos" id="heal-roll" type="button"></button>
+          <p class="action-facts" id="action-line"></p>
+          <p class="action-facts" id="note" hidden></p>
+          <div class="form-row" id="heal-row" hidden>
+            <label class="form-label" for="heal-total">Totale</label>
+            <div class="inline"><input class="amount" id="heal-total" type="number" min="1" inputmode="numeric" aria-label="Totale dei PF recuperati" /><button class="mini-button" id="heal-roll" type="button"></button></div>
           </div>
         </section>
-        <details class="builder" id="builder" hidden>
+        <details class="builder spell-details" id="builder" hidden>
           <summary>Pillola personalizzata sullo Stregone</summary>
-          <div class="builder-grid">
-            <div class="builder-row wide"><select id="pill-icon" aria-label="Icona"></select><input id="pill-name" maxlength="80" placeholder="Nome della pillola" aria-label="Nome della pillola" style="flex:1" /></div>
-            <input class="wide" id="pill-notes" maxlength="160" placeholder="Promemoria, separati da virgola" aria-label="Promemoria" />
-            <span class="caption" style="align-self:center">Durata</span>
-            <input id="pill-duration" type="number" min="1" placeholder="—" aria-label="Durata" title="Vuota: fino a rimozione" />
-            <select id="pill-unit" aria-label="Unità"></select>
-            <button class="small chaos wide" id="pill-apply" type="button">Metti la pillola</button>
+          <div class="builder-rows">
+            <div class="form-row">
+              <label class="form-label" for="pill-name">Pillola</label>
+              <div class="inline"><select id="pill-icon" aria-label="Icona"></select><input id="pill-name" maxlength="80" placeholder="Nome della pillola" /></div>
+            </div>
+            <div class="form-row">
+              <label class="form-label" for="pill-notes">Note</label>
+              <input id="pill-notes" maxlength="160" placeholder="Promemoria, separati da virgola" />
+            </div>
+            <div class="form-row">
+              <label class="form-label" for="pill-duration">Durata</label>
+              <div class="inline"><input id="pill-duration" type="number" min="1" placeholder="—" title="Vuota: fino a rimozione" /><select id="pill-unit" aria-label="Unità"></select><button class="small" id="pill-apply" type="button">Metti la pillola</button></div>
+            </div>
           </div>
         </details>
-        <label class="tides" id="tides-row" hidden><input type="checkbox" id="tides" checked /><span>Impulso richiesto dal DM: recupera Onde di Caos</span></label>
+        <label class="more-option" id="tides-row" hidden><input type="checkbox" id="tides" checked /><span>Impulso richiesto dal DM: recupera Onde di Caos</span></label>
       </section>
     </main>
-    <div class="apply-row"><button class="apply" id="apply" type="button" disabled>Applica</button><span class="total" id="summary"></span></div>
+    <div class="apply-row"><span class="total" id="summary">Manca il d100.</span><button class="apply primary" id="apply" type="button" disabled>Applica</button></div>
     <footer class="status-bar"><p class="status" id="status" role="status"></p></footer>
   </div>
 </body>
