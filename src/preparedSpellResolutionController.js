@@ -3,10 +3,7 @@ import { ID } from "./constants.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import {
   PREPARED_SPELL_RESOLUTION_CHANNEL,
-  preparedSpellResolutionAction,
-  preparedSpellResolutionChoices,
   preparedSpellResolutionGroups,
-  preparedSpellResolutionPopoverId,
 } from "./preparedSpellResolutionCore.js";
 import {
   buildSpellUnifiedPreparedPopoverRequest,
@@ -17,18 +14,11 @@ import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
-const POPOVER_WIDTH = 250;
 const MOBILE_POPOVER_WIDTH = 360;
-const BASE_POPOVER_HEIGHT = 116;
-const CHOICE_POPOVER_HEIGHT = 150;
-const ANCHOR_POLL_MS = 40;
-const ANCHOR_MOVE_THRESHOLD = 0.75;
 
 let mounted = false;
 let controllerWorkRunning = false;
 let reconcileRequested = false;
-let anchorRefreshRequested = false;
-let anchorTimer = null;
 let unsubscribeItems = null;
 let unsubscribeSceneReady = null;
 let unsubscribeSceneMetadata = null;
@@ -62,12 +52,6 @@ function point(value) {
   const x = Number(value?.x);
   const y = Number(value?.y);
   return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
-}
-
-function sameAnchor(left, right) {
-  if (!left || !right) return false;
-  return Math.abs(left.left - right.left) < ANCHOR_MOVE_THRESHOLD
-    && Math.abs(left.top - right.top) < ANCHOR_MOVE_THRESHOLD;
 }
 
 async function closeRuntime(runtime) {
@@ -109,52 +93,19 @@ async function screenAnchor(worldAnchor, stackIndex, popoverHeight) {
   };
 }
 
-function popoverOptions(group, anchorPosition, stackIndex) {
-  const action = preparedSpellResolutionAction(group);
-  if (action?.type === "resolve" || action?.type === "manual") {
-    const request = buildSpellUnifiedPreparedPopoverRequest(group, {
-      width: MOBILE_POPOVER_WIDTH,
-    });
-    return {
-      popoverId: request.id,
-      height: request.height,
-      stackIndex,
-      mobile: true,
-      options: {
-        id: request.id,
-        url: request.url,
-        width: request.width,
-        height: request.height,
-        anchorReference: "POSITION",
-        anchorPosition,
-        anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
-        transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
-        disableClickAway: true,
-        marginThreshold: 8,
-        hidePaper: true,
-      },
-    };
-  }
-  const hasChoices = preparedSpellResolutionChoices(group).length > 1;
-  const height = hasChoices ? CHOICE_POPOVER_HEIGHT : BASE_POPOVER_HEIGHT;
-  const popoverId = preparedSpellResolutionPopoverId(group.instanceId);
+function popoverOptions(request, anchorPosition) {
   return {
-    popoverId,
-    height,
-    stackIndex,
-    options: {
-      id: popoverId,
-      url: `/prepared-spell-resolution.html?instance=${encodeURIComponent(group.instanceId)}`,
-      width: POPOVER_WIDTH,
-      height,
-      anchorReference: "POSITION",
-      anchorPosition,
-      anchorOrigin: { horizontal: "CENTER", vertical: "TOP" },
-      transformOrigin: { horizontal: "CENTER", vertical: "BOTTOM" },
-      disableClickAway: true,
-      marginThreshold: 8,
-      hidePaper: true,
-    },
+    id: request.id,
+    url: request.url,
+    width: request.width,
+    height: request.height,
+    anchorReference: "POSITION",
+    anchorPosition,
+    anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+    transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+    disableClickAway: true,
+    marginThreshold: 8,
+    hidePaper: true,
   };
 }
 
@@ -162,42 +113,13 @@ async function openOrMoveGroup(group, stackIndex = 0, worldAnchor = null) {
   const instanceId = String(group?.instanceId || "").trim();
   const casterId = String(group?.casterId || "").trim();
   if (!instanceId || !casterId) return;
-  const actionType = preparedSpellResolutionAction(group)?.type;
-  const mobile = actionType === "resolve" || actionType === "manual";
-  const mobileRequest = mobile
-    ? buildSpellUnifiedPreparedPopoverRequest(group, { width: MOBILE_POPOVER_WIDTH })
-    : null;
-  const hasChoices = preparedSpellResolutionChoices(group).length > 1;
-  const height = mobileRequest?.height || (hasChoices ? CHOICE_POPOVER_HEIGHT : BASE_POPOVER_HEIGHT);
-  const anchorPosition = await screenAnchor(worldAnchor, stackIndex, height);
+  // It opens beside the caster and stays where the GM puts it: once open it no longer follows the token.
+  if (opened.has(instanceId)) return;
+  const request = buildSpellUnifiedPreparedPopoverRequest(group, { width: MOBILE_POPOVER_WIDTH });
+  const anchorPosition = await screenAnchor(worldAnchor, stackIndex, request.height);
   if (!anchorPosition) return;
-
-  const current = opened.get(instanceId);
-  if (
-    current
-    && current.casterId === casterId
-    && current.stackIndex === stackIndex
-    && current.height === height
-    && current.worldAnchor?.x === worldAnchor?.x
-    && current.worldAnchor?.y === worldAnchor?.y
-    && sameAnchor(current.anchorPosition, anchorPosition)
-  ) {
-    return;
-  }
-
-  const next = popoverOptions(group, anchorPosition, stackIndex);
-  if (next.mobile) {
-    if (!current) await openTrackedPopover(next.options);
-  } else {
-    await OBR.popover.open(next.options);
-  }
-  opened.set(instanceId, {
-    instanceId,
-    casterId,
-    worldAnchor,
-    anchorPosition,
-    ...next,
-  });
+  await openTrackedPopover(popoverOptions(request, anchorPosition));
+  opened.set(instanceId, { instanceId, casterId, popoverId: request.id });
 }
 
 async function reconcilePreparedSpellPopovers() {
@@ -217,12 +139,8 @@ async function reconcilePreparedSpellPopovers() {
     ))
     // Le risoluzioni prepared sono prompt del turno del caster: fuori da quel
     // turno il popup viene chiuso e riaperto quando l'iniziativa ritorna.
-    .filter((group) => {
-      const actionType = preparedSpellResolutionAction(group)?.type;
-      if (actionType !== "resolve" && actionType !== "manual") return true;
-      return currentTurnActorId
-        && String(group?.casterId || "").trim() === currentTurnActorId;
-    });
+    .filter((group) => currentTurnActorId
+      && String(group?.casterId || "").trim() === currentTurnActorId);
   const desiredIds = new Set(groups.map((group) => String(group.instanceId)));
   for (const [instanceId, runtime] of [...opened]) {
     if (desiredIds.has(instanceId)) continue;
@@ -250,60 +168,27 @@ async function reconcilePreparedSpellPopovers() {
   }
 }
 
-async function refreshPreparedSpellAnchors() {
-  if (!opened.size) return;
-  await Promise.all([...opened.values()].map(async (runtime) => {
-    if (runtime.mobile) return;
-    const anchorPosition = await screenAnchor(
-      runtime.worldAnchor,
-      runtime.stackIndex,
-      runtime.height,
-    );
-    if (!anchorPosition || sameAnchor(runtime.anchorPosition, anchorPosition)) {
-      return;
-    }
-    const options = {
-      ...runtime.options,
-      anchorPosition,
-    };
-    try {
-      await OBR.popover.open(options);
-      runtime.anchorPosition = anchorPosition;
-      runtime.options = options;
-    } catch (error) {
-      console.warn(
-        "[prepared-spell-resolution] move popover:",
-        error?.message || error,
-      );
-    }
-  }));
-}
-
-function requestControllerWork({ reconcile = false, anchor = false } = {}) {
+function requestControllerWork({ reconcile = false } = {}) {
   reconcileRequested ||= reconcile;
-  anchorRefreshRequested ||= anchor;
   if (controllerWorkRunning) return;
   controllerWorkRunning = true;
 
   const run = async () => {
     try {
-      while (mounted && (reconcileRequested || anchorRefreshRequested)) {
-        const reconcileNow = reconcileRequested;
+      while (mounted && reconcileRequested) {
         reconcileRequested = false;
-        anchorRefreshRequested = false;
         try {
-          if (reconcileNow) await reconcilePreparedSpellPopovers();
-          else await refreshPreparedSpellAnchors();
+          await reconcilePreparedSpellPopovers();
         } catch (error) {
           console.warn(
-            `[prepared-spell-resolution] ${reconcileNow ? "reconcile" : "anchor"}:`,
+            "[prepared-spell-resolution] reconcile:",
             error?.message || error,
           );
         }
       }
     } finally {
       controllerWorkRunning = false;
-      if (mounted && (reconcileRequested || anchorRefreshRequested)) {
+      if (mounted && reconcileRequested) {
         requestControllerWork();
       }
     }
@@ -347,10 +232,6 @@ export async function mountPreparedSpellResolutionController() {
       }
     },
   );
-  anchorTimer = window.setInterval(
-    () => requestControllerWork({ anchor: true }),
-    ANCHOR_POLL_MS,
-  );
   requestControllerWork({ reconcile: true });
   return true;
 }
@@ -364,12 +245,9 @@ export async function unmountPreparedSpellResolutionController() {
   unsubscribeSceneMetadata = null;
   unsubscribeBroadcast?.();
   unsubscribeBroadcast = null;
-  if (anchorTimer !== null) window.clearInterval(anchorTimer);
-  anchorTimer = null;
   mounted = false;
   stateMetadataWatcher.reset();
   currentTurnActorId = "";
   reconcileRequested = false;
-  anchorRefreshRequested = false;
   await closeAllPreparedSpellPopovers();
 }

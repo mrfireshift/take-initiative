@@ -4,7 +4,7 @@ Audit del 05/11/2026, chiesto dall'utente perché font, colori, pesi, gerarchia 
 
 Schermate e proposte disegnate, una accanto all'altra: https://claude.ai/artifact/QENFMdDi2KnatrRGG6Smuq
 
-Stato: D1-D7 decise dall'utente il 05/11/2026 (D1 e D6 diverse dal consiglio). Da V1 a V10 fatti; resta V11.
+Stato: D1-D7 decise dall'utente il 05/11/2026 (D1 e D6 diverse dal consiglio). Da V1 a V11 fatti: i lotti sono finiti. Resta aperto F1, che chiede uno studio a parte.
 
 ## In breve
 
@@ -19,7 +19,7 @@ La causa è una sola: non hanno mai adottato i fogli comuni. `spell-popover.css`
 | Detonazione | `delayed-blast-fireball-resolution.html` | Palla di fuoco ritardata | Grande |
 | Controincantesimo | `counterspell.html` | 🪄, pannello, console | Grande |
 | Impulso di Magia Selvaggia | `wild-magic-surge.html` | Scheda, console | Piccola: è già sul guscio comune |
-| Risolvi incantesimo | `prepared-spell-resolution.html` | Nessun punto: pagina morta, vedi D7 | Non conta |
+| Risolvi incantesimo | `prepared-spell-resolution.html` | Nessun punto: pagina morta, vedi D7. Tolta con V11 | Non conta |
 
 ## Misure
 
@@ -149,12 +149,12 @@ Hanno la stessa dichiarazione anche `faction-configurator.html:10` e `public/aoe
 
 ## Difetti trovati lungo la strada
 
-Non sono questioni di aspetto. F1 e F4 sono ancora aperti; F2, F3, F5, F6, F7, F8, F9 e F10 sono corretti.
+Non sono questioni di aspetto. F1 è ancora aperto; tutti gli altri sono chiusi.
 
 - **F1. Le punizioni ignorano le difese.** Punizione Tonante da 9 su un goblin resistente al tuono: 7 PF → 0, invece di 3. Punizione Incandescente da 6 su uno resistente al fuoco: 7 → 1, invece di 4. Nessun chip. Provate due su due. Le altre punizioni passano dalla stessa strada: `applyPreparedResolution` non guarda le difese e nessuna sta in `SPELL_DAMAGE_TYPES`. Lo studio dirà se vale anche per Colpo Intrappolante, Raffica di Spine e Freccia Folgorante. Tocca i PF: va prima studiato.
 - **F2. Detonazione precompila il danno con il numero dei dadi.** A 12d6 il campo dice `Danno 12` (`src/delayed-blast-fireball-resolution.js:137`): scelti gli esiti `Detona` è acceso, e registra 12 invece del tiro. Provato al banco. Corretto con V8.
 - **F3. Detonazione dimezza senza dirlo.** Mira resistente al fuoco: 12 diventa 6, giusto, ma nessun chip lo dice. Hai chiesto che sia chiaro. Corretto con V8: il chip c'è, e un clic ignora la difesa.
-- **F4. Pagina morta.** `prepared-spell-resolution.html` si aprirebbe solo per un'azione che non è né `resolve` né `manual`, ma quel caso esclude il gruppo prima (`preparedSpellResolutionGroups`). Censimento su tutto il catalogo: 9 `resolve`, 2 `manual`, gli altri nessuna azione.
+- **F4. Pagina morta.** `prepared-spell-resolution.html` si aprirebbe solo per un'azione che non è né `resolve` né `manual`, ma quel caso esclude il gruppo prima (`preparedSpellResolutionGroups`). Censimento su tutto il catalogo: 9 `resolve`, 2 `manual`, gli altri nessuna azione. Tolta con V11.
 - **F5. `dalla mano` dove non c'è nessuna mano.** La gittata misurata dalla zona si scrive sempre `N m dalla mano` (`renderActiveMicropills`), scritta pensata per Mano arcana: Muro di Luce dice `18 m dalla mano`, Controllare acqua `30 m dalla mano`. C'era già prima dei lotti. Corretto con V5: una parola per incantesimo (`rangeOriginLabel`).
 - **F6. Un errore detto con il codice.** Una fessura di Terremoto che non attraversa il bordo della zona si ferma con `Risoluzione non riuscita: Invalid active spell resolution: child-placement-outside-parent`. La regola è giusta, la frase no: il GM non sa che cosa cambiare. C'era già prima dei lotti. Corretto con V6: `La fessura deve andare da un bordo all'altro della zona: riposizionala.`
 - **F7. Popup che non si trascinano.** Segnalato da te su Controincantesimo. C'era già prima dei lotti. Corretto: il capitolo `Fatto: il trascinamento` dice dove e come.
@@ -274,6 +274,27 @@ Solo il popup di attivazione: Scelta, Detonazione e Controincantesimo hanno i lo
 - **F6.** La fessura rifiutata dice che cosa cambiare. Lo stesso per un vortice fuori dalla zona. Ogni altro rifiuto tiene il suo codice, per chi deve capire che cosa è successo.
 - **Provato al banco:** Mano arcana, Stretta della Terra, Controllare Venti, Telecinesi, Sguardo, Frecce Infuocate, Sudario Spirituale e Marchio del cacciatore. Da Mano arcana all'azione e di nuovo alla Scelta, con l'altezza giusta. Marchio del cacciatore fino all'applicazione. F6 con una fessura sbagliata.
 - **Da guardare in stanza.** Sguardo applica la condizione, ma al banco il finto SDK dà `scene-item-reconcile-exhausted:add`: il popup resta aperto con il messaggio in rosso. Quel flusso non è cambiato, e il messaggio viene dalla riconciliazione degli effetti, che al banco fallisce sempre; nella stanza non dovrebbe comparire. Sortilegio non è stato aperto: è lo stesso caso di Marchio.
+
+## Fatto: V11
+
+- **Tolte.** `prepared-spell-resolution.html` (175 righe), `src/prepared-spell-resolution.js` (408 righe) e la voce in `vite.config.js`.
+- **Perché era morta, dal codice e non dal censimento.** `preparedSpellResolutionAction` restituisce solo un'azione `resolve`, una `manual` o niente, e senza azione il gruppo non arriva al controller. Il ramo che apriva la pagina chiedeva un'azione di un altro tipo: non poteva succedere.
+- **Morto con lei.** `src/preparedSpellResolutionController.js` aveva un timer da 40 ms che riposizionava i popup ancorati al token, e il solo popup ancorato era quella pagina. Girava a vuoto 25 volte al secondo nel servizio di sfondo, per ogni GM. Ora non c'è più, con `refreshPreparedSpellAnchors` e le costanti delle sue misure.
+- **Che cosa resta com'era.** Il popup si apre accanto al caster, al suo turno, e poi resta dove lo metti. Le funzioni `popoverOptions` e `openOrMoveGroup` tengono il nome. Il canale `request-sync` resta: lo usa il popup comune.
+- **Un test vero.** Fin qui il controller era coperto solo da controlli sul testo del sorgente. `test/preparedSpellResolutionController.test.js` lo fa girare: al turno, fuori turno, dopo la ×, con due preparati dello stesso caster, senza timer.
+- **Provato al banco, con il controller vero:**
+  - Punizione Tonante: al lancio si apre (360×300), al turno dopo si chiude, al ritorno del turno si riapre;
+  - spostata col trascinamento, resta lì anche se il token si muove;
+  - chiusa con la ×, non torna nello stesso turno, nemmeno se la scena cambia; torna al turno dopo, dove l'avevi lasciata;
+  - risolta fino in fondo: goblin 7 → 4, Prono, pillola consumata, e non si riapre;
+  - Colpo dello Zefiro, l'azione `manual`: si apre con `Usa colpo`, si chiude fuori turno e torna;
+  - nessuna pagina `prepared-spell-resolution` fra le finestre.
+- **Non provato al banco.** Due preparati dello stesso caster, uno sopra l'altro: solo nel test.
+
+## Prova in stanza di V11
+
+- Una punizione: il popup compare accanto al caster al suo turno, e sparisce quando il turno passa?
+- Spostalo, poi muovi il token: resta dov'è?
 
 ## Fatto: V10
 

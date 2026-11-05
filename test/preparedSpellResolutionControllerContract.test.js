@@ -1,13 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const controller = readFileSync(
   new URL("../src/preparedSpellResolutionController.js", import.meta.url),
-  "utf8",
-);
-const popover = readFileSync(
-  new URL("../src/prepared-spell-resolution.js", import.meta.url),
   "utf8",
 );
 const unifiedPanel = readFileSync(
@@ -26,10 +22,6 @@ const activeResolutionHtml = readFileSync(
   new URL("../spell-active-resolution.html", import.meta.url),
   "utf8",
 );
-const legacyResolutionHtml = readFileSync(
-  new URL("../prepared-spell-resolution.html", import.meta.url),
-  "utf8",
-);
 const background = readFileSync(
   new URL("../src/background.js", import.meta.url),
   "utf8",
@@ -41,30 +33,34 @@ const vite = readFileSync(
 
 test("il background monta il popover preparato e Vite include la sua pagina", () => {
   assert.match(background, /mountPreparedSpellResolutionController/);
-  assert.match(vite, /preparedSpellResolution:\s*path\.resolve/);
+  assert.match(vite, /spellActiveResolution:\s*path\.resolve/);
 });
 
-test("l'ancoraggio fluido conserva i bounds mondo e aggiorna solo la viewport", () => {
-  assert.match(controller, /const ANCHOR_POLL_MS = 40;/);
+test("il popup si apre accanto al caster e poi resta dove lo mette il GM", () => {
   assert.match(controller, /async function worldAnchorForCaster/);
-  assert.match(controller, /runtime\.worldAnchor/);
   assert.match(controller, /OBR\.viewport\.transformPoint\(worldAnchor\)/);
-  assert.doesNotMatch(
-    controller,
-    /refreshPreparedSpellAnchors[\s\S]*getItemBounds/,
-  );
+  assert.match(controller, /if \(opened\.has\(instanceId\)\) return;/);
+  assert.doesNotMatch(controller, /setInterval|ANCHOR_POLL_MS|refreshPreparedSpellAnchors/, "nessun timer: era solo della pagina ancorata");
+});
+
+test("V11: la pagina morta non c'è più, e nessuno può aprirla", () => {
+  for (const path of ["../prepared-spell-resolution.html", "../src/prepared-spell-resolution.js"]) {
+    assert.equal(existsSync(new URL(path, import.meta.url)), false, path);
+  }
+  assert.doesNotMatch(controller, /prepared-spell-resolution\.html/);
+  assert.doesNotMatch(vite, /prepared-spell-resolution\.html|preparedSpellResolution:/);
+  assert.match(activeResolution, /PREPARED_SPELL_RESOLUTION_CHANNEL/, "il canale di sincronizzazione resta: lo usa il popup comune");
 });
 
 test("il refresh mantiene solo il lavoro più recente senza coda di frame stale", () => {
   assert.match(controller, /let controllerWorkRunning = false;/);
   assert.match(controller, /let reconcileRequested = false;/);
-  assert.match(controller, /let anchorRefreshRequested = false;/);
   assert.match(controller, /if \(controllerWorkRunning\) return;/);
   assert.doesNotMatch(controller, /reconcileQueue = reconcileQueue\.then/);
 });
 
 test("popover e pannello condividono lo stesso executor delle azioni attive", () => {
-  assert.match(popover, /executeSpellActiveAction/);
+  assert.match(activeResolution, /executeSpellActiveAction/);
   assert.match(unifiedPanel, /executeSpellUnifiedActiveAction/);
   assert.match(activeAdapter, /importedExecutor\("executeSpellActiveAction"\)/);
   assert.doesNotMatch(unifiedPanel, /spells-panel\.js/);
@@ -76,8 +72,7 @@ test("le preparazioni usano il popup mobile shared e non il route legacy ancorat
   assert.match(controller, /buildSpellUnifiedPreparedPopoverRequest/);
   assert.match(controller, /SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS/);
   assert.match(controller, /openTrackedPopover/);
-  assert.match(controller, /action\?\.type === "resolve" \|\| action\?\.type === "manual"/);
-  assert.match(controller, /actionType !== "resolve" && actionType !== "manual"/);
+  assert.match(controller, /\.filter\(\(group\) => currentTurnActorId\s*&& String\(group\?\.casterId \|\| ""\)\.trim\(\) === currentTurnActorId\)/);
   assert.match(controller, /createSceneMetadataKeyWatcher/);
   assert.match(controller, /currentTurnActorId/);
   assert.match(activeResolution, /isPreparedResolution/);
@@ -112,16 +107,4 @@ test("le preparazioni usano il popup mobile shared e non il route legacy ancorat
   assert.doesNotMatch(preparedBranch, /Risoluzione pronta|Conferma la risoluzione|Conferma il risultato del tiro già effettuato/);
   assert.match(activeResolution, /\$\("apply"\)\.textContent = "Risolvi"/);
   assert.match(activeResolution, /Seleziona un bersaglio prima di continuare/);
-  assert.match(popover, /: manual \? presentation\.text : "Risolvi"/);
-  assert.match(popover, /resolveButton\.title = manual \? presentation\.title : ""/);
-  assert.match(popover, /status\.textContent = ""/);
-  assert.doesNotMatch(popover, /status\.textContent = currentTargetIds\.length/);
-  assert.match(popover, /label: "Fallito"/);
-  assert.match(popover, /label: "Superato"/);
-  assert.doesNotMatch(popover, /label: "TS fallito"|label: "TS superato"/);
-  assert.doesNotMatch(legacyResolutionHtml, /attackOutcome|Esito dell'attacco|Colpito|Mancato|Critico/);
-  assert.match(legacyResolutionHtml, /<span id="status"><\/span>/);
-  assert.match(legacyResolutionHtml, /placeholder="Totale"/);
-  assert.match(popover, /attackOutcome: "hit"/);
-  assert.doesNotMatch(popover, /Conferma l'esito dell'attacco|Inserisci il danno extra già tirato/);
 });
