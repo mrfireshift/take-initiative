@@ -117,7 +117,9 @@ Provato su una scena reale, il pannello sembrava ancora compresso e senza gerarc
 - **Tipo di attacco.** `Mischia` e `Distanza` non occupano più una riga: stanno solo sul selettore, non nelle righe del menu, come ha deciso l'utente il 05/11.
 - **Capacità.** L'elenco ha di nuovo uno sfondo suo, con una linea fra i gruppi. Le righe sono in colonna: nome, costo allineato a sinistra, usi a destra.
 - **Pill senza contesto.** `Su di sé` e `Su un bersaglio` diventano parole accanto al titolo della scheda: `Ira  Su di sé`. La scheda ha il suo riquadro.
-- **Aria.** Testata 40 px, 12 px fra i blocchi, righe dell'elenco 30 px.
+- **Aria.** Testata 40 px, 12 px fra i blocchi.
+- **Un solo passo per gli elenchi.** Dopo un'altra prova le righe erano troppo distanti: Incantesimi, Capacità, menu, extra e creature vanno tutti a 28 px di passo. Prima erano 32, 32, 32, 28 e 30.
+- **Testata.** Dopo la stessa prova, maniglia e nome stanno a 10 px l'una dall'altro invece di 4, e si staccano dal bordo: la maniglia parte a 6 px, il nome a 24. Il nome non è più allineato al bordo sinistro del pannello, a 13 px.
 - **Riquadri in più.** Hanno uno sfondo anche il danno, la tabella delle creature e la prova contrapposta della manovra. Non erano richiesti: l'utente li ha confermati il 05/11.
 - **Titoli vuoti.** `Extra al colpo` compare solo sopra qualcosa; altrimenti `+ Danno extra` sta sulla riga del danno, come nelle aree. `Effetto del colpo` passa sotto gli extra.
 - **Dati dell'attacco sopra il danno.** Dopo una seconda prova, `+5 al tiro · portata 1,5 m` e allo stesso modo TS, area e ricarica passano in cima al riquadro del danno; nelle aree, che non hanno riquadro, subito sopra il danno. Vanno a capo fra una parte e l'altra, col `·` in fondo alla riga.
@@ -128,7 +130,7 @@ Provato su una scena reale, il pannello sembrava ancora compresso e senza gerarc
 
 Al banco, sui 38 stati:
 
-- 32 stati hanno più di 40 px vuoti (mediana 177, massimo 257): è il prezzo dell'altezza costante.
+- 33 stati hanno più di 40 px vuoti (mediana 180, massimo 258): è il prezzo dell'altezza costante.
 - Scorre un solo stato: le manovre, di 172 px.
 - I nomi lunghi si tagliano prima: `Mischia` divide il selettore col nome, che resta intero nel suggerimento.
 
@@ -178,6 +180,8 @@ Al banco, sui 38 stati:
 ## Prova in stanza dopo la prova dell'utente
 
 - [ ] **Altezza:** la finestra resta di 560 px, qualunque scheda si apra.
+- [ ] **Elenchi:** stessa distanza fra le righe in Incantesimi, Capacità, menu degli attacchi, menu del bersaglio, extra e creature.
+- [ ] **Testata:** maniglia e nome ben distinti, entrambi staccati dal bordo. Il trascinamento funziona come prima.
 - [ ] **Attacco di un PG:** `Mischia` sul selettore, non nelle righe del menu, e nessuna riga sotto.
 - [ ] **Dardo incantato:** nessun pulsante di esito, sopra il danno `Senza tiro per colpire`, e il bersaglio segue ancora la mappa. Scrivi il danno e premi Invio: il dardo dopo è pronto, sullo stesso bersaglio, con lo slot speso una volta sola. Chiudendo prima di scrivere non chiede conferma.
 - [ ] **Dardo incantato al turno di un altro:** con la console aperta sul dardo e nessun danno scritto, al cambio di turno la console segue il turno senza fermarsi; con un danno scritto si ferma e aspetta il GM.

@@ -17,11 +17,14 @@
       /* The panel's grid: the labels' column, the column of a row's checkbox or remove. */
       --form-label: 58px;
       --lead: 16px;
+      /* Every list of the panel keeps one pitch, 28 px: spells, features, menus, extras and creatures. */
+      --list-row: 26px;
+      --list-gap: 2px;
     }
     .glass-shell { position: relative; }
-    /* The header says who acts, on one line: what it does is under the picker. Its grip sits in the gutter: the name starts
-       on the panel's one left edge. */
-    .header { min-height: 40px; padding-top: var(--obrt-space-xs); padding-bottom: var(--obrt-space-xs); padding-left: 0; }
+    /* The header says who acts, on one line: what it does is under the picker. Its grip stands apart from the name, and both
+       off the window's edge. */
+    .header { min-height: 40px; padding-top: var(--obrt-space-xs); padding-bottom: var(--obrt-space-xs); padding-left: 6px; }
     .header .icon-button { width: var(--obrt-hit-min); height: var(--obrt-hit-min); }
     /* The actor's name; an amber pill when it acts on another's turn. */
     .title-row { min-width: 0; display: flex; align-items: center; gap: 6px; }
@@ -39,7 +42,7 @@
     .switch-row:has(> .follow-bar:not([hidden]):not([data-kind="off"])) { flex-wrap: wrap; }
     .switch-row .small { min-width: 0; min-height: var(--obrt-hit-min); overflow: hidden; padding: 2px 8px; color: var(--info-text); font-size: var(--obrt-type-secondary); text-overflow: ellipsis; white-space: nowrap; }
     /* The header drags the console: six dots say so. */
-    .drag-grip { flex: 0 0 auto; order: -1; width: 8px; height: 16px; margin-right: -2px; opacity: .45; background-image: radial-gradient(circle, #fff 1px, transparent 1.4px); background-size: 4px 4px; }
+    .drag-grip { flex: 0 0 auto; order: -1; width: 8px; height: 16px; margin-right: 4px; opacity: .45; background-image: radial-gradient(circle, #fff 1px, transparent 1.4px); background-size: 4px 4px; }
     .header:hover .drag-grip { opacity: .75; }
     /* Riduci: only the header stays. */
     body[data-minimized="true"] .panel, body[data-minimized="true"] .more-menu, body[data-minimized="true"] .switch-row, body[data-minimized="true"] .reaction-row, body[data-minimized="true"] .apply-row, body[data-minimized="true"] .status-bar { display: none !important; }
@@ -103,7 +106,7 @@
     /* The spells tab: a list by level instead of a select (every spell in view, one click each), in a box of its own: where
        the list ends and the card of what is chosen begins. A short list is as tall as its rows (filterPicker). The rows take
        the list's columns, so that the cost starts at one point on every row and the uses end on the right. */
-    .picker-list, .picker-menu { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-content: start; row-gap: 2px; }
+    .picker-list, .picker-menu { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-content: start; row-gap: var(--list-gap); }
     .picker-list { flex: 0 1 auto; min-height: 132px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
     .picker-list[data-short="true"] { min-height: 0; }
     .picker-list > .picker-level, .picker-list > .picker-row, .picker-menu > .picker-row { grid-column: 1 / -1; }
@@ -111,7 +114,7 @@
     /* A group starts under a line. */
     .picker-list > .picker-level:not(:first-child) { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--line); border-top-left-radius: 0; border-top-right-radius: 0; }
     .picker-level { padding: 4px 8px 4px; color: var(--muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-wide); text-transform: uppercase; }
-    .picker-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 30px; padding: 3px 8px; border: 1px solid transparent; border-radius: var(--obrt-radius-md); background: transparent; text-align: left; cursor: pointer; }
+    .picker-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: var(--list-row); padding: 1px 8px; border: 1px solid transparent; border-radius: var(--obrt-radius-md); background: transparent; text-align: left; cursor: pointer; }
     .picker-row:hover { background: var(--obrt-hover); }
     .picker-row[aria-pressed="true"] { border-color: rgba(96, 165, 250, .55); background: rgba(37, 99, 235, .28); }
     .picker-row:disabled { cursor: default; opacity: .6; }
@@ -296,7 +299,7 @@
     .mini-button:disabled { opacity: .45; cursor: default; }
     /* A table of its creatures, every row on the same columns: the tick, the name (the only thing that gives way), its hit
        points, its bonus to the save, its outcome, what it takes (its room kept: the outcomes do not move as the damage is typed). */
-    .area-list { display: grid; grid-template-columns: var(--lead) minmax(0, 1fr) auto auto auto minmax(26px, auto); align-items: center; gap: var(--obrt-space-xs) 3px; }
+    .area-list { display: grid; grid-template-columns: var(--lead) minmax(0, 1fr) auto auto auto minmax(26px, auto); align-items: center; gap: var(--list-gap) 3px; }
     .area-row { display: contents; }
     .area-row .component-lead input { width: 15px; height: 15px; margin: 0; accent-color: var(--obrt-accent); cursor: pointer; }
     .area-row .segmented.mini button { padding: 0 4px; }
