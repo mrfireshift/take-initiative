@@ -87,7 +87,9 @@ export function spellActiveResolutionPopoverHeight(payload) {
   switch (String(action.resolutionKind || "")) {
     case "single-attack":
       if (Number(action.maxAttacks) > 1) return 480;
-      return action.shortenStaticZone?.chooseFrom === true ? 354 : 310;
+      if (action.shortenStaticZone?.chooseFrom === true) return 354;
+      // The line of the advantage, when the target stands inside the root.
+      return action.attack?.advantageWhen ? 330 : 310;
     case "single-save": {
       const base = action.manualSaveAtTable === true ? 270 : 330;
       return Array.isArray(action.save?.abilityOptions) && action.save.abilityOptions.length ? base + 44 : base;

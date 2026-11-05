@@ -84,6 +84,7 @@ test("il contratto dichiara economia, geometria, gittata e risoluzione proprie",
   assert.equal(storm.maxTargets, 1);
   assert.deepEqual(storm.attack, {
     outcomes: ["hit", "miss"],
+    damageRequiredOnHitOnly: true,
     advantageWhen: "inside-root",
   });
 

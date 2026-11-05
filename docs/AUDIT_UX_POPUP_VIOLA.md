@@ -4,7 +4,7 @@ Audit del 05/11/2026, chiesto dall'utente perché font, colori, pesi, gerarchia 
 
 Schermate e proposte disegnate, una accanto all'altra: https://claude.ai/artifact/QENFMdDi2KnatrRGG6Smuq
 
-Stato: D1-D7 decise dall'utente il 05/11/2026 (D1 e D6 diverse dal consiglio). Da V1 a V9 fatti; restano V10 e V11.
+Stato: D1-D7 decise dall'utente il 05/11/2026 (D1 e D6 diverse dal consiglio). Da V1 a V10 fatti; resta V11.
 
 ## In breve
 
@@ -149,7 +149,7 @@ Hanno la stessa dichiarazione anche `faction-configurator.html:10` e `public/aoe
 
 ## Difetti trovati lungo la strada
 
-Non sono questioni di aspetto. F1 e F4 sono ancora aperti; F2, F3, F5, F6, F7 e F8 sono corretti.
+Non sono questioni di aspetto. F1 e F4 sono ancora aperti; F2, F3, F5, F6, F7, F8, F9 e F10 sono corretti.
 
 - **F1. Le punizioni ignorano le difese.** Punizione Tonante da 9 su un goblin resistente al tuono: 7 PF → 0, invece di 3. Punizione Incandescente da 6 su uno resistente al fuoco: 7 → 1, invece di 4. Nessun chip. Provate due su due. Le altre punizioni passano dalla stessa strada: `applyPreparedResolution` non guarda le difese e nessuna sta in `SPELL_DAMAGE_TYPES`. Lo studio dirà se vale anche per Colpo Intrappolante, Raffica di Spine e Freccia Folgorante. Tocca i PF: va prima studiato.
 - **F2. Detonazione precompila il danno con il numero dei dadi.** A 12d6 il campo dice `Danno 12` (`src/delayed-blast-fireball-resolution.js:137`): scelti gli esiti `Detona` è acceso, e registra 12 invece del tiro. Provato al banco. Corretto con V8.
@@ -159,6 +159,8 @@ Non sono questioni di aspetto. F1 e F4 sono ancora aperti; F2, F3, F5, F6, F7 e 
 - **F6. Un errore detto con il codice.** Una fessura di Terremoto che non attraversa il bordo della zona si ferma con `Risoluzione non riuscita: Invalid active spell resolution: child-placement-outside-parent`. La regola è giusta, la frase no: il GM non sa che cosa cambiare. C'era già prima dei lotti. Corretto con V6: `La fessura deve andare da un bordo all'altro della zona: riposizionala.`
 - **F7. Popup che non si trascinano.** Segnalato da te su Controincantesimo. C'era già prima dei lotti. Corretto: il capitolo `Fatto: il trascinamento` dice dove e come.
 - **F8. `Applica` due volte scrive due volte.** Il popup di Impulso resta aperto dopo `Applica`: al banco un secondo clic su 41-42 dà due «Pianta in vaso» e due Incapacitato, e `Invio` fa lo stesso. Provato su quella riga; il percorso è lo stesso per ogni esito, cura compresa. C'era già prima dei lotti. Corretto con V9: `Applica` si spegne finché non arriva un nuovo d100, e la riga fissa lo dice.
+- **F9. Un attacco rifiutato non lo diceva.** Se la registrazione falliva, per esempio con il bersaglio finito fuori gittata, il messaggio rosso spariva dopo meno di 80 ms: lo cancellava il disegno dell'attacco. Il popup restava aperto senza dire perché. C'era già prima dei lotti. Corretto con V10.
+- **F10. Lama del Disastro perdeva le cifre.** Ogni tasto ridisegnava i riquadri e il cursore spariva: scrivendo `18` restava `1`. Con 4d12 quasi ogni danno ha due cifre. C'era già prima dei lotti, e nelle prove di V4 non l'avevo visto perché al banco scrivevo il numero tutto insieme. Corretto con V10 e provato con tasti veri, una cifra alla volta.
 
 ## Lotti
 
@@ -272,6 +274,35 @@ Solo il popup di attivazione: Scelta, Detonazione e Controincantesimo hanno i lo
 - **F6.** La fessura rifiutata dice che cosa cambiare. Lo stesso per un vortice fuori dalla zona. Ogni altro rifiuto tiene il suo codice, per chi deve capire che cosa è successo.
 - **Provato al banco:** Mano arcana, Stretta della Terra, Controllare Venti, Telecinesi, Sguardo, Frecce Infuocate, Sudario Spirituale e Marchio del cacciatore. Da Mano arcana all'azione e di nuovo alla Scelta, con l'altezza giusta. Marchio del cacciatore fino all'applicazione. F6 con una fessura sbagliata.
 - **Da guardare in stanza.** Sguardo applica la condizione, ma al banco il finto SDK dà `scene-item-reconcile-exhausted:add`: il popup resta aperto con il messaggio in rosso. Quel flusso non è cambiato, e il messaggio viene dalla riconciliazione degli effetti, che al banco fallisce sempre; nella stanza non dovrebbe comparire. Sortilegio non è stato aperto: è lo stesso caso di Marchio.
+
+## Fatto: V10
+
+- **Flusso, D4.** Tutti gli attacchi come la console: prima l'esito, poi il danno, che compare solo su `Colpito` o `Critico`, poi il pulsante. Prima cinque azioni su sei registravano al clic sull'esito; solo Pugno serrato seguiva già quest'ordine. Il comando dei PF non è cambiato: cambia solo quando parte.
+- **Un mancato non chiede il danno.** Spada arcana, Arma spirituale, Sfera della Tempesta e Lama del Disastro lo chiedevano anche su `Mancato`. Ora la riga dice `Danni 0`, come la console, e il chip della difesa sparisce: su un mancato non direbbe nulla.
+- **Il pulsante dice l'azione.** `Lancia una stella`, `Raggio radioso`, `Attacco`, `Fulmine`, `Pugno serrato`, in rosso. Così sotto il titolo resta solo chi lancia. Le armi evocate hanno solo un nome lungo, `Attacco · 3d10 forza`: il pulsante ne prende la prima parte, perché i dadi stanno già nella riga del danno.
+- **Invio.** Nel danno registra, come nella console: `Colpito`, il numero, `Invio`. Il clic in più di D4 si recupera così.
+- **Cursore.** Dopo `Colpito` va nel danno quando il campo c'è davvero. Prima partiva dal clic, e il campo compare dopo le risposte della scena: al banco bastava, nella stanza dal codice non sarebbe bastato.
+- **Lama del Disastro.** Lo stesso ordine in ogni riquadro, il cursore che resta nel danno (F10), e in fondo `Danni` con il totale, che prima mancava.
+- **F9.** Un attacco rifiutato resta scritto in rosso nella barra finché non cambi esito o bersaglio. Il bersaglio fuori gittata si legge in parole: `Il bersaglio è fuori gittata: spostalo o scegline un altro.`.
+- **Altezze.** 310, 354 e 480 restano: misurate con il danno scritto, il pulsante e il chip, ci stanno. La Sfera sale a 330 per la riga del vantaggio, senza la quale un chip faceva scorrere il pannello di 2 px.
+- **Provato al banco, fino ai PF:**
+  - Corona di Stelle: `Colpito`, `12` con tasti veri, `Invio`: goblin da 7 a 0. `Mancato`: PF fermi, stelle da 7 a 6;
+  - Muro di Luce con resistenza: `Res. radiosi: 16 → 8`, Mira 45 → 37;
+  - Spada arcana: colpito 45 → 36, mancato senza numero;
+  - Arma spirituale: colpito 45 → 39, mancato senza numero;
+  - Sfera della Tempesta dal promemoria di inizio turno: 40 → 29, con la riga del vantaggio;
+  - Pugno serrato su `Critico`, in vista compatta: 45 → 23;
+  - Lama del Disastro: un mancato senza numero e un colpito da `18`, scritto una cifra alla volta, con `Invio`: Mira ferma, goblin a 0;
+  - F9: un bersaglio spostato fuori gittata prima del clic: messaggio rosso, popup aperto, PF fermi.
+- **Non provato al banco.** Il consumo del Muro sul disegno e `Annulla` dalla Cronologia dopo un attacco: quei percorsi non sono cambiati, e il primo è coperto dai test. Il messaggio di F9 l'ho visto con il testo tecnico: quello in parole è arrivato subito dopo, ed è controllato dai test.
+
+## Prova in stanza di V10
+
+- Corona di Stelle: `Colpito`, il numero, `Invio`. È comodo, o ti manca il clic secco?
+- Dopo `Colpito`, il cursore finisce davvero nel danno? Al banco sì, ma nella stanza la scena risponde più lentamente.
+- `Mancato`: si applica senza numero? La stella si consuma?
+- Spada arcana e Arma spirituale dalla scheda del token: il pulsante dice `Attacco`?
+- Lama del Disastro con due attacchi e numeri di due cifre.
 
 ## Fatto: V9
 

@@ -452,3 +452,64 @@ test("the surge's one height is read by who opens it, and every row of the table
   assert.match(read("../src/pc-attack.js"), /wild-magic-surge\.html[^\n]*\n\s*width:420,height:WILD_MAGIC_SURGE_POPOVER_HEIGHT,/);
   assert.doesNotMatch(read("../src/wild-magic-surge.js"), /setHeight|ResizeObserver/, "the window does not follow the content");
 });
+
+// Lot V10: D4, every attack as the console. The outcome, the damage on a hit, the button.
+test("D4: no outcome records by itself: every attack goes through the button", () => {
+  assert.match(activeController, /function isConsoleFlowAttack\(\) \{\s*return !isPreparedResolution\(\) && !isMultiAttack\(\)\s*&& payload\?\.action\?\.resolutionKind === "single-attack";\s*\}/);
+  assert.doesNotMatch(activeController, /else void apply\(\)/);
+  assert.doesNotMatch(activeController, /attack\?\.consoleFlow|until lot V10|L'esito registra subito|Scrivi il danno, poi/);
+  assert.match(activeController, /attackOutcome = button\.dataset\.attackOutcome;\s*attackDamageFocus = true;\s*clearRefusal\(\);\s*render\(\);/);
+  assert.match(activeController, /markOutcome\(button, outcome, outcome === attackOutcome\);[^]*?button\.disabled = !baseReady;/, "an outcome waits for the target, not for the damage");
+});
+
+test("D4: a miss asks no damage in any attack, and the field appears with the outcome that asks for it", async () => {
+  const { SPELL_ACTIVE_RESOLUTION_ACTIONS } = await import("../src/spellActiveResolutionRules.js");
+  const { spellActiveResolutionAttackDamageRequired } = await import("../src/spellActiveResolutionCore.js");
+  const attacks = Object.values(SPELL_ACTIVE_RESOLUTION_ACTIONS).flat().filter((action) => action.resolutionKind === "single-attack");
+  assert.equal(attacks.length, 7);
+  for (const action of attacks) {
+    assert.equal(spellActiveResolutionAttackDamageRequired(action, "miss"), false, action.id);
+    assert.equal(spellActiveResolutionAttackDamageRequired(action, ""), false, `${action.id}: no outcome yet`);
+    assert.equal(spellActiveResolutionAttackDamageRequired(action, "hit"), true, action.id);
+    assert.equal("consoleFlow" in action.attack, false, action.id);
+  }
+  assert.match(activeController, /damageNeeded \? subjectDamage\(damageDefenseSubjects\(\)\[0\]\) : payload\?\.action\?\.damage \? 0 : null/, "a miss says 0, as the console");
+  assert.match(activeController, /return attackOutcome === "miss" \? \[\] : byId\(selectedAttackTarget/, "no chip on a miss");
+  assert.match(activeController, /entry\.targetId && entry\.attackOutcome !== "miss"/, "nor on a miss of several");
+});
+
+test("the button says the action, without its dice", () => {
+  assert.match(activeController, /\$\("apply"\)\.textContent = String\(payload\?\.action\?\.buttonLabel \|\| "Applica"\)\.split\(" · "\)\[0\];/);
+  assert.equal("Attacco · 3d10 forza".split(" · ")[0], "Attacco", "the summoned weapons have only a long label");
+});
+
+test("the cursor goes to the damage once the field is there, and Enter records the attack", () => {
+  assert.doesNotMatch(activeController, /setTimeout\(\(\) => \$\("attackDamage"\)/, "on the click the field is not there yet, in a real room");
+  assert.match(activeController, /if \(attackDamageFocus && damageNeeded\) \$\("attackDamage"\)\.focus\?\.\(\);/);
+  assert.match(activeController, /\$\("attackSection"\)\.addEventListener\("keydown", \(event\) => \{[^]*?isPreparedResolution\(\) \|\| payload\?\.action\?\.resolutionKind !== "single-attack"[^]*?if \(!\$\("apply"\)\.disabled\) void apply\(\);/);
+});
+
+test("several attacks: complete on a miss with no number, a total in the fixed row, a miss sends 0", () => {
+  assert.match(activeController, /function attackEntryComplete\(entry\) \{[^]*?!spellActiveResolutionAttackDamageRequired\(payload\?\.action, entry\.attackOutcome\)/);
+  assert.match(activeController, /damageRoll: attackEntryRoll\(entry\),/);
+  assert.match(activeController, /damageField\.hidden = !spellActiveResolutionAttackDamageRequired\(payload\?\.action, entry\.attackOutcome\);/);
+  assert.match(activeController, /done\.reduce\(\(sum, entry\) => \{/);
+});
+
+test("F10: a box drawn again keeps the cursor in the field being written", () => {
+  assert.match(activeController, /const writingRow = writing\?\.tagName === "INPUT" && attackRows\.contains\(writing\)/);
+  assert.match(activeController, /attackRows\.children\[attackRowFocus >= 0 \? attackRowFocus : writingRow\]\?\.querySelector\("input"\)\?\.focus\?\.\(\);/);
+});
+
+test("F9: an attack refused stays in the bar until the GM changes it, in words", () => {
+  assert.match(activeController, /const zoneGone = requiresZoneRoot && !rootReady;\s*\$\("status"\)\.textContent = zoneGone \? "La zona dell'incantesimo non è più disponibile\." : statusMessage;/);
+  assert.match(activeController, /function clearRefusal\(\) \{\s*if \(\$\("status"\)\.dataset\.kind === "error"\) setStatus\(""\);/);
+  assert.match(activeController, /"target-out-of-range"\)\) return "Il bersaglio è fuori gittata: spostalo o scegline un altro\."/);
+});
+
+test("the attack's heights hold the button: the line of the advantage has its own", () => {
+  assert.equal(spellActiveResolutionPopoverHeight({ action: { resolutionKind: "single-attack" } }), 310);
+  assert.equal(spellActiveResolutionPopoverHeight({ action: { resolutionKind: "single-attack", attack: { advantageWhen: "inside-root" } } }), 330);
+  assert.equal(spellActiveResolutionPopoverHeight({ action: { resolutionKind: "single-attack", shortenStaticZone: { chooseFrom: true } } }), 354);
+  assert.equal(spellActiveResolutionPopoverHeight({ action: { resolutionKind: "single-attack", maxAttacks: 2 } }), 480);
+});

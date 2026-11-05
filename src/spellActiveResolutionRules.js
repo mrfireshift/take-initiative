@@ -543,7 +543,7 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       rangeOriginLabel: "dalla spada",
       range: { value: 1.5, unit: "m" },
       maxTargets: 1,
-      attack: { outcomes: ["hit", "miss"] },
+      attack: { outcomes: ["hit", "miss"], damageRequiredOnHitOnly: true },
       damage: damage({ formula: "3d10", type: "forza", baseSlot: 7 }),
     },
   ],
@@ -563,7 +563,7 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       rangeOriginLabel: "dall'arma",
       range: { value: 1.5, unit: "m" },
       maxTargets: 1,
-      attack: { outcomes: ["hit", "miss"] },
+      attack: { outcomes: ["hit", "miss"], damageRequiredOnHitOnly: true },
       damage: damage({
         formula: "1d8",
         type: "forza",
@@ -590,7 +590,7 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       range: { value: 1.5, unit: "m" },
       maxTargets: 1,
       maxAttacks: 2,
-      attack: { outcomes: ["hit", "miss", "critical"] },
+      attack: { outcomes: ["hit", "miss", "critical"], damageRequiredOnHitOnly: true },
       damage: damage({ formula: "4d12", type: "forza", baseSlot: 9 }),
       critical: { minimumD20: 18, additionalDice: "8d12" },
     },
@@ -1053,6 +1053,7 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       maxTargets: 1,
       attack: {
         outcomes: ["hit", "miss"],
+        damageRequiredOnHitOnly: true,
         advantageWhen: "inside-root",
       },
       damage: damage({
@@ -1144,8 +1145,7 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       range: { value: 1.5, unit: "m" },
       adjacentRing: true,
       maxTargets: 1,
-      // As the PC attack console: the outcome first, the damage only on a hit or a critical, then Applica.
-      attack: { outcomes: ["hit", "critical", "miss"], damageRequiredOnHitOnly: true, consoleFlow: true },
+      attack: { outcomes: ["hit", "critical", "miss"], damageRequiredOnHitOnly: true },
       damage: damage({ formula: "4d8", type: "forza", baseSlot: 5, additionalPerSlotAbove: 2 }),
     },
     {

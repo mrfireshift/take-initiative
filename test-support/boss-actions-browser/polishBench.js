@@ -580,6 +580,12 @@ export async function actionRun({ nextRound = false, castTargets = [], spellId, 
         await sleep(250);
       }
     }
+    // An attack: the outcome first, the damage appears on a hit.
+    const attackOutcomeButton = popup().querySelector(`[data-attack-outcome="${["hit", "critical", "miss"].includes(actionOutcome) ? actionOutcome : "hit"}"]`);
+    if (shown(attackOutcomeButton)) {
+      attackOutcomeButton.click();
+      await sleep(300);
+    }
     for (const id of ["attackDamage", "saveDamage", "damage", "healAmount"]) {
       const field = popup().getElementById(id);
       if (shown(field)) {
@@ -589,10 +595,9 @@ export async function actionRun({ nextRound = false, castTargets = [], spellId, 
         await sleep(150);
       }
     }
-    // An attack with its damage written resolves on the outcome button, and the popup closes.
     const outcomeLabel = { passed: "Superato", failed: "Fallito", immune: "Immune" }[actionOutcome];
     const outcomeButtons = [
-      ...popup().querySelectorAll(`[data-attack-outcome="hit"], [data-save-outcome="${actionOutcome}"]`),
+      ...popup().querySelectorAll(`[data-save-outcome="${actionOutcome}"]`),
       ...[...popup().querySelectorAll("#targets button")].filter((entry) => entry.textContent.trim() === outcomeLabel),
     ].filter(shown);
     for (const entry of outcomeButtons) {
@@ -610,8 +615,6 @@ export async function actionRun({ nextRound = false, castTargets = [], spellId, 
         apply.click();
         await sleep(1300);
       }
-    } else {
-      log.primary = "(risolto con l'esito)";
     }
     log.status = popupFrame() ? popup()?.getElementById("status")?.textContent || "" : "(popup chiuso)";
     await closePanel();

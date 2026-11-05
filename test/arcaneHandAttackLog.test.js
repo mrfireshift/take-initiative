@@ -174,7 +174,6 @@ test("Pugno serrato segue la console dei PG: esito prima, danno solo per colpito
   const { spellActiveResolutionAttackDamageRequired } = await import("../src/spellActiveResolutionCore.js");
   const fist = getSpellDefinition("arcane-hand").activeActions.find((entry) => entry.id === "arcane-hand-clenched");
   assert.deepEqual(fist.attack.outcomes, ["hit", "critical", "miss"]);
-  assert.equal(fist.attack.consoleFlow, true);
   assert.equal(spellActiveResolutionAttackDamageRequired(fist, "miss"), false);
   assert.equal(spellActiveResolutionAttackDamageRequired(fist, "hit"), true);
   assert.equal(spellActiveResolutionAttackDamageRequired(fist, "critical"), true);

@@ -789,6 +789,9 @@ con il contatore quando c'è («2/3 duplicati»):
   tornare indietro;
 - un'azione con un tiro o una scelta, come **Mangia una bacca**, apre subito
   il suo popup;
+- un attacco, come **Lancia una stella** o **Pugno serrato**, si risolve nel popup
+  come nella console attacchi: prima l'esito, poi il danno, che serve solo se
+  colpisce, poi il pulsante o Invio. Niente si registra prima;
 - un'azione che chiede una creatura (Sposta il marchio) la prende dalla
   selezione sulla mappa: seleziona il token, poi premi;
 - un'azione con una scelta o una zona da spostare (Cambia direzione) porta il

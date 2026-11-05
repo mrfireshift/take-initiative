@@ -101,6 +101,9 @@ let saveAbility = "";
 let attackOutcome = "";
 let selectedChoice = "";
 let attackEntries = [];
+// Where the cursor goes when the attack's controls are drawn: the damage, after the outcome that asks for it.
+let attackDamageFocus = false;
+let attackRowFocus = -1;
 let prismaticLayerOutcomes = new Map();
 let prismaticLayerDamage = new Map();
 let prismaticWallLayerId = "";
@@ -581,12 +584,23 @@ function isMultiAttack() {
   return payload?.action?.resolutionKind === "single-attack" && maxAttackCount() > 1;
 }
 
-// As the PC attack console (Mano arcana's Pugno serrato): the outcome is chosen first, the damage is asked only on a
-// hit or a critical, and Applica records it; a miss needs no damage.
+// As the PC attack console: the outcome is chosen first, the damage is asked only on a hit or a critical, and the button
+// records it; a miss needs no damage. Several attacks go in the same order, one box each.
 function isConsoleFlowAttack() {
   return !isPreparedResolution() && !isMultiAttack()
-    && payload?.action?.resolutionKind === "single-attack"
-    && payload?.action?.attack?.consoleFlow === true;
+    && payload?.action?.resolutionKind === "single-attack";
+}
+
+// One of several attacks is ready with its target, its outcome and, on a hit, its damage.
+function attackEntryComplete(entry) {
+  if (!entry.targetId || !entry.attackOutcome) return false;
+  return !spellActiveResolutionAttackDamageRequired(payload?.action, entry.attackOutcome)
+    || String(entry.damageRoll).trim() !== "";
+}
+
+// The number one of several attacks sends: a miss has none to send.
+function attackEntryRoll(entry) {
+  return spellActiveResolutionAttackDamageRequired(payload?.action, entry.attackOutcome) ? entry.damageRoll : 0;
 }
 
 function childZone() {
@@ -1038,6 +1052,11 @@ function setStatus(message, stale = false, kind = "") {
   $("status").hidden = !statusMessage;
   $("status").dataset.kind = kind || (stale ? "warn" : "");
   $("app").dataset.state = stale ? "stale" : "ready";
+}
+
+// A refusal speaks of the attack as it was: once the GM changes it, it says nothing more.
+function clearRefusal() {
+  if ($("status").dataset.kind === "error") setStatus("");
 }
 
 // Beside the main button: what is still missing, or what it will register.
@@ -1502,37 +1521,44 @@ async function renderStorm() {
     && !!selectedAttackTarget
     && (!requiresZoneRoot || rootReady);
   const damageValue = String($("attackDamage")?.value || "").trim();
-  const consoleFlow = isConsoleFlowAttack();
   for (const button of document.querySelectorAll("[data-attack-outcome]")) {
     const outcome = button.dataset.attackOutcome;
-    const damageRequired = spellActiveResolutionAttackDamageRequired(payload?.action, outcome);
     markOutcome(button, outcome, outcome === attackOutcome);
     button.hidden = !payload?.action?.attack?.outcomes?.includes(outcome);
-    button.disabled = !baseReady || (!consoleFlow && damageRequired && !damageValue);
+    button.disabled = !baseReady;
   }
-  if (consoleFlow) {
+  if (isConsoleFlowAttack()) {
     const damageNeeded = spellActiveResolutionAttackDamageRequired(payload?.action, attackOutcome);
     if (attackField) attackField.hidden = !damageNeeded;
     $("footer").hidden = false;
-    $("apply").textContent = "Applica";
     $("apply").disabled = !baseReady || !attackOutcome || (damageNeeded && !damageValue);
     renderSummary(
       !selectedAttackTarget ? "Manca il bersaglio."
         : !attackOutcome ? "Manca l'esito."
         : damageNeeded && !damageValue ? "Manca il danno." : "",
       "Danni",
-      damageNeeded ? subjectDamage(damageDefenseSubjects()[0]) : null,
+      // No damage asked once the outcome is known: a miss, 0 as in the console.
+      damageNeeded ? subjectDamage(damageDefenseSubjects()[0]) : payload?.action?.damage ? 0 : null,
     );
+    // Here and not on the click: the field appears only now, after the scene's answers.
+    if (attackDamageFocus && damageNeeded) $("attackDamage").focus?.();
+    attackDamageFocus = false;
   } else if (multi) {
     const chosen = attackEntries.filter((entry) => entry.targetId);
-    const done = chosen.filter((entry) => entry.attackOutcome && String(entry.damageRoll).trim() !== "");
+    const done = chosen.filter(attackEntryComplete);
     renderSummary(!chosen.length ? "Manca almeno un attacco."
-      : done.length < chosen.length ? "Manca l'esito o il danno di un attacco." : "");
-  } else {
-    // An outcome registers at once here (until lot V10): the fixed row says how.
-    renderSummary(!selectedAttackTarget ? "Manca il bersaglio."
-      : !damageValue ? "Scrivi il danno, poi scegli l'esito." : "L'esito registra subito.");
+      : done.length < chosen.length ? "Manca l'esito o il danno di un attacco." : "",
+      "Danni",
+      done.reduce((sum, entry) => {
+        const item = entries.find((candidate) => candidate.item.id === entry.targetId)?.item;
+        return sum + (subjectDamage({ item, outcome: entry.attackOutcome, roll: attackEntryRoll(entry) }) ?? 0);
+      }, 0));
   }
+  // The boxes are drawn again with every answer of the scene: the field being written keeps the cursor.
+  const writing = document.activeElement;
+  const writingRow = writing?.tagName === "INPUT" && attackRows.contains(writing)
+    ? [...attackRows.children].findIndex((row) => row.contains(writing))
+    : -1;
   attackRows.replaceChildren();
   if (multi) {
     for (let index = 0; index < attackEntries.length; index += 1) {
@@ -1568,12 +1594,14 @@ async function renderStorm() {
         button.addEventListener("click", (event) => {
           event.stopPropagation();
           attackEntries[index] = { ...attackEntries[index], attackOutcome: value };
+          attackRowFocus = index;
           render();
         });
         rowOutcomes.appendChild(button);
       }
       const damageField = document.createElement("div");
       damageField.className = "field";
+      damageField.hidden = !spellActiveResolutionAttackDamageRequired(payload?.action, entry.attackOutcome);
       const damageLabel = document.createElement("label");
       renderAmountLabel(damageLabel, payload?.action?.damage?.type, payload?.action?.damage?.formula);
       const damageInput = document.createElement("input");
@@ -1591,12 +1619,14 @@ async function renderStorm() {
       row.append(title, rowSelect, rowOutcomes, damageField);
       attackRows.appendChild(row);
     }
+    attackRows.children[attackRowFocus >= 0 ? attackRowFocus : writingRow]?.querySelector("input")?.focus?.();
+    attackRowFocus = -1;
   }
-  $("status").textContent = rootReady || !requiresZoneRoot
-    ? ""
-    : "La zona dell'incantesimo non è più disponibile.";
-  $("status").hidden = rootReady || !requiresZoneRoot;
-  $("status").dataset.kind = rootReady || !requiresZoneRoot ? "" : "warn";
+  // The zone gone is this renderer's own word. Any other message stays: an attack refused must be read.
+  const zoneGone = requiresZoneRoot && !rootReady;
+  $("status").textContent = zoneGone ? "La zona dell'incantesimo non è più disponibile." : statusMessage;
+  $("status").hidden = !zoneGone && !statusMessage;
+  if (zoneGone) $("status").dataset.kind = "warn";
   renderDamageDefenseChips();
   renderHeadingSubtitle();
   requestCompactPopoverResize();
@@ -2153,10 +2183,13 @@ function damageDefenseSubjects() {
   }
   if (kind === "single-save") return byId(selectedSaveTarget, saveOutcome, $("saveDamage").value);
   if (kind !== "single-attack") return [];
-  // An attack resolves on its outcome button, so the sum is shown as for a hit while the number is written.
-  if (!isMultiAttack()) return byId(selectedAttackTarget, attackOutcome || "hit", $("attackDamage").value);
+  // Before the outcome a defense is said as for a hit, so that it is seen before the number is written. A miss deals nothing.
+  if (!isMultiAttack()) {
+    return attackOutcome === "miss" ? [] : byId(selectedAttackTarget, attackOutcome || "hit", $("attackDamage").value);
+  }
   const seen = new Set();
-  return attackEntries.filter((entry) => entry.targetId && !seen.has(entry.targetId) && seen.add(entry.targetId))
+  return attackEntries.filter((entry) => entry.targetId && entry.attackOutcome !== "miss"
+    && !seen.has(entry.targetId) && seen.add(entry.targetId))
     .flatMap((entry) => byId(entry.targetId, entry.attackOutcome || "hit", entry.damageRoll));
 }
 
@@ -2255,9 +2288,6 @@ function render() {
   $("prismaticWallSection").hidden = !prismaticWall;
   $("blinkReturnSection").hidden = !blinkReturn;
   $("footer").hidden = false;
-  // An attack whose outcome registers at once (until lot V10): the fixed row says how, with no button.
-  $("apply").hidden = !prepared && !save && !singleSave && !singleHeal && !telekinesis && !prismaticWall && !blinkReturn
-    && !multiAttack && !isConsoleFlowAttack();
   if (telekinesis) {
     $("saveSection").hidden = true;
     $("singleSaveSection").hidden = true;
@@ -2373,13 +2403,14 @@ function render() {
   } else if (singleHeal) {
     void renderSingleHeal();
   } else {
-    const completeAttacks = attackEntries.filter((entry) => (
-      entry.targetId && entry.attackOutcome && String(entry.damageRoll).trim() !== ""
-    ));
+    const completeAttacks = attackEntries.filter(attackEntryComplete);
     if (multiAttack) {
       $("apply").disabled = !sceneReady || busy || !completeAttacks.length
         || completeAttacks.length < attackEntries.filter((entry) => entry.targetId).length;
       $("apply").textContent = "Applica attacchi";
+    } else {
+      // The button says what it does: Lancia una stella, Raggio radioso. Its dice are in the row above, not here.
+      $("apply").textContent = String(payload?.action?.buttonLabel || "Applica").split(" · ")[0];
     }
     void renderStorm();
   }
@@ -2746,6 +2777,7 @@ function resolutionErrorText(error) {
       ? "La fessura deve andare da un bordo all'altro della zona: riposizionala."
       : "Il vortice deve stare dentro la zona: riposizionalo.";
   }
+  if (message.includes("target-out-of-range")) return "Il bersaglio è fuori gittata: spostalo o scegline un altro.";
   return `Risoluzione non riuscita: ${message}`;
 }
 
@@ -2854,7 +2886,7 @@ async function apply() {
         ? attackEntries.filter((entry) => entry.targetId).map((entry) => ({
           targetId: entry.targetId,
           attackOutcome: entry.attackOutcome,
-          damageRoll: entry.damageRoll,
+          damageRoll: attackEntryRoll(entry),
         }))
         : [],
       ignoredDefenses: Object.fromEntries([...ignoredDefenses].map(([targetId, types]) => [targetId, [...types]])),
@@ -3006,7 +3038,15 @@ if (!payload) {
   });
   $("attackTarget").addEventListener("change", (event) => {
     selectedAttackTarget = event.target.value;
+    clearRefusal();
     render();
+  });
+  // Enter in a damage records the attack, as in the console. A prepared spell has its own button.
+  $("attackSection").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.isComposing || event.target?.tagName !== "INPUT") return;
+    if (isPreparedResolution() || payload?.action?.resolutionKind !== "single-attack") return;
+    event.preventDefault();
+    if (!$("apply").disabled) void apply();
   });
   for (const button of document.querySelectorAll("[data-bulk-outcome]")) {
     button.addEventListener("click", (event) => {
@@ -3036,15 +3076,9 @@ if (!payload) {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       attackOutcome = button.dataset.attackOutcome;
-      if (isConsoleFlowAttack()) {
-        render();
-        if (spellActiveResolutionAttackDamageRequired(payload?.action, attackOutcome)) {
-          setTimeout(() => $("attackDamage")?.focus?.(), 0);
-        }
-        return;
-      }
-      if (isPreparedResolution()) render();
-      else void apply();
+      attackDamageFocus = true;
+      clearRefusal();
+      render();
     });
   }
   void OBR.onReady(async () => {
