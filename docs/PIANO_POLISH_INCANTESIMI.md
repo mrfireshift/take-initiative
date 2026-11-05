@@ -621,11 +621,18 @@ ricorda che con il TS superato conta prima la metà. La CD di concentrazione, i 
 
 Non contano le difese dei mostri limitate alle armi non magiche, perché il danno di un incantesimo è magico (`magicalDamageDefensesForItem`).
 
-Errore mio: il chip si spegneva con la riga, che dopo la sagoma è bloccata, quindi era sbiadito e non si poteva cliccare. L'ha trovato il banco: i test leggevano il testo del chip, non `disabled`.
+Spruzzo prismatico e Muro prismatico scrivono il danno a pezzi, ognuno col suo tipo e il suo TS: la difesa conta raggio per raggio e strato per strato (`spellDamagePartAfterDefense`), con il chip accanto al nome appena il raggio è scelto, e nella riga
+di ogni strato. Il piano del Muro è congelato e la validazione lo legge com'è: l'esecutore ne fa una copia. Il clic che ignora sta accanto a `hp` nel comando, perché lo Spruzzo non ha un campo danno unico.
+
+Errori miei:
+- Il chip si spegneva con la riga, che dopo la sagoma è bloccata, quindi era sbiadito e non si poteva cliccare. L'ha trovato il banco: i test leggevano il testo del chip, non `disabled`.
+- Dopo il push ho trovato quattro incantesimi a cui le difese non arrivavano, e che la guida non diceva: Simbolo (Morte) e Trasmutare Roccia (fango che cade), perché il test guardava solo la variante predefinita, e Spruzzo e Muro prismatici, che hanno un conto
+  tutto loro. Il test ora prova ogni variante di ogni fase.
 
 Provato al banco: Cono di freddo su Sera con TS fallito e superato, il clic che ignora e che riapplica, il lancio e Annulla; il Cono gelido, Stritola e Lancia una stella nel popup, con il chip che segue il numero scritto; Colpo infuocato con il chip «al GM»;
 Rimuovi maledizione su Sortilegio e Scagliare maledizione insieme, con le due concentrazioni che cadono, su Costrizione e su una creatura pulita; Miraggio arcano senza sagoma, in vista espansa e compatta. I promemoria: Nube di Pugnali su chi resiste ai
-taglienti (9 → 4) e con la difesa ignorata, Bagliore lunare con TS superato (10, 5, 2), Guardiani spirituali senza chip. **Non provati:** gli attacchi multipli di Lama del Disastro e il registro di combattimento a video, coperti dal test su `spellAreaCausality`. Test in `test/spellDamageDefense.test.js` e `test/cleanseSpells.test.js`.
+taglienti (9 → 4) e con la difesa ignorata, Bagliore lunare con TS superato (10, 5, 2), Guardiani spirituali senza chip. Spruzzo prismatico con il chip che segue raggio, danno e TS, e il lancio (30 → 15); Muro prismatico con tutti gli strati (resistenza, immunità e i tre
+pieni: 38 → 17) e le due condizioni; Trasmutare Roccia. **Non provati:** gli attacchi multipli di Lama del Disastro, Simbolo (Morte), che chiede il glifo e poi l'attivazione, coperto dal test sulla vista, e il registro di combattimento a video, coperto dal test su `spellAreaCausality`. Test in `test/spellDamageDefense.test.js` e `test/cleanseSpells.test.js`.
 
 ### P5, la prova in stanza
 

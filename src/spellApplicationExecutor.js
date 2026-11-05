@@ -47,6 +47,8 @@ import {
   spellActionDamageTypes,
   spellDamageDefenseApplied,
   spellDamageDefenseRows,
+  spellDamagePartAfterDefense,
+  spellDamagePartsDefenses,
 } from "./spellDamageDefenseCore.js";
 import { spellCastHealingDice, spellCastTemporaryHpAmount, spellCastTemporaryHpRule } from "./spellTemporaryHpRules.js";
 import {
@@ -1421,8 +1423,15 @@ export async function executeSpellActiveResolution({
       }
       const target = byId.get(targetId);
       const targetPlan = plan.targetPlans?.[0] || null;
+      // Each layer with its own type and save, after the creature's defense. A copy: the plan is frozen, and the commit's
+      // validation reads it as it is.
+      const damageContributions = (targetPlan?.damageContributions || []).map((contribution) => spellDamagePartAfterDefense(
+        contribution,
+        magicalDamageDefensesForItem(byId.get(contribution.targetId), `${ID}/meta`),
+        ignoredDefenses?.[contribution.targetId],
+      ));
       const currentHpById = new Map();
-      for (const contribution of targetPlan?.damageContributions || []) {
+      for (const contribution of damageContributions) {
         const item = byId.get(contribution.targetId);
         const meta = item?.metadata?.[`${ID}/meta`] || {};
         const amount = Math.max(0, Math.floor(Number(contribution.amount) || 0));
@@ -1472,12 +1481,13 @@ export async function executeSpellActiveResolution({
         }
       }
       if (targetPlan) {
-        const totalDamage = (targetPlan.damageContributions || [])
+        const totalDamage = damageContributions
           .reduce((sum, contribution) => sum + Math.max(0, Number(contribution.amount) || 0), 0);
         resolutionDamageByTarget.set(targetId, {
           outcome: targetPlan.layers.map((entry) => `${entry.layerId}:${entry.outcome}`).join(","),
           damage: { amount: totalDamage, factor: 1 },
-          prismaticContributions: cloneValue(targetPlan.damageContributions || []),
+          prismaticContributions: cloneValue(damageContributions),
+          defenses: spellDamagePartsDefenses(damageContributions),
         });
       }
       const conditionOperations = [];
@@ -1526,8 +1536,10 @@ export async function executeSpellActiveResolution({
         traversalId: String(traversalId || "").trim(),
         targetId,
         exempt,
-        layers: cloneValue(targetPlan?.layers || []),
-        damageContributions: cloneValue(targetPlan?.damageContributions || []),
+        layers: cloneValue((targetPlan?.layers || []).map((entry) => (entry.damage
+          ? { ...entry, damage: damageContributions.find((part) => part.layerId === entry.layerId) || entry.damage }
+          : entry))),
+        damageContributions: cloneValue(damageContributions),
       };
     }
     if (isLayerManagement || !traversalExempt) {

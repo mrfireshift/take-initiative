@@ -785,6 +785,37 @@ test("active traversal: una transazione semantica, danni separati, marker e Undo
   assert.equal(options.sideEffects[0].type, "spell-active-resolution:validate");
 });
 
+test("active traversal: la difesa del bersaglio conta strato per strato, sui PF e nella cronologia", async () => {
+  const traverse = async (options = {}) => {
+    resetScene();
+    sceneItems.get("target").metadata[META_KEY].initiativeCard = {
+      damageDefenses: { resistances: ["fire"], immunities: ["acid"], vulnerabilities: ["cold"] },
+    };
+    await executeSpellActiveResolution({
+      payload: activePayload(),
+      targetIds: ["target"],
+      layerOutcomes: allFailedOutcomes(),
+      layerDamage: allDamageTotals(),
+      traversalId: "traversal-1",
+      sceneEpoch: 7,
+      isCurrent: () => true,
+      ...options,
+    });
+    return mutationCalls[0].options;
+  };
+  const amounts = (options) => options.history.payload.prismaticWall.damageContributions.map((entry) => entry.amount);
+  // Red fire 10 halved, orange acid 20 to nothing, yellow lightning 30, green poison 40, blue cold 50 doubled.
+  const failed = await traverse();
+  assert.deepEqual(amounts(failed), [5, 0, 30, 40, 100]);
+  assert.equal(failed.metadataPatches.find((patch) => patch.id === "target").fields.hp.value, 25);
+  assert.deepEqual(failed.history.payload.prismaticWall.layers.filter((entry) => entry.damage).map((entry) => entry.damage.amount), [5, 0, 30, 40, 100]);
+  // The save first, then the defense.
+  const passed = await traverse({ layerOutcomes: Object.fromEntries(PRISMATIC_WALL_LAYER_IDS.map((layerId) => [layerId, "passed"])) });
+  assert.deepEqual(amounts(passed), [2, 0, 15, 20, 50]);
+  // A defense ignored in this action, only that one.
+  assert.deepEqual(amounts(await traverse({ ignoredDefenses: { target: ["fire"] } })), [10, 0, 30, 40, 100]);
+});
+
 test("active layer management: aggiorna solo remainingLayers e rifiuta panel stale", async () => {
   resetScene();
   await executeSpellActiveResolution({

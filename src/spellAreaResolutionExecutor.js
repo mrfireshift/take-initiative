@@ -71,6 +71,8 @@ import {
   spellDamageAfterDefense,
   spellDamageDefenseApplied,
   spellDamageDefenseRows,
+  spellDamagePartAfterDefense,
+  spellDamagePartsDefenses,
   spellDamageTypes,
 } from "./spellDamageDefenseCore.js";
 import { planStabilizeTarget, returnFromDeathCondition, STABILIZE_SPELL_ID_SET } from "./stabilizeSpellRules.js";
@@ -343,7 +345,7 @@ function casterHealingEntryFromAppliedDamage({ entries = [], caster = null, rati
   return change.changed ? { item: caster, change, outcome: "healing" } : null;
 }
 
-function prismaticSprayHPEntries(items, prismaticSprayPlan) {
+function prismaticSprayHPEntries(items, prismaticSprayPlan, ignoredDefenses = {}) {
   const contributionsByTarget = new Map();
   for (const contribution of prismaticSprayPlan?.damageContributions || []) {
     const targetId = text(contribution?.targetId);
@@ -355,7 +357,9 @@ function prismaticSprayHPEntries(items, prismaticSprayPlan) {
   return (Array.isArray(items) ? items : [])
     .filter(trackedHP)
     .map((item) => {
-      const contributions = contributionsByTarget.get(text(item.id)) || [];
+      // Each ray with its own type and save, after the creature's defense (spellDamageDefenseCore.js).
+      const contributions = (contributionsByTarget.get(text(item.id)) || [])
+        .map((contribution) => spellDamagePartAfterDefense(contribution, magicalDamageDefensesForItem(item, META_KEY), ignoredDefenses?.[text(item.id)]));
       if (!contributions.length) return null;
       const value = contributions.reduce(
         (total, contribution) => total + Math.max(0, Math.floor(Number(contribution.amount) || 0)),
@@ -434,7 +438,7 @@ function spellHpDefenseRows(hp, spell, item) {
 
 function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan = null }) {
   if (spell?.id === PRISMATIC_SPRAY_SPELL_ID && prismaticSprayPlan) {
-    return prismaticSprayHPEntries(items, prismaticSprayPlan);
+    return prismaticSprayHPEntries(items, prismaticSprayPlan, command?.hp?.ignoredDefenses);
   }
   if (spell?.id === MAGIC_MISSILE_SPELL_ID) return magicMissileHPEntries(command, items, allItems);
   const hp = command?.hp || {};
@@ -2430,10 +2434,12 @@ export function spellAreaCausality(plan) {
         ? 0
         : undefined;
     // The defenses that changed the number or that the GM ignored, for the combat log. Two types in one number stay with the GM.
-    const defenses = hasRawDamage && factor !== 0
-      ? spellHpDefenseRows(command?.hp, plan?.spell, item).filter((row) => !row.manual)
-        .map(({ type, defense, ignored }) => ({ type, defense, ...(ignored ? { ignored: true } : {}) }))
-      : [];
+    const defenses = Array.isArray(change?.prismaticContributions)
+      ? spellDamagePartsDefenses(change.prismaticContributions)
+      : hasRawDamage && factor !== 0
+        ? spellHpDefenseRows(command?.hp, plan?.spell, item).filter((row) => !row.manual)
+          .map(({ type, defense, ignored }) => ({ type, defense, ...(ignored ? { ignored: true } : {}) }))
+        : [];
     return {
       id,
       ...(item?.name ? { name: item.name } : {}),

@@ -24,6 +24,8 @@ const {
   spellDamageDefenseRows,
   spellDamageDefenseText,
   spellDamageDefenseTitle,
+  spellDamagePartAfterDefense,
+  spellDamagePartsDefenses,
   spellDamageTypes,
   spellPanelDamageTypes,
 } = await import("../src/spellDamageDefenseCore.js");
@@ -45,11 +47,144 @@ test("ogni incantesimo con un campo danno dichiara il suo tipo, o dice perché r
   const undeclared = [];
   for (const { id } of register) {
     const level = Math.max(1, getSpellDefinition(id).level || 1);
-    const hasDamage = ["cast", "resolve"].some((phase) => buildSpellUnifiedPanelContract({ spellId: id, phase, castContext: { slotLevel: level } })
-      ?.presentation?.inputs?.damage?.visible === true);
+    // Every variant too: Symbol and Transmute Rock deal damage in one only, and they had got away.
+    const hasDamage = ["prepare", "cast", "resolve"].some((phase) => {
+      const contract = (choiceValue) => buildSpellUnifiedPanelContract({ spellId: id, phase, choiceValue, castContext: { slotLevel: level } });
+      const variants = (contract("")?.presentation?.variant?.options || []).map((option) => option.value);
+      return ["", ...variants].some((choiceValue) => contract(choiceValue)?.presentation?.inputs?.damage?.visible === true);
+    });
     if (hasDamage && !spellDamageTypes(id).length && !SPELL_DAMAGE_TYPE_LEFT_TO_GM[id]) undeclared.push(id);
   }
   assert.deepEqual(undeclared, []);
+  assert.deepEqual([...spellDamageTypes("symbol")], ["necrotic"]);
+  assert.deepEqual([...spellDamageTypes("xanathar-trasmutare-roccia")], ["bludgeoning"]);
+});
+
+test("una parte di danno con il suo tipo e il suo TS: il raggio, lo strato", () => {
+  const part = (type, roll, factor) => ({ type, roll, factor, amount: Math.floor(roll * factor) });
+  const fire = { resistances: ["fire"], immunities: [], vulnerabilities: [] };
+  assert.equal(spellDamagePartAfterDefense(part("fuoco", 31, 1), fire).amount, 15);
+  assert.equal(spellDamagePartAfterDefense(part("fuoco", 31, 0.5), fire).amount, 7, "31, metà per il TS, metà per la resistenza");
+  assert.equal(spellDamagePartAfterDefense(part("acido", 31, 1), fire).amount, 31, "un altro tipo");
+  assert.equal(spellDamagePartAfterDefense(part("fuoco", 31, 1), fire, ["fire"]).amount, 31, "ignorata");
+  assert.equal(spellDamagePartAfterDefense(part("fuoco", 31, 0), fire).amount, 0, "Immune");
+  assert.equal(spellDamagePartAfterDefense(part("fuoco", 31, 1), { immunities: ["fire"] }).amount, 0);
+  assert.equal(spellDamagePartAfterDefense(part("fuoco", 31, 1), { vulnerabilities: ["fire"] }).amount, 62);
+  const frozen = Object.freeze(part("fuoco", 31, 1));
+  assert.equal(spellDamagePartAfterDefense(frozen, fire).amount, 15, "i piani sono congelati: ne fa una copia");
+  assert.deepEqual(spellDamagePartsDefenses([
+    spellDamagePartAfterDefense(part("fuoco", 31, 1), fire),
+    spellDamagePartAfterDefense(part("fuoco", 10, 1), fire),
+    spellDamagePartAfterDefense(part("acido", 10, 1), { resistances: ["acid"] }, ["acid"]),
+    spellDamagePartAfterDefense(part("freddo", 10, 0), { resistances: ["cold"] }),
+    part("veleno", 10, 1),
+  ]), [{ type: "fire", defense: "resistance" }, { type: "acid", defense: "resistance", ignored: true }], "una riga per tipo, nessuna per chi non subisce nulla");
+});
+
+function sprayCommand({ ignoredDefenses } = {}) {
+  const contract = buildSpellUnifiedPanelContract({ spellId: "prismatic-spray", phase: "cast", castContext: { slotLevel: 7 } });
+  return buildSpellAreaResolutionCommand({
+    contract,
+    spellId: "prismatic-spray",
+    phase: "cast",
+    source: { kind: "cast", sceneEpoch: 3 },
+    casterId: "caster",
+    slotLevel: 7,
+    targetIds: ["sera", "mira"],
+    candidateTargetIds: ["sera", "mira"],
+    outcomes: { sera: "failed", mira: "passed" },
+    // Sera a red ray and the "special" 8: blue and orange. Mira a red ray.
+    targetContexts: {
+      sera: { ray: "8", rayA: "1", damageA: 30, rayB: "2", damageB: 20 },
+      mira: { ray: "1", damage: 30 },
+    },
+    ...(ignoredDefenses ? { ignoredDefenses } : {}),
+    placement: {
+      status: "confirmed",
+      spellId: "prismatic-spray",
+      ruleId: "prismatic-spray:cast",
+      casterId: "caster",
+      sceneEpoch: 3,
+      preview: { type: "cone", start: { x: 0, y: 0 }, end: { x: 600, y: 0 }, gridOrigin: { x: 0, y: 0 }, dpi: 150, targetIds: ["sera", "mira"], targetLocked: true },
+    },
+    targetLocked: true,
+    sceneEpoch: 3,
+    currentSceneEpoch: 3,
+    validateSpatial: false,
+  });
+}
+
+async function sprayPlan(options = {}) {
+  const items = [
+    creature("caster"),
+    creature("sera", { damageDefenses: { resistances: ["fire"] } }),
+    creature("mira", { damageDefenses: { resistances: ["fire"] } }),
+  ];
+  const plan = await buildSpellAreaResolutionExecutionPlan(sprayCommand(options), {
+    sceneEpoch: 3,
+    isCurrent: () => true,
+    readItems: async (ids) => items.filter((item) => ids.includes(item.id)),
+    readAllItems: async () => items,
+    readSceneMetadata: async () => ({}),
+    getInitiativeActorId: async () => null,
+    createSpellInstanceId: async () => "spray-instance",
+  });
+  assert.equal(plan.valid, true, JSON.stringify(plan.errors));
+  return plan;
+}
+
+test("Simbolo (Morte) e Trasmutare Roccia (fango che cade): il danno di una sola variante ha il suo chip", () => {
+  for (const [spellId, phase, choiceValue, slotLevel, type, text] of [
+    ["symbol", "resolve", "death", 7, "necrotic", "Res. necrotici: 20 → 10"],
+    ["xanathar-trasmutare-roccia", "cast", "falling-mud", 5, "bludgeoning", "Res. contundenti: 20 → 10"],
+  ]) {
+    const contract = buildSpellUnifiedPanelContract({ spellId, phase, choiceValue, castContext: { slotLevel } });
+    assert.equal(contract.presentation.inputs.damage.visible, true, spellId);
+    const session = createSpellPanelSession({ contract, casterId: "caster", phase, variant: choiceValue, targetIds: ["sera"], outcomes: { sera: "failed" }, hpValues: { damage: 20 } });
+    const [row] = buildUnifiedPanelViewModel({ contract, session, targetCandidates: [{ key: "sera", label: "Sera", hp: 40, hpMax: 40, damageDefenses: { resistances: [type] } }] }).targets.candidates;
+    assert.equal(row.hpPreview.afterHP, 30, spellId);
+    assert.deepEqual(row.defenseChips.map((chip) => chip.text), [text], spellId);
+  }
+});
+
+test("Spruzzo prismatico: la difesa conta raggio per raggio, ognuno col suo tipo e il suo TS", async () => {
+  const plan = await sprayPlan();
+  const entry = (id) => plan.entries.find((candidate) => candidate.item.id === id);
+  assert.equal(entry("sera").change.requested, 35, "fuoco 30 → 15 con la resistenza, acido 20 pieno");
+  assert.equal(entry("sera").change.afterHP, 5);
+  assert.equal(entry("mira").change.requested, 7, "fuoco 30, metà per il TS, metà per la resistenza");
+  assert.deepEqual(spellAreaCausality(plan).targets.find((target) => target.id === "sera").defenses, [{ type: "fire", defense: "resistance" }]);
+  const ignored = await sprayPlan({ ignoredDefenses: { sera: ["fire"] } });
+  assert.equal(ignored.entries.find((candidate) => candidate.item.id === "sera").change.requested, 50, "ignorata");
+  assert.equal(ignored.entries.find((candidate) => candidate.item.id === "mira").change.requested, 7, "solo per Sera");
+});
+
+test("Spruzzo prismatico: il chip nasce con il raggio scelto e segue il danno scritto e il TS", () => {
+  const contract = buildSpellUnifiedPanelContract({ spellId: "prismatic-spray", phase: "cast", castContext: { slotLevel: 7 } });
+  const row = (context, outcome = "failed", ignoredDefenses = {}) => {
+    const session = createSpellPanelSession({ contract, casterId: "caster", targetIds: ["sera"], outcomes: { sera: outcome }, targetContext: { sera: context }, ignoredDefenses });
+    return buildUnifiedPanelViewModel({ contract, session, targetCandidates: [{ key: "sera", label: "Sera", hp: 40, hpMax: 40, damageDefenses: { resistances: ["fire"] } }] }).targets.candidates[0];
+  };
+  assert.deepEqual(row({}).defenseChips, [], "nessun raggio ancora");
+  assert.deepEqual(row({ ray: "1" }).defenseChips.map((chip) => chip.text), ["Res. fuoco"], "raggio scelto, danno da scrivere");
+  assert.match(row({ ray: "1" }).defenseChips[0].title, /Sera ha resistenza ai danni da fuoco.*scrivilo intero/u);
+  assert.deepEqual(row({ ray: "1", damage: 30 }).defenseChips.map((chip) => chip.text), ["Res. fuoco: 30 → 15"]);
+  assert.deepEqual(row({ ray: "1", damage: 30 }, "passed").defenseChips.map((chip) => chip.text), ["Res. fuoco: 15 → 7"]);
+  assert.deepEqual(row({ ray: "1", damage: 30 }, "immune").defenseChips, [], "nessun danno");
+  assert.deepEqual(row({ ray: "2", damage: 30 }).defenseChips, [], "il raggio arancione è acido");
+  assert.deepEqual(row({ ray: "6" }).defenseChips, [], "il raggio indaco non fa danni");
+  assert.deepEqual(row({ ray: "8", rayA: "1", damageA: 20, rayB: "2", damageB: 20 }).defenseChips.map((chip) => chip.text), ["Res. fuoco: 20 → 10"]);
+  const ignored = row({ ray: "1", damage: 30 }, "failed", { sera: ["fire"] }).defenseChips[0];
+  assert.equal(ignored.ignored, true);
+  assert.equal(ignored.text, "Res. fuoco");
+});
+
+test("il comando porta le difese ignorate anche quando non c'è un campo danno unico", () => {
+  assert.deepEqual(sprayCommand({ ignoredDefenses: { sera: ["fire"], other: ["cold"] } }).hp.ignoredDefenses, { sera: ["fire"] });
+  const contract = buildSpellUnifiedPanelContract({ spellId: "prismatic-spray", phase: "cast", castContext: { slotLevel: 7 } });
+  const session = createSpellPanelSession({ contract, casterId: "caster", slotLevel: 7, targetIds: ["sera"], outcomes: { sera: "failed" },
+    targetContext: { sera: { ray: "1", damage: 30 } }, ignoredDefenses: { sera: ["fire"] } });
+  assert.deepEqual(buildSpellUnifiedAreaCommand({ contract, session, sceneEpoch: 3 }).hp?.ignoredDefenses, { sera: ["fire"] });
 });
 
 test("il tipo della tabella non contraddice il catalogo, che ha solo il primo tipo di un incantesimo", () => {

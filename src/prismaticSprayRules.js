@@ -199,6 +199,14 @@ function targetBranches(context = {}) {
   return [{ slot: "ray", ray: primary, damageField: "damage" }];
 }
 
+// The damaging rays a target has so far, before its plan is complete: the panel shows their defenses (spellDamageDefenseCore.js).
+export function prismaticSprayDamageRays(context = {}) {
+  return targetBranches(context).flatMap((branch) => {
+    const damage = RAY_BY_VALUE.get(branch.ray)?.damage;
+    return damage ? [{ slot: branch.slot, type: damage.type, roll: damageTotal(context?.[branch.damageField]) }] : [];
+  });
+}
+
 function targetPlan(targetId, outcome, context = {}) {
   const errors = [];
   const branches = [];

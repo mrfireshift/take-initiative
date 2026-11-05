@@ -4574,8 +4574,8 @@
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "Rosso, Indaco, Viola e l'8 con Arancione e Indaco: danni, condizioni, promemoria."
+        "date": "2026-11-05",
+        "note": "Rosso, Indaco, Viola e l'8 con Arancione e Indaco: danni, condizioni, promemoria. P4: le difese raggio per raggio: chip che segue raggio, danno e TS, lancio 30 → 15."
       }
     },
     {
@@ -4594,8 +4594,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: le difese strato per strato: resistenza, immunità e tre strati pieni 38 → 17, con Trattenuto e Accecato."
       }
     },
     {
@@ -8226,8 +8226,8 @@
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "Roccia in fango: Trattenuto al lancio e all'ingresso, terreno ×4 a chi è dentro; Termina."
+        "date": "2026-11-05",
+        "note": "Roccia in fango: Trattenuto al lancio e all'ingresso, terreno ×4 a chi è dentro; Termina. P4: fango che cade: chip e conto, 20 → 10."
       }
     },
     {

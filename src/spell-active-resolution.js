@@ -65,6 +65,7 @@ import { SPELL_TURN_PROMPT_ACTION_CHANNEL } from "./callLightningTurnPromptContr
 import {
   magicalDamageDefensesForItem,
   spellActionDamageTypes,
+  spellDamageAfterDefense,
   spellDamageDefenseApplied,
   spellDamageDefenseRows,
   spellDamageDefenseText,
@@ -1761,11 +1762,23 @@ function renderPrismaticWall() {
         damageInput.placeholder = "Totale";
         damageInput.value = prismaticLayerDamage.get(layerId) ?? "";
         damageInput.disabled = busy || !selectedPrismaticTarget;
+        const defenseBox = document.createElement("div");
+        defenseBox.className = "damage-defenses";
+        const refreshDefenseChips = () => {
+          const chips = prismaticLayerDefenseChips(layer, layerId);
+          defenseBox.replaceChildren(...chips);
+          defenseBox.hidden = chips.length === 0;
+        };
+        refreshDefenseChips();
         damageInput.addEventListener("input", (event) => {
           prismaticLayerDamage.set(layerId, event.target.value);
           updatePrismaticWallApplyState(state);
+          refreshDefenseChips();
         });
-        damageField.append(damageLabel, damageInput);
+        const damageCaption = document.createElement("div");
+        damageCaption.className = "prismatic-wall-layer__caption";
+        damageCaption.append(damageLabel, defenseBox);
+        damageField.append(damageCaption, damageInput);
         row.appendChild(damageField);
       }
       layerWrap.appendChild(row);
@@ -2045,6 +2058,28 @@ function damageDefenseSubjects() {
     .flatMap((entry) => byId(entry.targetId, entry.attackOutcome || "hit", entry.damageRoll));
 }
 
+// A defense's chip: it says the sum, its tooltip whose defense it is, and a click ignores it in this action.
+function damageDefenseChip({ item, row, numbers, label }) {
+  const chip = document.createElement("button");
+  chip.type = "button";
+  chip.className = `damage-defense is-${row.defense}`;
+  chip.textContent = label;
+  chip.title = spellDamageDefenseTitle(row, { name: displayName(item), ...numbers, where: "in questa azione" });
+  chip.dataset.defenseType = row.type;
+  chip.dataset.targetId = item.id;
+  if (row.ignored) chip.dataset.ignored = "true";
+  chip.disabled = busy;
+  chip.setAttribute("aria-pressed", String(!row.ignored));
+  chip.addEventListener("click", () => {
+    const ignored = new Set(ignoredDefenses.get(item.id) || []);
+    if (ignored.has(row.type)) ignored.delete(row.type);
+    else ignored.add(row.type);
+    ignoredDefenses.set(item.id, ignored);
+    render();
+  });
+  return chip;
+}
+
 // Above the button: each defense at work, what it does to the number, whose it is in the tooltip. A click ignores it.
 function renderDamageDefenseChips() {
   const box = $("damageDefenses");
@@ -2059,28 +2094,30 @@ function renderDamageDefenseChips() {
       const before = resolve(null);
       const after = resolve(row.ignored ? null : row.defense);
       const numbers = before?.valid && after?.valid ? { before: before.amount, after: after.amount } : { before: 0, after: 0 };
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = `damage-defense is-${row.defense}`;
-      chip.textContent = `${displayName(item)} · ${spellDamageDefenseText(row, numbers)}`;
-      chip.title = spellDamageDefenseTitle(row, { name: displayName(item), ...numbers, where: "in questa azione" });
-      chip.dataset.defenseType = row.type;
-      chip.dataset.targetId = item.id;
-      if (row.ignored) chip.dataset.ignored = "true";
-      chip.disabled = busy;
-      chip.setAttribute("aria-pressed", String(!row.ignored));
-      chip.addEventListener("click", () => {
-        const ignored = new Set(ignoredDefenses.get(item.id) || []);
-        if (ignored.has(row.type)) ignored.delete(row.type);
-        else ignored.add(row.type);
-        ignoredDefenses.set(item.id, ignored);
-        render();
-      });
-      return chip;
+      return damageDefenseChip({ item, row, numbers, label: `${displayName(item)} · ${spellDamageDefenseText(row, numbers)}` });
     });
   }) : [];
   box.replaceChildren(...chips);
   box.hidden = chips.length === 0;
+}
+
+// A layer of Prismatic Wall has its own type and its own save: the chip sits in its row, beside its number.
+function prismaticLayerDefenseChips(layer, layerId) {
+  const item = sceneItems.find((entry) => entry?.id === selectedPrismaticTarget);
+  const outcome = prismaticLayerOutcomes.get(layerId);
+  if (!item || !layer?.damage || outcome === "immune") return [];
+  const factor = outcome === "passed" ? 0.5 : 1;
+  const written = String(prismaticLayerDamage.get(layerId) ?? "").trim();
+  const roll = written !== "" && Number.isFinite(Number(written)) ? Math.max(0, Math.floor(Number(written))) : 0;
+  return spellDamageDefenseRows({
+    types: spellActionDamageTypes(layer),
+    defenses: magicalDamageDefensesForItem(item, META_KEY),
+    ignoredTypes: [...(ignoredDefenses.get(item.id) || [])],
+  }).map((row) => {
+    const before = Math.floor(roll * factor);
+    const numbers = { before, after: row.ignored ? before : spellDamageAfterDefense(roll, factor === 1 ? "full" : "half", row.defense) };
+    return damageDefenseChip({ item, row, numbers, label: spellDamageDefenseText(row, numbers) });
+  });
 }
 
 function render() {

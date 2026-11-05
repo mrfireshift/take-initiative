@@ -7,7 +7,9 @@ import { animatedObjectsMaximumCost } from "./animatedObjectsCore.js";
 import { spellCastTemporaryHpHint, spellCastTemporaryHpRollRange, spellCastTemporaryHpRule, spellUndeadTemporaryHpAmount } from "./spellTemporaryHpRules.js";
 import { ID } from "./constants.js";
 import { buildSharedHpPreview } from "./sharedHpViewCore.js";
+import { PRISMATIC_SPRAY_SPELL_ID, prismaticSprayDamageRays } from "./prismaticSprayRules.js";
 import {
+  spellActionDamageTypes,
   spellDamageAfterDefense,
   spellDamageBeforeDefense,
   spellDamageDefenseApplied,
@@ -549,10 +551,33 @@ function hpPreviewFor(
   return preview;
 }
 
+// Prismatic Spray writes its damage ray by ray: a chip for each ray the creature resists, as soon as the ray is chosen.
+function prismaticSprayDefenseChips(candidate, session) {
+  const outcome = asText(candidate.outcome?.value).toLocaleLowerCase("it");
+  if (outcome === "immune") return [];
+  const factor = outcome === "passed" ? QUICK_HP_FACTORS.HALF : QUICK_HP_FACTORS.FULL;
+  return prismaticSprayDamageRays(session?.targetContext?.[candidate.key]).flatMap((ray) => spellDamageDefenseRows({
+    types: spellActionDamageTypes({ damage: { type: ray.type } }),
+    defenses: candidate.damageDefenses,
+    ignoredTypes: session?.ignoredDefenses?.[candidate.key],
+  }).map((row) => {
+    const numbers = ray.roll === null
+      ? { before: 0, after: 0 }
+      : { before: spellDamageBeforeDefense(ray.roll, factor), after: spellDamageAfterDefense(ray.roll, factor, row.ignored ? null : row.defense) };
+    return {
+      ...row,
+      text: spellDamageDefenseText(row, numbers),
+      title: spellDamageDefenseTitle(row, { name: candidate.label, ...numbers }),
+    };
+  }));
+}
+
 // The chips under a selected target: each defense against this damage, what it did to the number, and in the tooltip whose it
 // is. They are there as soon as the target is selected: who writes the damage already halved must see them before writing.
 function candidateDefenseChips({ candidate, presentation, session, spellId, damageInputVisible, count }) {
-  if (!candidate?.selected || presentation?.inputs?.damage?.visible !== true || !damageInputVisible) return [];
+  if (!candidate?.selected) return [];
+  if (spellId === PRISMATIC_SPRAY_SPELL_ID) return prismaticSprayDefenseChips(candidate, session);
+  if (presentation?.inputs?.damage?.visible !== true || !damageInputVisible) return [];
   return spellDamageDefenseRows({
     types: spellPanelDamageTypes(spellId, session?.triggerRuntime),
     defenses: candidate.damageDefenses,

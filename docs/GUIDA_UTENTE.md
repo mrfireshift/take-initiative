@@ -189,6 +189,9 @@ quel personaggio.
   torna pieno. Il TS viene prima: 20 con TS superato sono 10, e con la resistenza 5.
   Le difese dei mostri limitate alle armi non magiche non contano contro un incantesimo.
   Il registro di combattimento dice quale difesa ha contato o è stata ignorata.
+- Spruzzo prismatico e Muro prismatico fanno il conto raggio per raggio e strato per
+  strato, ognuno col suo tipo e il suo TS. Nello Spruzzo il chip compare accanto al nome
+  appena scegli il raggio, nel Muro nella riga di ogni strato.
 - Nei promemoria (chi entra in una Nube di Pugnali, chi inizia il turno in un Muro di
   fuoco, Immolazione, Colpo intrappolante…) il chip sta accanto al campo **Danni**. Poiché
   premere l'esito applica subito, il suo conto è quello del danno pieno: con il TS

@@ -237,9 +237,6 @@ function hpInput(contract, session) {
       ...(hasInputValue(primaryDamage)
         ? { primaryAmount: primaryDamage }
         : {}),
-      ...(Object.keys(session?.ignoredDefenses || {}).length
-        ? { ignoredDefenses: session.ignoredDefenses }
-        : {}),
       // A zone's trigger says the type of its own damage (spellPanelDamageTypes).
       ...(session?.triggerRuntime?.damage
         ? { damageTypes: spellActionDamageTypes(session.triggerRuntime) }
@@ -353,6 +350,10 @@ export function buildSpellUnifiedAreaCommand({
     targetLocked: locked,
     placement,
     hp: hpInput(contract, session),
+    // Beside hp, which Prismatic Spray does not have: its damage is written ray by ray.
+    ...(Object.keys(session?.ignoredDefenses || {}).length
+      ? { ignoredDefenses: session.ignoredDefenses }
+      : {}),
     sharedHp: session?.sharedHp,
     sceneEpoch,
     currentSceneEpoch: sceneEpoch,

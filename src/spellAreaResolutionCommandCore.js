@@ -988,8 +988,9 @@ function normalizeHp(
         : QUICK_HP_FACTORS.FULL;
   }
   // The defenses the GM ignores in this cast, for the targets of this cast.
+  const requestedIgnoredDefenses = rawHp.ignoredDefenses || input.ignoredDefenses;
   const ignoredDefenses = Object.fromEntries(targetIds
-    .map((targetId) => [targetId, uniqueIds(rawHp.ignoredDefenses?.[targetId])])
+    .map((targetId) => [targetId, uniqueIds(requestedIgnoredDefenses?.[targetId])])
     .filter(([, types]) => types.length));
   return {
     required,
