@@ -93,9 +93,9 @@
     .attack-reaction .mini-button { flex: 0 0 auto; }
     /* The picker: weapon attacks, cantrips and attack spells of the actor, one tab each, then the entry. */
     .picker { flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--obrt-space-lg); }
-    /* A long list gives way down to its 132 px, never under the card below it: the tabs, the search and that much stay. */
-    .picker:has(> .picker-list:not([hidden]):not([data-short="true"])) { flex: 0 1 auto; min-height: calc(var(--obrt-hit-min) + 1px + 10px + 132px); }
-    .picker:has(> .picker-list:not([hidden]):not([data-short="true"])):has(> .picker-search:not([hidden])) { min-height: calc(var(--obrt-hit-min) * 2 + 1px + 20px + 132px); }
+    /* A long list gives way first, down to its 128 px, never under the card below it: the tabs, the search and that much stay. */
+    .picker:has(> .picker-list:not([hidden]):not([data-short="true"])) { flex: 0 99 auto; min-height: calc(var(--obrt-hit-min) + 1px + 10px + 128px); }
+    .picker:has(> .picker-list:not([hidden]):not([data-short="true"])):has(> .picker-search:not([hidden])) { min-height: calc(var(--obrt-hit-min) * 2 + 1px + 20px + 128px); }
     /* Only the list gives way: the tabs would otherwise shrink to nothing. */
     .picker > :not(.picker-list) { flex: 0 0 auto; }
     /* Tabs change page: light and underlined, so that the outcome stays the panel's strongest control. */
@@ -107,7 +107,7 @@
        the list ends and the card of what is chosen begins. A short list is as tall as its rows (filterPicker). The rows take
        the list's columns, so that the cost starts at one point on every row and the uses end on the right. */
     .picker-list, .picker-menu { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-content: start; row-gap: var(--list-gap); }
-    .picker-list { flex: 0 1 auto; min-height: 132px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
+    .picker-list { flex: 0 1 auto; min-height: 128px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
     .picker-list[data-short="true"] { min-height: 0; }
     .picker-list > .picker-level, .picker-list > .picker-row, .picker-menu > .picker-row { grid-column: 1 / -1; }
     .picker-list > .picker-row, .picker-menu > .picker-row { display: grid; grid-template-columns: subgrid; }
@@ -174,7 +174,9 @@
     .cost-tag[data-cost="reaction"]::before { width: 6px; height: 6px; transform: rotate(45deg); }
     /* Cantrips and spells: the slots left and the concentration in progress; a spell the console does not resolve. */
     .caster-state { display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; }
-    /* A long text (Forma Selvatica's details) scrolls inside its card instead of covering the list above it. */
+    /* A long text (Forma Selvatica's details) scrolls inside its card instead of covering the list above it. Closed, the card
+       keeps its height: Dettagli stays in sight, whatever the list. */
+    .launch:not(:has(> .spell-details[open])) { flex-shrink: 0; }
     .launch { gap: var(--obrt-space-md); overflow-y: auto; align-content: start; padding: var(--obrt-space-lg) var(--obrt-space-xl); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
     /* Its title: the entry chosen, and what its words refer to. */
     .launch-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }

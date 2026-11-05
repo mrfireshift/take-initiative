@@ -1241,7 +1241,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       header.hidden=!!query && !shown.has(header.dataset.group);
       if(!header.hidden) lines+=1;
     }
-    // Up to five lines fit in the list's 132 px: it is as tall as they are. A search keeps the list's height, not to jump.
+    // Up to five lines the list is as tall as they are, and gives way to nothing. A search keeps the list's height, not to jump.
     if(!query) pickerList.dataset.short=String(lines<=5);
   }
   pickerSearch?.addEventListener("input",()=>{pickerQuery=pickerSearch.value;filterPicker();});

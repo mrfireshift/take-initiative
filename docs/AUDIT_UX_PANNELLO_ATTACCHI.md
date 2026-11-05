@@ -125,6 +125,7 @@ Provato su una scena reale, il pannello sembrava ancora compresso e senza gerarc
 - **Dati dell'attacco sopra il danno.** Dopo una seconda prova, `+5 al tiro · portata 1,5 m` e allo stesso modo TS, area e ricarica passano in cima al riquadro del danno; nelle aree, che non hanno riquadro, subito sopra il danno. Vanno a capo fra una parte e l'altra, col `·` in fondo alla riga.
 - **Sotto il selettore.** Resta `Multiattacco`, allineato al testo del selettore anche nelle aree, e il nome dell'attacco quando manca il menu che lo dice.
 - **Nessun esito da scegliere.** Un incantesimo senza tiro, come Dardo incantato, ha un solo esito: la console lo segna da sola e non mostra il pulsante `Colpito`, come ha deciso l'utente il 05/11. Sopra il danno si legge `Senza tiro per colpire`. Non conta come scelta del GM: la mappa continua a guidare il bersaglio, e si può chiudere o cambiare attacco senza conferma finché non si scrive il danno. Il fuoco passa alla casella del danno solo se il pannello è già in uso, per non togliere la tastiera alla mappa.
+- **Scheda sotto un elenco lungo.** Con molti incantesimi la scheda si riduceva a 66 px e `Dettagli` restava nascosto, tanto che un clic non lo apriva. Ora cede prima l'elenco, fino a 128 px. La scheda chiusa mantiene la sua altezza; aperta, il testo scorre al suo interno.
 - **Testi tagliati.** La casella del danno mostra solo formule fino a 6 caratteri: una più lunga resta accanto. `Etichetta` non ha più l'esempio, che passa nel suggerimento.
 - **Dettagli.** Uno stacco fra dati, testo e «Ai livelli superiori».
 
@@ -181,6 +182,7 @@ Al banco, sui 38 stati:
 
 - [ ] **Altezza:** la finestra resta di 560 px, qualunque scheda si apra.
 - [ ] **Elenchi:** stessa distanza fra le righe in Incantesimi, Capacità, menu degli attacchi, menu del bersaglio, extra e creature.
+- [ ] **Elenco lungo:** con molti incantesimi `Dettagli` si vede subito e si apre al primo clic. Aperto, l'elenco si accorcia e il testo scorre nella scheda; richiuso, torna tutto come prima.
 - [ ] **Testata:** maniglia e nome ben distinti, entrambi staccati dal bordo. Il trascinamento funziona come prima.
 - [ ] **Attacco di un PG:** `Mischia` sul selettore, non nelle righe del menu, e nessuna riga sotto.
 - [ ] **Dardo incantato:** nessun pulsante di esito, sopra il danno `Senza tiro per colpire`, e il bersaglio segue ancora la mappa. Scrivi il danno e premi Invio: il dardo dopo è pronto, sullo stesso bersaglio, con lo slot speso una volta sola. Chiudendo prima di scrivere non chiede conferma.
