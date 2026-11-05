@@ -530,6 +530,6 @@ test("SP-B03E.2 — il pannello unificato delega single-save allo stesso popup a
   assert.equal(built.payload.action.rangeOrigin, "root");
   assert.equal(built.payload.zoneItemId, "hand-token-1");
   const popover = buildSpellUnifiedActivePopoverRequest(built.payload);
-  assert.equal(popover.height, 350);
+  assert.equal(popover.height, 270, "resolved at the table: no outcome row");
   assert.match(popover.url, /spell-active-resolution\.html\?payload=/);
 });

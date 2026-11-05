@@ -77,7 +77,7 @@ import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { openReferencePopover } from "./referencePopover.js";
 import { spellActiveResolutionPopoverId } from "./spellActiveResolutionCore.js";
-import { DELAYED_BLAST_FIREBALL_ID } from "./delayedBlastFireballRules.js";
+import { DELAYED_BLAST_FIREBALL_ID, DELAYED_BLAST_FIREBALL_POPOVER_HEIGHT } from "./delayedBlastFireballRules.js";
 import {
   isSpellUnifiedPopupEvent,
   SPELL_UNIFIED_PANEL_POPUP_CHANNEL,
@@ -741,7 +741,7 @@ export function bootSpellUnifiedPanel(
       id: popoverId,
       url: `/delayed-blast-fireball-resolution.html?payload=${encodeURIComponent(JSON.stringify(payload))}`,
       width: 360,
-      height: 240,
+      height: DELAYED_BLAST_FIREBALL_POPOVER_HEIGHT,
       anchorReference: "POSITION",
       anchorPosition: await activePopoverAnchor(casterId),
       anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },

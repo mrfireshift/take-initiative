@@ -10,12 +10,14 @@ import {
   spellActiveResolutionSelectedTargetId,
   spellActiveResolutionTokenDisplayName,
   formatCompactTarget,
+  spellActiveResolutionPopoverHeight,
 } from "./spellActiveResolutionCore.js";
 import {
   PRISMATIC_WALL_LAYER_IDS,
   prismaticWallFirstRemainingLayer,
   prismaticWallLayerById,
   prismaticWallStateFromCastContext,
+  prismaticWallTraversalPlan,
 } from "./prismaticWallRules.js";
 import {
   TELEKINESIS_OUTCOMES,
@@ -70,6 +72,7 @@ import {
   spellDamageDefenseRows,
   spellDamageDefenseText,
   spellDamageDefenseTitle,
+  spellDamagePartAfterDefense,
 } from "./spellDamageDefenseCore.js";
 
 const META_KEY = `${ID}/meta`;
@@ -113,7 +116,6 @@ let pendingPlacementAnchorTargetId = "";
 let committingPlacementRequestId = "";
 let anchoredTargetSyncPromise = null;
 let desiredAnchoredTargetId = "";
-let resizeFrame = 0;
 let lastPopoverHeight = 0;
 let sdkReady = false;
 let fixedRadiusPreviewCleanup = null;
@@ -124,29 +126,108 @@ function sceneOperationId(prefix = "spell-active") {
   return `${prefix}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
 }
 
+// The window's one height for this kind of popup: it never follows the content.
 function requestCompactPopoverResize() {
   if (!payload || !sdkReady) return;
-  cancelAnimationFrame(resizeFrame);
-  resizeFrame = requestAnimationFrame(() => {
-    const app = $("app");
-    if (!app) return;
-    const rectHeight = app.getBoundingClientRect?.().height || 0;
-    const naturalHeight = Math.ceil(
-      Math.max(rectHeight, app.offsetHeight || 0, app.scrollHeight || 0) + 8,
-    );
-    const targetHeight = Math.max(90, Math.min(620, naturalHeight));
-    if (targetHeight === lastPopoverHeight) return;
-    const id = popoverIdFromPayload(payload);
-    if (!id) return;
-    OBR.popover.setHeight(id, targetHeight)
-      .then(() => {
-        lastPopoverHeight = targetHeight;
-      })
-      .catch(() => {});
+  const targetHeight = spellActiveResolutionPopoverHeight(payload);
+  if (targetHeight === lastPopoverHeight) return;
+  const id = popoverIdFromPayload(payload);
+  if (!id) return;
+  lastPopoverHeight = targetHeight;
+  OBR.popover.setHeight(id, targetHeight).catch(() => {
+    lastPopoverHeight = 0;
   });
 }
 
 const $ = (id) => document.getElementById(id);
+
+// An outcome button's state: `.segmented` (console-shell.css) colours it from data-outcome and aria-pressed.
+function markOutcome(button, outcome, pressed) {
+  button.dataset.outcome = outcome;
+  button.setAttribute("aria-pressed", String(pressed));
+}
+
+// The main button as in the consoles: red when it registers damage, blue for everything else.
+function applyRegistersDamage() {
+  if (isPreparedResolution()) return !!preparedPhasePlan()?.resolution?.mechanics?.damageBonus;
+  return !!payload?.action?.damage || isPrismaticWallTraversal();
+}
+
+const TARGET_ON_THE_MAP = "Seleziona il bersaglio sulla mappa";
+
+// A target's hit points, as the consoles show them: the bare numbers in a list of creatures.
+function targetHpNumbers(item) {
+  const meta = item?.metadata?.[META_KEY] || {};
+  const hp = Number(meta.hp);
+  const hpMax = Number(meta.hpMax);
+  return Number.isFinite(hp) && Number.isFinite(hpMax) && hpMax > 0 ? `${hp}/${hpMax}` : "";
+}
+
+function targetHpText(item) {
+  const numbers = targetHpNumbers(item);
+  return numbers ? `${numbers} PF` : "";
+}
+
+// A target in a menu: its name, what the action says of it, its hit points.
+function targetOptionLabel(item, note = "") {
+  return [displayName(item), note, targetHpText(item)].filter(Boolean).join(" · ");
+}
+
+// A damage or healing row's label, as in the consoles: what it is, then its dice. A type the GM chooses is no name.
+function renderAmountLabel(node, type, dice) {
+  if (!node) return;
+  const word = typeof type === "string" && type.trim() && !/^del /iu.test(type.trim()) ? type.trim() : "danno";
+  const name = document.createElement("span");
+  name.textContent = word[0].toLocaleUpperCase("it") + word.slice(1);
+  node.replaceChildren(name);
+  if (dice) {
+    const meta = document.createElement("span");
+    meta.className = "dice";
+    meta.textContent = dice;
+    node.append(meta);
+  }
+}
+
+// The save's DC: the action's own, the one fixed at the cast, or the caster's sheet.
+function actionSaveDC() {
+  const caster = sceneItems.find((item) => item?.id === payload?.casterId);
+  const dc = Number(payload?.action?.save?.dc
+    ?? payload?.castContext?.spellSaveDC
+    ?? payload?.spellSaveDC
+    ?? caster?.metadata?.[META_KEY]?.initiativeCard?.spellSaveDC);
+  return Number.isInteger(dc) && dc > 0 ? dc : null;
+}
+
+// The action's cost as in the consoles, in its colour and shape. A prepared spell has paid it; a GM's command has none.
+function renderEconomy() {
+  const node = $("economy");
+  const value = isTelekinesisContest() ? "action" : payload?.action?.economy;
+  const free = isPreparedResolution() || isBlinkReturn() || isPrismaticWallAction() || value === "gm";
+  node.textContent = free ? "" : economyLabel(value);
+  node.dataset.cost = value === "bonus-action" ? "bonus" : "action";
+  node.hidden = free;
+}
+
+// Who acts and, when the main button does not say it already, what: the same words never twice.
+function renderHeadingSubtitle() {
+  const spellTitle = String(payload.spellName || payload.spellId || "Incantesimo").trim();
+  const singleSave = isSingleSave();
+  const activeActionTitle = singleSave
+    ? payload.action?.buttonLabel || payload.action?.label || spellTitle
+    : payload.action?.buttonLabel || payload.action?.label;
+  const rawActionLabel = String(activeActionTitle || "").trim();
+  const actionWords = rawActionLabel.toLocaleLowerCase("it");
+  const buttonWords = $("footer").hidden || $("apply").hidden
+    ? ""
+    : String($("apply").textContent || "").trim().toLocaleLowerCase("it");
+  const buttonSaysIt = !!buttonWords && (actionWords === buttonWords || actionWords.startsWith(`${buttonWords} `));
+  const redundant = isPreparedResolution() || actionWords === "risolvi" || buttonSaysIt
+    || actionWords === spellTitle.toLocaleLowerCase("it");
+  const casterName = String(payload.casterName || payload.casterId || "").trim();
+  const text = [casterName, redundant ? "" : rawActionLabel].filter(Boolean).join(" · ");
+  $("subtitle").textContent = text;
+  $("subtitle").hidden = !text;
+}
 
 function conditionInstances(value) {
   if (Array.isArray(value)) return value;
@@ -535,9 +616,21 @@ function createChildActivationId() {
   return `${payload.instanceId}:${payload.actionId}:${Date.now()}`;
 }
 
+// What the action places, in the panel's words when it is an area: its button before and after, and the line once confirmed.
+function placementWords() {
+  if (isCallLightning()) return { place: "Posiziona il fulmine", again: "Riposiziona il fulmine", done: "Fulmine confermato" };
+  if (isFlameInvestiture()) return { place: "Posiziona la linea di fuoco", again: "Riposiziona la linea di fuoco", done: "Linea di fuoco confermata" };
+  if (isHolyWeapon()) return { place: "Posiziona l'esplosione", again: "Riposiziona l'esplosione", done: "Esplosione confermata" };
+  if (isPrimaryTargetAnchoredArea()) return { place: "Centra sul bersaglio dell'attacco", again: "Centra di nuovo sul bersaglio", done: "Esplosione confermata" };
+  return { place: "Posiziona area", again: "Riposiziona area", done: "Area confermata" };
+}
+
+function creaturesHit(count) {
+  return count === 1 ? "1 creatura colpita" : count ? `${count} creature colpite` : "nessuna creatura colpita";
+}
+
 function renderContext() {
   if (isTelekinesisContest()) {
-    $("eyebrow").textContent = "Telecinesi · contesa manuale";
     $("saveTitle").hidden = true;
     $("placementToolbar").hidden = true;
     $("childCountField").hidden = true;
@@ -558,8 +651,6 @@ function renderContext() {
     return;
   }
   if (isBlinkReturn()) {
-    $("eyebrow").textContent = "";
-    $("eyebrow").hidden = true;
     $("blinkReturnHint").textContent = "";
     $("blinkReturnHint").hidden = true;
     $("saveTitle").hidden = true;
@@ -581,7 +672,6 @@ function renderContext() {
     return;
   }
   if (isPrismaticWallAction()) {
-    $("eyebrow").textContent = "Comando GM";
     $("saveTitle").hidden = true;
     $("placementToolbar").hidden = true;
     $("childCountField").hidden = true;
@@ -597,16 +687,12 @@ function renderContext() {
     $("attackSection").hidden = true;
     $("damageField").hidden = true;
     $("singleSaveDamageField").hidden = true;
-    $("prismaticWallTitle").textContent = isPrismaticWallTraversal()
-      ? "Attraversamento · strati residui"
-      : "Gestione strati";
     return;
   }
   if (isPreparedResolution()) {
     const action = preparedAction();
     if (action?.type === "manual") {
       const damageField = $("attackDamage")?.closest(".field");
-      $("eyebrow").textContent = "Incantesimo attivo";
       $("saveTitle").hidden = true;
       $("placementToolbar").hidden = true;
       $("childCountField").hidden = true;
@@ -619,7 +705,6 @@ function renderContext() {
       $("attackAdvantage").hidden = !String(action.detail || "").trim();
       $("attackAdvantage").textContent = String(action.detail || "").trim();
       $("saveTargetHint").hidden = true;
-      $("summary").hidden = true;
       $("singleSaveSection").hidden = true;
       $("singleHealSection").hidden = true;
       if (damageField) damageField.hidden = true;
@@ -630,7 +715,6 @@ function renderContext() {
     const plan = preparedPhasePlan();
     const damage = plan?.resolution?.mechanics?.damageBonus || null;
     const damageField = $("attackDamage")?.closest(".field");
-    $("eyebrow").textContent = "Incantesimo preparato";
     $("saveTitle").hidden = true;
     $("placementToolbar").hidden = true;
     $("childCountField").hidden = true;
@@ -640,13 +724,11 @@ function renderContext() {
     $("attackOutcomes").hidden = true;
     $("attackAdvantage").hidden = true;
     $("saveTargetHint").hidden = true;
-    $("summary").hidden = true;
     $("singleHealSection").hidden = true;
     if (damageField) damageField.hidden = true;
     attackOutcome = "hit";
     $("attackTitle").textContent = "Bersaglio";
-    const damageLabel = [damage?.dice, damage?.type].filter(Boolean).join(" ");
-    $("attackDamageLabel").textContent = "Danno";
+    renderAmountLabel($("attackDamageLabel"), damage?.type, damage?.dice);
     $("attackDamage").placeholder = "Totale";
     return;
   }
@@ -656,14 +738,8 @@ function renderContext() {
   const primaryTargetArea = isPrimaryTargetAnchoredArea();
   const child = childZone();
   const singleSave = isSingleSave();
-  const singleHeal = isSingleHeal();
   const fixedRadius = fixedCasterRadiusConfig();
   const childLabel = childKindLabel(child?.childKind);
-  // A heal without an aura (Goodberry's anyCreature) is an active spell, not an aura.
-  $("eyebrow").textContent = singleHeal
-    ? payload?.action?.anyCreature === true ? "Incantesimo attivo" : "Aura Attiva"
-    : "";
-  $("eyebrow").hidden = !$("eyebrow").textContent;
   $("saveTitle").hidden = callLightning || true;
   $("saveTitle").textContent = callLightning
       ? "Richiama il fulmine"
@@ -681,26 +757,17 @@ function renderContext() {
   const autoAnchoredArea = primaryTargetArea
     && payload?.action?.anchorTargetFromSelection === true;
   $("placementToolbar").hidden = !!fixedRadius || autoAnchoredArea;
-  $("place").textContent = callLightning
-    ? "Posiziona il fulmine"
-    : flameInvestiture
-      ? "Posiziona la linea di fuoco"
-      : holyWeapon
-        ? "Posiziona l'esplosione"
-      : primaryTargetArea
-        ? "Centra sul bersaglio dell'attacco"
-      : child
-        ? `Posiziona ${childLabel.toLocaleLowerCase("it-IT")}`
-    : "Posiziona sagoma";
+  const placementLabels = placementWords();
+  $("place").textContent = child
+    ? `Posiziona ${childLabel.toLocaleLowerCase("it-IT")}`
+    : placement ? placementLabels.again : placementLabels.place;
   const damage = payload?.action?.damage || {};
   const activeDamageFormula = spellActiveResolutionDamageFormula({
     action: payload?.action,
     slotLevel: payload?.slotLevel,
     outcome: manualSaveAtTable() ? payload?.action?.assumedOutcome || "failed" : saveOutcome,
   }).scaledFormula;
-  const damageLabel = [activeDamageFormula || damage.formula || "Danno", damage.type || ""]
-    .join(" ")
-    .trim();
+  const damageDice = activeDamageFormula || damage.formula || "";
   const wallOfLight = payload?.spellId === "xanathar-muro-di-luce"
     && payload?.actionId === "wall-of-light-beam";
   const activeActionLabel = String(payload?.action?.label || "Risoluzione dell'attacco").trim();
@@ -708,10 +775,7 @@ function renderContext() {
     ? activeActionLabel.replace(/\d+d\d+/iu, activeDamageFormula)
     : activeActionLabel;
   const attackDamageLabel = $("attackDamageLabel");
-  if (attackDamageLabel) {
-    attackDamageLabel.textContent = damageLabel ? `Danno ${damageLabel}` : "Danno";
-    attackDamageLabel.hidden = wallOfLight;
-  }
+  if (attackDamageLabel) renderAmountLabel(attackDamageLabel, damage.type, damageDice);
   if (wallOfLight) {
     $("attackDamage").setAttribute("aria-label", "Danno del Raggio radioso");
   } else {
@@ -740,27 +804,9 @@ function renderContext() {
     $("singleSaveTitle").textContent = manualSave
       ? String(payload?.action?.manualOutcomeLabel || "Esito al tavolo").trim()
       : ability ? `TS ${ability}` : "Tiro salvezza";
-    $("singleSaveDamageLabel").textContent = "Danno";
+    renderAmountLabel($("singleSaveDamageLabel"), damage.type, damageDice);
   }
-  if (singleHeal) {
-    const healingFormula = spellActiveResolutionHealingFormula({
-      action: payload?.action,
-      slotLevel: payload?.slotLevel,
-    }).scaledFormula;
-    $("singleHealTitle").textContent = "Bersaglio";
-    $("healAmountLabel").textContent = healingFormula
-      ? `Cura · ${healingFormula}`
-      : "Cura";
-  }
-  $("damageLabel").textContent = callLightning
-    ? "Danno del fulmine"
-    : flameInvestiture
-      ? "Danno della linea di fuoco"
-      : holyWeapon
-        ? "Danno dell'esplosione"
-      : primaryTargetArea
-        ? "Danno dell'esplosione"
-    : damageLabel ? "Danno " + damageLabel : "Danno pieno";
+  renderAmountLabel($("damageLabel"), damage.type, damageDice);
   if (child) {
     const minimum = Math.max(1, Math.floor(Number(child.placementCount?.min) || 1));
     const maximum = Math.max(minimum, Math.floor(Number(child.placementCount?.max) || minimum));
@@ -985,11 +1031,41 @@ async function stormTargetData() {
   return { area, rootReady, entries: entries.filter(Boolean) };
 }
 
-function setStatus(message, stale = false) {
+// A message in the bar at the bottom. Its kind (ok, warn, error) gives it the consoles' colour and icon.
+function setStatus(message, stale = false, kind = "") {
   statusMessage = String(message || "");
   $("status").textContent = statusMessage;
   $("status").hidden = !statusMessage;
+  $("status").dataset.kind = kind || (stale ? "warn" : "");
   $("app").dataset.state = stale ? "stale" : "ready";
+}
+
+// Beside the main button: what is still missing, or what it will register.
+function renderSummary(missing = "", label = "", amount = null) {
+  const node = $("summary");
+  node.replaceChildren();
+  if (missing) {
+    node.textContent = missing;
+  } else if (Number.isFinite(amount)) {
+    const number = document.createElement("strong");
+    number.textContent = String(amount);
+    node.append(`${label} `, number);
+  }
+  node.hidden = !node.childNodes.length;
+}
+
+// The damage a creature takes, after its defense, once its outcome and its number are known.
+function subjectDamage(subject) {
+  const written = String(subject?.roll ?? "").trim() !== "" && Number.isFinite(Number(subject?.roll));
+  if (!subject?.outcome || !written) return null;
+  const resolved = resolveSpellActiveResolutionDamage({
+    action: payload.action,
+    slotLevel: payload.slotLevel,
+    outcome: subject.outcome,
+    roll: Number(subject.roll),
+    defense: spellDamageDefenseApplied(targetDefenseRows(subject.item)),
+  });
+  return resolved?.valid ? resolved.amount : null;
 }
 
 function renderSave() {
@@ -1000,19 +1076,20 @@ function renderSave() {
   const childCount = childPlacementCount();
   const childLabel = childKindLabel(child?.childKind);
   const fixedRadius = fixedCasterRadiusConfig();
-  $("placementStatus").textContent = child
-    ? `${childLabel} ${childPlacements.length} di ${childCount}${targets.length ? ` · ${targets.length} bersagli` : ""}`
+  // Beside the button that draws it: what has been drawn and whom it hits. While it is being drawn the bar says what to do.
+  $("placementStatus").textContent = pendingPlacementRequestId
+    ? ""
+    : child
+    ? `${childLabel} ${childPlacements.length} di ${childCount}${child.resolution === "save" && targets.length ? ` · ${creaturesHit(targets.length)}` : ""}`
     : fixedRadius
-      ? `${targets.length} bersagli entro ${String(fixedRadius.value).replace(".", ",")} m`
-    : placement && targets.length
-      ? `${targets.length} bersagli`
-      : "";
+      ? `${creaturesHit(targets.length)} entro ${String(fixedRadius.value).replace(".", ",")} m`
+    : placement
+      ? `${placementWords().done}: ${creaturesHit(targets.length)}.`
+      : "Le creature colpite compariranno qui.";
   const damageRequired = !!payload?.action?.damage
     && (!payload?.action?.damageRequiredWithTargetsOnly || targets.length > 0);
   $("damageField").hidden = child || targets.length === 0 || !damageRequired;
-  $("bulkOutcomes").hidden = child
-    ? child.resolution !== "save"
-    : !targets.length;
+  $("bulkOutcomes").hidden = !targets.length || (!!child && child.resolution !== "save");
   $("targets").hidden = !!child && child.resolution !== "save";
   const depthField = $("childDepths");
   depthField.replaceChildren();
@@ -1024,13 +1101,14 @@ function renderSave() {
       const field = document.createElement("div");
       field.className = "child-depth";
       const label = document.createElement("label");
-      label.textContent = `${childKindLabel(child.childKind)} ${index + 1} · ${child.depth.label || "Profondità"}`;
+      const [depthName, depthDie] = String(child.depth.label || "Profondità").split(/\s*[()]/);
+      label.textContent = `${depthName} ${index + 1}`;
       const input = document.createElement("input");
       input.type = "number";
       input.min = String(minimumDepth);
       input.max = String(maximumDepth);
       input.step = "1";
-      input.placeholder = "—";
+      input.placeholder = depthDie || "—";
       input.value = entry.depthRoll === undefined || entry.depthRoll === ""
         ? ""
         : String(entry.depthRoll);
@@ -1048,26 +1126,34 @@ function renderSave() {
     const name = document.createElement("span");
     name.className = "target-name";
     name.textContent = displayName(item);
+    name.title = displayName(item);
     const outcomeLabels = { passed: "Superato", failed: "Fallito", immune: "Immune" };
     row.appendChild(name);
+    const hp = document.createElement("span");
+    hp.className = "target-hp";
+    hp.textContent = targetHpNumbers(item);
+    row.appendChild(hp);
+    const outcomeGroup = document.createElement("div");
+    outcomeGroup.className = "segmented mini";
     for (const outcome of SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES) {
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = outcomeLabels[outcome];
-      button.classList.toggle("active", outcomes.get(item.id) === outcome);
+      markOutcome(button, outcome, outcomes.get(item.id) === outcome);
       button.disabled = busy || !sceneLifecycle.isReady();
       button.addEventListener("click", (event) => {
         event.stopPropagation();
         outcomes.set(item.id, outcome);
         render();
       });
-      row.appendChild(button);
+      outcomeGroup.appendChild(button);
     }
+    row.appendChild(outcomeGroup);
     targetWrap.appendChild(row);
   }
   $("damage").value = $("damage").dataset.value || "";
   $("place").textContent = child && childPlacements.length >= childCount
-    ? `Riposiziona ultima ${childLabel.toLocaleLowerCase("it-IT")}`
+    ? `Riposiziona ${childCount > 1 ? "ultima " : ""}${childLabel.toLocaleLowerCase("it-IT")}`
     : child
       ? `Posiziona ${childLabel.toLocaleLowerCase("it-IT")}`
       : $("place").textContent;
@@ -1217,20 +1303,15 @@ async function renderSingleHeal() {
   selectedHealTarget = resolvedTarget || (entries.length === 1 ? entries[0].id : "");
   const selectedEntry = entries.find((item) => item?.id === selectedHealTarget);
   if (selectedEntry) {
-    renderTargetLine(formatCompactTarget(displayName(selectedEntry)));
+    renderTargetLine(formatCompactTarget(displayName(selectedEntry)), "", selectedEntry);
   } else {
-    renderTargetLine("", "Nessun bersaglio selezionato");
+    renderTargetLine("", TARGET_ON_THE_MAP);
   }
-  $("singleHealTitle").textContent = selectedEntry
-    ? `Bersaglio: ${displayName(selectedEntry)}`
-    : "Bersaglio: —";
   const healingFormula = spellActiveResolutionHealingFormula({
     action: payload?.action,
     slotLevel: payload?.slotLevel,
   }).scaledFormula;
-  $("healAmountLabel").textContent = healingFormula
-    ? `Cura ${healingFormula}`
-    : "Cura";
+  renderAmountLabel($("healAmountLabel"), "cura", healingFormula);
   // A fixed healing (Goodberry's 1 hit point) needs no roll: the field starts with it.
   $("healAmount").value = $("healAmount").dataset.value
     || (/^\d+$/u.test(String(healingFormula || "").trim()) ? String(healingFormula).trim() : "");
@@ -1242,7 +1323,12 @@ async function renderSingleHeal() {
     && healingReady;
   $("apply").disabled = !canResolve;
   $("apply").textContent = "Cura";
-  $("summary").textContent = "";
+  renderSummary(
+    !selectedHealTarget ? "Manca il bersaglio." : !healingReady ? "Manca la cura." : "",
+    "Cura",
+    healingReady ? Number($("healAmount").value) : null,
+  );
+  renderHeadingSubtitle();
   requestCompactPopoverResize();
 }
 
@@ -1254,7 +1340,7 @@ async function renderSingleSave() {
   const entries = await singleSaveTargetData();
   if (!sceneLifecycle.isCurrent(operation)) return;
   select.replaceChildren(new Option("Seleziona il bersaglio", ""));
-  for (const item of entries) select.appendChild(new Option(displayName(item), item.id));
+  for (const item of entries) select.appendChild(new Option(targetOptionLabel(item), item.id));
   const requiredEffectId = String(payload?.action?.requiredTargetEffectId || "").trim();
   const requiredEffect = !!requiredEffectId;
   const linkedTargetId = String(payload?.linkedTargetId || "").trim();
@@ -1319,9 +1405,9 @@ async function renderSingleSave() {
     const targetItem = entries.find((item) => item?.id === selectedSaveTarget);
     const label = targetItem ? formatCompactTarget(displayName(targetItem)) : "";
     const extra = maximilianLinkedTarget ? " [TRATTENUTO]" : "";
-    renderTargetLine(`${label}${extra}`);
+    renderTargetLine(`${label}${extra}`, "", targetItem);
   } else {
-    renderTargetLine("", "Nessun bersaglio selezionato");
+    renderTargetLine("", TARGET_ON_THE_MAP);
   }
   $("saveTargetHint").textContent = singleSaveHintText;
   $("saveTargetHint").hidden = automaticRequiredTarget || !singleSaveHintText;
@@ -1331,15 +1417,21 @@ async function renderSingleSave() {
     && !!saveAbility
     && (manualSave || !!saveOutcome) && damageReady;
   for (const button of document.querySelectorAll("[data-save-outcome]")) {
-    button.classList.toggle("active", button.dataset.saveOutcome === saveOutcome);
+    markOutcome(button, button.dataset.saveOutcome, button.dataset.saveOutcome === saveOutcome);
     button.disabled = busy || !selectedSaveTarget;
   }
   $("apply").disabled = !canResolve;
   $("apply").textContent = manualSave ? (payload?.action?.buttonLabel || "Applica") : "Applica";
   const saveOutcomeRequiredNotice = "Seleziona l'esito del TS";
-  $("summary").textContent = "";
-  $("summary").hidden = true;
+  renderSummary(
+    !selectedSaveTarget ? "Manca il bersaglio."
+      : !manualSave && !saveOutcome ? `${saveOutcomeRequiredNotice}.`
+      : !damageReady ? "Manca il danno." : "",
+    "Danni",
+    damageRequired ? subjectDamage(damageDefenseSubjects()[0]) : null,
+  );
   renderDamageDefenseChips();
+  renderHeadingSubtitle();
   requestCompactPopoverResize();
 }
 
@@ -1384,7 +1476,7 @@ async function renderStorm() {
 
   select.replaceChildren(new Option("Seleziona il bersaglio", ""));
   for (const { item, inside } of entries) {
-    const option = new Option(`${displayName(item)}${inside ? " · vantaggio" : ""}`, item.id);
+    const option = new Option(targetOptionLabel(item, inside ? "vantaggio" : ""), item.id);
     option.dataset.inside = String(inside);
     select.appendChild(option);
   }
@@ -1394,9 +1486,9 @@ async function renderStorm() {
   select.value = selectedAttackTarget;
   const selected = entries.find(({ item }) => item.id === selectedAttackTarget);
   if (selected?.item) {
-    renderTargetLine(formatCompactTarget(displayName(selected.item)));
+    renderTargetLine(formatCompactTarget(displayName(selected.item)), "", selected.item);
   } else if (!multi) {
-    renderTargetLine("", "Nessun bersaglio selezionato");
+    renderTargetLine("", TARGET_ON_THE_MAP);
   } else {
     renderTargetLine("");
   }
@@ -1414,7 +1506,7 @@ async function renderStorm() {
   for (const button of document.querySelectorAll("[data-attack-outcome]")) {
     const outcome = button.dataset.attackOutcome;
     const damageRequired = spellActiveResolutionAttackDamageRequired(payload?.action, outcome);
-    button.classList.toggle("active", outcome === attackOutcome);
+    markOutcome(button, outcome, outcome === attackOutcome);
     button.hidden = !payload?.action?.attack?.outcomes?.includes(outcome);
     button.disabled = !baseReady || (!consoleFlow && damageRequired && !damageValue);
   }
@@ -1422,9 +1514,24 @@ async function renderStorm() {
     const damageNeeded = spellActiveResolutionAttackDamageRequired(payload?.action, attackOutcome);
     if (attackField) attackField.hidden = !damageNeeded;
     $("footer").hidden = false;
-    $("summary").hidden = true;
     $("apply").textContent = "Applica";
     $("apply").disabled = !baseReady || !attackOutcome || (damageNeeded && !damageValue);
+    renderSummary(
+      !selectedAttackTarget ? "Manca il bersaglio."
+        : !attackOutcome ? "Manca l'esito."
+        : damageNeeded && !damageValue ? "Manca il danno." : "",
+      "Danni",
+      damageNeeded ? subjectDamage(damageDefenseSubjects()[0]) : null,
+    );
+  } else if (multi) {
+    const chosen = attackEntries.filter((entry) => entry.targetId);
+    const done = chosen.filter((entry) => entry.attackOutcome && String(entry.damageRoll).trim() !== "");
+    renderSummary(!chosen.length ? "Manca almeno un attacco."
+      : done.length < chosen.length ? "Manca l'esito o il danno di un attacco." : "");
+  } else {
+    // An outcome registers at once here (until lot V10): the fixed row says how.
+    renderSummary(!selectedAttackTarget ? "Manca il bersaglio."
+      : !damageValue ? "Scrivi il danno, poi scegli l'esito." : "L'esito registra subito.");
   }
   attackRows.replaceChildren();
   if (multi) {
@@ -1451,12 +1558,12 @@ async function renderStorm() {
         render();
       });
       const rowOutcomes = document.createElement("div");
-      rowOutcomes.className = "outcomes";
-      for (const value of outcomeDefinitions) {
+      rowOutcomes.className = "outcomes segmented";
+      for (const value of ["hit", "critical", "miss"].filter((outcome) => outcomeDefinitions.includes(outcome))) {
         const button = document.createElement("button");
         button.type = "button";
         button.textContent = outcomeLabels[value] || value;
-        button.classList.toggle("active", entry.attackOutcome === value);
+        markOutcome(button, value, entry.attackOutcome === value);
         button.disabled = busy || !entry.targetId || (requiresZoneRoot && !rootReady);
         button.addEventListener("click", (event) => {
           event.stopPropagation();
@@ -1468,7 +1575,7 @@ async function renderStorm() {
       const damageField = document.createElement("div");
       damageField.className = "field";
       const damageLabel = document.createElement("label");
-      damageLabel.textContent = `Danno ${payload?.action?.damage?.formula || ""} ${payload?.action?.damage?.type || ""}`.trim();
+      renderAmountLabel(damageLabel, payload?.action?.damage?.type, payload?.action?.damage?.formula);
       const damageInput = document.createElement("input");
       damageInput.type = "number";
       damageInput.min = "0";
@@ -1489,7 +1596,9 @@ async function renderStorm() {
     ? ""
     : "La zona dell'incantesimo non è più disponibile.";
   $("status").hidden = rootReady || !requiresZoneRoot;
+  $("status").dataset.kind = rootReady || !requiresZoneRoot ? "" : "warn";
   renderDamageDefenseChips();
+  renderHeadingSubtitle();
   requestCompactPopoverResize();
 }
 
@@ -1542,7 +1651,7 @@ function renderPreparedSave(group, targetItems, saveRequired) {
   const target = targetItems.find((item) => item?.id === selectedAttackTarget);
   selectedSaveTarget = String(target?.id || "").trim();
   for (const button of document.querySelectorAll("[data-save-outcome]")) {
-    button.classList.toggle("active", button.dataset.saveOutcome === saveOutcome);
+    markOutcome(button, button.dataset.saveOutcome, button.dataset.saveOutcome === saveOutcome);
     button.disabled = busy || !selectedSaveTarget;
   }
 }
@@ -1567,7 +1676,8 @@ async function renderPrepared() {
     $("attackDamage").closest(".field").hidden = true;
     $("apply").disabled = !sceneLifecycle.isReady() || busy;
     $("apply").textContent = preparedAction(group)?.buttonLabel || "Usa colpo";
-    $("summary").textContent = "";
+    renderSummary();
+    renderHeadingSubtitle();
     return;
   }
   renderPreparedChoice(group);
@@ -1578,19 +1688,19 @@ async function renderPrepared() {
     selectedAttackTarget = targets[0].id;
     targetSelect.hidden = true;
     targetSelect.disabled = true;
-    renderTargetLine(formatCompactTarget(displayName(targets[0])));
+    renderTargetLine(formatCompactTarget(displayName(targets[0])), "", targets[0]);
   } else if (targets.length > 1) {
     targetSelect.hidden = false;
     targetSelect.disabled = busy;
     targetSelect.replaceChildren(new Option("Seleziona bersaglio…", ""));
     for (const t of targets) {
-      targetSelect.appendChild(new Option(displayName(t), t.id));
+      targetSelect.appendChild(new Option(targetOptionLabel(t), t.id));
     }
     const matching = targets.find((t) => t.id === selectedAttackTarget);
     if (matching) {
       selectedAttackTarget = matching.id;
       targetSelect.value = matching.id;
-      renderTargetLine(formatCompactTarget(displayName(matching)));
+      renderTargetLine(formatCompactTarget(displayName(matching)), "", matching);
     } else {
       selectedAttackTarget = "";
       targetSelect.value = "";
@@ -1600,11 +1710,10 @@ async function renderPrepared() {
     selectedAttackTarget = "";
     targetSelect.hidden = true;
     targetSelect.disabled = true;
-    renderTargetLine("", "Nessun bersaglio selezionato");
+    renderTargetLine("", TARGET_ON_THE_MAP);
   }
-  if (!selectedAttackTarget) {
-    setStatus("Seleziona un bersaglio prima di continuare.");
-  } else if (statusMessage === "Seleziona un bersaglio prima di continuare.") {
+  // The target's row already says what is missing: the message only stays while it speaks of something else.
+  if (selectedAttackTarget && statusMessage === "Seleziona un bersaglio prima di continuare.") {
     setStatus("");
   }
 
@@ -1633,7 +1742,14 @@ async function renderPrepared() {
     || !damageReady
     || !saveReady;
   $("apply").textContent = "Risolvi";
-  $("summary").textContent = "";
+  renderSummary(
+    !selectedAttackTarget ? "Manca il bersaglio."
+      : !saveReady ? "Seleziona l'esito del TS."
+      : !damageReady ? "Manca il danno." : "",
+    "Danni",
+    damageRequired && damageReady ? Number(damageInput.value) : null,
+  );
+  renderHeadingSubtitle();
   requestCompactPopoverResize();
 }
 
@@ -1661,16 +1777,50 @@ function updatePrismaticWallApplyState(state = prismaticWallLiveState()) {
     ? prismaticWallTraversalReady(state)
     : !!prismaticWallLayerId;
   $("apply").disabled = !sceneLifecycle.isReady() || busy || !ready;
-  $("summary").textContent = isPrismaticWallTraversal()
-    ? state.exemptCreatureIds.includes(selectedPrismaticTarget)
-      ? state.remainingLayers.length + "/" + PRISMATIC_WALL_LAYER_IDS.length + " strati · creatura esente"
-      : state.remainingLayers.length + "/" + PRISMATIC_WALL_LAYER_IDS.length + " strati · "
-        + state.remainingLayers.filter((layerId) => prismaticLayerOutcomes.has(layerId)).length
-        + "/" + state.remainingLayers.length + " esiti"
-    : state.remainingLayers.length + "/" + PRISMATIC_WALL_LAYER_IDS.length + " strati"
-      + (prismaticWallLayerId
-        ? " · esposto: " + (prismaticWallLayerById(prismaticWallLayerId)?.label || prismaticWallLayerId)
-        : "");
+  if (!isPrismaticWallTraversal()) {
+    renderSummary(`${state.remainingLayers.length}/${PRISMATIC_WALL_LAYER_IDS.length} strati`);
+    return;
+  }
+  if (!selectedPrismaticTarget) {
+    renderSummary("Manca la creatura.");
+    return;
+  }
+  if (state.exemptCreatureIds.includes(selectedPrismaticTarget)) {
+    renderSummary("Creatura esente.");
+    return;
+  }
+  const layersCount = (count) => `${count} ${count === 1 ? "strato" : "strati"}`;
+  const missingOutcomes = state.remainingLayers.filter((layerId) => !prismaticLayerOutcomes.has(layerId)).length;
+  const missingDamage = state.remainingLayers.filter((layerId) => {
+    const outcome = prismaticLayerOutcomes.get(layerId);
+    return outcome && outcome !== "immune" && prismaticWallLayerById(layerId)?.damage
+      && !prismaticWallNumericDamageReady(prismaticLayerDamage.get(layerId));
+  }).length;
+  renderSummary(
+    missingOutcomes ? `Manca l'esito di ${layersCount(missingOutcomes)}.`
+      : missingDamage ? `Manca il danno di ${layersCount(missingDamage)}.` : "",
+    "Danni",
+    prismaticWallTraversalDamage(state),
+  );
+}
+
+// What the whole wall does to the creature, by the plan and the defenses the resolution applies.
+function prismaticWallTraversalDamage(state) {
+  const item = sceneItems.find((entry) => entry?.id === selectedPrismaticTarget);
+  const plan = prismaticWallTraversalPlan({
+    targetId: selectedPrismaticTarget,
+    remainingLayers: state.remainingLayers,
+    outcomes: Object.fromEntries(prismaticLayerOutcomes),
+    damageTotals: Object.fromEntries(prismaticLayerDamage),
+    parentEffectId: payload?.instanceId,
+    sourceId: payload?.casterId,
+  });
+  const defenses = magicalDamageDefensesForItem(item, META_KEY);
+  const ignored = [...(ignoredDefenses.get(selectedPrismaticTarget) || [])];
+  return plan.damageContributions.reduce(
+    (sum, part) => sum + (Number(spellDamagePartAfterDefense(part, defenses, ignored)?.amount) || 0),
+    0,
+  );
 }
 
 function renderPrismaticWall() {
@@ -1698,47 +1848,36 @@ function renderPrismaticWall() {
     targetSelect.hidden = false;
     targetSelect.replaceChildren(new Option("Seleziona la creatura", ""));
     for (const item of candidates) {
-      targetSelect.appendChild(new Option(displayName(item), item.id));
+      targetSelect.appendChild(new Option(targetOptionLabel(item), item.id));
     }
     targetSelect.value = selectedPrismaticTarget;
     targetSelect.disabled = busy || !sceneLifecycle.isReady();
     const exempt = state.exemptCreatureIds.includes(selectedPrismaticTarget);
-    $("prismaticWallHint").textContent = selectedPrismaticTarget
-      ? exempt
-        ? "Creatura designata al lancio: ignora prossimità e strati del muro."
-        : "Risolvi un TS Destrezza per ogni strato ancora presente, dal Rosso al Viola."
-      : "Seleziona una sola creatura; il crossing è dichiarato dal GM al tavolo.";
+    // The menu asks for the creature, the fixed row says it is missing: nothing moves when it is chosen.
+    $("prismaticWallHint").textContent = exempt
+      ? "Creatura designata al lancio: ignora prossimità e strati del muro."
+      : "";
     detail.hidden = true;
     layerWrap.replaceChildren();
-    for (const layerId of state.remainingLayers) {
+    // One row per layer, as the creatures of an area: its name and its damage, its outcome, its number.
+    for (const layerId of exempt ? [] : state.remainingLayers) {
       const layer = prismaticWallLayerById(layerId);
       if (!layer) continue;
       const row = document.createElement("div");
       row.className = "prismatic-wall-layer";
-      const top = document.createElement("div");
-      top.className = "prismatic-wall-layer__top";
+      const name = document.createElement("div");
+      name.className = "prismatic-wall-layer__name";
       const title = document.createElement("strong");
       title.textContent = layer.label;
-      const meta = document.createElement("span");
-      meta.className = "prismatic-wall-layer__meta";
-      meta.textContent = "TS " + saveAbilityLabel(layer.saveAbility)
-        + (layer.damage ? " · " + layer.damage.dice + " " + layer.damage.type : "");
-      top.append(title, meta);
-      const layerDetail = document.createElement("div");
-      layerDetail.className = "prismatic-wall-layer__detail";
-      layerDetail.textContent = layer.damage
-        ? "Fallito: danno pieno · Superato: metà · Immune: nessun danno"
-        : layerId === "indigo"
-          ? "Fallito: Trattenuto · TS Cos alla fine del turno · 3S/3F"
-          : "Fallito: Accecato · TS Sag all'inizio del prossimo turno del caster";
+      name.append(title);
       const outcomeWrap = document.createElement("div");
-      outcomeWrap.className = "prismatic-wall-layer__outcomes";
+      outcomeWrap.className = "segmented mini";
       const outcomeLabels = { passed: "Superato", failed: "Fallito", immune: "Immune" };
       for (const outcome of SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES) {
         const button = document.createElement("button");
         button.type = "button";
         button.textContent = outcomeLabels[outcome];
-        button.classList.toggle("active", prismaticLayerOutcomes.get(layerId) === outcome);
+        markOutcome(button, outcome, prismaticLayerOutcomes.get(layerId) === outcome);
         button.disabled = busy || !sceneLifecycle.isReady() || !selectedPrismaticTarget;
         button.addEventListener("click", (event) => {
           event.stopPropagation();
@@ -1748,20 +1887,21 @@ function renderPrismaticWall() {
         });
         outcomeWrap.appendChild(button);
       }
-      row.append(top, layerDetail, outcomeWrap);
+      row.append(name, outcomeWrap);
       if (layer.damage) {
-        const damageField = document.createElement("div");
-        damageField.className = "prismatic-wall-layer__damage";
         const damageLabel = document.createElement("label");
-        damageLabel.textContent = "Danno · " + layer.damage.dice + " " + layer.damage.type;
+        damageLabel.className = "prismatic-wall-layer__meta";
+        renderAmountLabel(damageLabel, layer.damage.type, layer.damage.dice);
+        name.append(damageLabel);
         const damageInput = document.createElement("input");
+        damageInput.setAttribute("aria-label", `Danno dello strato ${layer.label}`);
         damageInput.type = "number";
         damageInput.min = "0";
         damageInput.step = "1";
         damageInput.inputMode = "numeric";
         damageInput.placeholder = "Totale";
         damageInput.value = prismaticLayerDamage.get(layerId) ?? "";
-        damageInput.disabled = busy || !selectedPrismaticTarget;
+        damageInput.disabled = busy || !selectedPrismaticTarget || prismaticLayerOutcomes.get(layerId) === "immune";
         const defenseBox = document.createElement("div");
         defenseBox.className = "damage-defenses";
         const refreshDefenseChips = () => {
@@ -1775,11 +1915,14 @@ function renderPrismaticWall() {
           updatePrismaticWallApplyState(state);
           refreshDefenseChips();
         });
-        const damageCaption = document.createElement("div");
-        damageCaption.className = "prismatic-wall-layer__caption";
-        damageCaption.append(damageLabel, defenseBox);
-        damageField.append(damageCaption, damageInput);
-        row.appendChild(damageField);
+        row.append(damageInput, defenseBox);
+      } else {
+        const effect = document.createElement("div");
+        effect.className = "prismatic-wall-layer__detail";
+        effect.textContent = layerId === "indigo"
+          ? "Fallito: Trattenuto · TS Cos alla fine del turno · 3S/3F"
+          : "Fallito: Accecato · TS Sag all'inizio del prossimo turno del caster";
+        row.appendChild(effect);
       }
       layerWrap.appendChild(row);
     }
@@ -1788,29 +1931,27 @@ function renderPrismaticWall() {
     targetSelect.hidden = true;
     targetSelect.replaceChildren(new Option("", ""));
     $("prismaticWallHint").textContent = state.remainingLayers.length
-      ? "Gli strati si distruggono solo dopo conferma GM e in ordine dal Rosso al Viola."
-      : "Tutti gli strati sono distrutti; il muro resta attivo fino alla durata RAW o alla rimozione GM.";
+      ? "Gli strati si distruggono in ordine, dal Rosso al Viola."
+      : "Tutti gli strati sono distrutti: il muro resta fino alla sua durata o finché non lo rimuovi.";
     layerWrap.replaceChildren();
     prismaticWallLayerId = prismaticWallFirstRemainingLayer(state.remainingLayers);
     if (prismaticWallLayerId) {
       const layer = prismaticWallLayerById(prismaticWallLayerId);
       const row = document.createElement("div");
       row.className = "prismatic-wall-layer";
-      const top = document.createElement("div");
-      top.className = "prismatic-wall-layer__top";
+      const name = document.createElement("div");
+      name.className = "prismatic-wall-layer__name";
       const title = document.createElement("strong");
       title.textContent = "Esposto: " + layer.label;
-      const meta = document.createElement("span");
-      meta.className = "prismatic-wall-layer__meta";
-      meta.textContent = "Distruzione manuale";
-      top.append(title, meta);
-      const requirement = document.createElement("div");
-      requirement.className = "prismatic-wall-layer__detail";
-      requirement.textContent = "Requisito RAW: " + layer.destructionRequirement;
-      const passive = document.createElement("div");
-      passive.className = "prismatic-wall-layer__detail";
-      passive.textContent = "Proprietà: " + layer.passive;
-      row.append(top, requirement, passive);
+      name.append(title);
+      row.appendChild(name);
+      for (const said of [layer.destructionRequirement, layer.passive]) {
+        if (!said) continue;
+        const line = document.createElement("div");
+        line.className = "prismatic-wall-layer__detail";
+        line.textContent = said;
+        row.appendChild(line);
+      }
       layerWrap.appendChild(row);
       detail.hidden = true;
     } else {
@@ -1840,7 +1981,7 @@ function renderTelekinesis() {
     "",
   ));
   for (const item of entries) {
-    select.appendChild(new Option(displayName(item), item.id));
+    select.appendChild(new Option(targetOptionLabel(item), item.id));
   }
   const resolved = operation === "maintain"
     ? entries.some((item) => item.id === currentTargetId) ? currentTargetId : ""
@@ -1854,13 +1995,10 @@ function renderTelekinesis() {
   select.disabled = busy || !sceneLifecycle.isReady();
   const selectedItem = entries.find((item) => item.id === selectedTelekinesisTarget);
   if (selectedItem) {
-    renderTargetLine(formatCompactTarget(displayName(selectedItem)));
+    renderTargetLine(formatCompactTarget(displayName(selectedItem)), "", selectedItem);
   } else {
-    renderTargetLine("", "Nessuna creatura selezionata");
+    renderTargetLine("", TARGET_ON_THE_MAP);
   }
-  $("telekinesisTitle").textContent = operation === "maintain"
-    ? "Ripeti la contesa sulla creatura collegata"
-    : "Scegli una nuova creatura";
   $("telekinesisHint").textContent = operation === "maintain"
     ? currentTargetId && entries.length
       ? "Il bersaglio corrente resta collegato a questa istanza."
@@ -1869,7 +2007,7 @@ function renderTelekinesis() {
       ? "Il nuovo bersaglio deve essere una creatura diversa da quella corrente e restare entro 18 m dal caster."
       : "Scegli una creatura entro 18 m dal caster.";
   for (const button of document.querySelectorAll("[data-telekinesis-outcome]")) {
-    button.classList.toggle("active", button.dataset.telekinesisOutcome === telekinesisOutcome);
+    markOutcome(button, button.dataset.telekinesisOutcome, button.dataset.telekinesisOutcome === telekinesisOutcome);
     button.disabled = busy || !selectedTelekinesisTarget || !sceneLifecycle.isReady();
   }
   $("apply").disabled = busy
@@ -1880,47 +2018,30 @@ function renderTelekinesis() {
     ? "Conferma contesa"
     : "Conferma nuovo bersaglio";
   $("app").dataset.mode = "telekinesis";
-  $("summary").hidden = true;
-  $("summary").textContent = "";
+  renderSummary(!selectedTelekinesisTarget ? "Manca il bersaglio."
+    : !TELEKINESIS_OUTCOMES.includes(telekinesisOutcome) ? "Manca l'esito della contesa." : "");
 }
 
+// What the action is, in one line above its damage, as the consoles' #pc-attack-facts: the cost is in the header, and the
+// dice in the damage row when there is one.
 function renderActiveMicropills() {
-  const container = $("micropills");
-  if (!container) return;
-  container.replaceChildren();
+  const containers = document.querySelectorAll("[data-facts]");
+  if (!containers.length) return;
   const pills = [];
-
-  // 1. Economia
   const prepared = isPreparedResolution();
   const telekinesis = isTelekinesisContest();
-  const blinkReturn = isBlinkReturn();
-  const prismaticWall = isPrismaticWallAction();
-  const econ = prepared
-    ? ""
-    : telekinesis
-      ? "Azione"
-      : (blinkReturn || prismaticWall)
-        ? "Comando GM"
-        : economyLabel(payload?.action?.economy);
-  if (econ) pills.push(econ);
+  const saveWithDC = (ability) => {
+    const dc = actionSaveDC();
+    return `${ability ? `TS ${saveAbilityLabel(ability) || ability}` : "TS"}${dc ? ` CD ${dc}` : ""}`;
+  };
 
   if (prepared) {
     const plan = preparedPhasePlan();
-    const prepDamage = plan?.resolution?.mechanics?.damageBonus;
-    if (prepDamage) {
-      const dice = String(prepDamage.dice || "").trim();
-      const type = String(prepDamage.type || "").trim();
-      const pill = [dice, type].filter(Boolean).join(" ");
-      if (pill) pills.push(pill);
-    }
     const prepSave = plan?.resolution?.mechanics?.savingThrow;
     if (prepSave) {
-      const ability = String(prepSave.ability || "").trim();
-      pills.push(ability ? `TS ${saveAbilityLabel(ability) || ability}` : "TS");
-      const dc = payload?.spellSaveDC;
-      if (dc) pills.push(`CD ${dc}`);
+      pills.push(saveWithDC(String(prepSave.ability || "").trim()));
       if (prepSave.failureCondition) {
-        pills.push(String(prepSave.failureCondition).trim());
+        pills.push(`${String(prepSave.failureCondition).trim()} se fallisce`);
       }
     }
   } else {
@@ -1933,44 +2054,35 @@ function renderActiveMicropills() {
     if (singleSave && typeof checkLabel === "string") {
       if (checkLabel.trim()) pills.push(checkLabel.trim());
     } else if (saveArea || singleSave) {
-      const ability = payload?.action?.save?.ability || saveAbility;
-      if (ability) pills.push(`TS ${saveAbilityLabel(ability) || ability}`);
-      else pills.push("TS");
-      const dc = payload?.action?.save?.dc || payload?.spellSaveDC;
-      if (dc) pills.push(`CD ${dc}`);
+      pills.push(saveWithDC(payload?.action?.save?.ability || childZone()?.save?.ability || saveAbility));
     } else if (payload?.action?.attack || isMultiAttack()) {
       pills.push("Attacco");
+    } else if (isPrismaticWallTraversal()) {
+      pills.push(`${saveWithDC("dex")} per ogni strato`, "metà se supera");
     }
 
     // 3. Range
     if (payload?.action?.range) {
-      if (payload.action.rangeOrigin === "root") {
-        pills.push(`${payload.action.range.value} ${payload.action.range.unit} dalla mano`);
-      } else {
-        pills.push(`${payload.action.range.value} ${payload.action.range.unit}`);
-      }
+      const reach = `${String(payload.action.range.value).replace(".", ",")} ${payload.action.range.unit}`;
+      pills.push(payload.action.rangeOrigin === "root" ? `${reach} ${payload.action.rangeOriginLabel || "dalla zona"}` : `gittata ${reach}`);
     } else {
       const fixedRadius = fixedCasterRadiusConfig();
       if (fixedRadius?.value) {
-        pills.push(`${String(fixedRadius.value).replace(".", ",")} m`);
+        pills.push(`raggio ${String(fixedRadius.value).replace(".", ",")} m`);
       }
     }
 
-    // 4. Formula e tipo di danno atomico
-    const formula = spellActiveResolutionDamageFormula({
-      action: payload?.action,
-      slotLevel: payload?.slotLevel,
-      outcome: manualSaveAtTable() ? payload?.action?.assumedOutcome || "failed" : saveOutcome,
-    })?.scaledFormula || spellActiveResolutionHealingFormula({
-      action: payload?.action,
-      slotLevel: payload?.slotLevel,
-    })?.scaledFormula || "";
-    const dType = payload?.action?.damage?.type;
-    if (formula && dType && typeof dType === "string") {
-      pills.push(`${formula} ${dType}`);
-    } else {
-      if (formula) pills.push(formula);
-      if (dType && typeof dType === "string") pills.push(dType);
+    // 4. Formula e tipo di danno atomico, solo dove la riga del danno non c'è ancora: un'area senza creature, una sottozona.
+    const damageRowInView = !childZone() && (!saveArea || currentTargetItems().length > 0);
+    if (!damageRowInView) {
+      const formula = spellActiveResolutionDamageFormula({
+        action: payload?.action,
+        slotLevel: payload?.slotLevel,
+        outcome: manualSaveAtTable() ? payload?.action?.assumedOutcome || "failed" : saveOutcome,
+      })?.scaledFormula || "";
+      const dType = payload?.action?.damage?.type;
+      const said = [formula, typeof dType === "string" ? dType : ""].filter(Boolean).join(" ");
+      if (said) pills.push(said);
     }
 
     // 5. Conseguenza del save
@@ -1978,9 +2090,9 @@ function renderActiveMicropills() {
     // place (checkLabel): the damage of Witch Bolt's repeat or of Arcane Hand's crush has no save to pass.
     const savePills = (saveArea || singleSave) && typeof checkLabel !== "string";
     if (savePills && (payload?.action?.save?.halfOnSuccess || payload?.action?.damage?.onSave === "half")) {
-      pills.push("½ successo");
-    } else if (savePills && (payload?.action?.damage?.onSave === "none" || payload?.action?.save?.noDamageOnSuccess)) {
-      pills.push("Nullo se supera");
+      pills.push("metà se supera");
+    } else if (savePills && payload?.action?.damage && (payload.action.damage.onSave === "none" || payload?.action?.save?.noDamageOnSuccess)) {
+      pills.push("nessun danno se supera");
     }
 
     // 6. Condizione
@@ -1997,37 +2109,27 @@ function renderActiveMicropills() {
 
     // 7. Boundary sintetici
     if (manualSaveAtTable() && checkLabel !== "") {
-      pills.push("Al tavolo");
+      pills.push("esito al tavolo");
     }
     if (telekinesis) {
       pills.push("Contesa For vs For");
     }
   }
 
-  for (const pillText of pills) {
-    const span = document.createElement("span");
-    span.className = "micropill";
-    span.textContent = pillText;
-    container.appendChild(span);
-  }
+  const facts = pills.join(" · ");
+  for (const container of containers) container.textContent = facts;
 }
 
-function renderTargetLine(targetName = "", emptyText = "") {
+// The target's row: its label, the creature and its hit points, or what is missing. A menu of targets takes its place.
+function renderTargetLine(targetName = "", emptyText = "", item = null) {
   const line = $("targetLine");
   if (!line) return;
   const cleanName = String(targetName || "").trim();
-  if (cleanName) {
-    line.textContent = `Bersaglio: ${cleanName}`;
-    line.dataset.empty = "false";
-    line.hidden = false;
-  } else if (emptyText) {
-    line.textContent = String(emptyText).trim();
-    line.dataset.empty = "true";
-    line.hidden = false;
-  } else {
-    line.textContent = "";
-    line.hidden = true;
-  }
+  const shown = cleanName || String(emptyText || "").trim();
+  $("targetLineName").textContent = shown;
+  $("targetLineHp").textContent = cleanName ? targetHpText(item) : "";
+  line.dataset.empty = cleanName ? "false" : "true";
+  line.hidden = !shown;
 }
 
 function targetDefenseRows(item) {
@@ -2062,7 +2164,7 @@ function damageDefenseSubjects() {
 function damageDefenseChip({ item, row, numbers, label }) {
   const chip = document.createElement("button");
   chip.type = "button";
-  chip.className = `damage-defense is-${row.defense}`;
+  chip.className = `defense-chip damage-defense is-${row.defense}`;
   chip.textContent = label;
   chip.title = spellDamageDefenseTitle(row, { name: displayName(item), ...numbers, where: "in questa azione" });
   chip.dataset.defenseType = row.type;
@@ -2080,11 +2182,13 @@ function damageDefenseChip({ item, row, numbers, label }) {
   return chip;
 }
 
-// Above the button: each defense at work, what it does to the number, whose it is in the tooltip. A click ignores it.
+// In the fixed row, under the total: each defense at work, what it does to the number, whose it is in the tooltip. A click
+// ignores it.
 function renderDamageDefenseChips() {
   const box = $("damageDefenses");
   if (!box) return;
-  const chips = spellActionDamageTypes(payload?.action).length ? damageDefenseSubjects().flatMap(({ item, outcome, roll }) => {
+  const subjects = spellActionDamageTypes(payload?.action).length ? damageDefenseSubjects() : [];
+  const chips = subjects.flatMap(({ item, outcome, roll }) => {
     const rows = targetDefenseRows(item);
     const written = String(roll ?? "").trim() !== "" && Number.isFinite(Number(roll));
     const resolve = (defense) => (outcome && written
@@ -2094,9 +2198,10 @@ function renderDamageDefenseChips() {
       const before = resolve(null);
       const after = resolve(row.ignored ? null : row.defense);
       const numbers = before?.valid && after?.valid ? { before: before.amount, after: after.amount } : { before: 0, after: 0 };
-      return damageDefenseChip({ item, row, numbers, label: `${displayName(item)} · ${spellDamageDefenseText(row, numbers)}` });
+      const said = spellDamageDefenseText(row, numbers);
+      return damageDefenseChip({ item, row, numbers, label: subjects.length > 1 ? `${displayName(item)} · ${said}` : said });
     });
-  }) : [];
+  });
   box.replaceChildren(...chips);
   box.hidden = chips.length === 0;
 }
@@ -2124,8 +2229,8 @@ function render() {
   if (!payload) return;
   if ($("apply")) $("apply").hidden = false;
   renderBackToChoice();
-  renderTargetLine("");
   renderContext();
+  $("apply").classList.toggle("primary", !applyRegistersDamage());
   const prepared = isPreparedResolution();
   const child = childZone();
   const blinkReturn = isBlinkReturn();
@@ -2134,26 +2239,11 @@ function render() {
   const singleSave = isSingleSave();
   const singleHeal = isSingleHeal();
   const prismaticWall = isPrismaticWallAction();
-  const spellTitle = String(payload.spellName || payload.spellId || "Incantesimo").trim();
-  $("title").textContent = spellTitle;
-  const activeActionTitle = singleSave
-    ? payload.action?.buttonLabel || payload.action?.label || spellTitle
-    : payload.action?.buttonLabel || payload.action?.label;
-  const rawActionLabel = String(activeActionTitle || "").trim();
-  const isDifferentAction = rawActionLabel && rawActionLabel.toLocaleLowerCase("it") !== spellTitle.toLocaleLowerCase("it");
-  const isRedundantSubtitle = prepared || rawActionLabel.toLocaleLowerCase("it") === "risolvi";
-  const shouldShowSubtitle = !isRedundantSubtitle && isDifferentAction;
-  const subtitleNode = $("subtitle");
-  if (subtitleNode) {
-    subtitleNode.textContent = shouldShowSubtitle ? rawActionLabel : "";
-    subtitleNode.hidden = !shouldShowSubtitle;
-  }
-  $("economy").textContent = prepared ? "" : economyLabel(payload.action.economy);
-  $("economy").hidden = true;
-  const casterName = String(payload.casterName || payload.casterId || "").trim();
-  $("caster").textContent = casterName;
-  $("caster").hidden = !casterName;
+  $("title").textContent = String(payload.spellName || payload.spellId || "Incantesimo").trim();
+  renderEconomy();
   renderActiveMicropills();
+  // Before the first answer of the renderers that wait for the scene: from then on they keep it.
+  if ($("subtitle").hidden) renderHeadingSubtitle();
   const requiresSave = payload.action.resolutionKind === "save-area" || child?.resolution === "save";
   const multiAttack = !save && !singleSave && !singleHeal && isMultiAttack();
   const sceneReady = sceneLifecycle.isReady();
@@ -2164,10 +2254,10 @@ function render() {
   $("telekinesisSection").hidden = !telekinesis;
   $("prismaticWallSection").hidden = !prismaticWall;
   $("blinkReturnSection").hidden = !blinkReturn;
-  $("footer").hidden = !save;
-  if (prepared || singleSave || singleHeal || multiAttack || blinkReturn || telekinesis) {
-    $("footer").hidden = false;
-  }
+  $("footer").hidden = false;
+  // An attack whose outcome registers at once (until lot V10): the fixed row says how, with no button.
+  $("apply").hidden = !prepared && !save && !singleSave && !singleHeal && !telekinesis && !prismaticWall && !blinkReturn
+    && !multiAttack && !isConsoleFlowAttack();
   if (telekinesis) {
     $("saveSection").hidden = true;
     $("singleSaveSection").hidden = true;
@@ -2177,10 +2267,9 @@ function render() {
     $("blinkReturnSection").hidden = true;
     $("footer").hidden = false;
     $("apply").hidden = false;
-    $("economy").textContent = "Azione";
-    renderActiveMicropills();
     renderTelekinesis();
     if (statusMessage) $("status").textContent = statusMessage;
+    renderHeadingSubtitle();
     requestCompactPopoverResize();
     return;
   }
@@ -2191,13 +2280,12 @@ function render() {
     $("attackSection").hidden = true;
     $("footer").hidden = false;
     $("title").textContent = payload.spellName || "Muro Prismatico";
-    $("economy").textContent = "Comando GM";
-    renderActiveMicropills();
     $("apply").textContent = isPrismaticWallTraversal()
       ? "Risolvi attraversamento"
       : "Segna strato distrutto";
     renderPrismaticWall();
     if (statusMessage) $("status").textContent = statusMessage;
+    renderHeadingSubtitle();
     requestCompactPopoverResize();
     return;
   }
@@ -2209,16 +2297,15 @@ function render() {
     $("prismaticWallSection").hidden = true;
     $("footer").hidden = false;
     $("title").textContent = payload.spellName || "Intermittenza";
-    $("economy").textContent = "Comando GM";
-    renderActiveMicropills();
     $("apply").hidden = true;
     $("apply").textContent = "Ritorna";
-    $("summary").textContent = "";
+    renderSummary();
     $("blinkPlace").disabled = !sceneReady || busy;
     $("blinkPlace").textContent = "Scegli destinazione";
     $("blinkPlacementStatus").textContent = "";
     $("apply").disabled = true;
     if (statusMessage) $("status").textContent = statusMessage;
+    renderHeadingSubtitle();
     requestCompactPopoverResize();
     return;
   }
@@ -2227,6 +2314,7 @@ function render() {
   const cancelPlacementButton = $("cancelPlacement");
   const autoAnchoredArea = isPrimaryTargetAnchoredArea()
     && payload?.action?.anchorTargetFromSelection === true;
+  $("place").hidden = placementPending;
   if (confirmPlacementButton) {
     confirmPlacementButton.hidden = !placementPending || autoAnchoredArea;
     confirmPlacementButton.disabled = !placementPending || autoAnchoredArea || !sceneReady;
@@ -2263,17 +2351,26 @@ function render() {
     $("apply").textContent = child
       ? "Conferma"
       : payload?.action?.buttonLabel || "Risolvi";
-    $("summary").textContent = "";
     renderSave();
+    const missingOutcomes = requiresSave
+      ? currentTargetItems().filter((item) => !SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES.includes(outcomes.get(item.id))).length
+      : 0;
+    renderSummary(
+      child
+        ? selectedCount !== requiredCount ? "Manca la posizione."
+          : missingOutcomes ? `Manca l'esito di ${missingOutcomes} ${missingOutcomes === 1 ? "creatura" : "creature"}.`
+          : !depthValid ? `La profondità va da ${child.depth.min} a ${child.depth.max}.` : ""
+        : !placement ? "Manca l'area."
+        : !placement.targetIds?.length && payload?.action?.allowEmptyTargets !== true ? "Nessuna creatura nell'area."
+        : missingOutcomes ? `Manca l'esito di ${missingOutcomes} ${missingOutcomes === 1 ? "creatura" : "creature"}.`
+        : damageInputMissing && areaDamageRequired ? "Manca il danno." : "",
+      "Danni",
+      !child && payload?.action?.damage && !damageInputMissing ? Number($("damage").value) : null,
+    );
+    renderHeadingSubtitle();
   } else if (singleSave) {
-    $("apply").disabled = true;
-    $("apply").textContent = "Applica";
-    $("summary").textContent = "Caricamento bersagli…";
     void renderSingleSave();
   } else if (singleHeal) {
-    $("apply").disabled = true;
-    $("apply").textContent = "Cura";
-    $("summary").textContent = "Caricamento bersagli…";
     void renderSingleHeal();
   } else {
     const completeAttacks = attackEntries.filter((entry) => (
@@ -2283,11 +2380,6 @@ function render() {
       $("apply").disabled = !sceneReady || busy || !completeAttacks.length
         || completeAttacks.length < attackEntries.filter((entry) => entry.targetId).length;
       $("apply").textContent = "Applica attacchi";
-      $("summary").textContent = "";
-      $("summary").hidden = true;
-    } else {
-      $("summary").textContent = "";
-      $("summary").hidden = true;
     }
     void renderStorm();
   }
@@ -2345,7 +2437,7 @@ async function placeBlinkReturn() {
     if (result?.status !== "confirmed" || !result.preview) {
       setStatus(result?.status === "cancelled"
         ? "Scelta dello spazio annullata."
-        : "Spazio di ritorno non confermato.");
+        : "Spazio di ritorno non confermato.", false, "warn");
       return;
     }
     const position = point(result.preview.position || result.preview.start);
@@ -2362,7 +2454,7 @@ async function placeBlinkReturn() {
     await apply();
   } catch (error) {
     if (pendingPlacementRequestId === requestId) {
-      setStatus(`Scelta dello spazio non riuscita: ${error?.message || error}`);
+      setStatus(`Scelta dello spazio non riuscita: ${error?.message || error}`, false, "error");
     }
   } finally {
     if (pendingPlacementRequestId === requestId) {
@@ -2400,7 +2492,7 @@ async function placeArea(anchorTargetOverride = "") {
   if (anchoredArea && selectedAnchorIds.length !== 1) {
     setStatus(selectedAnchorIds.length
       ? "Seleziona un solo bersaglio dell'attacco sulla mappa."
-      : "Seleziona il bersaglio dell'attacco sulla mappa.");
+      : "Seleziona il bersaglio dell'attacco sulla mappa.", false, "warn");
     return;
   }
   const anchorTargetId = selectedAnchorIds[0] || "";
@@ -2463,7 +2555,7 @@ async function placeArea(anchorTargetOverride = "") {
           const allowedIds = new Set(placement.targetIds);
           outcomes = new Map([...outcomes].filter(([id]) => allowedIds.has(id)));
           busy = committingPlacementRequestId === requestId;
-          setStatus("Esplosione ancorata. Seleziona gli esiti dei TS nell'area.");
+          setStatus("Esplosione ancorata. Seleziona gli esiti dei TS nell'area.", false, "ok");
           render();
         }
         : undefined,
@@ -2473,7 +2565,7 @@ async function placeArea(anchorTargetOverride = "") {
     if (!sceneLifecycle.isCurrent(operation)
       || pendingPlacementRequestId !== requestId) return;
     if (result?.status !== "confirmed" || !result.preview) {
-      setStatus(result?.status === "cancelled" ? "Posizionamento annullato." : "Posizionamento non confermato.");
+      setStatus(result?.status === "cancelled" ? "Posizionamento annullato." : "Posizionamento non confermato.", false, "warn");
       return;
     }
     if (child) {
@@ -2513,18 +2605,12 @@ async function placeArea(anchorTargetOverride = "") {
         outcomes = new Map();
       }
     }
-    setStatus(child
-      ? `${childKindLabel(child.childKind)} confermato. ${childPlacements.length} di ${childCount}.`
-      : anchoredArea
-      ? "Esplosione ancorata. Seleziona gli esiti dei TS nell'area."
-      : isCallLightning()
-      ? "Fulmine confermato. I bersagli sono ora bloccati."
-      : isFlameInvestiture()
-        ? "Linea di fuoco confermata. I bersagli sono ora bloccati."
-        : "Sagoma confermata. I bersagli sono ora bloccati.");
+    // The step's own line says what has been drawn and whom it hits (renderSave); an anchored area has no such line.
+    if (anchoredArea) setStatus("Esplosione ancorata. Seleziona gli esiti dei TS nell'area.", false, "ok");
+    else setStatus("");
   } catch (error) {
     if (pendingPlacementRequestId === requestId) {
-      setStatus(`Posizionamento non riuscito: ${error?.message || error}`);
+      setStatus(`Posizionamento non riuscito: ${error?.message || error}`, false, "error");
     }
   } finally {
     if (pendingPlacementRequestId === requestId) {
@@ -2547,7 +2633,7 @@ async function confirmPlacement() {
     if (!sceneLifecycle.isCurrent(operation)) return;
     setStatus("Conferma della sagoma richiesta: completa il calcolo dei bersagli…");
   } catch (error) {
-    setStatus("Conferma della sagoma non riuscita: " + (error?.message || error));
+    setStatus("Conferma della sagoma non riuscita: " + (error?.message || error), false, "error");
   }
 }
 
@@ -2560,7 +2646,7 @@ async function cancelPlacement() {
     await cancelSpellAreaPlacementRequest(requestId, { broadcast: OBR.broadcast });
     if (!sceneLifecycle.isCurrent(operation)) return;
   } catch (error) {
-    setStatus("Annullamento della sagoma non riuscito: " + (error?.message || error));
+    setStatus("Annullamento della sagoma non riuscito: " + (error?.message || error), false, "error");
   }
 }
 
@@ -2572,7 +2658,7 @@ async function applyPreparedResolution() {
   const action = preparedAction(group);
   const manual = action?.type === "manual";
   if (!group || !action || (!manual && !selectedAttackTarget)) {
-    setStatus("Seleziona un bersaglio prima di continuare.");
+    setStatus("Seleziona un bersaglio prima di continuare.", false, "warn");
     return;
   }
   attackOutcome = "hit";
@@ -2644,12 +2730,23 @@ async function applyPreparedResolution() {
     const code = String(error?.message || error);
     setStatus(code === "prepared-spell-targets-required"
       ? "Seleziona un bersaglio valido."
-      : `Risoluzione non riuscita: ${code}`);
+      : `Risoluzione non riuscita: ${code}`, false, "error");
     await notifyParent(SPELL_UNIFIED_PANEL_POPUP_STATUSES.FAILED, code);
   } finally {
     busy = false;
     if (sceneLifecycle.isReady()) render();
   }
+}
+
+// A refusal the GM can act on, in words. Any other keeps its code, for whoever has to look into it.
+function resolutionErrorText(error) {
+  const message = String(error?.message || error);
+  if (message.includes("child-placement-outside-parent")) {
+    return childZone()?.childKind === "fissure"
+      ? "La fessura deve andare da un bordo all'altro della zona: riposizionala."
+      : "Il vortice deve stare dentro la zona: riposizionalo.";
+  }
+  return `Risoluzione non riuscita: ${message}`;
 }
 
 async function apply() {
@@ -2787,7 +2884,7 @@ async function apply() {
       SPELL_UNIFIED_PANEL_POPUP_STATUSES.FAILED,
       error?.message || error,
     );
-    setStatus(`Risoluzione non riuscita: ${error?.message || error}`);
+    setStatus(resolutionErrorText(error), false, "error");
     render();
   } finally {
     if (committingPlacementRequestId === anchoredPlacementRequestId) {
@@ -2969,11 +3066,6 @@ if (!payload) {
       }
       autoPlaceAnchoredAreaFromSelection();
     });
-    if (typeof ResizeObserver === "function") {
-      const observer = new ResizeObserver(() => requestCompactPopoverResize());
-      observer.observe($("app"));
-      window.addEventListener("beforeunload", () => observer.disconnect(), { once: true });
-    }
     sceneLifecycle.subscribe((event) => {
       if (event.phase === "unavailable") {
         clearFixedCasterRadiusPreview();
@@ -3016,7 +3108,7 @@ if (!payload) {
     });
     await sceneLifecycle.mount();
     if (!sceneLifecycle.isReady()) {
-      setStatus("Scena non disponibile: riapri la risoluzione.");
+      setStatus("Scena non disponibile: riapri la risoluzione.", false, "warn");
       render();
       return;
     }

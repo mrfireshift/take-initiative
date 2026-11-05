@@ -197,7 +197,7 @@ test("il repeat usa il popup mobile single-save condiviso con la box del danno",
     readFile(new URL("../src/spell-active-resolution.js", import.meta.url), "utf8"),
   ]);
 
-  assert.equal(popover.height, 350);
+  assert.equal(popover.height, 270, "resolved at the table: no outcome row");
   assert.match(popover.url, /spell-active-resolution\.html\?payload=/);
   assert.match(html, /id="singleSaveDamageField"/);
   assert.match(controller, /singleSaveDamageField/);

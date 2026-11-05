@@ -10,12 +10,6 @@
   <link rel="stylesheet" href="/console-panel.css" />
   <link rel="stylesheet" href="/rules-text.css" />
   <style>
-    /* The action costs' colours (Baldur's Gate 3); the console's other colour names are console-shell.css's. */
-    :root {
-      --cost-action: #4ade80;
-      --cost-bonus: #fb923c;
-      --cost-reaction: #c084fc;
-    }
     .turn-badge { flex: 0 0 auto; padding: 1px 6px; border: 1px solid rgba(253, 230, 138, .42); border-radius: var(--obrt-radius-pill); background: rgba(161, 98, 7, .30); color: var(--warn-text); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); }
     /* Under the header, only when there is somewhere to go: back to the turn's creature, on to the one selected on the map.
        One line: a long name is cut, and the button's tooltip says it in full. Only the bar of a turn that moved takes a line of its own. */
@@ -51,16 +45,6 @@
     .picker > :not(.picker-list) { flex: 0 0 auto; }
     .component-uses { margin-left: auto; font-size: var(--obrt-type-secondary); }
     .component-uses:empty { display: none; }
-    /* Action costs, as in Baldur's Gate 3: Azione green (circle), Azione bonus orange (triangle), Reazione purple
-       (diamond), on the list rows, the feature's pill and the fixed row. */
-    .cost-tag[data-cost] { font-weight: var(--obrt-weight-bold); white-space: nowrap; }
-    .cost-tag[data-cost]::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 4px; vertical-align: 1px; background: currentColor; }
-    .cost-tag[data-cost="action"] { color: var(--cost-action); }
-    .cost-tag[data-cost="action"]::before { border-radius: 50%; }
-    .cost-tag[data-cost="bonus"] { color: var(--cost-bonus); }
-    .cost-tag[data-cost="bonus"]::before { width: 8px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
-    .cost-tag[data-cost="reaction"] { color: var(--cost-reaction); }
-    .cost-tag[data-cost="reaction"]::before { width: 6px; height: 6px; transform: rotate(45deg); }
     /* Cantrips and spells: the slots left and the concentration in progress; a spell the console does not resolve. */
     .caster-state { display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; }
     /* A long text (Forma Selvatica's details) scrolls inside its card instead of covering the list above it. Closed, the card

@@ -28,9 +28,10 @@ let checkResult = "";
 let busy = false;
 let done = false;
 
-function setStatus(message, tone = "") {
+function setStatus(message, kind = "") {
   $("status").textContent = message || "";
-  $("status").dataset.tone = tone;
+  $("status").hidden = !message;
+  $("status").dataset.kind = kind;
 }
 
 const levelLabel = (level) => (level === 0 ? "Trucchetto" : `${level}° liv.`);
@@ -52,9 +53,7 @@ function renderSpellList() {
     element.label = `${suggested.has(option.id) ? "★ " : ""}${levelLabel(option.level)}`;
     return element;
   }));
-  $("spellHint").textContent = suggested.size
-    ? `★ in cima: gli incantesimi della scheda di ${target.name}.`
-    : "Cerca nel catalogo o scrivi un nome libero e il suo livello.";
+  $("spellHint").textContent = suggested.size ? `★ in cima: gli incantesimi della scheda di ${target.name}.` : "";
 }
 
 function targetSlotRows(target) {
@@ -66,9 +65,10 @@ function render() {
   const entry = selectedTarget();
   const level = selectedLevel();
   const slot = selectedSlot();
-  $("rangeHint").textContent = entry?.distance === null || entry?.distance === undefined
+  // The menu says how far it is: only what is out of range needs a line.
+  $("rangeHint").textContent = !entry || entry.inRange || entry.distance === null || entry.distance === undefined
     ? ""
-    : `${entry.inRange ? "A" : "Fuori gittata:"} ${entry.distance} ${scene.unit || ""} dal lanciatore${entry.inRange ? "" : ` (Controincantesimo: ${scene.rangeLimit} ${scene.unit})`}.`;
+    : `Fuori gittata: ${entry.distance} ${scene.unit || ""} dal lanciatore (Controincantesimo: ${scene.rangeLimit} ${scene.unit}).`;
   $("rangeHint").dataset.tone = entry && !entry.inRange ? "warn" : "";
   const check = counterspellCheck({ slotLevel: slot?.level, spellLevel: level });
   const outcome = counterspellOutcome({ check, checkResult, checkTotal: $("checkTotal").value });
@@ -80,8 +80,8 @@ function render() {
   $("verdict").dataset.state = outcome || "pending";
   $("verdictText").replaceChildren(
     document.createTextNode(!check.known ? "Scegli l'incantesimo e il suo livello."
-      : check.automatic ? `${spellName} viene annullato.`
-        : outcome === COUNTERSPELL_OUTCOMES.COUNTERED ? `Prova riuscita: ${spellName} viene annullato.`
+      : check.automatic ? `Annulli ${spellName}.`
+        : outcome === COUNTERSPELL_OUTCOMES.COUNTERED ? `Prova riuscita: annulli ${spellName}.`
           : outcome === COUNTERSPELL_OUTCOMES.FAILED ? `Prova fallita: ${spellName} ha effetto.`
             : `Prova di caratteristica da incantatore, CD ${check.dc}.`),
     Object.assign(document.createElement("small"), {
@@ -95,6 +95,13 @@ function render() {
   $("targetSlotRow").hidden = !target || !slots.length || !(level >= 1) || outcome === COUNTERSPELL_OUTCOMES.FAILED;
   $("targetSlotText").textContent = `${target?.name || "Il lanciatore"} perde lo slot di ${level}° livello`;
   $("cast").disabled = busy || done || !entry || !$("spell").value.trim() || level === null || !outcome;
+  // Beside the button: what is still missing, or what it spends.
+  $("summary").textContent = !entry ? "Manca la creatura."
+    : !$("spell").value.trim() ? "Manca l'incantesimo."
+      : level === null ? "Manca il livello."
+        : !outcome ? "Manca l'esito della prova."
+          : slot?.source === "none" ? "Spende la reazione."
+            : `Spende la reazione e lo slot di ${slot?.level}° livello.`;
 }
 
 async function cast() {
@@ -161,7 +168,8 @@ OBR.onReady(async () => {
     setStatus("Il lanciatore non è sulla scena.", "error");
     return;
   }
-  $("title").textContent = scene.caster.name || "Controincantesimo";
+  $("subtitle").textContent = scene.caster.name || "";
+  $("subtitle").hidden = !scene.caster.name;
   $("target").replaceChildren(
     new Option("— Scegli la creatura —", ""),
     ...scene.candidates.map((entry) => new Option(

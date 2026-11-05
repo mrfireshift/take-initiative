@@ -247,6 +247,7 @@ export async function buildDelayedBlastFireballTerminalResolutionCommand({
   targetIds = undefined,
   outcomes = {},
   damage = null,
+  ignoredDefenses = {},
   sceneEpoch = null,
   runtime = {},
 } = {}) {
@@ -283,6 +284,7 @@ export async function buildDelayedBlastFireballTerminalResolutionCommand({
     targetIds: requestedTargetIds,
     outcomes,
     damage: damage ?? context.currentDice,
+    ignoredDefenses,
   });
   return { command, context };
 }
@@ -299,6 +301,7 @@ export async function executeDelayedBlastFireballTerminalResolution({
   targetIds = undefined,
   outcomes = {},
   damage = null,
+  ignoredDefenses = {},
   runtime = {},
   sceneEpoch = null,
   sceneIdentity = null,
@@ -318,6 +321,7 @@ export async function executeDelayedBlastFireballTerminalResolution({
     targetIds,
     outcomes,
     damage,
+    ignoredDefenses,
     sceneEpoch: effectiveEpoch,
     runtime,
   });

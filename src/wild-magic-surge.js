@@ -16,7 +16,7 @@ import {
   wildMagicRowForRoll,
 } from "./wildMagicSurgeCore.js";
 import { applyWildMagicSurgePlan, wildMagicTidesSpent } from "./wildMagicSurgeRuntime.js";
-import "./popoverDrag.js";
+import { openTrackedPopover } from "./popoverDragHost.js";
 
 // The Wild Magic Surge engine (wildMagicSurgeCore.js): the GM types the d100 rolled at the table, sees the row,
 // and Applica reproduces it where the plugin can; the small builder puts any other outcome on the sorcerer as a pill.
@@ -100,7 +100,7 @@ async function selectionIds() {
 async function openSpellPanel(route) {
   const query = buildSpellUnifiedPanelRouteQuery(route);
   try { await OBR.popover.close(SPELLS_POPOVER_ID); } catch {}
-  await OBR.popover.open({
+  await openTrackedPopover({
     id: SPELLS_POPOVER_ID,
     url: `/spell-unified-panel.html?${query}`,
     width: 640,

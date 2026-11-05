@@ -83,8 +83,7 @@ test("le preparazioni usano il popup mobile shared e non il route legacy ancorat
   assert.match(activeResolution, /isPreparedResolution/);
   assert.match(activeResolution, /executeSpellActiveAction/);
   assert.match(activeResolution, /action\?\.type === "manual"/);
-  assert.match(activeResolution, /Incantesimo preparato/);
-  assert.match(activeResolution, /\$\("caster"\)\.textContent = casterName;/);
+  assert.match(activeResolution, /const casterName = String\(payload\.casterName/);
   assert.match(activeResolution, /"Pronto sul caster"/);
   assert.match(activeResolution, /executeSpellApplication/);
   assert.match(activeResolution, /\$\("attackOutcomes"\)\.hidden = true/);
@@ -93,7 +92,7 @@ test("le preparazioni usano il popup mobile shared e non il route legacy ancorat
   assert.match(activeResolution, /formatCompactTarget\(displayName\(targets\[0\]\)\)/);
   assert.match(activeResolution, /damageInput\.closest\("\.field"\)\.hidden = !damageRequired/);
   assert.match(activeResolution, /const visible = saveRequired/);
-  assert.match(activeResolution, /\$\("attackDamageLabel"\)\.textContent = "Danno"/);
+  assert.match(activeResolution, /renderAmountLabel\(\$\("attackDamageLabel"\), damage\?\.type, damage\?\.dice\)/);
   assert.match(activeResolution, /\$\("attackDamage"\)\.placeholder = "Totale"/);
   assert.doesNotMatch(activeResolution, /Totale \$\{damage\.dice\} già tirato/);
   assert.doesNotMatch(activeResolution, /preparedTargetInfo/);
@@ -111,7 +110,6 @@ test("le preparazioni usano il popup mobile shared e non il route legacy ancorat
   assert.doesNotMatch(preparedBranch, /Esito del colpo|Esito dell'attacco|Colpito|Mancato|Critico/);
   assert.doesNotMatch(preparedBranch, /weapon-melee|weapon-ranged|weapon/);
   assert.doesNotMatch(preparedBranch, /Risoluzione pronta|Conferma la risoluzione|Conferma il risultato del tiro già effettuato/);
-  assert.match(preparedBranch, /\$\("summary"\)\.hidden = true/);
   assert.match(activeResolution, /\$\("apply"\)\.textContent = "Risolvi"/);
   assert.match(activeResolution, /Seleziona un bersaglio prima di continuare/);
   assert.match(popover, /: manual \? presentation\.text : "Risolvi"/);

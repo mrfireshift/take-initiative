@@ -86,15 +86,13 @@ export const PRISMATIC_WALL_LAYERS = freeze([
     saveAbility: "dex",
     damage: { dice: "10d6", type: "fulmine", onSave: "half" },
     destructionRequirement: "Almeno 60 danni da forza in un singolo effetto distruggono lo strato.",
-    passive: "Nessuna proprietà passiva aggiuntiva nel testo RAW locale.",
   },
   {
     id: "green",
     label: "Verde",
     saveAbility: "dex",
     damage: { dice: "10d6", type: "veleno", onSave: "half" },
-    destructionRequirement: "Passwall o un incantesimo simile di livello almeno pari al muro, che apra un portale in una superficie solida, distrugge lo strato.",
-    passive: "Nessuna proprietà passiva aggiuntiva nel testo RAW locale.",
+    destructionRequirement: "Passapareti o un incantesimo simile di livello almeno pari al muro, che apra un portale in una superficie solida, distrugge lo strato.",
   },
   {
     id: "blue",
@@ -102,21 +100,19 @@ export const PRISMATIC_WALL_LAYERS = freeze([
     saveAbility: "dex",
     damage: { dice: "10d6", type: "freddo", onSave: "half" },
     destructionRequirement: "Almeno 25 danni da fuoco in un singolo effetto distruggono lo strato.",
-    passive: "Nessuna proprietà passiva aggiuntiva nel testo RAW locale.",
   },
   {
     id: "indigo",
     label: "Indaco",
     saveAbility: "dex",
-    destructionRequirement: "Una luce intensa generata da Daylight o da un incantesimo simile di livello almeno pari al muro distrugge lo strato.",
+    destructionRequirement: "Una luce intensa generata da Luce diurna o da un incantesimo simile di livello almeno pari al muro distrugge lo strato.",
     passive: "Nessun incantesimo può essere lanciato attraverso lo strato.",
   },
   {
     id: "violet",
     label: "Viola",
     saveAbility: "dex",
-    destructionRequirement: "Dispel Magic o un incantesimo simile di livello almeno pari al muro, capace di terminare magie o effetti, distrugge lo strato.",
-    passive: "Nessuna proprietà passiva aggiuntiva nel testo RAW locale.",
+    destructionRequirement: "Dissolvi magie o un incantesimo simile di livello almeno pari al muro, capace di terminare magie o effetti, distrugge lo strato.",
   },
 ]);
 

@@ -456,7 +456,7 @@ test("SP-B06A.4 — il chooser diretto ha quattro azioni visibili, chiusura sepa
   assert.match(TURN_CHOICE_HTML, /id="targetField"/);
   assert.match(TURN_CHOICE_HTML, /class="header-copy"[^>]*data-drag-handle/);
   assert.doesNotMatch(TURN_CHOICE_HTML, /class="header"[^>]*data-drag-handle/);
-  assert.match(TURN_CHOICE_HTML, /#app\[data-mode="direct"\] \.actions \{ grid-template-columns:repeat\(2/);
+  assert.match(TURN_CHOICE_HTML, /\.actions \{ display: grid; grid-template-columns: auto minmax\(0, 1fr\)/, "one column: the name, then what it does");
   assert.match(TURN_CHOICE_SOURCE, /request\.spellId === "eyebite"/);
   assert.match(TURN_CHOICE_SOURCE, /id === "eyebite-saved"/);
   assert.match(TURN_CHOICE_SOURCE, /initializePopoverDrag/);
@@ -487,10 +487,11 @@ test("SP-B06A.4 — il chooser diretto ha quattro azioni visibili, chiusura sepa
   assert.match(TURN_CONTROLLER_SOURCE, /data\.type === "dismiss-choice"/);
   assert.match(TURN_CONTROLLER_SOURCE, /opened\.get\(explicitPopoverId\)/);
   assert.match(TURN_CHOICE_SOURCE, /type: "apply-choice-action"/);
-  assert.match(TURN_CONTROLLER_SOURCE, /EYEBITE_CHOICE_POPOVER_HEIGHT = 215/);
-  assert.match(TURN_CONTROLLER_SOURCE, /TARGET_SELECTION_CHOICE_POPOVER_HEIGHT = 165/);
-  assert.match(TURN_CHOICE_SOURCE, /requestCompactPopoverResize/);
-  assert.match(TURN_CHOICE_SOURCE, /freeTargetSelection\s*\?\s*"action action--compact"/);
+  assert.match(TURN_CONTROLLER_SOURCE, /EYEBITE_CHOICE_POPOVER_HEIGHT = 260/);
+  assert.match(TURN_CONTROLLER_SOURCE, /TARGET_SELECTION_CHOICE_POPOVER_HEIGHT = 210/);
+  assert.doesNotMatch(TURN_CHOICE_SOURCE, /OBR\.popover\.setHeight/, "its height comes from who opens it");
+  assert.match(TURN_CHOICE_SOURCE, /const compact = freeTargetSelection \|\|/);
+  assert.match(TURN_CHOICE_SOURCE, /compact \? "action action--compact" : "action"/);
   assert.match(TURN_CONTROLLER_SOURCE, /const runtimeTurnKey = String\(request\?\.turnKey \|\| currentTurnKey/);
   assert.match(TURN_CONTROLLER_SOURCE, /dismissedChoiceKey\(runtime\.instanceId, runtimeTurnKey\)/);
   assert.match(TURN_CONTROLLER_SOURCE, /apply-choice-action/);
@@ -503,5 +504,4 @@ test("SP-B06A.4 — il chooser diretto ha quattro azioni visibili, chiusura sepa
   assert.doesNotMatch(TURN_CHOICE_SOURCE, /Promise\.allSettled/);
   assert.match(TURN_CHOICE_SOURCE, /OBR\.popover\.close\(id\)/);
   assert.match(TURN_CHOICE_SOURCE, /params\.get\("popoverId"\)/);
-  assert.match(TURN_CHOICE_HTML, /#app\[data-mode="direct"\] \.actions \{[^}]*margin-top:4px/s);
 });

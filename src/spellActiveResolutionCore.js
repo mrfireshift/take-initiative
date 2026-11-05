@@ -76,6 +76,40 @@ export function spellActiveResolutionSelectedTargetId(entries = [], selection = 
   return exact.has(previousId) ? previousId : "";
 }
 
+// One height for each kind of popup: the window does not move while the GM works in it, and what does not fit scrolls inside
+// it (D2 of docs/AUDIT_UX_POPUP_VIOLA.md). They hold a defense's chip and a message too.
+export function spellActiveResolutionPopoverHeight(payload) {
+  const action = payload?.action || {};
+  if (payload?.mode === "prepared") {
+    if (action.type === "manual") return 200;
+    return Array.isArray(payload.choiceOptions) && payload.choiceOptions.length > 1 ? 344 : 300;
+  }
+  switch (String(action.resolutionKind || "")) {
+    case "single-attack":
+      if (Number(action.maxAttacks) > 1) return 480;
+      return action.shortenStaticZone?.chooseFrom === true ? 354 : 310;
+    case "single-save": {
+      const base = action.manualSaveAtTable === true ? 270 : 330;
+      return Array.isArray(action.save?.abilityOptions) && action.save.abilityOptions.length ? base + 44 : base;
+    }
+    case "single-heal":
+      return 230;
+    case TELEKINESIS_CONTEST_RESOLUTION_KIND:
+      return 300;
+    case "blink-return":
+      return 190;
+    case "child-zone":
+      return 500;
+    case "prismatic-wall-traversal":
+      return 520;
+    case "prismatic-wall-layers":
+      return 300;
+    default:
+      // An area: its list of creatures scrolls.
+      return 450;
+  }
+}
+
 export function spellActiveResolutionPopoverId(instanceId, actionId) {
   const instance = String(instanceId || "").trim().replaceAll("/", "_");
   const action = String(actionId || "").trim().replaceAll("/", "_");

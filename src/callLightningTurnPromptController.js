@@ -4,7 +4,7 @@ import { openTrackedPopover } from "./popoverDragHost.js";
 import { currentSceneEpoch } from "./sceneEpoch.js";
 import { readSceneItemsSnapshot, subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
-import { spellActiveResolutionPopoverId } from "./spellActiveResolutionCore.js";
+import { spellActiveResolutionPopoverHeight, spellActiveResolutionPopoverId } from "./spellActiveResolutionCore.js";
 import {
   spellTurnPromptRequests,
   spellTurnPromptSelectedCandidateId,
@@ -23,17 +23,14 @@ const STATE_KEY = `${ID}/state`;
 export const CALL_LIGHTNING_TURN_NOTICE_CHANNEL = `${ID}/turn-notice`;
 export const SPELL_TURN_PROMPT_ACTION_CHANNEL = `${ID}/spell-turn-prompt-action`;
 const POPOVER_WIDTH = 360;
-const POPOVER_HEIGHT = 470;
-const SINGLE_ATTACK_POPOVER_HEIGHT = 300;
-const SINGLE_HEAL_POPOVER_HEIGHT = 300;
-const STORM_SPHERE_POPOVER_HEIGHT = 300;
-const ENERVATION_POPOVER_HEIGHT = 245;
 const CHOICE_POPOVER_WIDTH = 360;
-const CHOICE_POPOVER_HEIGHT = 210;
-const TELEKINESIS_CHOICE_POPOVER_HEIGHT = 160;
-const SINGLE_ACTION_CHOICE_POPOVER_HEIGHT = 150;
-const TARGET_SELECTION_CHOICE_POPOVER_HEIGHT = 165;
-const EYEBITE_CHOICE_POPOVER_HEIGHT = 215;
+// The list of choices: the header, a line of hint and the panel's margins, then one row each.
+const CHOICE_LIST_BASE_HEIGHT = 101;
+const CHOICE_LIST_ROW_HEIGHT = 32;
+const TELEKINESIS_CHOICE_POPOVER_HEIGHT = 180;
+const SINGLE_ACTION_CHOICE_POPOVER_HEIGHT = 160;
+const TARGET_SELECTION_CHOICE_POPOVER_HEIGHT = 210;
+const EYEBITE_CHOICE_POPOVER_HEIGHT = 260;
 
 let mounted = false;
 let work = Promise.resolve();
@@ -99,19 +96,9 @@ function popoverHeight(request) {
     if (request?.spellId === "telekinesis") return TELEKINESIS_CHOICE_POPOVER_HEIGHT;
     const actionCount = Array.isArray(request?.actions) ? request.actions.length : 0;
     if (actionCount === 1) return SINGLE_ACTION_CHOICE_POPOVER_HEIGHT;
-    const rows = Math.ceil(actionCount / 2);
-    return Math.max(CHOICE_POPOVER_HEIGHT, 80 + rows * 65);
+    return CHOICE_LIST_BASE_HEIGHT + actionCount * CHOICE_LIST_ROW_HEIGHT;
   }
-  const payload = request?.payload || request;
-  return payload?.spellId === "xanathar-debilitazione"
-    ? ENERVATION_POPOVER_HEIGHT
-    : payload?.spellId === "xanathar-sfera-della-tempesta"
-      ? STORM_SPHERE_POPOVER_HEIGHT
-      : payload?.action?.resolutionKind === "single-attack"
-        ? SINGLE_ATTACK_POPOVER_HEIGHT
-        : payload?.action?.resolutionKind === "single-heal"
-          ? SINGLE_HEAL_POPOVER_HEIGHT
-        : POPOVER_HEIGHT;
+  return spellActiveResolutionPopoverHeight(request?.payload || request);
 }
 
 function popoverWidth(request) {

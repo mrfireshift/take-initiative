@@ -1,5 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { openTrackedPopover } from "./popoverDragHost.js";
 
 // Counterspell's popup (counterspell.html): opened in place of the cast by the spell panel, the 🪄 menu and the attack
 // console, so the GM names what it counters before the slot and the reaction are spent.
@@ -15,11 +16,11 @@ export function counterspellPopoverUrl({ sourceId = "", quickActionId = "", slot
 
 export async function openCounterspellPopover(request = {}) {
   try { await OBR.popover.close(COUNTERSPELL_POPOVER_ID); } catch {}
-  await OBR.popover.open({
+  await openTrackedPopover({
     id: COUNTERSPELL_POPOVER_ID,
     url: counterspellPopoverUrl(request),
     width: 380,
-    height: 500,
+    height: 470,
     anchorReference: "POSITION",
     anchorPosition: { left: 90, top: 70 },
     anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },

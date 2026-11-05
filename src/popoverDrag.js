@@ -65,6 +65,7 @@ export function initializePopoverDrag(popoverRoot = document.querySelector("[dat
     void OBR.broadcast.sendMessage(POPOVER_DRAG_CHANNEL, {
       type: "drag-end",
       id: root.dataset.popoverId,
+      dragId: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
       deltaX,
       deltaY,
     }, { destination: "LOCAL" }).catch(() => {});

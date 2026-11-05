@@ -94,6 +94,7 @@ import { PC_ATTACK_SPELLS } from "./pcAttackSpellCatalog.js";
 import { executeDirectQuickAction } from "./quickActionExecution.js";
 import { isCounterspell } from "./counterspellCore.js";
 import { openCounterspellPopover } from "./counterspellLauncher.js";
+import { openTrackedPopover } from "./popoverDragHost.js";
 import { getEffectsMutationSceneContext } from "./effectsMutations.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import {
@@ -1957,7 +1958,7 @@ function buildWildMagicSurgeControls() {
     engine.type = "button";
     engine.textContent = "Tira l'Impulso";
     engine.title = "Scrivi il d100: il motore applica l'esito dove può";
-    engine.addEventListener("click", () => void OBR.popover.open({
+    engine.addEventListener("click", () => void openTrackedPopover({
       id: `${ID}/wild-magic-surge`,
       url: `/wild-magic-surge.html?source=${encodeURIComponent(item.id)}`,
       width: 420,

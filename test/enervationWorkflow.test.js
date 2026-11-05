@@ -318,9 +318,8 @@ test("SP-B06B.8 — il popup repeat è compatto e usa il linkedTargetId prima de
   const popup = fs.readFileSync(path.join(root, "src", "spell-active-resolution.js"), "utf8");
   const adapter = fs.readFileSync(path.join(root, "src", "spellUnifiedActiveAdapter.js"), "utf8");
 
-  assert.match(controller, /ENERVATION_POPOVER_HEIGHT\s*=\s*2\d\d/);
-  assert.match(controller, /payload\?\.spellId === "xanathar-debilitazione"/);
-  assert.match(adapter, /payload\?\.spellId === "xanathar-debilitazione"[\s\S]*?2\d\d/);
+  assert.match(controller, /spellActiveResolutionPopoverHeight\(request\?\.payload \|\| request\)/);
+  assert.match(adapter, /height \?\? spellActiveResolutionPopoverHeight\(payload\)/);
   assert.match(popup, /const linkedTargetId = String\(payload\?\.linkedTargetId/);
   assert.match(popup, /if \(linkedTargetId\)/);
 });

@@ -5,67 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Detonazione · Palla di fuoco ritardata</title>
     <link rel="stylesheet" href="/ui-typography.css" />
+    <link rel="stylesheet" href="/popover-glass.css" />
+    <link rel="stylesheet" href="/console-shell.css" />
+    <link rel="stylesheet" href="/console-panel.css" />
     <link rel="stylesheet" href="/spell-popover.css" />
-    <style>
-      #app {
-        background: linear-gradient(135deg, rgba(76,29,149,.32), rgba(30,41,59,.18) 62%), rgba(15,23,42,.14);
-        -webkit-backdrop-filter: blur(6px) saturate(120%);
-        backdrop-filter: blur(6px) saturate(120%);
-      }
-      .target {
-        grid-template-columns: minmax(0, 1fr) repeat(2, auto);
-      }
-      .footer-damage {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .footer-damage label {
-        color: rgba(226,232,240,.78);
-        font-size: 11px;
-        font-weight: 700;
-      }
-      .footer-damage input {
-        width: 70px;
-        min-height: 26px;
-      }
-      @media (max-width: 300px) {
-        .target { grid-template-columns: minmax(0, 1fr); }
-        .target button { width: 100%; }
-        .footer { flex-wrap: wrap; }
-        .footer-damage { flex-basis: 100%; }
-      }
-    </style>
   </head>
   <body>
-    <main id="app">
-      <header class="header-group">
-        <div class="heading" data-drag-handle draggable="true">
-          <div class="heading-title-group">
-            <div id="eyebrow" class="eyebrow" hidden></div>
-            <h1 id="title">Palla di fuoco ritardata</h1>
-          </div>
-          <div class="heading-actions">
-            <button id="close" class="close" type="button" aria-label="Chiudi">×</button>
-          </div>
+    <main id="app" class="glass-shell" data-glass-popover="1">
+      <header class="header heading" data-drag-handle draggable="true" title="Trascina per spostare">
+        <div class="heading-title-group">
+          <h1 id="title" class="title">Palla di fuoco ritardata</h1>
+          <div id="subtitle" class="subtitle" hidden></div>
         </div>
-        <div id="micropills" class="micropills">
-          <span class="micropill">Terminale</span>
-          <span class="micropill">TS DES</span>
-          <span id="formula" class="micropill">12d6</span>
-          <span class="micropill">Fuoco</span>
-          <span class="micropill">Metà su superamento</span>
+        <span class="drag-grip" aria-hidden="true"></span>
+        <div class="heading-actions">
+          <button id="close" class="icon-button" type="button" title="Chiudi" aria-label="Chiudi">×</button>
         </div>
       </header>
-      <div id="status" class="status" hidden></div>
-      <div id="targets" class="targets"></div>
-      <div class="footer">
-        <div class="footer-damage">
-          <label for="damage">Danno</label>
-          <input id="damage" type="number" min="0" step="1" inputmode="numeric" />
+      <div class="panel"><div class="view">
+        <p id="facts" class="action-facts"></p>
+        <div id="damageField" class="field" hidden><label id="damageLabel" for="damage">Fuoco</label><input id="damage" type="number" min="0" step="1" inputmode="numeric" placeholder="Totale" /></div>
+        <div id="bulkOutcomes" class="section-head" role="group" aria-label="Imposta tutti" hidden>
+          <span class="caption">Creature colpite</span>
+          <span class="area-tools">
+            <button class="area-tool" type="button" data-bulk-outcome="passed">Tutti superati</button>
+            <button class="area-tool" type="button" data-bulk-outcome="failed">Tutti falliti</button>
+          </span>
         </div>
-        <button id="apply" class="primary" type="button">Detona</button>
-      </div>
+        <div id="targets" class="targets"></div>
+      </div></div>
+      <div class="apply-row"><button id="apply" class="apply" type="button" disabled>Detona</button><span id="summary" class="total" hidden></span><div id="damageDefenses" class="defense-chips" hidden></div></div>
+      <footer class="status-bar"><p id="status" class="status" role="status" aria-live="polite" hidden></p></footer>
     </main>
     <script type="module" src="/src/delayed-blast-fireball-resolution.js"></script>
   </body>

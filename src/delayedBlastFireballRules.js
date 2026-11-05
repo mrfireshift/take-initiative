@@ -6,6 +6,8 @@
 
 export const DELAYED_BLAST_FIREBALL_ID = "delayed-blast-fireball";
 export const DELAYED_BLAST_FIREBALL_RULE_ID = `${DELAYED_BLAST_FIREBALL_ID}:cast`;
+// The detonation popup's one height: its list of creatures scrolls inside it.
+export const DELAYED_BLAST_FIREBALL_POPOVER_HEIGHT = 380;
 export const DELAYED_BLAST_FIREBALL_BASE_DICE = 12;
 export const DELAYED_BLAST_FIREBALL_MAX_ACCUMULATED_DICE = 10;
 export const DELAYED_BLAST_FIREBALL_RADIUS_METERS = 6;
@@ -195,6 +197,7 @@ export function buildDelayedBlastFireballTerminalCommand({
   targetIds = [],
   outcomes = {},
   damage = null,
+  ignoredDefenses = {},
 } = {}) {
   const normalizedCasterId = text(casterId);
   const normalizedInstanceId = text(instanceId);
@@ -266,6 +269,8 @@ export function buildDelayedBlastFireballTerminalCommand({
         normalizedOutcomes[id] === "passed" ? "half" : "full",
       ])),
       targetIds: ids,
+      // The defenses the GM ignored with a click on their chip, creature by creature: none, nothing written.
+      ...(Object.keys(ignoredDefenses || {}).length ? { ignoredDefenses } : {}),
     },
     execution: {
       lane: "area-transaction",

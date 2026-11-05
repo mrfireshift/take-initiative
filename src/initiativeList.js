@@ -224,7 +224,7 @@ import { isCounterspell } from "./counterspellCore.js";
 import { openCounterspellPopover } from "./counterspellLauncher.js";
 import { executeSpellBoardTokenStateUpdate } from "./spellApplicationExecutor.js";
 import { SPELL_TURN_PROMPT_ACTION_CHANNEL } from "./callLightningTurnPromptController.js";
-import { DELAYED_BLAST_FIREBALL_ID } from "./delayedBlastFireballRules.js";
+import { DELAYED_BLAST_FIREBALL_ID, DELAYED_BLAST_FIREBALL_POPOVER_HEIGHT } from "./delayedBlastFireballRules.js";
 import { spellActiveResolutionPopoverId } from "./spellActiveResolutionCore.js";
 import { buildBossActionsLauncher, buildTrackerConsoleLauncher, buildTrackerQuickActionLauncher, trackerHasConsoleEntries, trackerQuickActionsForGroup } from "./trackerQuickActions.js";
 import {
@@ -8852,7 +8852,7 @@ async function __openDelayedBlastFireballTerminalPopover({
     id: popoverId,
     url: `/delayed-blast-fireball-resolution.html?payload=${encodeURIComponent(JSON.stringify(payload))}`,
     width: 360,
-    height: 240,
+    height: DELAYED_BLAST_FIREBALL_POPOVER_HEIGHT,
     anchorReference: "POSITION",
     anchorPosition: await getTrackerPopoverAnchor(),
     anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },

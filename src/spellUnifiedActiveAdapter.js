@@ -10,10 +10,10 @@ import {
   preparedSpellResolutionChoices,
   preparedSpellResolutionPopoverId,
 } from "./preparedSpellResolutionCore.js";
-import { getSpellCastPhasePlan } from "./spellCastPhaseCore.js";
 import {
   buildSpellActiveResolutionPayload,
   spellActiveResolutionPopoverId,
+  spellActiveResolutionPopoverHeight,
 } from "./spellActiveResolutionCore.js";
 import { spellActiveActionPresentation } from "./spellActiveActionCore.js";
 import { spellExecutionHistoryDetails } from "./spellExecutionHistoryCore.js";
@@ -556,20 +556,7 @@ export function buildSpellUnifiedActivePopoverRequest(payload, {
   height = null,
   urlBase = "/spell-active-resolution.html",
 } = {}) {
-  const resolutionKind = text(payload?.action?.resolutionKind);
-  const resolvedHeight = height ?? (payload?.spellId === "xanathar-debilitazione"
-    ? 245
-    : resolutionKind === "single-attack"
-      ? 320
-      : resolutionKind === "single-save"
-        ? 350
-        : resolutionKind === "single-heal"
-          ? 300
-        : resolutionKind === "child-zone"
-          ? 600
-        : resolutionKind.startsWith("prismatic-wall-")
-          ? 600
-          : 520);
+  const resolvedHeight = height ?? spellActiveResolutionPopoverHeight(payload);
   const popoverId = text(payload?.popoverId)
     || spellActiveResolutionPopoverId(payload?.instanceId, payload?.actionId);
   return {
@@ -618,19 +605,6 @@ export function buildSpellUnifiedPreparedPopoverRequest(overview, {
       preparedActiveResolution: true,
     };
   }
-  const phasePlan = spell
-    ? getSpellCastPhasePlan(spell, "resolve", context.castContext || {})
-    : null;
-  const hasManualResolutionInputs = !manualAction && (phasePlan?.attack?.required === true
-    || !!phasePlan?.resolution?.mechanics?.savingThrow
-    || !!phasePlan?.resolution?.mechanics?.damageBonus);
-  const resolvedHeight = height ?? (manualAction
-    ? 140
-    : hasManualResolutionInputs
-    ? 175
-    : choices.length > 1
-      ? 210
-      : 160);
   const popoverId = preparedSpellResolutionPopoverId(context.instanceId);
   const payload = {
     type: `${ID}/spell-prepared-resolution`,
@@ -658,7 +632,7 @@ export function buildSpellUnifiedPreparedPopoverRequest(overview, {
     id: popoverId,
     url: `${urlBase}?payload=${encodeURIComponent(JSON.stringify(payload))}`,
     width,
-    height: resolvedHeight,
+    height: height ?? spellActiveResolutionPopoverHeight(payload),
     instanceId: context.instanceId,
     payload,
   };

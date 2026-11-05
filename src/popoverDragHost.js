@@ -4,8 +4,21 @@ import { POPOVER_DRAG_CHANNEL } from "./popoverDrag.js";
 
 const POSITION_PREFIX = `${ID}/popover-position/`;
 const trackedPopovers = new Map();
+// What the other iframes opened. The one that opened a popover may close while the popover stays open (the spell panel, a
+// console, the ⚡ menu): a drag would find nobody, so whoever is still there takes it over.
+const standbyPopovers = new Map();
+const MAX_STANDBY_POPOVERS = 40;
+const takeOvers = new Map();
+const TAKE_OVER_MS = 150;
+let answeredDragId = "";
 // This iframe, among the ones that open tracked popovers (the tracker, the background, …).
 const HOST_ID = globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
+function tellOthers(message) {
+  void Promise.resolve()
+    .then(() => OBR.broadcast.sendMessage(POPOVER_DRAG_CHANNEL, { ...message, hostId: HOST_ID }, { destination: "LOCAL" }))
+    .catch(() => {});
+}
 
 function positionKey(id) {
   return `${POSITION_PREFIX}${String(id || "").replaceAll("/", "_")}`;
@@ -39,9 +52,8 @@ export async function openTrackedPopover(options) {
   if (isTopLeftPopover(next)) {
     trackedPopovers.set(next.id, next);
     // Only the last iframe that opened a popover moves it: the others forget it (no drag applied twice).
-    void Promise.resolve()
-      .then(() => OBR.broadcast.sendMessage(POPOVER_DRAG_CHANNEL, { type: "claim", id: next.id, hostId: HOST_ID }, { destination: "LOCAL" }))
-      .catch(() => {});
+    tellOthers({ type: "claim", id: next.id });
+    tellOthers({ type: "standby", id: next.id, options: next });
   }
   await OBR.popover.open(next);
 }
@@ -73,17 +85,57 @@ async function moveTrackedPopover(id, deltaX, deltaY) {
   const next = { ...current, width, height, anchorPosition: { left, top } };
   trackedPopovers.set(id, next);
   localStorage.setItem(positionKey(id), JSON.stringify(next.anchorPosition));
+  tellOthers({ type: "standby", id, options: next });
   await OBR.popover.open(next);
+}
+
+function cancelTakeOver(id) {
+  clearTimeout(takeOvers.get(id));
+  takeOvers.delete(id);
+}
+
+function handleDragEnd({ id, dragId, deltaX, deltaY }) {
+  if (trackedPopovers.has(id)) {
+    tellOthers({ type: "drag-answered", id, dragId });
+    void moveTrackedPopover(id, deltaX, deltaY);
+    return;
+  }
+  // The iframe that owns it answers at once. If it does not, it has closed: one of those still here moves it, and owns it from
+  // now on. Waiting a different time each, the first to move stops the others.
+  if (!standbyPopovers.has(id) || takeOvers.has(id) || (dragId && dragId === answeredDragId)) return;
+  takeOvers.set(id, setTimeout(() => {
+    takeOvers.delete(id);
+    trackedPopovers.set(id, standbyPopovers.get(id));
+    tellOthers({ type: "claim", id });
+    tellOthers({ type: "drag-answered", id, dragId });
+    void moveTrackedPopover(id, deltaX, deltaY);
+  }, TAKE_OVER_MS + Math.random() * TAKE_OVER_MS));
 }
 
 OBR.onReady(() => {
   OBR.broadcast.onMessage(POPOVER_DRAG_CHANNEL, (event) => {
     const data = event?.data;
     if (data?.type === "claim" && data.id) {
-      if (data.hostId !== HOST_ID) trackedPopovers.delete(data.id);
+      if (data.hostId !== HOST_ID) {
+        trackedPopovers.delete(data.id);
+        cancelTakeOver(data.id);
+      }
+      return;
+    }
+    if (data?.type === "standby" && data.id) {
+      if (data.hostId !== HOST_ID) {
+        standbyPopovers.delete(data.id);
+        standbyPopovers.set(data.id, data.options);
+        if (standbyPopovers.size > MAX_STANDBY_POPOVERS) standbyPopovers.delete(standbyPopovers.keys().next().value);
+      }
+      return;
+    }
+    if (data?.type === "drag-answered" && data.id) {
+      answeredDragId = data.dragId;
+      if (data.hostId !== HOST_ID) cancelTakeOver(data.id);
       return;
     }
     if (data?.type !== "drag-end" || !data.id) return;
-    void moveTrackedPopover(data.id, data.deltaX, data.deltaY);
+    handleDragEnd(data);
   });
 });

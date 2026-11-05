@@ -707,7 +707,6 @@ async function openPrismaticWallTraversalPopover({
   };
   const request = buildSpellUnifiedActivePopoverRequest(payload, {
     width: 360,
-    height: 600,
   });
   await openTrackedPopover({
     id: request.id,

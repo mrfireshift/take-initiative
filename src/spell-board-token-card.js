@@ -2,6 +2,7 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { getSpellBoardTokenRule, spellBoardTokenView, SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 import { spellBoardTokenPortraitUrl } from "./spellBoardTokenTrackerCore.js";
+import "./popoverDrag.js";
 
 // A summoned token's sheet (Mano arcana): read-only, from its rule and its canonical HP; nothing is written.
 const MODAL_ID = `${ID}/spell-board-token-card`;

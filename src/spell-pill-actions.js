@@ -3,6 +3,7 @@
 // own resolution popup.
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { openTrackedPopover } from "./popoverDragHost.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { currentSceneEpoch } from "./sceneEpoch.js";
 import {
@@ -190,7 +191,7 @@ async function openPanel(actionId = "") {
       : actionId ? { activeInstanceId: request.spellInstanceId, activeActionId: actionId } : {}),
   });
   try { await OBR.popover.close(SPELLS_POPOVER_ID); } catch {}
-  await OBR.popover.open({
+  await openTrackedPopover({
     id: SPELLS_POPOVER_ID,
     url: `/spell-unified-panel.html?${query}`,
     width: 640,

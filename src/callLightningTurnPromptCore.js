@@ -185,7 +185,7 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     executionKind: "active-action",
     targetSelection: true,
     targetSelectionMode: "free",
-    choiceHint: "Dopo aver risolto manualmente un attacco che ha beneficiato del bonus damage, seleziona il bersaglio colpito per registrare il divieto di recuperare PF. Il colpo, il bonus damage e l'enforcement della guarigione restano manuali.",
+    choiceHint: "Dopo un attacco che ha inflitto il danno in più, seleziona il bersaglio colpito per segnare che non può recuperare PF. L'attacco, il danno e il divieto di guarire restano da gestire al tavolo.",
   }),
   Object.freeze({
     spellId: "xanathar-controllare-venti",

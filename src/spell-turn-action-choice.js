@@ -70,6 +70,24 @@ function actionCopy(action = {}) {
   if (id === "spirit-shroud-mark-hit") {
     return "No recupero PF";
   }
+  if (id === "telekinesis-maintain") {
+    return "Ripeti la contesa";
+  }
+  if (id === "telekinesis-retarget") {
+    return "Nuova creatura, nuova contesa";
+  }
+  if (id === "control-winds-gusts") {
+    return "Svant. a distanza · controvento costo ×2";
+  }
+  if (id === "control-winds-downdraft") {
+    return "Svant. a distanza · TS For in volo";
+  }
+  if (id === "control-winds-updraft") {
+    return "Cadute dimezzate · salti +3 m";
+  }
+  if (id === "control-winds-pause") {
+    return "Mantieni la concentrazione";
+  }
   return String(action.action?.detail || "");
 }
 
@@ -210,6 +228,7 @@ async function eyebiteTargets(request) {
 const request = decodeRequest();
 const app = document.getElementById("app");
 const title = document.getElementById("title");
+const subtitle = document.getElementById("subtitle");
 const hint = document.getElementById("hint");
 const actions = document.getElementById("actions");
 const close = document.getElementById("close");
@@ -225,37 +244,10 @@ let selectionPollBusy = false;
 app.dataset.popoverId = popoverId(request?.instanceId);
 initializePopoverDrag(app);
 
-let resizeFrame = 0;
-let lastPopoverHeight = 0;
-
-function requestCompactPopoverResize() {
-  cancelAnimationFrame(resizeFrame);
-  resizeFrame = requestAnimationFrame(async () => {
-    await sdkReady;
-    const appElement = document.getElementById("app");
-    if (!appElement) return;
-    const rectHeight = appElement.getBoundingClientRect?.().height || 0;
-    const naturalHeight = Math.ceil(
-      Math.max(rectHeight, appElement.offsetHeight || 0, appElement.scrollHeight || 0) + 8,
-    );
-    const targetHeight = Math.max(80, Math.min(500, naturalHeight));
-    if (targetHeight === lastPopoverHeight) return;
-    const id = appElement.dataset.popoverId || popoverId(request?.instanceId);
-    if (id) {
-      OBR.popover.setHeight(id, targetHeight)
-        .then(() => {
-          lastPopoverHeight = targetHeight;
-        })
-        .catch(() => {});
-    }
-  });
-}
-
 function setStatus(message = "", error = false) {
   status.textContent = String(message || "");
   status.hidden = !message;
-  status.dataset.error = error ? "true" : "false";
-  requestCompactPopoverResize();
+  status.dataset.kind = error ? "error" : "";
 }
 
 function setDirectBusy(value) {
@@ -267,7 +259,9 @@ function setDirectBusy(value) {
 async function renderEyebiteDirect() {
   await sdkReady;
   const freeTargetSelection = request?.targetSelectionMode === "free";
-  app.dataset.mode = freeTargetSelection ? "compact" : "direct";
+  // A single action is the main button, and the hint says what it does; several are the list.
+  const compact = freeTargetSelection || (Array.isArray(request.actions) && request.actions.length === 1);
+  app.dataset.mode = compact ? "compact" : "direct";
   hint.textContent = request?.choiceHint || "";
   hint.hidden = !hint.textContent;
   targetField.hidden = false;
@@ -284,14 +278,13 @@ async function renderEyebiteDirect() {
   for (const payload of Array.isArray(request.actions) ? request.actions : []) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = freeTargetSelection
-      ? "action action--compact"
-      : "action action--direct";
+    button.className = compact ? "action action--compact" : "action";
     button.dataset.actionId = String(payload.actionId || "").trim();
     const strong = document.createElement("strong");
     strong.textContent = payload.action?.buttonLabel || payload.action?.label || payload.actionId;
     button.append(strong);
-    if (!freeTargetSelection) {
+    if (payload.action?.detail) button.title = String(payload.action.detail);
+    if (!compact) {
       const detailText = actionCopy(payload);
       if (detailText) {
         const detail = document.createElement("span");
@@ -354,7 +347,6 @@ async function renderEyebiteDirect() {
   if (selectionPollTimer) window.clearInterval(selectionPollTimer);
   selectionPollTimer = window.setInterval(() => { void refreshSelection(); }, 150);
   void refreshSelection();
-  requestCompactPopoverResize();
 }
 
 function renderLegacyChoice() {
@@ -368,18 +360,16 @@ function renderLegacyChoice() {
     button.type = "button";
     button.dataset.actionId = String(payload.actionId || "").trim();
     button.className = compact ? "action action--compact" : "action";
-    if (request?.spellId === "telekinesis") button.classList.add("action--telekinesis");
     const strong = document.createElement("strong");
     strong.textContent = payload.action?.buttonLabel || payload.action?.label || payload.actionId;
     button.append(strong);
+    if (payload.action?.detail) button.title = String(payload.action.detail);
     if (!compact) {
-      if (request?.spellId !== "telekinesis") {
-        const detailText = actionCopy(payload);
-        if (detailText) {
-          const detail = document.createElement("span");
-          detail.textContent = detailText;
-          button.append(detail);
-        }
+      const detailText = actionCopy(payload);
+      if (detailText) {
+        const detail = document.createElement("span");
+        detail.textContent = detailText;
+        button.append(detail);
       }
     }
     button.addEventListener("click", async () => {
@@ -398,10 +388,7 @@ function renderLegacyChoice() {
     });
     actions.append(button);
   }
-  requestCompactPopoverResize();
 }
-
-window.addEventListener("resize", () => requestCompactPopoverResize());
 
 if (!request) {
   title.textContent = "Azione";
@@ -412,6 +399,8 @@ if (!request) {
 
 if (request) {
   title.textContent = request.spellName || request.spellId || "Azione";
+  subtitle.textContent = String(request.casterName || "").trim();
+  subtitle.hidden = !subtitle.textContent;
   if (request.spellId === "eyebite" || request.targetSelection === true) {
     void renderEyebiteDirect();
   } else {

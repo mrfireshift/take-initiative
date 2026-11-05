@@ -409,8 +409,8 @@ test("il resolver di Muro di Luce permette di scegliere estremita iniziale o fin
   const html = await readFile(new URL("../spell-active-resolution.html", import.meta.url), "utf8");
   const source = await readFile(new URL("../src/spell-active-resolution.js", import.meta.url), "utf8");
   assert.match(html, /id="zoneShorteningFrom"/);
-  assert.match(html, /value="start"[^>]*>Iniziale</);
-  assert.match(html, /value="end"[^>]*>Finale</);
+  assert.match(html, /value="start"[^>]*>Parte iniziale</);
+  assert.match(html, /value="end"[^>]*>Parte finale</);
   assert.match(source, /shorteningFrom:\s*zoneShorteningFrom/);
 });
 

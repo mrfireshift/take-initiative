@@ -286,7 +286,7 @@ test("Sudario Spirituale apre il popup del caster con selezione del bersaglio co
     { id: "target", name: "target" },
     { id: "other-target", name: "other-target" },
   ]);
-  assert.match(requests[0].choiceHint, /bonus damage/iu);
+  assert.match(requests[0].choiceHint, /danno in più/iu);
 
   const markedTarget = {
     ...target,

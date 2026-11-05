@@ -25,7 +25,7 @@ test("il chooser con una sola azione usa il pulsante compatto senza descrizione 
   assert.match(controller, /compact \? "action action--compact" : "action"/);
   assert.match(controller, /if \(!compact\)/);
   assert.match(html, /\.action--compact strong \{ font:inherit; \}/);
-  assert.match(turnController, /SINGLE_ACTION_CHOICE_POPOVER_HEIGHT = 150/);
+  assert.match(turnController, /SINGLE_ACTION_CHOICE_POPOVER_HEIGHT = 160/);
   assert.match(turnController, /if \(actionCount === 1\) return SINGLE_ACTION_CHOICE_POPOVER_HEIGHT/);
 });
 

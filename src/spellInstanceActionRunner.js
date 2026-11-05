@@ -4,6 +4,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { currentSceneEpoch } from "./sceneEpoch.js";
 import { lazyModule } from "./lazyModule.js";
+import { openTrackedPopover } from "./popoverDragHost.js";
 
 const loadSceneProvider = lazyModule(() => import("./spellUnifiedPanelSceneProvider.js"));
 const loadActiveAdapter = lazyModule(() => import("./spellUnifiedActiveAdapter.js"));
@@ -18,8 +19,8 @@ export async function loadSpellInstanceOverview(instanceId, { obr = OBR } = {}) 
 }
 
 // A resolution popup (a heal, a save) the action opens, where the panel would open it.
-export async function openSpellActionResolutionPopover(request, { obr = OBR } = {}) {
-  await obr.popover.open({
+export async function openSpellActionResolutionPopover(request) {
+  await openTrackedPopover({
     id: request.id,
     url: request.url,
     width: request.width,
