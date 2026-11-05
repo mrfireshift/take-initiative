@@ -146,7 +146,7 @@ quel personaggio.
   **Incantesimo d'attacco**. Nella console si sceglie lo slot (o il Patto): lo
   spende il primo raggio o dardo, i successivi dello stesso lancio no, e la
   console dice quanti ne restano. Dardo incantato colpisce senza tiro (Scudo lo
-  blocca): **Colpito** è già premuto, si scrive il danno del dardo e si preme
+  blocca): non c'è un esito da scegliere, si scrive il danno del dardo e si preme
   Invio, e il dardo dopo è pronto sullo stesso bersaglio. Globo cromatico e
   Dardo di caos chiedono il tipo, e con due d8
   uguali il dardo balza su un'altra creatura. Tocco del vampiro si lancia dal

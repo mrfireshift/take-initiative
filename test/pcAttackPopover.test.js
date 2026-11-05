@@ -909,6 +909,8 @@ test("a spell that hits without a roll: its only outcome is already pressed, and
   assert.equal(f.controller.getDraft().spellId, "magic-missile");
   assert.equal(f.controller.getDraft().outcome, "hit");
   assert.deepEqual(pressedOutcomes(f), ["hit"], "no click needed");
+  assert.deepEqual([f.$("pc-attack-outcomes").hidden, f.$("pc-attack-outcome-block").hidden], [true, true], "nothing to choose: no button");
+  assert.equal(facts(f), "Senza tiro per colpire", "the line above the damage says why");
   assert.equal(f.$("pc-attack-apply").disabled, true, "nothing is recorded by itself: the target and the damage are still to come");
   await f.select(["ghoul"]);
   assert.equal(f.controller.getDraft().targetId, "ghoul");
@@ -930,11 +932,13 @@ test("a spell that hits without a roll: a typed amount locks the draft, and anot
   assert.equal(f.controller.getDraft().spellId, "guiding-bolt");
   assert.equal(f.controller.getDraft().outcome, "", "a roll to make: nothing is pressed for it");
   assert.deepEqual(pressedOutcomes(f), []);
+  assert.deepEqual([f.$("pc-attack-outcomes").hidden, f.$("pc-attack-outcome-block").hidden], [false, false], "and its outcomes are back");
   await f.outcome("hit").click();
   await f.select(["imp"]);
   assert.equal(f.controller.getDraft().targetId, "ghoul", "an outcome chosen by hand locks it as ever");
   await spellRow(f, "spells::magic-missile").click(); await tick();
   assert.deepEqual(pressedOutcomes(f), ["hit"], "and back: pressed again");
+  assert.equal(f.$("pc-attack-outcomes").hidden, true, "and out of sight");
 });
 
 test("a spell that hits without a roll: dart after dart, type and Enter; the focus moves only inside a panel in use", async () => {

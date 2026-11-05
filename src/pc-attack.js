@@ -1970,7 +1970,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const amount=box.querySelector(`[data-${kind}-id="${id}"]`)?.querySelector(`[data-${kind}-field="amount"]`);
     if(amount && !amount.hidden && !amount.disabled) amount.focus?.();
   }
-  // One outcome is no choice (Magic Missile hits without a roll): the console presses it, and the GM goes on to the damage.
+  // One outcome is no choice (Magic Missile hits without a roll): the console presses it and shows no button, the line above
+  // the damage says why, and the GM goes on to the damage.
   function pressOnlyOutcome() {
     const options=isArea()?[]:pcAttackOutcomesFor(resolved());
     const only=options.length===1;
@@ -1981,9 +1982,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function renderOutcomes() {
     renderMode();
     pressOnlyOutcome();
-    // An area attack has a save for each creature: no single outcome (the block stays for the arrow picker).
-    outcomes.hidden=isArea();
-    if(outcomeBlock) outcomeBlock.hidden=isArea();
+    // An area attack has a save for each creature, a spell without a roll nothing to choose: no outcomes to show.
+    outcomes.hidden=isArea() || draft.onlyOutcome;
+    if(outcomeBlock) outcomeBlock.hidden=outcomes.hidden;
     outcomes.replaceChildren(...pcAttackOutcomesFor(resolved()).map(outcome=>{
       const button=node("button",outcomeButtonLabel(outcome));button.type="button";button.dataset.outcome=outcome;
       button.setAttribute("aria-pressed",String(draft.outcome===outcome));button.disabled=busy;

@@ -122,14 +122,14 @@ Provato su una scena reale, il pannello sembrava ancora compresso e senza gerarc
 - **Titoli vuoti.** `Extra al colpo` compare solo sopra qualcosa; altrimenti `+ Danno extra` sta sulla riga del danno, come nelle aree. `Effetto del colpo` passa sotto gli extra.
 - **Dati dell'attacco sopra il danno.** Dopo una seconda prova, `+5 al tiro · portata 1,5 m` e allo stesso modo TS, area e ricarica passano in cima al riquadro del danno; nelle aree, che non hanno riquadro, subito sopra il danno. Vanno a capo fra una parte e l'altra, col `·` in fondo alla riga.
 - **Sotto il selettore.** Resta `Multiattacco`, allineato al testo del selettore anche nelle aree, e il nome dell'attacco quando manca il menu che lo dice.
-- **Esito già premuto.** Un incantesimo senza tiro, come Dardo incantato, ha un solo esito: `Colpito` è già premuto, deciso dall'utente il 05/11. Non conta come scelta del GM: la mappa continua a guidare il bersaglio, e si può chiudere o cambiare attacco senza conferma finché non si scrive il danno. Il fuoco passa alla casella del danno solo se il pannello è già in uso, per non togliere la tastiera alla mappa. Il pulsante resta visibile.
+- **Nessun esito da scegliere.** Un incantesimo senza tiro, come Dardo incantato, ha un solo esito: la console lo segna da sola e non mostra il pulsante `Colpito`, come ha deciso l'utente il 05/11. Sopra il danno si legge `Senza tiro per colpire`. Non conta come scelta del GM: la mappa continua a guidare il bersaglio, e si può chiudere o cambiare attacco senza conferma finché non si scrive il danno. Il fuoco passa alla casella del danno solo se il pannello è già in uso, per non togliere la tastiera alla mappa.
 - **Testi tagliati.** La casella del danno mostra solo formule fino a 6 caratteri: una più lunga resta accanto. `Etichetta` non ha più l'esempio, che passa nel suggerimento.
 - **Dettagli.** Uno stacco fra dati, testo e «Ai livelli superiori».
 
 Al banco, sui 38 stati:
 
 - 32 stati hanno più di 40 px vuoti (mediana 177, massimo 257): è il prezzo dell'altezza costante.
-- Scorrono due stati: le manovre di 172 px, un incantesimo a dardi di 5 px.
+- Scorre un solo stato: le manovre, di 172 px.
 - I nomi lunghi si tagliano prima: `Mischia` divide il selettore col nome, che resta intero nel suggerimento.
 
 ## Prova in stanza del lotto 1
@@ -179,7 +179,7 @@ Al banco, sui 38 stati:
 
 - [ ] **Altezza:** la finestra resta di 560 px, qualunque scheda si apra.
 - [ ] **Attacco di un PG:** `Mischia` sul selettore, non nelle righe del menu, e nessuna riga sotto.
-- [ ] **Dardo incantato:** appena aperto `Colpito` è già premuto e il bersaglio segue ancora la mappa. Scrivi il danno e premi Invio: il dardo dopo è pronto, sullo stesso bersaglio, con lo slot speso una volta sola. Chiudendo prima di scrivere non chiede conferma.
+- [ ] **Dardo incantato:** nessun pulsante di esito, sopra il danno `Senza tiro per colpire`, e il bersaglio segue ancora la mappa. Scrivi il danno e premi Invio: il dardo dopo è pronto, sullo stesso bersaglio, con lo slot speso una volta sola. Chiudendo prima di scrivere non chiede conferma.
 - [ ] **Dardo incantato al turno di un altro:** con la console aperta sul dardo e nessun danno scritto, al cambio di turno la console segue il turno senza fermarsi; con un danno scritto si ferma e aspetta il GM.
 - [ ] **Attacco di un mostro:** `+14 al tiro · portata 3 m` in cima al riquadro del danno, sopra `Perforanti`; sotto il selettore solo `Multiattacco`.
 - [ ] **Incantesimo con slot:** prima il selettore dello slot, poi `Senza tiro per colpire`, poi il danno.
