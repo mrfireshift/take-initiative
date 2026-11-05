@@ -3314,6 +3314,14 @@ export function bootSpellUnifiedPanel(
     onIgnoreTargetLimitChange: (checked) => patchSession({
       ignoreTargetLimit: checked === true,
     }),
+    // A click on a defense's chip: it does not count in this cast, or counts again.
+    onDefenseToggle: (targetId, type) => {
+      const ignored = state.session.ignoredDefenses?.[targetId] || [];
+      const next = ignored.includes(type) ? ignored.filter((entry) => entry !== type) : [...ignored, type];
+      const ignoredDefenses = { ...(state.session.ignoredDefenses || {}), [targetId]: next };
+      if (!next.length) delete ignoredDefenses[targetId];
+      patchSession({ ignoredDefenses });
+    },
     onTargetNameFilter: (name) => {
       state.targetFilters = { ...state.targetFilters, name };
       render();

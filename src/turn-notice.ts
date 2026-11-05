@@ -21,9 +21,16 @@ import { effectSaveReminderNoticeFromHistoryReplay } from "./effectSaveReminderC
 import {
   REMINDER_OUTCOMES,
   normalizeReminderResolution,
+  reminderDamageDefenseRows,
   reminderResolutionNeedsDamage,
   reminderResolutionOutcomeNeedsDamage,
 } from "./reminderResolutionCore.js";
+import {
+  spellActionDamageTypes,
+  spellDamageAfterDefense,
+  spellDamageDefenseText,
+  spellDamageDefenseTitle,
+} from "./spellDamageDefenseCore.js";
 import {
   resolveTurbineSaveChain,
   turbineSizeFromToken,
@@ -174,6 +181,7 @@ const resolutionDrafts = new Map<string, {
   damageRoll: string;
   turbineSize: string;
   turbineStrengthOutcome: string;
+  ignoredDefenses: string[];
 }>();
 const resolutionStatus = new Map<string, string>();
 const resolvingActivations = new Set<string>();
@@ -413,6 +421,7 @@ function resolutionDraftFor(activationId: string) {
     damageRoll: "",
     turbineSize: "",
     turbineStrengthOutcome: "",
+    ignoredDefenses: [] as string[],
   };
   resolutionDrafts.set(activationId, draft);
   return draft;
@@ -788,6 +797,53 @@ function buildResolutionControls(line: HTMLElement, row: any) {
     controls.appendChild(damageLabel);
   }
 
+  // A defense at work on this damage, beside the number: the same chip as the panel's. Its tooltip says whose it is, and a
+  // click ignores it for this reminder. Choosing an outcome applies it at once, so the sum shown is the damage in full.
+  const defenseTargetId = String(row?.targets?.[0]?.id || "").trim();
+  if (damageInput && !manualHeal && defenseTargetId && spellActionDamageTypes(row.resolution).length) {
+    const defenseBox = document.createElement("span");
+    defenseBox.className = "zone-resolution-defenses";
+    defenseBox.hidden = true;
+    controls.appendChild(defenseBox);
+    let defenseTarget: any = null;
+    const renderDefenseChips = () => {
+      const rows = defenseTarget
+        ? reminderDamageDefenseRows({ resolution: row.resolution, target: defenseTarget, ignoredTypes: draft.ignoredDefenses })
+        : [];
+      const roll = Math.max(0, Math.floor(Number(damageInput?.value) || 0));
+      const halves = !manualDamage && row.resolution?.damage?.onPassed === "half";
+      defenseBox.replaceChildren(...rows.map((defenseRow: any) => {
+        const numbers = { before: roll, after: defenseRow.ignored ? roll : spellDamageAfterDefense(roll, "full", defenseRow.defense) };
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = `zone-resolution-defense is-${defenseRow.defense}`;
+        chip.textContent = spellDamageDefenseText(defenseRow, numbers);
+        chip.title = `${spellDamageDefenseTitle(defenseRow, {
+          name: String(row.targets[0]?.name || defenseTarget?.name || "La creatura"),
+          ...numbers,
+          where: "in questo promemoria",
+        })}${halves && !defenseRow.ignored ? " Con il TS superato conta prima la metà." : ""}`;
+        chip.dataset.defenseType = defenseRow.type;
+        if (defenseRow.ignored) chip.dataset.ignored = "true";
+        chip.setAttribute("aria-pressed", String(!defenseRow.ignored));
+        chip.addEventListener("click", (event) => {
+          event.stopPropagation();
+          draft.ignoredDefenses = defenseRow.ignored
+            ? draft.ignoredDefenses.filter((type: string) => type !== defenseRow.type)
+            : [...draft.ignoredDefenses, defenseRow.type];
+          renderDefenseChips();
+        });
+        return chip;
+      }));
+      defenseBox.hidden = rows.length === 0;
+    };
+    damageInput.addEventListener("input", renderDefenseChips);
+    void OBR.scene.items.getItems([defenseTargetId]).then((items) => {
+      defenseTarget = items?.[0] || null;
+      renderDefenseChips();
+    }).catch(() => {});
+  }
+
   const outcomes = document.createElement("div");
   outcomes.className = "zone-resolution-outcomes";
 
@@ -908,6 +964,7 @@ function buildResolutionControls(line: HTMLElement, row: any) {
         },
         outcome: draft.outcome,
         damageRoll: draft.damageRoll,
+        ...(draft.ignoredDefenses.length ? { ignoredDefenses: draft.ignoredDefenses } : {}),
         ...(turbine ? {
           turbineSize: draft.turbineSize,
           turbineStrengthOutcome: draft.turbineStrengthOutcome,

@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "ef8933c19fc575d0",
+  "fingerprint": "c49bae197b3a0c62",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -18,9 +18,9 @@
     },
     "currentAutomationLevel": {
       "FULL": 66,
-      "MANUAL": 58,
+      "MANUAL": 57,
       "PARTIAL": 243,
-      "TRACK_ONLY": 110
+      "TRACK_ONLY": 111
     },
     "coverageStatus": {
       "ACCEPTED": 72,
@@ -43,8 +43,8 @@
     },
     "trackableOptions": 360,
     "trackable": 360,
-    "withAreaRules": 140,
-    "areaRuleEntries": 145,
+    "withAreaRules": 139,
+    "areaRuleEntries": 144,
     "openRows": 10,
     "confirmed": 7,
     "highConfidence": 2,
@@ -104,9 +104,9 @@
     },
     "smokeCategories": {
       "ACTIVE_ACTION": 51,
-      "AREA_GEOMETRY": 140,
+      "AREA_GEOMETRY": 139,
       "CAST": 277,
-      "CLEANUP": 129,
+      "CLEANUP": 128,
       "CONCENTRATION": 218,
       "PERSISTENCE": 360,
       "TURN_TRIGGER": 110
@@ -114,7 +114,7 @@
     "unifiedCatalogExposed": 477,
     "integrationDisconnected": 0,
     "integrationFragile": 0,
-    "runtimeSmokeRequired": 415,
+    "runtimeSmokeRequired": 416,
     "releaseReady": false
   },
   "rows": [
@@ -26558,9 +26558,11 @@
           "panelActionIds": [
             "ice-investiture-cone"
           ],
-          "reminderActionIds": [],
+          "reminderActionIds": [
+            "ice-investiture-cone"
+          ],
           "unreachableActionIds": [],
-          "mode": "panel"
+          "mode": "panel-and-reminder"
         },
         "smokeRequired": true,
         "smokeCategories": [
@@ -31532,15 +31534,12 @@
       "saveScope": "—",
       "inAuditScope": false,
       "exclusionReason": "casting time maggiore di 1 azione",
-      "currentAutomationLevel": "PARTIAL",
+      "currentAutomationLevel": "TRACK_ONLY",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
-        "AREA_GEOMETRY",
-        "CAST",
-        "CLEANUP",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -31552,11 +31551,7 @@
         "movimento"
       ],
       "coverage": [
-        "tracking",
-        "aree:zone",
-        "lifecycle",
-        "TS",
-        "movimento"
+        "tracking"
       ],
       "assessment": "escluso: casting time",
       "priority": "—",
@@ -31567,23 +31562,16 @@
       },
       "runtime": {
         "trackable": true,
-        "areaRuleIds": [
-          "mirage-arcane:cast"
-        ],
-        "areaKinds": [
-          "zone"
-        ],
+        "areaRuleIds": [],
+        "areaKinds": [],
         "triggerIds": [],
-        "saveAutomation": true,
+        "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
-        "movementMechanics": true,
+        "movementMechanics": false,
         "smokeCategories": [
-          "AREA_GEOMETRY",
-          "CAST",
-          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -31594,34 +31582,31 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel",
-            "legacy-area-console"
+            "legacy-spells-panel"
           ]
         },
         "contract": {
-          "lane": "area-transaction",
-          "targetingMode": "geometric",
-          "placementPolicy": "optional",
+          "lane": "spell-lifecycle",
+          "targetingMode": "none",
+          "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets",
-            "placement"
+            "slot"
           ]
         },
         "cast": {
-          "adapter": "area-transaction",
+          "adapter": "spell-lifecycle",
           "valid": true,
-          "operationTypes": [],
-          "mutationMode": "executor-deferred",
+          "operationTypes": [
+            "spell:upsert"
+          ],
+          "mutationMode": "tracking",
           "errors": []
         },
         "persistence": {
-          "required": true,
+          "required": false,
           "declared": true,
-          "ruleIds": [
-            "mirage-arcane:cast"
-          ]
+          "ruleIds": []
         },
         "actions": {
           "declaredActionIds": [],
@@ -31632,9 +31617,6 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
-          "AREA_GEOMETRY",
-          "CAST",
-          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -43871,19 +43853,23 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
-      "smokeCategories": [],
+      "smokeCategories": [
+        "CAST"
+      ],
       "verificationEvidence": [
         "STRUCTURAL"
       ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
-      "coverage": [],
+      "coverage": [
+        "TS"
+      ],
       "assessment": "riferimento/utilità",
       "priority": "—",
       "gaps": [],
@@ -43896,13 +43882,15 @@
         "areaRuleIds": [],
         "areaKinds": [],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
         "movementMechanics": false,
-        "smokeCategories": []
+        "smokeCategories": [
+          "CAST"
+        ]
       },
       "integration": {
         "status": "reachable",
@@ -43911,11 +43899,11 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "cast-record"
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
@@ -43925,17 +43913,15 @@
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "spell:upsert"
-          ],
-          "mutationMode": "tracking",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
           "required": false,
-          "declared": true,
+          "declared": false,
           "ruleIds": []
         },
         "actions": {
@@ -43945,8 +43931,10 @@
           "unreachableActionIds": [],
           "mode": "none"
         },
-        "smokeRequired": false,
-        "smokeCategories": []
+        "smokeRequired": true,
+        "smokeCategories": [
+          "CAST"
+        ]
       },
       "evidence": {
         "area": [],

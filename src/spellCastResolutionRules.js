@@ -257,6 +257,7 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
   "phb2014-parola-del-potere-guarire": Object.freeze({ initialHP: false }),
   "lesser-restoration": Object.freeze({ initialHP: false }),
   "dispel-magic": Object.freeze({ initialHP: false }),
+  "remove-curse": Object.freeze({ initialHP: false }),
   "divine-word": Object.freeze({ initialHP: false }),
   // The roll of each dart is written on its target (magicMissileCore.js): no single damage input.
   "magic-missile": Object.freeze({

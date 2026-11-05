@@ -103,8 +103,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -299,15 +299,15 @@
         "state": "letto",
         "lot": "P3-5",
         "date": "2026-11-04",
-        "note": "Nessun difetto: i dadi per slot, Stritola senza TS."
+        "note": "Nessun difetto: i dadi per slot, Stritola senza TS. P4: gli effetti si usano già al lancio, come dice il testo."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "P4: Pugno serrato dal popup nel turno del lancio."
       }
     },
     {
@@ -346,8 +346,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -727,7 +727,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "4d10 al 4°, zona della nube, pill 100 round."
+        "note": "4d10 al 4°, zona della nube, pill 100 round. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -887,7 +887,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "TS COS a inizio turno e all'ingresso, 6d8 al 6°; il ricordo a inizio turno di Dars."
+        "note": "TS COS a inizio turno e all'ingresso, 6d8 al 6°; il ricordo a inizio turno di Dars. P4: ricorda di spostarsi al turno del caster."
       }
     },
     {
@@ -1026,8 +1026,8 @@
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "9d8 al 6°."
+        "date": "2026-11-05",
+        "note": "9d8 al 6°. P4: le difese nel pannello: Sera 38 → 28 con la resistenza, 38 → 33 con il TS superato, 38 → 18 ignorata; lancio e Annulla."
       }
     },
     {
@@ -1267,7 +1267,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Zona e azioni nel pannello; Vortice non provato."
+        "note": "Zona e azioni nel pannello; Vortice non provato. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -2072,7 +2072,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Sonno: il danno sveglia e Prono resta; Termina toglie l'effetto."
+        "note": "Sonno: il danno sveglia e Prono resta; Termina toglie l'effetto. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -2431,8 +2431,8 @@
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "5d6+4d6 al 6°, TS DES."
+        "date": "2026-11-05",
+        "note": "5d6+4d6 al 6°, TS DES. P4: due tipi in un numero: chip «al GM», il numero non cambia."
       }
     },
     {
@@ -2452,7 +2452,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Due creature entro 1,5 m, una più lontana fuori; 3d6 a fine turno al 3°."
+        "note": "Due creature entro 1,5 m, una più lontana fuori; 3d6 a fine turno al 3°. P4: spostata sul bersaglio: chiede il TS a chi travolge."
       }
     },
     {
@@ -2811,8 +2811,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -2964,7 +2964,7 @@
         "state": "letto",
         "lot": "P3-2",
         "date": "2026-11-04",
-        "note": ""
+        "note": "P4: la direzione cambia già nel turno del lancio."
       },
       "sweep": {
         "runs": 2,
@@ -2972,7 +2972,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Rettangolo 18×3; TS FOR a inizio turno; Termina dal pannello. Cambio di direzione non provato."
+        "note": "Rettangolo 18×3; TS FOR a inizio turno; Termina dal pannello. Cambio di direzione non provato. P4: Cambia direzione nel turno del lancio, membri aggiornati."
       }
     },
     {
@@ -2984,7 +2984,7 @@
         "state": "corretto",
         "lot": "P3-5",
         "date": "2026-11-04",
-        "note": "L'effetto andava a tutti nell'area e le spunte non contavano. Ora chi resta senza spunta, e il caster se non spuntato, è fuori dalla zona. Il TS Carisma resta un promemoria fino a P4."
+        "note": "L'effetto andava a tutti nell'area e le spunte non contavano. Ora chi resta senza spunta, e il caster se non spuntato, è fuori dalla zona. Il TS Carisma resta un promemoria fino a P4. P4: decisione del 5/11: il TS Carisma resta un promemoria, solo tracking."
       },
       "sweep": {
         "runs": 20,
@@ -3112,7 +3112,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "3d8 al 3°, la scelta sull'oggetto, poi il TS."
+        "note": "3d8 al 3°, la scelta sull'oggetto, poi il TS. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -3271,8 +3271,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -4124,15 +4124,15 @@
         "state": "corretto",
         "lot": "P3-10",
         "date": "2026-11-04",
-        "note": "Disegnava un quadrato di 1,5 km: 1,1 milioni di caselle ricalcolate a ogni cambiamento sulla scena. Ora una sagoma di 60 m segna il punto, con la nota."
+        "note": "Disegnava un quadrato di 1,5 km: 1,1 milioni di caselle ricalcolate a ogni cambiamento sulla scena. Ora una sagoma di 60 m segna il punto, con la nota. P4: decisione del 5/11: solo tracking, niente sagoma."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "Zona di 60 m, 10 giorni, nota nel pannello; Termina."
+        "date": "2026-11-05",
+        "note": "Zona di 60 m, 10 giorni, nota nel pannello; Termina. P4: pill sul caster, senza sagoma, viste espansa e compatta."
       }
     },
     {
@@ -4151,8 +4151,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -4235,7 +4235,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "3d10 al 3°; ingresso fuori turno; la × termina."
+        "note": "3d10 al 3°; ingresso fuori turno; la × termina. P4: spostato sul bersaglio: nessun TS, per scelta."
       }
     },
     {
@@ -4866,20 +4866,20 @@
       "id": "remove-curse",
       "name": "Rimuovi maledizione",
       "level": 3,
-      "group": "registrazione",
+      "group": "tracciato",
       "reading": {
         "state": "letto",
         "lot": "P3-11",
         "date": "2026-11-04",
-        "note": "Solo registrato, nessun blocco. Non termina Scagliare maledizione e Sortilegio sul bersaglio: da decidere."
+        "note": "Solo registrato, nessun blocco. Non termina Scagliare maledizione e Sortilegio sul bersaglio: da decidere. P4: decisione del 5/11: termina Scagliare maledizione, Sortilegio e Costrizione, che lo dicono nel loro testo."
       },
       "sweep": {
         "runs": 2,
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: su Sortilegio e Scagliare maledizione insieme, con le due concentrazioni che cadono; su Costrizione; su una creatura pulita."
       }
     },
     {
@@ -5545,7 +5545,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Terreno difficile dentro; ingresso: promemoria dei 2d4 per 1,5 m; Termina."
+        "note": "Terreno difficile dentro; ingresso: promemoria dei 2d4 per 1,5 m; Termina. P4: caster dentro al lancio senza falso ingresso; goblin che entra con l'avviso; una creatura deselezionata non riceve avvisi."
       }
     },
     {
@@ -5584,8 +5584,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -5705,7 +5705,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "6d8, Accecato fino all'inizio del prossimo turno del caster, Nuova linea si apre da sola a quel turno."
+        "note": "6d8, Accecato fino all'inizio del prossimo turno del caster, Nuova linea si apre da sola a quel turno. P4: Nuova linea dal popup: il caster non è preso."
       }
     },
     {
@@ -5765,7 +5765,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Contesa vinta o persa dal pannello."
+        "note": "Contesa vinta o persa dal pannello. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -6547,7 +6547,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Pill e +2d8 dal lancio; il ⚡ non è provato."
+        "note": "Pill e +2d8 dal lancio; il ⚡ non è provato. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -6667,7 +6667,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Terreno ai soli nemici, promemoria a inizio e a fine turno del caster, Termina."
+        "note": "Terreno ai soli nemici, promemoria a inizio e a fine turno del caster, Termina. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -6767,7 +6767,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Discendente: nessun TS a chi cammina; con Camminare nel vento Mira ha il TS a inizio turno."
+        "note": "Discendente: nessun TS a chi cammina; con Camminare nel vento Mira ha il TS a inizio turno. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -6779,7 +6779,7 @@
         "state": "letto",
         "lot": "P3-7",
         "date": "2026-11-04",
-        "note": "Nessun difetto: 7 stelle e 2 per slot, popup al turno del caster."
+        "note": "Nessun difetto: 7 stelle e 2 per slot, popup al turno del caster. P4: la stella si lancia già nel turno del lancio."
       },
       "sweep": {
         "runs": 2,
@@ -6787,7 +6787,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Slot 8: 9 stelle; popup al turno del caster."
+        "note": "Slot 8: 9 stelle; popup al turno del caster. P4: Lancia una stella nel turno del lancio."
       }
     },
     {
@@ -6887,7 +6887,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Slot 6: 3d8 o 5d8; superato nessuna pill, fallito pill e popup al turno del caster."
+        "note": "Slot 6: 3d8 o 5d8; superato nessuna pill, fallito pill e popup al turno del caster. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -6939,7 +6939,7 @@
         "state": "letto",
         "lot": "P3-7",
         "date": "2026-11-04",
-        "note": "Nessun difetto: Spaventato il suo minuto, il soffio dal popup."
+        "note": "Nessun difetto: Spaventato il suo minuto, il soffio dal popup. P4: il Soffio è un'azione bonus, anche nel turno del lancio."
       },
       "sweep": {
         "runs": 4,
@@ -6947,7 +6947,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Spaventato sul goblin; popup del soffio al turno del caster."
+        "note": "Spaventato sul goblin; popup del soffio al turno del caster. P4: il Soffio con la sagoma nel turno del lancio, dal popup e dal registro."
       }
     },
     {
@@ -7107,7 +7107,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Pulsante spento nel turno del lancio, poi 12 → 11, con il promemoria al turno del caster."
+        "note": "Pulsante spento nel turno del lancio, poi 12 → 11, con il promemoria al turno del caster. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -7247,7 +7247,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "damageDefensesForItem dà le cinque resistenze."
+        "note": "damageDefensesForItem dà le cinque resistenze. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -7259,7 +7259,7 @@
         "state": "corretto",
         "lot": "P3-6",
         "date": "2026-11-04",
-        "note": "Immunità e resistenza erano etichette: ora difese vere. Il danno del Cono gelido resta manuale: P4."
+        "note": "Immunità e resistenza erano etichette: ora difese vere. Il Cono gelido è diventato un'azione con sagoma, TS e danno in P4."
       },
       "sweep": {
         "runs": 2,
@@ -7267,7 +7267,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Aura su chi entra, caster escluso; damageDefensesForItem dà freddo e fuoco."
+        "note": "Aura su chi entra, caster escluso; damageDefensesForItem dà freddo e fuoco. P4: Cono gelido spento nel turno del lancio; dal turno dopo con TS fallito (danno pieno, Velocità dimezzata fino al turno del caster) e superato (metà), viste espansa e compatta."
       }
     },
     {
@@ -7287,7 +7287,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Pill e volo 18 m."
+        "note": "Pill e volo 18 m. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -7307,7 +7307,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Promemoria a fine turno e all'ingresso, non al lancio; damageDefensesForItem dà fuoco e freddo."
+        "note": "Promemoria a fine turno e all'ingresso, non al lancio; damageDefensesForItem dà fuoco e freddo. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -7327,7 +7327,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Pill, nessuna difesa vera."
+        "note": "Pill, nessuna difesa vera. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -7547,7 +7547,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Slot 6: 5d8; TS e danno a fine turno; Termina lascia Accecato."
+        "note": "Slot 6: 5d8; TS e danno a fine turno; Termina lascia Accecato. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -7827,7 +7827,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Superato: danni e niente pill. Fallito: Trattenuto e Isolamento."
+        "note": "Superato: danni e niente pill. Fallito: Trattenuto e Isolamento. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -8127,7 +8127,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Nel pannello esiti e TS Forza; la mano sulla mappa no: lo strumento del banco non disegna le pedine."
+        "note": "Nel pannello esiti e TS Forza; la mano sulla mappa no: lo strumento del banco non disegna le pedine. P4: la mano e la presa al lancio, il popup dal turno dopo."
       }
     },
     {
@@ -8266,8 +8266,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "P4: i due TS al lancio, Trattenuto, Prova di fuga dal ⚡."
       }
     },
     {
@@ -8586,8 +8586,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-04",
+        "note": "P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -8887,7 +8887,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Colpito: 2d12 al 2°, pill e concentrazione, Ripeti a inizio turno del caster. Mancato: nulla, nessuna concentrazione."
+        "note": "Colpito: 2d12 al 2°, pill e concentrazione, Ripeti a inizio turno del caster. Mancato: nulla, nessuna concentrazione. P4: azione del ⚡ provata dal pannello."
       }
     },
     {
@@ -9147,7 +9147,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "6d4 al 3°: promemoria a inizio turno e all'ingresso; Termina toglie la zona."
+        "note": "6d4 al 3°: promemoria a inizio turno e all'ingresso; Termina toglie la zona. P4: caster dentro al lancio senza falso ingresso; goblin che entra con l'avviso."
       }
     },
     {
@@ -9327,7 +9327,7 @@
       },
       "bench": {
         "date": "2026-11-04",
-        "note": "Lancio senza campo; la cura apre il popup con il bersaglio."
+        "note": "Lancio senza campo; la cura apre il popup con il bersaglio. P4: azione del ⚡ provata dal pannello."
       }
     },
     {

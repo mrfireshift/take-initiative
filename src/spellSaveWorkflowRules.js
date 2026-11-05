@@ -693,6 +693,15 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
       })],
     }),
   }),
+  // All the curses on the creature it touches (cleanseSpellRules.js): nothing to choose.
+  "remove-curse": workflowRule({
+    spellId: "remove-curse",
+    ability: "con",
+    maximum: 1,
+    baseSlot: 3,
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+  }),
   // Spells above the limit need the caster's check (DC 10 + their level): one result for the creature.
   "dispel-magic": workflowRule({
     spellId: "dispel-magic",

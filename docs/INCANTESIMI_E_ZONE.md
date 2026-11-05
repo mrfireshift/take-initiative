@@ -479,8 +479,10 @@ informativa. La risoluzione usa il coordinatore effetti e una sola History/Undo
 anche quando combina HP, condizioni e chiusura dell'attivazione.
 
 I trigger senza `resolutionData` riconosciuta restano reminder informativi. Non
-sono inclusi tiri virtuali, interpretazione del testo, resistenze o
-vulnerabilità, aggregazioni multi-target e scripting personalizzato.
+sono inclusi tiri virtuali, interpretazione del testo, aggregazioni multi-target e
+scripting personalizzato. Le difese del bersaglio contano quando il danno del
+trigger ha un tipo noto (`reminderDamageDefenseRows`), con un chip accanto al campo
+Danni; un tipo a scelta del caster resta al GM.
 
 ## Zone, aure e geometrie
 

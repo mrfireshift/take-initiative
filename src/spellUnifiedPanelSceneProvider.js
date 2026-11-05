@@ -41,6 +41,7 @@ import { getMobileAuraRule, SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 import { pendingSpellZoneTriggerActivations } from "./spellZoneTriggerCore.js";
 import { turbineSizeFromToken } from "./xanatharTurbineCore.js";
 import { magicMissileTargetGuard } from "./magicMissileCore.js";
+import { magicalDamageDefensesForItem } from "./spellDamageDefenseCore.js";
 import { blinkSemanticDetail } from "./blinkRules.js";
 import { createSceneMetadataKeyWatcher } from "./sceneMetadataDigest.js";
 import {
@@ -263,6 +264,8 @@ function targetCandidate(item, dpi = 150) {
     sharedHpSourceId: text(meta.sharedHpSourceId),
     // Its force defense and Shield, for the Magic Missile preview.
     magicMissileGuard: magicMissileTargetGuard(item),
+    // Against a spell's damage, for the preview of the others.
+    damageDefenses: magicalDamageDefensesForItem(item, `${ID}/meta`),
   };
 }
 

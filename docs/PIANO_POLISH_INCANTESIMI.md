@@ -1,6 +1,6 @@
 # Polishing degli incantesimi (piano)
 
-Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 fatto (lotti da 1 a 11 e D6: 477 incantesimi letti su 477, 167 corretti); restano P4 e P5**. Questo piano guida la
+Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 fatto (lotti da 1 a 11 e D6: 477 incantesimi letti su 477, 167 corretti); P4 quasi chiuso (azioni del ⚡, zone che si spostano, difetti certi e difese nei danni e nei promemoria fatti; resta la console attacchi); resta P5**. Questo piano guida la
 revisione di tutti i 477 incantesimi prima di aggiungere nuove capacità. Per ognuno si controlla:
 
 - **A, l'interpretazione:** il motore fa ciò che dice il testo 2014?
@@ -371,7 +371,7 @@ Decisioni del proprietario sui dubbi del lotto, il 4/11:
 
 Limiti rimasti:
 - **Proibizione:** il promemoria compare per ogni creatura e il GM conferma i tipi scelti, perché il plugin non conosce il tipo del token.
-- **Investitura del Ghiaccio:** il Cono gelido applica la velocità dimezzata, ma il danno resta manuale, a differenza delle altre Investiture. In P4.
+- **Investitura del Ghiaccio:** il Cono gelido applica la velocità dimezzata, ma il danno resta manuale, a differenza delle altre Investiture. Fatto in P4.
 
 Falsi allarmi, da non riaprire: Controllare Venti non chiede il TS a chi cammina, perché tocca solo chi vola (`requireMovementModes`): con
 Camminare nel vento Mira lo ha ricevuto. Gabbia di forza ha la scatola da 3 m tra le scelte, e la pill di Globo dice il livello in più per slot.
@@ -502,7 +502,7 @@ I tracciati dal 4° al 7° livello, in ordine.
 | **Disegnava 1,1 milioni di caselle** | Miraggio arcano | L'area si ricostruisce dalle caselle a ogni cambiamento sulla scena, e il miraggio dura 10 giorni. Sagoma di 60 m che segna il punto, con la nota: il testo dice «massimo» 1,5 km. Un test tiene ogni area sotto le 20.000 caselle |
 | La sagoma non diceva che cosa mostra | Santuario privato | Una nota: il cubo massimo del 4° slot |
 
-Scelta da confermare: la sagoma di 60 m di Miraggio arcano.
+Scelta da confermare: la sagoma di 60 m di Miraggio arcano. Decisa in P4: niente sagoma, solo tracking.
 
 Strumento: `npm run polish:sheets` falliva su Miraggio arcano, per le troppe caselle passate a `Math.max`. Ora usa un ciclo.
 
@@ -542,18 +542,90 @@ scadenze sbagliate, le difese scritte solo come etichette, le note mai arrivate 
 
 ### P4, i workflow che la prova non copre ancora (B)
 
-- Le azioni del ⚡ e gli spostamenti delle zone.
-- La console attacchi e il lancio dalle schede dei mostri.
-- Le resistenze nei danni ad area: l'esecutore ad area non legge il tipo di danno né le difese del bersaglio, a differenza
-  della console attacchi. Da verificare e, se serve, da decidere.
-- Santificare: un pulsante vero per il TS Carisma. Chi lo supera ignora l'effetto aggiuntivo finché non esce dall'area, e oggi la zona gli
-  rimette l'etichetta al controllo successivo.
-- Un falso «ingresso nell'area» al lancio per il caster che sta dentro la zona: la sagoma lo esclude, la zona lo conta, e la base dei trigger
-  non lo ha. Visto al banco su Nube di Pugnali; stessi dati per Sfera infuocata, Crescita di spine, Spirito Guaritore e Proibizione. Santificare
-  l'ha risolto mettendo il caster nella sagoma.
-- Il Cono gelido di Investitura del Ghiaccio come azione con TS e danno, come la Linea di fuoco e il Cubo di vento delle altre Investiture.
-- Un giro automatico al banco sui casi complessi.
-- I casi che oggi la prova esclude, sulla lista delle eccezioni del test: Animare oggetti, i teletrasporti, i ritorni in vita.
+| Voce | Stato |
+|---|---|
+| Le azioni del ⚡ e gli spostamenti delle zone | Fatto il 4/11 |
+| Il falso «ingresso nell'area» del caster già dentro | Fatto il 4/11 |
+| Il Cono gelido di Investitura del Ghiaccio come azione con TS e danno | Fatto il 4/11 |
+| I casi che la prova esclude (Animare oggetti, i teletrasporti, i ritorni in vita, Palla di fuoco ritardata) | Riletti il 4/11: le eccezioni sono giuste e restano |
+| Un giro automatico al banco sui casi complessi | `actionRun` e `actionLine` di `polishBench.js` lo permettono. Le azioni si provano così; una lista fissa non serve finché non cambia il motore delle azioni |
+| Le resistenze nei danni degli incantesimi | Fatto il 5/11: il pannello, le azioni del ⚡ e i promemoria |
+| Santificare: un pulsante vero per il TS Carisma | Deciso il 5/11: resta solo tracking, non è un incantesimo da combattimento |
+| La console attacchi e il lancio dalle schede dei mostri | Da provare quando è chiuso l'[audit del pannello attacchi](AUDIT_UX_PANNELLO_ATTACCHI.md), che lo sta rifacendo |
+
+#### Primo lotto (fatto il 4/11): le azioni del ⚡ e i difetti certi
+
+Gli incantesimi con azioni del ⚡ sono 42, di dieci tipi: attacco singolo, TS singolo, TS ad area, zona figlia, cura singola, direzione di una zona, Muro prismatico,
+Telecinesi, ritorno di Intermittenza, azione diretta. Le ho provate dal pannello e dal popup veri, con il servizio di sfondo acceso, e le zone anche spostandole.
+
+| Difetto | Incantesimi | Correzione |
+|---|---|---|
+| Le azioni bonus si accendevano solo dal turno dopo il lancio, e il testo non lo chiede | Mano arcana, Corona di Stelle, Drago illusorio, Folata di Vento | Via l'attesa. Mano arcana e Drago illusorio aprono anche il loro popup nel turno del lancio, come Corona di Stelle: la mano agisce quando l'incantesimo è lanciato, e il drago non ha una pill con il ⚡. Le azioni vere aspettano ancora: quella del turno è servita a lanciare |
+| Un falso «ingresso nell'area» per il caster già dentro al lancio, con il danno o il TS da confermare. La sagoma lo esclude, la zona lo conta, e la base dei trigger non lo aveva | Provato su Nube di Pugnali e Crescita di spine; la correzione vale per ogni zona | Al primo controllo il caster che è già dentro entra nella base (`planStaticSpellZoneReminder`). Solo lui: chi arriva prima del primo controllo è un ingresso vero, e i test lo tengono fermo (SP-B04A) |
+| Il Cono gelido applicava solo la velocità, sui falliti da selezionare a mano, con il danno a parte | Investitura del Ghiaccio | Un'azione con sagoma, TS Costituzione, 4d6 freddo, metà se superato, velocità dimezzata a chi fallisce e popup di turno, come la Linea di fuoco e il Cubo di vento |
+| Un cono che parte dal caster era rifiutato quando si applicava: lo strumento lo fa partire dal lato della casella che guarda il caster, cioè sul bordo del token, e il controllo del popup voleva un'origine fuori dal token | Il Cono gelido, l'unica azione di questo tipo | Per i coni il bordo vale (`allowCasterEdge` in `spellAreaOriginAdjacentToCaster`); un cono lontano dal caster resta rifiutato. L'ha trovato il banco, ma il finto strumento sceglieva un altro lato: ora fa come quello vero |
+
+Provato al banco nel turno del lancio: Pugno serrato dal popup della Mano arcana, Lancia una stella, il Soffio con la sagoma, Cambia direzione con la zona che si gira e i membri aggiornati. Provato
+dal turno dopo: il Cono gelido con TS fallito (danno pieno, «Velocità dimezzata» che sparisce all'inizio del turno del caster) e superato (metà, nessuna condizione), con il pulsante spento e nessun popup
+nel turno del lancio, in vista espansa e compatta. Nube di Pugnali e Crescita di spine con il caster dentro: nessun avviso al lancio, e l'avviso quando un goblin entra davvero.
+
+Provato al banco, senza difetti: Invocare il fulmine, Arma spirituale, Spada arcana, Bacche benefiche, Riscaldare il metallo, Dardo stregato, Debilitazione, Prigione Mentale, Sguardo penetrante, il
+raggio di Muro di Luce, la Linea di fuoco, il Cubo di vento, Scossa di Investitura della Pietra, le Immunità di Interdizione Primordiale, Sposta il marchio, Collera della Natura, Frecce Infuocate, Immagine
+speculare, Alterare sé stesso, Controllare Venti, Aura di Vitalità, Arma Sacra, Telecinesi, Lama del Disastro, il vortice di Controllare acqua, la Nuova linea di Bagliore solare, Stretta della Terra di
+Maximilian (la mano, la presa e il popup dal turno dopo), Turbine (i due TS al lancio e la Prova di fuga). Le zone che si spostano: Sfera infuocata chiede il TS a chi travolge, Bagliore lunare no, per scelta, e Nube mortale ricorda al turno del caster di
+spostarsi.
+
+Non sono difetti, da non riaprire:
+- Scegliendo un'azione nel pannello la selezione sulla mappa si svuota apposta (`onActiveActionChange`): il bersaglio si seleziona dopo.
+- Una creatura deselezionata al lancio non riceve avvisi d'ingresso: la zona tiene nella base tutta la sagoma.
+- La Nuova linea di Bagliore solare non prende il caster, anche se la regola lo ammette, se la linea va dalla casella accanto verso l'esterno.
+- Drago illusorio non ha una pill: il Soffio sta nel popup e nel registro degli incantesimi attivi del pannello.
+
+Limiti rimasti:
+- Arma Sacra: il congedo «creature a sua scelta» elenca tutti, caster compreso. Chi non è scelto si segna Immune.
+- Le fessure di Terremoto non si provano al banco, perché il finto strumento le mette fuori dal cerchio: le coprono i test (`test/spellChildZoneCore.test.js`) e restano per P5.
+
+Il banco è cresciuto: `actionRun`, `actionBrief` e `actionLine` per le azioni del ⚡; il finto strumento fa partire il cono accanto al caster dal lato giusto, dà a un cerchio il suo angolo e a un quadrato la sua posizione.
+
+Test in `test/spellPolishP4.test.js`.
+
+#### Secondo lotto (fatto il 5/11): le difese nei danni e le decisioni del proprietario
+
+Decisioni del proprietario, il 5/11:
+- **Le resistenze si automatizzano**, e deve essere chiaro nei tooltip che una difesa è in gioco: di solito scrive il danno già dimezzato.
+- **Santificare resta solo tracking.** Non è un incantesimo da combattimento, e il pulsante avrebbe chiesto un'esenzione che finisce all'uscita, nel motore dei trigger e in Annulla.
+- **Miraggio arcano resta solo tracking.** Niente sagoma: la pill sul caster, per i suoi 10 giorni.
+- **Rimuovi maledizione termina le maledizioni.**
+
+| Prima | Incantesimi | Ora |
+|---|---|---|
+| Il danno scritto arrivava pieno anche a chi resiste: Cono di freddo da 20 su Sera, 38 → 18 | I 71 incantesimi con un campo danno nel pannello e le azioni del ⚡ con un tipo noto | Il conto per bersaglio: 38 → 28. Prima il TS, poi la difesa, con l'arrotondamento delle console. Vale per resistenze, immunità e vulnerabilità |
+| Era solo registrato | Rimuovi maledizione | Termina Scagliare maledizione, Sortilegio e Costrizione sulla creatura che tocca, con la concentrazione di chi li ha lanciati: ognuno dei tre lo dice nel suo testo. Modificare memoria lo nomina per i ricordi, che il plugin non traccia |
+| Una sagoma da 60 m, da confermare | Miraggio arcano | Solo la pill |
+
+Come funziona. `src/spellDamageDefenseCore.js` tiene il tipo di danno di ogni incantesimo, ricontrollato sui testi, perché il `damageType` del catalogo ha solo il primo tipo di un incantesimo e manca a 37 di loro; un test obbliga ogni
+incantesimo con un campo danno a dichiararlo. L'anteprima (`hpPreviewFor`), il lancio (`hpEntries`) e le azioni (`resolveSpellActiveResolutionDamage`) leggono le stesse righe, quindi non possono dare numeri diversi. Il chip sta accanto al nome
+nel pannello (`renderDefenseChips`): sulla stessa riga quando ci stanno entrambi, così la riga non cresce, sotto il nome quando non ci stanno, perché il nome non va mai tagliato. Nel popup sta sopra il pulsante (`renderDamageDefenseChips`). Compare
+già prima che il danno sia scritto, perché chi scrive il danno dimezzato deve vederlo prima di scriverlo. Il suo suggerimento dice di chi è la difesa e
+che cosa fa al numero. Un clic la ignora per quel lancio, e passa da `session.ignoredDefenses` a `hp.ignoredDefenses`. Il registro di combattimento dice quale difesa ha contato (`targets[].defenses`).
+
+Restano al GM, e la guida lo dice:
+- **Due tipi in un solo numero:** Colpo infuocato, Tempesta di ghiaccio, Sciame di meteore. Il chip dice `Res. fuoco: al GM` e non tocca il numero: il pannello non sa quanta parte è di fuoco.
+- **Un tipo non fisso:** Onda distruttiva, Guardiani spirituali, Evoca raffica, Evoca pioggia di armi, il Soffio di Drago illusorio.
+- **Le punizioni:** il loro danno si somma a quello dell'attacco.
+
+I promemoria fanno lo stesso conto: quelli di zona, quelli degli effetti (Immolazione, Assassino fantasma, Colpo intrappolante) e le aure personalizzate con un tipo noto. Il tipo sta sul danno del promemoria, quindi non serve una tabella
+(`reminderDamageDefenseRows`, `reminderResolutionDamage`). Il chip sta in linea accanto al campo Danni (`buildResolutionControls`). Premere l'esito applica subito, quindi il chip non può seguirlo: il suo conto è quello del danno pieno, e il suggerimento
+ricorda che con il TS superato conta prima la metà. La CD di concentrazione, i TS contro la morte e il contatore del Guardiano della Fede leggono il danno ridotto, come dice il testo. Anche un trigger di zona risolto dal pannello legge il tipo dal trigger
+(`spellPanelDamageTypes`, `hp.damageTypes`), altrimenti pannello e promemoria darebbero numeri diversi.
+
+Non contano le difese dei mostri limitate alle armi non magiche, perché il danno di un incantesimo è magico (`magicalDamageDefensesForItem`).
+
+Errore mio: il chip si spegneva con la riga, che dopo la sagoma è bloccata, quindi era sbiadito e non si poteva cliccare. L'ha trovato il banco: i test leggevano il testo del chip, non `disabled`.
+
+Provato al banco: Cono di freddo su Sera con TS fallito e superato, il clic che ignora e che riapplica, il lancio e Annulla; il Cono gelido, Stritola e Lancia una stella nel popup, con il chip che segue il numero scritto; Colpo infuocato con il chip «al GM»;
+Rimuovi maledizione su Sortilegio e Scagliare maledizione insieme, con le due concentrazioni che cadono, su Costrizione e su una creatura pulita; Miraggio arcano senza sagoma, in vista espansa e compatta. I promemoria: Nube di Pugnali su chi resiste ai
+taglienti (9 → 4) e con la difesa ignorata, Bagliore lunare con TS superato (10, 5, 2), Guardiani spirituali senza chip. **Non provati:** gli attacchi multipli di Lama del Disastro e il registro di combattimento a video, coperti dal test su `spellAreaCausality`. Test in `test/spellDamageDefense.test.js` e `test/cleanseSpells.test.js`.
 
 ### P5, la prova in stanza
 

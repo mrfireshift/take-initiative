@@ -136,6 +136,7 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   "phb2014-parola-del-potere-guarire",
   "lesser-restoration",
   "dispel-magic",
+  "remove-curse",
   // Decision D6 of docs/PIANO_POLISH_INCANTESIMI.md: a save at the cast, on creatures chosen in the panel. The quick launch
   // applies them at once, the save taken as failed (quickActionSpellExecutionCore.js); the panel asks each outcome.
   "animal-friendship",
@@ -204,7 +205,6 @@ export const AREA_PLACEMENT_ONLY_SPELL_IDS = Object.freeze([
   "holy-aura",
   "magic-circle",
   "mass-cure-wounds",
-  "mirage-arcane",
   "dimension-door",
   "misty-step",
   "move-earth",
@@ -269,6 +269,8 @@ export const AREA_POPOVER_SPELL_ID_SET = new Set(AREA_POPOVER_SPELL_IDS);
 // Mantenerli classificati evita che euristiche future li aggiungano per errore.
 export const AREA_FIELD_NON_POPOVER_REASONS = Object.freeze({
   "arcane-eye": "sensory-radius",
+  // Only tracked, by the owner's decision: not a spell for a fight, and a mile's square would be 1.1 million cells.
+  "mirage-arcane": "tracked-only",
   "xanathar-investitura-del-vento": "active-action-only-area",
   "xanathar-investitura-della-pietra": "active-action-only-area",
   // The creature touched breathes the cone later, with its action (CAP-ORIGIN).

@@ -8,6 +8,7 @@ import {
 } from "./spellUnifiedPanelCore.js";
 import { isTeleportSpell } from "./spellTeleportCore.js";
 import { getAreaSaveAutomation } from "./spells-srd.js";
+import { spellActionDamageTypes } from "./spellDamageDefenseCore.js";
 import { SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS } from "./spellUnifiedActiveAdapter.js";
 
 export const SPELL_UNIFIED_AREA_STATUS = Object.freeze({
@@ -235,6 +236,13 @@ function hpInput(contract, session) {
       amount: session?.hpValues?.damage,
       ...(hasInputValue(primaryDamage)
         ? { primaryAmount: primaryDamage }
+        : {}),
+      ...(Object.keys(session?.ignoredDefenses || {}).length
+        ? { ignoredDefenses: session.ignoredDefenses }
+        : {}),
+      // A zone's trigger says the type of its own damage (spellPanelDamageTypes).
+      ...(session?.triggerRuntime?.damage
+        ? { damageTypes: spellActionDamageTypes(session.triggerRuntime) }
         : {}),
     };
   }

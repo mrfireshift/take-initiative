@@ -19,6 +19,35 @@ function targetHPChangeLabel(target) {
   return `${preview.beforeHP} \u2192 ${preview.afterHP} PF`;
 }
 
+// A defense at work on this target's damage, under its row. The chip says the sum, its tooltip whose defense it is; a click
+// ignores it for this cast. Two types in one number stay with the GM: the chip only says so.
+function renderDefenseChips(documentRef, target, callbacks) {
+  const chips = Array.isArray(target.defenseChips) ? target.defenseChips : [];
+  if (!chips.length) return null;
+  return createNode(documentRef, "div", {
+    className: "unified-target-row__defenses",
+    children: chips.map((chip) => {
+      const button = createButton(documentRef, {
+        label: chip.text,
+        className: `unified-target-row__defense is-${chip.defense}`,
+        // Not tied to the row: a confirmed area locks the targets, not what their defenses do.
+        pressed: chip.ignored !== true && chip.manual !== true,
+        attributes: {
+          title: chip.title,
+          "data-defense-type": chip.type,
+          "data-defense-kind": chip.defense,
+          ...(chip.ignored ? { "data-ignored": "true" } : {}),
+          ...(chip.manual ? { "data-manual": "true" } : {}),
+        },
+      });
+      if (!chip.manual) {
+        button.addEventListener("click", () => callbacks.onDefenseToggle?.(target.key, chip.type));
+      }
+      return button;
+    }),
+  });
+}
+
 function renderOutcomeButtons(documentRef, target, callbacks) {
   const options = Array.isArray(target.outcomeOptions) && target.outcomeOptions.length
     ? target.outcomeOptions
@@ -367,7 +396,14 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
         createNode(documentRef, "strong", { text: target.label }),
       ],
     }));
-    row.append(label);
+    // A defense's chip beside the name: on one line when both fit, below when they do not, so a long name is never cut.
+    const defenseChips = renderDefenseChips(documentRef, target, callbacks);
+    row.append(defenseChips
+      ? createNode(documentRef, "div", {
+        className: "unified-target-row__identity",
+        children: [label, defenseChips],
+      })
+      : label);
     const hpChange = targetHPChangeLabel(target);
     if (hpChange) {
       row.append(createNode(documentRef, "span", {

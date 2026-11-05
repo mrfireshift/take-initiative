@@ -550,6 +550,8 @@ const TARGET_MODE_OVERRIDES = Object.freeze({
   // Nothing to choose: a wall and a phantom watchdog stand where the caster puts them, the pill stays with the caster.
   "wall-of-stone": "self",
   "faithful-hound": "self",
+  // The owner's decision, 5/11: not a spell for a fight, only its pill and its 10 days. A mile's square would be 1.1 million cells.
+  "mirage-arcane": "self",
   // Lotto P3-8: no creature in the text. Lights, a hand, an illusion, a disc, a script, pebbles, the caster's own stick:
   // the pill stays with the caster, who ends them.
   "dancing-lights": "self",

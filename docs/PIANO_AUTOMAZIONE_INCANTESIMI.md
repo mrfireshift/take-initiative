@@ -301,7 +301,7 @@ Una capacità per volta, con i suoi test di contratto, poi la famiglia.
 | --- | --- | --- | --- |
 | CAP-LINK ✓ | 9 (8) | Legame mantenuto o spostato e fine su evento: Marchio del cacciatore, Sortilegio, Dardo stregato, Duello obbligato, Corona di follia, Debilitazione, Invisibilità, Lama roboante, tutti fatti | Medio |
 | CAP-HP-BRANCH ✓ | 5 (5) | Soglie di PF prima e dopo il danno: Disintegrazione, Dito della morte, Parola del potere uccidere, Regressione mentale, Parola divina, tutti fatti | Alto: HP |
-| CAP-CLEANSE ✓ (4 di 6) | 6 (4) | Scegliere e terminare effetti attivi: Ristorare inferiore, Dissolvi magie, Guarigione, Parola del potere guarire fatti; restano Dissolvi il bene e il male (lotto a parte, con la console attacchi) e Guarigione di massa (CAP-ALLOCATION) | Medio |
+| CAP-CLEANSE ✓ (5 di 7) | 7 (5) | Scegliere e terminare effetti attivi: Ristorare inferiore, Dissolvi magie, Guarigione, Parola del potere guarire, Rimuovi maledizione fatti; restano Dissolvi il bene e il male (lotto a parte, con la console attacchi) e Guarigione di massa (CAP-ALLOCATION) | Medio |
 | CAP-RESOURCE ✓ (4 di 5) | 5 (4) | Contatore consumato: Bacche benefiche, Guardiano della fede, Immagine speculare, Cordone di frecce, tutti fatti; Minuscole meteore aspetta CAP-MULTIAREA | Medio |
 | CAP-REACTION ✓ | 6 (6) | Reazione assistita al danno o all'attacco: Scudo di fuoco, Santuario, Interdizione primordiale, Ombra di Moil, Interdizione alla morte, Vincolo di interdizione, tutti fatti | Alto: HP |
 | CAP-TEMP ✓ | 5 (5) | PF temporanei consumati dal danno: Vita falsata, Eroismo, Armatura di Agathys, Trasformazione di Tenser, Flusso di energia negativa, tutti fatti | Alto: HP |
@@ -407,6 +407,8 @@ del comando, con i TS contro la morte.
   fino al livello dello slot) terminano; sopra decide il campo «Prova», con un
   esito per la creatura; senza, restano e il messaggio del pannello li elenca
   con la CD. Oggetti e zone: il «Termina» del registro.
+- Rimuovi maledizione (aggiunta il 5 novembre, polish P4): Scagliare maledizione,
+  Sortilegio e Costrizione sulla creatura che tocca; lo dicono i loro testi.
 
 Test: `test/cleanseSpells.test.js` e `test/cleanseSpellsIntegration.test.js`
 (esecutore e coordinatore veri, con Annulla).
@@ -897,14 +899,14 @@ Il lancio crea la pill con durata e concentrazione; gli effetti (informazioni, e
 - **8° livello**: Controllare tempo atmosferico, Fortezza Possente, Loquacità, Semipiano, Telepatia, Vuoto mentale.
 - **9° livello**: Metamorfosi di Massa, Portale, Proiezione astrale.
 
-### Solo registrazione: nessuna automazione utile (35)
+### Solo registrazione: nessuna automazione utile (34)
 
 Istantanei: il lancio spende lo slot e finisce nel registro, senza pill. (R) = rituale.
 
 - **Trucchetti**: Artificio druidico, Controllare Fiamme, Folata, Modellare Acqua, Modellare Terra, Riparare.
 - **1° livello**: Creare o distruggere acqua, Identificare (R), Purificare cibo e bevande (R), Trova famiglio (R).
 - **2° livello**: Localizza animali o vegetali (R), Presagio (R), Scassinare, Scopri trappole, Trova cavalcatura.
-- **3° livello**: Animare morti, Controincantesimo (reazione), Creare cibo e acqua, Rimuovi maledizione.
+- **3° livello**: Animare morti, Controincantesimo (reazione), Creare cibo e acqua.
 - **4° livello**: Divinazione (R), Fabbricare, Scolpire pietra, Scrigno segreto, Trova Cavalcatura Superiore.
 - **5° livello**: Comunione con la natura (R), Conoscenza delle leggende.
 - **6° livello**: Alleato planare, Creare non morti, Creare Omuncolo, Disperdere, Parola del ritiro.

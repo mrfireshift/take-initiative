@@ -495,6 +495,40 @@
         cursor: default;
         opacity: var(--obrt-btn-disabled-opacity, .48);
       }
+      .zone-resolution-defenses {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 3px;
+      }
+      .zone-resolution-defenses[hidden] {
+        display: none !important;
+      }
+      .zone-resolution button.zone-resolution-defense {
+        min-height: 19px;
+        padding: 1px 7px;
+        border-color: rgba(251,191,36,.55);
+        border-radius: 999px;
+        background: rgba(251,191,36,.14);
+        color: #fde68a;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .zone-resolution button.zone-resolution-defense:hover {
+        border-color: rgba(251,191,36,.9);
+        background: rgba(251,191,36,.24);
+      }
+      .zone-resolution button.zone-resolution-defense.is-vulnerability {
+        border-color: rgba(248,113,113,.6);
+        background: rgba(248,113,113,.14);
+        color: #fecaca;
+      }
+      .zone-resolution button.zone-resolution-defense[data-ignored="true"] {
+        border-style: dashed;
+        background: transparent;
+        color: rgba(226,232,240,.6);
+        text-decoration: line-through;
+      }
       .zone-resolution-damage {
         display: inline-flex;
         align-items: center;

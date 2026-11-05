@@ -97,6 +97,11 @@
       .target-name small { display: block; color: rgba(226,232,240,.58); font-size: var(--obrt-type-micro, 10px); font-weight: 500; }
       .target button { min-width: 31px; padding: 3px 4px; font-size: var(--obrt-type-micro, 10px); }
       .target button.active { border-color: #f5d0fe; background: rgba(126,34,206,.85); }
+      .damage-defenses { display: flex; flex-wrap: wrap; gap: 4px; }
+      .damage-defenses[hidden] { display: none; }
+      .damage-defense { min-width: 0; padding: 2px 7px; border: 1px solid rgba(251,191,36,.55); border-radius: 999px; background: rgba(251,191,36,.14); color: #fde68a; font-size: var(--obrt-type-micro, 10px); font-variant-numeric: tabular-nums; font-weight: 600; }
+      .damage-defense.is-vulnerability { border-color: rgba(248,113,113,.6); background: rgba(248,113,113,.14); color: #fecaca; }
+      .damage-defense[data-ignored="true"] { border-style: dashed; background: transparent; color: rgba(226,232,240,.6); text-decoration: line-through; }
       .prismatic-wall-layers { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow: auto; padding-right: 2px; }
       .prismatic-wall-layer { display: grid; gap: 5px; padding: 6px; border: 1px solid rgba(196,181,253,.2); border-radius: 6px; background: rgba(15,23,42,.66); }
       .prismatic-wall-layer__top, .prismatic-wall-layer__meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
@@ -305,6 +310,7 @@
           <span id="blinkPlacementStatus" class="hint"></span>
         </div>
       </section>
+      <div id="damageDefenses" class="damage-defenses" hidden></div>
       <div id="footer" class="footer"><button id="apply" class="primary" type="button" disabled>Cura</button><span id="summary" class="hint"></span></div>
     </main>
     <script type="module" src="/src/spell-active-resolution.js"></script>

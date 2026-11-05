@@ -42,6 +42,12 @@ import {
   quickHPTempHpPatchField,
 } from "./quickHpCore.js";
 import { spellCasterHealingChange } from "./spellDamageHealingCore.js";
+import {
+  magicalDamageDefensesForItem,
+  spellActionDamageTypes,
+  spellDamageDefenseApplied,
+  spellDamageDefenseRows,
+} from "./spellDamageDefenseCore.js";
 import { spellCastHealingDice, spellCastTemporaryHpAmount, spellCastTemporaryHpRule } from "./spellTemporaryHpRules.js";
 import {
   resolveZeroHPUnconsciousAction,
@@ -1097,6 +1103,8 @@ export async function executeSpellActiveResolution({
   sharedHp = {},
   shorteningFrom = "",
   naturalStormBonus = false,
+  // The damage defenses the GM ignores in this action: { targetId: [type] }.
+  ignoredDefenses = {},
   sceneEpoch = null,
   sceneIdentity = null,
   commandId = "",
@@ -1660,14 +1668,21 @@ export async function executeSpellActiveResolution({
           resolutionDamageByTarget.set(targetId, { damage: null, outcome });
           continue;
         }
+        // The creature's defense against this damage, the same as the popup's preview.
+        const defenses = spellDamageDefenseRows({
+          types: spellActionDamageTypes(action),
+          defenses: magicalDamageDefensesForItem(item, `${ID}/meta`),
+          ignoredTypes: ignoredDefenses?.[targetId],
+        });
         const damage = resolveSpellActiveResolutionDamage({
           action,
           slotLevel: payload.slotLevel,
           outcome,
           roll: action?.resolutionKind === "single-attack" ? entry.damageRoll : damageRoll,
+          defense: spellDamageDefenseApplied(defenses),
         });
         if (!damage.valid) throw new Error("active-resolution-damage-invalid");
-        resolutionDamageByTarget.set(targetId, { damage, outcome });
+        resolutionDamageByTarget.set(targetId, { damage, outcome, defenses });
         sharedHpIntents.push({ targetId, mode: "damage", amount: damage.amount,
           eventId: action?.resolutionKind === "single-attack" ? `active-attack:${sharedHpIntents.length}` : "active-save",
           // A critical hit on a PC at 0 HP: two death save failures.
@@ -1864,6 +1879,9 @@ export async function executeSpellActiveResolution({
       ...(item?.name ? { name: item.name } : {}),
       ...(resolution?.outcome ? { outcome: resolution.outcome } : {}),
       ...(damage ? { requestedDamage: damage.amount, damageFactor: damage.factor } : {}),
+      ...(damage?.factor > 0 && resolution?.defenses?.length
+        ? { defenses: resolution.defenses.map(({ type, defense, ignored }) => ({ type, defense, ...(ignored ? { ignored: true } : {}) })) }
+        : {}),
       ...(resolution?.prismaticContributions
         ? { prismaticContributions: cloneValue(resolution.prismaticContributions) }
         : {}),

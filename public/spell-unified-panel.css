@@ -787,6 +787,59 @@ select:disabled {
   white-space: nowrap;
 }
 
+/* The name and a defense's chip: on one line when both fit, and the chip below when they do not. */
+.unified-target-row__identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  min-width: 0;
+}
+
+.unified-target-row__identity > .unified-target-row__select {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+.unified-target-row__defenses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.unified-target-row__defense {
+  padding: 1px 7px;
+  white-space: nowrap;
+  border: 1px solid rgba(251, 191, 36, .55);
+  border-radius: 999px;
+  background: rgba(251, 191, 36, .14);
+  color: #fde68a;
+  font-size: var(--obrt-type-caption);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.unified-target-row__defense.is-vulnerability {
+  border-color: rgba(248, 113, 113, .6);
+  background: rgba(248, 113, 113, .14);
+  color: #fecaca;
+}
+
+.unified-target-row__defense[data-ignored="true"] {
+  border-style: dashed;
+  background: transparent;
+  color: var(--unified-muted, rgba(226, 232, 240, .6));
+  text-decoration: line-through;
+}
+
+.unified-target-row__defense[data-manual="true"] {
+  border-style: dashed;
+  background: transparent;
+  cursor: help;
+}
+
 .unified-outcome-group,
 .unified-target-bulk__actions {
   display: grid;

@@ -71,12 +71,14 @@ test("Modify Memory charms and incapacitates who fails, and damage ends it", () 
   assert.match(automation.failed[0].effectDetail, /vantaggio/u);
 });
 
-test("Mirage Arcane marks a place: a mile's square of cells would be rebuilt at every change on the scene", () => {
-  const { geometry, zonePolicy } = getSpellAreaRuleById("mirage-arcane:cast");
-  assert.equal(geometry.shape, "square");
-  assert.equal(geometry.size.value, 60);
-  assert.equal(zonePolicy.placementOptional, true);
-  assert.match(noteOf("mirage-arcane"), /1,5 km/u);
+test("Mirage Arcane is only tracked, by the owner's decision: no shape, its pill on the caster for 10 days", () => {
+  assert.equal(getSpellAreaRuleById("mirage-arcane:cast"), null);
+  const spell = getSpellDefinition("mirage-arcane");
+  assert.equal(spell.targetMode, "self");
+  assert.equal(spell.defaultTurns, 144000);
+  const contract = buildSpellUnifiedPanelContract({ spellId: "mirage-arcane", phase: "cast", castContext: { slotLevel: 7 } });
+  assert.equal(contract.execution.hasZones, false);
+  assert.equal(contract.presentation.placement.policy, "unavailable");
 });
 
 test("No area of the catalog is too large to rebuild", () => {

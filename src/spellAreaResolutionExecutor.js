@@ -66,6 +66,13 @@ import {
   planHpBranchBeforeDamage,
 } from "./hpBranchSpellRules.js";
 import { spellUndeadTemporaryHpAmount } from "./spellTemporaryHpRules.js";
+import {
+  magicalDamageDefensesForItem,
+  spellDamageAfterDefense,
+  spellDamageDefenseApplied,
+  spellDamageDefenseRows,
+  spellDamageTypes,
+} from "./spellDamageDefenseCore.js";
 import { planStabilizeTarget, returnFromDeathCondition, STABILIZE_SPELL_ID_SET } from "./stabilizeSpellRules.js";
 import { spellEffectConditionOptions } from "./spellEffectCore.js";
 import {
@@ -417,6 +424,14 @@ function magicMissileHPEntries(command, items, allItems = items) {
     .filter((entry) => entry && (entry.change.changed || resolveSharedHpGroup(allItems, entry.item.id).memberIds?.length > 1));
 }
 
+function spellHpDefenseRows(hp, spell, item) {
+  return spellDamageDefenseRows({
+    types: Array.isArray(hp?.damageTypes) ? hp.damageTypes : spellDamageTypes(spell?.id),
+    defenses: magicalDamageDefensesForItem(item, META_KEY),
+    ignoredTypes: hp?.ignoredDefenses?.[text(item?.id)],
+  });
+}
+
 function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan = null }) {
   if (spell?.id === PRISMATIC_SPRAY_SPELL_ID && prismaticSprayPlan) {
     return prismaticSprayHPEntries(items, prismaticSprayPlan);
@@ -448,15 +463,22 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
       const factorName = zeroDamage
         ? QUICK_HP_FACTORS.FULL
         : normalizeFactor(hp.outcomeFactors?.[targetId]);
-      const areaChange = calculateQuickHPChange({
+      const noDamage = zeroDamage || outcome === SAVE_SPELL_OUTCOMES.IMMUNE;
+      // The creature's defense against this damage, the same as the panel's preview (hpPreviewFor).
+      const defense = mode === QUICK_HP_MODES.DAMAGE && !noDamage
+        ? spellDamageDefenseApplied(spellHpDefenseRows(hp, spell, item))
+        : null;
+      const scaledChange = calculateQuickHPChange({
         mode,
-        value: zeroDamage || outcome === SAVE_SPELL_OUTCOMES.IMMUNE ? 0 : amount,
-        factor: factorName,
+        value: noDamage ? 0 : defense ? spellDamageAfterDefense(amount, factorName, defense) : amount,
+        factor: defense ? QUICK_HP_FACTORS.FULL : factorName,
         hp: itemMeta(item).hp,
         hpMax: itemMeta(item).hpMax,
         tempHp: itemMeta(item).tempHp,
         deathSaveDamage: takesDeathSaveDamage(itemMeta(item)),
       });
+      // The factor stays the outcome's: the log says "half" for a passed save, and the defense on its own line.
+      const areaChange = defense ? { ...scaledChange, factor: factorName } : scaledChange;
       if (mode !== QUICK_HP_MODES.DAMAGE
         || targetId !== primaryTargetId
         || primaryAmount <= 0) {
@@ -2362,7 +2384,7 @@ function causalDamageFactor(value) {
   }[text(value).toLocaleLowerCase("it")];
 }
 
-function spellAreaCausality(plan) {
+export function spellAreaCausality(plan) {
   const command = plan?.command || {};
   const allItems = Array.isArray(plan?.allItems) ? plan.allItems : [];
   const itemsById = new Map(allItems.map((item) => [String(item?.id || ""), item]));
@@ -2407,6 +2429,11 @@ function spellAreaCausality(plan) {
         && Number.isFinite(Number(meta.hp))
         ? 0
         : undefined;
+    // The defenses that changed the number or that the GM ignored, for the combat log. Two types in one number stay with the GM.
+    const defenses = hasRawDamage && factor !== 0
+      ? spellHpDefenseRows(command?.hp, plan?.spell, item).filter((row) => !row.manual)
+        .map(({ type, defense, ignored }) => ({ type, defense, ...(ignored ? { ignored: true } : {}) }))
+      : [];
     return {
       id,
       ...(item?.name ? { name: item.name } : {}),
@@ -2414,6 +2441,7 @@ function spellAreaCausality(plan) {
       ...(Number.isFinite(requestedDamage) ? { requestedDamage } : {}),
       ...(Number.isFinite(appliedHpDelta) ? { appliedHpDelta } : {}),
       ...(factor !== undefined ? { damageFactor: factor } : {}),
+      ...(defenses.length ? { defenses } : {}),
       ...(Array.isArray(change?.prismaticContributions)
         ? { damageContributions: clone(change.prismaticContributions) }
         : {}),

@@ -987,10 +987,16 @@ function normalizeHp(
         ? "zero"
         : QUICK_HP_FACTORS.FULL;
   }
+  // The defenses the GM ignores in this cast, for the targets of this cast.
+  const ignoredDefenses = Object.fromEntries(targetIds
+    .map((targetId) => [targetId, uniqueIds(rawHp.ignoredDefenses?.[targetId])])
+    .filter(([, types]) => types.length));
   return {
     required,
     mode: omitDamageInput ? "none" : required || effectiveAmount !== null ? validMode : "none",
     amount: effectiveAmount === null ? null : Math.floor(effectiveAmount),
+    ...(Object.keys(ignoredDefenses).length ? { ignoredDefenses } : {}),
+    ...(Array.isArray(rawHp.damageTypes) ? { damageTypes: uniqueIds(rawHp.damageTypes) } : {}),
     primaryAmount: primaryAmount === null ? null : Math.floor(primaryAmount),
     primaryRequired: primaryDamageRequired,
     ...(primaryDamageMode ? { primaryDamageMode } : {}),

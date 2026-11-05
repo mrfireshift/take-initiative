@@ -52,7 +52,6 @@ export const SPELL_AREA_GEOMETRY_BY_ID = Object.freeze({
   "magic-circle": {"area":{"type":"cylinder","size":10},"range":"10 feet"},
   "mass-cure-wounds": {"area":{"type":"sphere","size":30},"range":"60 feet"},
   "meteor-swarm": {"area":{"type":"sphere","size":40},"range":"1 mile"},
-  "mirage-arcane": {"area":{"type":"cube","size":5280},"range":"Sight"},
   "misty-step": {"area":null,"range":"Self"},
   "moonbeam": {"area":{"type":"cylinder","size":5},"range":"120 feet"},
   "move-earth": {"area":{"type":"cone","size":40},"range":"120 feet"},

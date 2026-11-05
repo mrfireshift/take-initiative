@@ -62,6 +62,14 @@ import {
 } from "./spellUnifiedPopupProtocol.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { SPELL_TURN_PROMPT_ACTION_CHANNEL } from "./callLightningTurnPromptController.js";
+import {
+  magicalDamageDefensesForItem,
+  spellActionDamageTypes,
+  spellDamageDefenseApplied,
+  spellDamageDefenseRows,
+  spellDamageDefenseText,
+  spellDamageDefenseTitle,
+} from "./spellDamageDefenseCore.js";
 
 const META_KEY = `${ID}/meta`;
 const params = new URLSearchParams(globalThis.location?.search || "");
@@ -74,6 +82,8 @@ let childPlacements = [];
 let childActivationId = "";
 let sceneItems = [];
 let sharedHpSelection = { policy: "once", chosenTargetIds: {} };
+// The damage defenses the GM ignores in this action: targetId → the types.
+const ignoredDefenses = new Map();
 let outcomes = new Map();
 let selectedAttackTarget = "";
 let selectedSaveTarget = "";
@@ -1328,6 +1338,7 @@ async function renderSingleSave() {
   const saveOutcomeRequiredNotice = "Seleziona l'esito del TS";
   $("summary").textContent = "";
   $("summary").hidden = true;
+  renderDamageDefenseChips();
   requestCompactPopoverResize();
 }
 
@@ -1477,6 +1488,7 @@ async function renderStorm() {
     ? ""
     : "La zona dell'incantesimo non è più disponibile.";
   $("status").hidden = rootReady || !requiresZoneRoot;
+  renderDamageDefenseChips();
   requestCompactPopoverResize();
 }
 
@@ -2005,6 +2017,72 @@ function renderTargetLine(targetName = "", emptyText = "") {
   }
 }
 
+function targetDefenseRows(item) {
+  return spellDamageDefenseRows({
+    types: spellActionDamageTypes(payload?.action),
+    defenses: magicalDamageDefensesForItem(item, META_KEY),
+    ignoredTypes: [...(ignoredDefenses.get(item?.id) || [])],
+  });
+}
+
+// Who takes this action's damage, with what the popup knows so far: an outcome and a number may still be missing.
+function damageDefenseSubjects() {
+  const kind = payload?.action?.resolutionKind;
+  const byId = (id, outcome, roll) => {
+    const item = sceneItems.find((entry) => entry?.id === id);
+    return item ? [{ item, outcome, roll }] : [];
+  };
+  if (kind === "save-area") {
+    if (childZone()) return [];
+    return currentTargetItems().map((item) => ({ item, outcome: outcomes.get(item.id), roll: $("damage").value }));
+  }
+  if (kind === "single-save") return byId(selectedSaveTarget, saveOutcome, $("saveDamage").value);
+  if (kind !== "single-attack") return [];
+  // An attack resolves on its outcome button, so the sum is shown as for a hit while the number is written.
+  if (!isMultiAttack()) return byId(selectedAttackTarget, attackOutcome || "hit", $("attackDamage").value);
+  const seen = new Set();
+  return attackEntries.filter((entry) => entry.targetId && !seen.has(entry.targetId) && seen.add(entry.targetId))
+    .flatMap((entry) => byId(entry.targetId, entry.attackOutcome || "hit", entry.damageRoll));
+}
+
+// Above the button: each defense at work, what it does to the number, whose it is in the tooltip. A click ignores it.
+function renderDamageDefenseChips() {
+  const box = $("damageDefenses");
+  if (!box) return;
+  const chips = spellActionDamageTypes(payload?.action).length ? damageDefenseSubjects().flatMap(({ item, outcome, roll }) => {
+    const rows = targetDefenseRows(item);
+    const written = String(roll ?? "").trim() !== "" && Number.isFinite(Number(roll));
+    const resolve = (defense) => (outcome && written
+      ? resolveSpellActiveResolutionDamage({ action: payload.action, slotLevel: payload.slotLevel, outcome, roll: Number(roll), defense })
+      : null);
+    return rows.map((row) => {
+      const before = resolve(null);
+      const after = resolve(row.ignored ? null : row.defense);
+      const numbers = before?.valid && after?.valid ? { before: before.amount, after: after.amount } : { before: 0, after: 0 };
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = `damage-defense is-${row.defense}`;
+      chip.textContent = `${displayName(item)} · ${spellDamageDefenseText(row, numbers)}`;
+      chip.title = spellDamageDefenseTitle(row, { name: displayName(item), ...numbers, where: "in questa azione" });
+      chip.dataset.defenseType = row.type;
+      chip.dataset.targetId = item.id;
+      if (row.ignored) chip.dataset.ignored = "true";
+      chip.disabled = busy;
+      chip.setAttribute("aria-pressed", String(!row.ignored));
+      chip.addEventListener("click", () => {
+        const ignored = new Set(ignoredDefenses.get(item.id) || []);
+        if (ignored.has(row.type)) ignored.delete(row.type);
+        else ignored.add(row.type);
+        ignoredDefenses.set(item.id, ignored);
+        render();
+      });
+      return chip;
+    });
+  }) : [];
+  box.replaceChildren(...chips);
+  box.hidden = chips.length === 0;
+}
+
 function render() {
   if (!payload) return;
   if ($("apply")) $("apply").hidden = false;
@@ -2183,7 +2261,8 @@ function render() {
   if (save && !child && payload.action.damage) {
     const entries = currentTargetItems().filter(item => outcomes.has(item.id)).map(item => {
       const damage = resolveSpellActiveResolutionDamage({ action: payload.action, slotLevel: payload.slotLevel,
-        outcome: outcomes.get(item.id), roll: Number($("damage").value) });
+        outcome: outcomes.get(item.id), roll: Number($("damage").value),
+        defense: spellDamageDefenseApplied(targetDefenseRows(item)) });
       return { item, change: damage.valid ? calculateQuickHPChange({ mode: "damage", value: damage.amount,
         hp: item.metadata?.[META_KEY]?.hp, hpMax: item.metadata?.[META_KEY]?.hpMax,
         tempHp: item.metadata?.[META_KEY]?.tempHp }) : null };
@@ -2194,6 +2273,7 @@ function render() {
     if (preview.conflicts.length) $("apply").disabled = true;
   }
   if (statusMessage) $("status").textContent = statusMessage;
+  renderDamageDefenseChips();
   requestCompactPopoverResize();
 }
 
@@ -2643,6 +2723,7 @@ async function apply() {
           damageRoll: entry.damageRoll,
         }))
         : [],
+      ignoredDefenses: Object.fromEntries([...ignoredDefenses].map(([targetId, types]) => [targetId, [...types]])),
       sceneEpoch: operation.epoch,
       sceneIdentity: ownerSceneContext?.sceneIdentity || null,
       commandId: ownerSceneContext?.commandId || operation.operationId,

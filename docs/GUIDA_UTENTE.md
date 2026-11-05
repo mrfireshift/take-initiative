@@ -174,11 +174,30 @@ quel personaggio.
 - Protezione dai veleni, Protezione dall'energia, Invulnerabilità, Aura di
   Purezza, Aura di Vita, Fortezza della Mente, Morte Apparente, Investitura del
   Ghiaccio, Investitura della Fiamma, Abito Ultraterreno e Vuoto mentale danno difese vere
-  finché durano: la console attacchi e la console boss dimezzano o azzerano il
-  danno di quel tipo, e il GM può ignorare il chip della difesa per un singolo
-  attacco. Nei danni degli incantesimi ad area il dimezzamento resta al GM. Le
-  altre etichette dei benefici (Armatura magica, Pelle coriacea, Pelle di pietra…)
-  sono promemoria per il tavolo.
+  finché durano: la console attacchi, la console boss e i danni degli incantesimi
+  dimezzano o azzerano il danno di quel tipo, e il GM può ignorare il chip della
+  difesa per un singolo attacco o lancio. Le altre etichette dei benefici (Armatura
+  magica, Pelle coriacea, Pelle di pietra…) sono promemoria per il tavolo.
+- **Le difese nei danni degli incantesimi.** Nel pannello, nel popup delle azioni e
+  nei promemoria scrivi il danno intero: il conto delle resistenze, delle immunità e
+  delle vulnerabilità lo fa il plugin, per ogni bersaglio. Quando una difesa entra in gioco
+  compare un chip giallo accanto al nome del bersaglio, già prima che tu scriva il
+  danno; scende sotto il nome solo se non ci sta. Dice il conto (`Res. freddo: 20 → 10`)
+  e il suo suggerimento dice di chi è la difesa e che cosa fa al numero. Un clic la ignora per quel lancio: il chip si barra e il danno
+  torna pieno. Il TS viene prima: 20 con TS superato sono 10, e con la resistenza 5.
+  Le difese dei mostri limitate alle armi non magiche non contano contro un incantesimo.
+  Il registro di combattimento dice quale difesa ha contato o è stata ignorata.
+- Nei promemoria (chi entra in una Nube di Pugnali, chi inizia il turno in un Muro di
+  fuoco, Immolazione, Colpo intrappolante…) il chip sta accanto al campo **Danni**. Poiché
+  premere l'esito applica subito, il suo conto è quello del danno pieno: con il TS
+  superato conta prima la metà, e il suggerimento lo ricorda.
+- Il conto resta a te, e il danno va scritto già ridotto, in questi casi:
+  - **due tipi in un solo numero** (Colpo infuocato, Tempesta di ghiaccio, Sciame di
+    meteore): il chip dice `Res. fuoco: al GM`, e non tocca il numero;
+  - **un tipo che il plugin non conosce**: Onda distruttiva e Guardiani spirituali (a
+    scelta), il Soffio di Drago illusorio (scelto al lancio), Evoca raffica ed Evoca
+    pioggia di armi (quello dell'arma). Qui non compare nessun chip;
+  - **le punizioni**, il cui danno si somma all'attacco.
 - Protezione dai veleni al lancio toglie anche **Avvelenato**: una sola volta se
   la creatura ne ha più d'uno, perché neutralizza un veleno solo, e il plugin
   sceglie il primo in elenco. Nulla se «Applica condizioni dell'incantesimo» è
@@ -206,8 +225,8 @@ quel personaggio.
   il caster, che resta in lista senza spunta: spuntalo se l'effetto vale anche
   per lui. Togli la spunta a chi non deve subirlo: resta fuori dalla zona finché
   dura, senza etichetta né promemoria, anche se esce e rientra. Chi arriva dopo
-  ne fa parte. Il TS Carisma è per ora un promemoria: chi lo supera ignora
-  l'effetto al tavolo, ma l'etichetta resta, perché la zona la rimette.
+  ne fa parte. Il TS Carisma è un promemoria: chi lo supera ignora l'effetto al
+  tavolo, ma l'etichetta resta, perché la zona la rimette.
 - Trabocchetto: chi entra nel cerchio o lo attraversa fa il TS Destrezza; chi
   fallisce resta Trattenuto e ritenta a fine turno. Quando la trappola è
   scattata e nessuno resta trattenuto, l'incantesimo si termina a mano.
@@ -250,6 +269,9 @@ quel personaggio.
   sulla creatura fino al 3° livello (o fino al livello dello slot); per quelli
   più alti segna nel campo **Prova** l'esito della prova del caster: se lo
   lasci vuoto restano, e il messaggio del pannello li elenca con la CD.
+  Rimuovi maledizione termina Scagliare maledizione, Sortilegio e Costrizione sulla
+  creatura che tocca, con la concentrazione di chi li ha lanciati; gli oggetti
+  maledetti e i ricordi di Modificare memoria restano al tavolo.
 - Dardo incantato si lancia dal pannello con tutti i suoi dardi (3 al 1°
   livello, uno in più per slot sopra il 1°): scegli le creature e sotto
   **Dardi** ognuna ha la sua colonna, con una casella per dardo. I dardi
@@ -532,9 +554,10 @@ per Frusta di Spine, un clic
 sul pulsante con la **✕** la ignora in quell'attacco; all'attacco dopo vale di nuovo. Le aree
 della console non hanno il pulsante e la difesa vale sempre: in pratica conta
 solo per la Freccia perforante dell'Arciere arcano e per l'azione ad area di un
-mostro contro un altro mostro. Nei danni degli incantesimi ad area il
-dimezzamento resta al GM. Un mostro importato prima di questa versione riceve
-queste difese reimportandolo.
+mostro contro un altro mostro. Gli incantesimi fanno il loro conto nel pannello,
+con un chip accanto al bersaglio; contro di loro non contano le difese limitate alle
+armi non magiche. Un mostro importato prima di questa versione riceve queste
+difese reimportandolo.
 
 Nel menu **⋯** dell'intestazione della console, **Apri da sola a ogni turno**
 (solo questo browser) ha due caselle: **Personaggi e alleati** apre la console
@@ -754,6 +777,20 @@ niente da compilare parte al primo clic (con **Annulla** subito dopo), o apre
 direttamente il suo popup; quelle che chiedono bersagli o una scelta si
 selezionano e si confermano come prima.
 
+Un'azione bonus (gli effetti di Mano arcana, Lancia una stella di Corona di
+Stelle, il Soffio di Drago illusorio, Cambia direzione di Folata di Vento) si usa
+già nel turno del lancio. Un'azione vera, come il Cono gelido o la Linea di fuoco
+delle Investiture, si accende dal turno dopo: quella del turno è servita a
+lanciare l'incantesimo.
+
+- **Mano arcana**: il popup con i cinque effetti compare già appena la pedina è
+  sulla mappa, perché la mano agisce quando l'incantesimo è lanciato. Se non serve,
+  chiudilo con la ×.
+- **Investitura del Ghiaccio**: il **Cono gelido** si piazza da una casella accanto
+  al caster, poi chiede il TS Costituzione e il danno, 4d6 freddo, metà se superato.
+  Chi fallisce ha anche la velocità dimezzata fino all'inizio del prossimo turno del
+  caster.
+
 Quando la console attacchi o la console Boss registra un attacco con tiro per
 colpire contro una creatura con **Immagine speculare**, sotto il bersaglio
 compare quanti duplicati restano, la soglia del d20 (6, 8 o 11) e la CA del
@@ -910,8 +947,9 @@ registro combattimento. Un promemoria già risolto, duplicato o diventato obsole
 riapplicato; il GM può chiudere l'avviso e continuare senza conseguenze.
 
 Restano informativi i promemoria privi di una descrizione strutturata. L'MVP non
-esegue tiri virtuali, bonus automatici, resistenze/vulnerabilità, testo libero,
-risoluzioni aggregate multi-bersaglio o scripting personalizzato.
+esegue tiri virtuali, bonus automatici, testo libero, risoluzioni aggregate
+multi-bersaglio o scripting personalizzato. Le difese del bersaglio contano quando il
+promemoria conosce il tipo di danno, con il chip accanto al campo **Danni**.
 
 Per geometrie, trigger supportati, azioni attive e copertura residua consulta
 [Incantesimi, zone e promemoria](INCANTESIMI_E_ZONE.md).

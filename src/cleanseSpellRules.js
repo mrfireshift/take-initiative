@@ -12,11 +12,15 @@ export const CLEANSE_SPELL_IDS = Object.freeze([
   "phb2014-parola-del-potere-guarire",
   "lesser-restoration",
   "dispel-magic",
+  "remove-curse",
 ]);
 export const CLEANSE_SPELL_ID_SET = new Set(CLEANSE_SPELL_IDS);
 // The same on the lifecycle lane: the spell keeps its own pill, and its cast takes off what it ends.
 export const CAST_CLEANSE_SPELL_ID_SET = new Set(["protection-from-poison"]);
 
+// What Remove Curse ends on the creature it touches: each of these spells says so in its text. Modify Memory names it too, but
+// what comes back is the memory, which the plugin does not track; a cursed item stays at the table.
+const REMOVE_CURSE_ENDS = new Set(["bestow-curse", "geas", "phb2014-sortilegio"]);
 const HEAL_ENDS = Object.freeze(["accecato", "assordato"]);
 const POWER_WORD_HEAL_ENDS = Object.freeze(["affascinato", "paralizzato", "spaventato", "stordito"]);
 
@@ -97,6 +101,14 @@ export function planCleanseTarget({ spellId = "", item = null, slotLevel = null,
   // One poison: the plugin cannot tell them apart, so with more than one it takes the first listed and the others stay.
   if (spellId === "protection-from-poison") {
     plan.removeInstanceIds = conditionIds(item, [conditionKey("Avvelenato")]).slice(0, 1);
+    return plan;
+  }
+  if (spellId === "remove-curse") {
+    // The spell ends with its caster's concentration and its pills, as with Dispel Magic (spell:remove-requested).
+    plan.endSpells = spellsOn(item)
+      .filter((spell) => REMOVE_CURSE_ENDS.has(String(spell?.spellId || "").trim()))
+      .map((spell) => ({ instanceId: String(spell.instanceId).trim(), name: String(spell.name || spell.spellId), level: 0 }));
+    if (!plan.endSpells.length) plan.note = `${item.name || "La creatura"}: nessuna maledizione da terminare.`;
     return plan;
   }
   if (spellId === "dispel-magic") {

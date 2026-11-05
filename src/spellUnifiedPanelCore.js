@@ -1967,6 +1967,7 @@ export function createSpellPanelSession({
   ignoreTargetLimit = false,
   rangeRefusedIds = [],
   rangeOverrideIds = [],
+  ignoredDefenses = {},
   primaryTargetId = "",
   outcomes = {},
   attackOutcome = "",
@@ -2016,6 +2017,8 @@ export function createSpellPanelSession({
     // The exception to the range: a target refused once, then chosen again (spell-unified-panel.js).
     rangeRefusedIds: unique(rangeRefusedIds),
     rangeOverrideIds: unique(rangeOverrideIds),
+    // The damage defenses the GM ignores in this cast: { targetId: [type] } (spellDamageDefenseCore.js).
+    ignoredDefenses: recordValue(ignoredDefenses),
     primaryTargetId: text(primaryTargetId),
     outcomes: recordValue(outcomes),
     attackOutcome: text(attackOutcome).toLocaleLowerCase("it"),
@@ -2099,6 +2102,7 @@ function resetRuntimeState(current) {
     ignoreTargetLimit: false,
     rangeRefusedIds: [],
     rangeOverrideIds: [],
+    ignoredDefenses: {},
     primaryTargetId: "",
     outcomes: {},
     attackOutcome: "",

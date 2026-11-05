@@ -7,6 +7,15 @@ import { animatedObjectsMaximumCost } from "./animatedObjectsCore.js";
 import { spellCastTemporaryHpHint, spellCastTemporaryHpRollRange, spellCastTemporaryHpRule, spellUndeadTemporaryHpAmount } from "./spellTemporaryHpRules.js";
 import { ID } from "./constants.js";
 import { buildSharedHpPreview } from "./sharedHpViewCore.js";
+import {
+  spellDamageAfterDefense,
+  spellDamageBeforeDefense,
+  spellDamageDefenseApplied,
+  spellDamageDefenseRows,
+  spellDamageDefenseText,
+  spellDamageDefenseTitle,
+  spellPanelDamageTypes,
+} from "./spellDamageDefenseCore.js";
 import { spellTargetMatchesFilters } from "./spellsPanelTargetPicker.js";
 import {
   spellTargetContextConditionMatches,
@@ -295,6 +304,7 @@ function normalizeTargetCandidates(
       tempHp: Math.max(0, Math.floor(Number(candidate?.tempHp) || 0)),
       sharedHpSourceId: asText(candidate?.sharedHpSourceId),
       ...(candidate?.magicMissileGuard ? { magicMissileGuard: clone(candidate.magicMissileGuard) } : {}),
+      ...(candidate?.damageDefenses ? { damageDefenses: clone(candidate.damageDefenses) } : {}),
       turbineSize: asText(candidate?.turbineSize) || null,
       layer: asText(candidate?.layer) || null,
       isCreature: candidate?.isCreature === true || asText(candidate?.layer) === "CHARACTER",
@@ -486,14 +496,25 @@ function hpPreviewFor(
             ? spellSaveDamageFactor(spellId, outcome) || QUICK_HP_FACTORS.HALF
             : QUICK_HP_FACTORS.FULL;
       const noDamage = !isHealing && factor === "zero";
+      // The creature's defense, as the commit reads it (hpEntries in spellAreaResolutionExecutor.js).
+      const defense = isHealing || immune || attackMiss || noDamage
+        ? null
+        : spellDamageDefenseApplied(spellDamageDefenseRows({
+          types: spellPanelDamageTypes(spellId, session?.triggerRuntime),
+          defenses: candidate.damageDefenses,
+          ignoredTypes: session?.ignoredDefenses?.[candidate.key],
+        }));
       let change = calculateQuickHPChange({
         mode,
-        value: immune || attackMiss || noDamage ? 0 : value,
-        factor: attackMiss ? QUICK_HP_FACTORS.FULL : factor,
+        value: immune || attackMiss || noDamage ? 0 : defense ? spellDamageAfterDefense(value, factor, defense) : value,
+        factor: attackMiss || defense ? QUICK_HP_FACTORS.FULL : factor,
         hp: beforeHP,
         hpMax,
         tempHp: candidate.tempHp,
       });
+      const defenseCount = isHealing || immune || attackMiss || noDamage
+        ? null
+        : { before: spellDamageBeforeDefense(value, factor), after: change.requested };
       if (isDamage && inputs.primaryDamage?.visible && session?.phase === "resolve"
         && asText(session?.primaryTargetId) === candidate.key) {
         const primary = calculateQuickHPChange({ mode, value: Number(session?.hpValues?.primaryDamage) || 0,
@@ -522,9 +543,28 @@ function hpPreviewFor(
         afterHP: change.afterHP,
         delta: change.delta,
         change,
+        ...(defenseCount ? { defenseCount } : {}),
       };
     });
   return preview;
+}
+
+// The chips under a selected target: each defense against this damage, what it did to the number, and in the tooltip whose it
+// is. They are there as soon as the target is selected: who writes the damage already halved must see them before writing.
+function candidateDefenseChips({ candidate, presentation, session, spellId, damageInputVisible, count }) {
+  if (!candidate?.selected || presentation?.inputs?.damage?.visible !== true || !damageInputVisible) return [];
+  return spellDamageDefenseRows({
+    types: spellPanelDamageTypes(spellId, session?.triggerRuntime),
+    defenses: candidate.damageDefenses,
+    ignoredTypes: session?.ignoredDefenses?.[candidate.key],
+  }).map((row) => {
+    const numbers = { before: count?.before || 0, after: count?.after || 0 };
+    return {
+      ...row,
+      text: spellDamageDefenseText(row, numbers),
+      title: spellDamageDefenseTitle(row, { name: candidate.label, ...numbers }),
+    };
+  });
 }
 
 // Magic Missile's darts (magicMissileCore.js): a column per target, a box per dart with its roll, the darts to add
@@ -1010,10 +1050,15 @@ export function buildUnifiedPanelViewModel({
   const hpPreviewByKey = new Map(
     (hpPreview.targets || []).map((target) => [target.key, target]),
   );
-  const candidates = filteredCandidates.map((candidate) => ({
-    ...candidate,
-    hpPreview: hpPreviewByKey.get(candidate.key) || null,
-  }));
+  const candidates = filteredCandidates.map((candidate) => {
+    const preview = hpPreviewByKey.get(candidate.key) || null;
+    return {
+      ...candidate,
+      hpPreview: preview,
+      defenseChips: candidateDefenseChips({ candidate, presentation, session, spellId: contract?.spell?.id, damageInputVisible,
+        count: preview?.defenseCount }),
+    };
+  });
   const eligiblePassengerIds = new Set(
     (Array.isArray(teleportPassengerCandidateIds) ? teleportPassengerCandidateIds : [])
       .map(asText)

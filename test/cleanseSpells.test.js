@@ -75,9 +75,9 @@ const removed = (result) => result.effectOperations
 const endedSpells = (result) => result.effectOperations
   .filter((operation) => operation.type === "spell:remove-requested").map((operation) => operation.instanceId).sort();
 
-test("the four spells resolve in the area command on one creature, without a save or a healing to enter", () => {
+test("the five spells resolve in the area command on one creature, without a save or a healing to enter", () => {
   for (const [spellId, slot, context] of [
-    ["heal", 6, false], ["phb2014-parola-del-potere-guarire", 9, false], ["lesser-restoration", 2, true], ["dispel-magic", 3, true],
+    ["heal", 6, false], ["phb2014-parola-del-potere-guarire", 9, false], ["lesser-restoration", 2, true], ["dispel-magic", 3, true], ["remove-curse", 3, false],
   ]) {
     const contract = buildSpellUnifiedPanelContract({ spellId, phase: "cast", castContext: { slotLevel: slot } });
     assert.equal(contract.execution.lane, "area-transaction", spellId);
@@ -89,6 +89,30 @@ test("the four spells resolve in the area command on one creature, without a sav
   }
   assert.equal(getSpellSaveWorkflowRule("heal").targeting.spatial.maxMeters, 18);
   assert.equal(getSpellSaveWorkflowRule("dispel-magic").targeting.spatial.maxMeters, 36);
+});
+
+test("Remove Curse ends Bestow Curse, Hex and Geas on the creature it touches, and nothing else", async () => {
+  const target = () => {
+    const item = withPills(token("target", 20), [pill("cursed", "Maledetto", { parentEffectId: "curse" })]);
+    item.metadata[META_KEY][SPELLS] = [
+      { name: "Scagliare maledizione", spellId: "bestow-curse", instanceId: "curse", casterId: "other" },
+      { name: "Sortilegio", spellId: "phb2014-sortilegio", instanceId: "hex", casterId: "other" },
+      { name: "Costrizione", spellId: "geas", instanceId: "geas", casterId: "other" },
+      { name: "Benedizione", spellId: "bless", instanceId: "bless", casterId: "other" },
+      { name: "Modificare memoria", spellId: "modify-memory", instanceId: "memory", casterId: "other" },
+    ];
+    return item;
+  };
+  const cast = await plan(command("remove-curse", { slotLevel: 3 }), [target()]);
+  assert.equal(cast.valid, true, JSON.stringify(cast.errors));
+  assert.deepEqual(endedSpells(cast), ["curse", "geas", "hex"], "the three that say so in their text");
+  assert.deepEqual(cast.notes, []);
+  const clean = await plan(command("remove-curse", { slotLevel: 3 }), [token("target", 20)]);
+  assert.deepEqual(endedSpells(clean), []);
+  assert.match(clean.notes[0], /nessuna maledizione/u);
+  const withBless = withPills(token("target", 20), []);
+  withBless.metadata[META_KEY][SPELLS] = [{ name: "Benedizione", spellId: "bless", instanceId: "bless", casterId: "other" }];
+  assert.deepEqual(endedSpells(await plan(command("remove-curse", { slotLevel: 3 }), [withBless])), []);
 });
 
 test("Heal: 70 hit points, 10 more per slot above 6th; it ends blindness, deafness and diseases", async () => {

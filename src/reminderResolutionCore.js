@@ -22,6 +22,13 @@ import {
 import { lookupAreaSaveAutomation as getAreaSaveAutomation } from "./spellAreaIndex.js";
 import { zoneTriggerResourceSpend } from "./zoneResourceCore.js";
 import {
+  magicalDamageDefensesForItem,
+  spellActionDamageTypes,
+  spellDamageAfterDefense,
+  spellDamageDefenseApplied,
+  spellDamageDefenseRows,
+} from "./spellDamageDefenseCore.js";
+import {
   resolveTurbineSaveChain,
   turbineSizeFromToken,
   turbineRestrainedOperations,
@@ -978,17 +985,26 @@ export function reminderResolutionOutcomeNeedsDamage(resolution, outcome) {
   return factor === "full" || factor === "half";
 }
 
-export function reminderResolutionDamage(resolution, outcome, roll) {
+// defense: the target's, against this damage (spellDamageDefenseCore.js): after the save, as in the panel.
+export function reminderResolutionDamage(resolution, outcome, roll, defense = null) {
   const damage = resolution?.damage;
   if (!damage) return { roll: 0, factor: "zero", amount: 0 };
   const factor = reminderResolutionDamageFactor(resolution, outcome);
   const numericRoll = Math.max(0, Math.floor(Number(roll) || 0));
-  const amount = factor === "full"
-    ? numericRoll
-    : factor === "half"
-      ? Math.floor(numericRoll / 2)
-      : 0;
+  const amount = factor === "full" || factor === "half"
+    ? spellDamageAfterDefense(numericRoll, factor, defense)
+    : 0;
   return { roll: numericRoll, factor, amount };
+}
+
+// The target's defenses against a reminder's damage: its type is on the damage ("taglienti"), and a type left to the caster
+// ("radiosi o necrotici") stays with the GM. The notice shows these rows, and the plan applies them.
+export function reminderDamageDefenseRows({ resolution = null, target = null, ignoredTypes = [] } = {}) {
+  return spellDamageDefenseRows({
+    types: spellActionDamageTypes(resolution),
+    defenses: magicalDamageDefensesForItem(target, META_KEY),
+    ignoredTypes,
+  });
 }
 
 export function reminderResolutionNeedsDamage(resolution) {
@@ -1597,6 +1613,8 @@ export function buildReminderResolutionPlan({
   damageRoll = 0,
   turbineSize = "",
   turbineStrengthOutcome = "",
+  // The damage defenses the GM ignores in this reminder: the types.
+  ignoredDefenses = [],
   gridDpi = 150,
   gridScale = { parsed: { multiplier: 1.5, unit: "m" } },
   sceneMetadata = null,
@@ -1765,10 +1783,14 @@ export function buildReminderResolutionPlan({
       turbineChain,
     };
   }
+  const damageDefenses = resolution.damage
+    ? reminderDamageDefenseRows({ resolution, target, ignoredTypes: ignoredDefenses })
+    : [];
   const damage = reminderResolutionDamage(
     resolution,
     normalizedOutcome,
     normalizedDamageRoll,
+    spellDamageDefenseApplied(damageDefenses),
   );
   const healingRoll = resolution.healing && normalizedOutcome === "apply"
     ? (damageRoll === "" || damageRoll === null || damageRoll === undefined
@@ -2015,6 +2037,9 @@ export function buildReminderResolutionPlan({
     damage,
     healing,
     hpChange,
+    ...(damage.factor === "full" || damage.factor === "half"
+      ? { damageDefenses }
+      : {}),
     ...(turbine ? { turbineChain } : {}),
     ...(zoneResource?.note ? { zoneResourceNote: zoneResource.note } : {}),
     operations,

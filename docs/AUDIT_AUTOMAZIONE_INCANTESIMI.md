@@ -643,10 +643,10 @@ da questo audit.
 - Catalogo totale: **477** definizioni su 477 record.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **477**; disconnessi: **0**; fragili: **0**.
-- Opzioni trackable del runtime: **360**; definizioni con tracking persistente verificate dall'audit: **360**; definizioni con regole d'area: **140** (145 regole).
-- Workflow che richiedono smoke test runtime: **415**.
+- Opzioni trackable del runtime: **360**; definizioni con tracking persistente verificate dall'audit: **360**; definizioni con regole d'area: **139** (144 regole).
+- Workflow che richiedono smoke test runtime: **416**.
 - Lacune RAW confermate P1: **7**; discrepanze ad alta confidenza P2: **2**.
-- Impronta deterministica: `ef8933c19fc575d0`.
+- Impronta deterministica: `c49bae197b3a0c62`.
 
 ## Decisioni di prodotto chiuse
 
@@ -659,9 +659,9 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | FULL | 66 |
-| MANUAL | 58 |
+| MANUAL | 57 |
 | PARTIAL | 243 |
-| TRACK_ONLY | 110 |
+| TRACK_ONLY | 111 |
 
 ### Stato di copertura (coverageStatus)
 
@@ -701,9 +701,9 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | ACTIVE_ACTION | 51 |
-| AREA_GEOMETRY | 140 |
+| AREA_GEOMETRY | 139 |
 | CAST | 277 |
-| CLEANUP | 129 |
+| CLEANUP | 128 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 360 |
 | TURN_TRIGGER | 110 |
@@ -1022,7 +1022,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Metamorfosi di Massa | `xanathar-metamorfosi-di-massa` | Xanathar / 9 | TRACK_ONLY | ACCEPTED | MANUAL | UNIFIED | reachable | — | — |
 | Metamorfosi pura | `true-polymorph` | SRD 5.1 / 9 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Minuscole Meteore di Melf | `xanathar-minuscole-meteore-di-melf` | Xanathar / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Miraggio arcano | `mirage-arcane` | SRD 5.1 / 7 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Miraggio arcano | `mirage-arcane` | SRD 5.1 / 7 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Miscela Caustica di Tasha | `tasha-miscela-caustica-di-tasha` | Tasha / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Modellare Acqua | `xanathar-modellare-acqua` | Xanathar / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Modellare Terra | `xanathar-modellare-terra` | Xanathar / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1123,7 +1123,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Rianimare morti | `raise-dead` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Richiamo Infernale | `xanathar-richiamo-infernale` | Xanathar / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Rigenerazione | `regenerate` | SRD 5.1 / 7 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Rimuovi maledizione | `remove-curse` | SRD 5.1 / 3 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Rimuovi maledizione | `remove-curse` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Rinascita | `revivify` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Rintocco dei Morti | `xanathar-rintocco-dei-morti` | Xanathar / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Riparare | `mending` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

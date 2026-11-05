@@ -4,6 +4,7 @@ import {
   spellEffectConditionOptions,
 } from "./spellEffectCore.js";
 import { getSpellActiveResolutionActions } from "./spellActiveResolutionRules.js";
+import { spellDamageAfterDefense } from "./spellDamageDefenseCore.js";
 import {
   TELEKINESIS_CONTEST_RESOLUTION_KIND,
   telekinesisActivationId,
@@ -651,6 +652,8 @@ export function resolveSpellActiveResolutionDamage({
   slotLevel = 0,
   outcome = "",
   roll = 0,
+  // The target's defense against this damage (spellDamageDefenseCore.js): "resistance", "immunity" or "vulnerability".
+  defense = null,
 } = {}) {
   const rule = actionDamage(action);
   const normalizedOutcome = String(outcome || "").trim();
@@ -684,7 +687,9 @@ export function resolveSpellActiveResolutionDamage({
     outcome: normalizedOutcome,
     roll: Math.floor(numericRoll),
     factor,
-    amount: Math.floor(numericRoll * factor),
+    amount: defense && factor > 0
+      ? spellDamageAfterDefense(numericRoll, factor === 1 ? "full" : "half", defense)
+      : Math.floor(numericRoll * factor),
     formula,
     scaledFormula,
     type: String(rule.type).trim(),

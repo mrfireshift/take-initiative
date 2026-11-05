@@ -295,6 +295,9 @@ function reminderCausality(notice, plan) {
       requestedDamage: targetRequestedDamage,
       appliedHpDelta: hpDelta,
       damageFactor: resolution.damage ? reminderDamageFactor(plan?.damage?.factor) : undefined,
+      ...(plan?.damageDefenses?.length
+        ? { defenses: plan.damageDefenses.map(({ type, defense, ignored }) => ({ type, defense, ...(ignored ? { ignored: true } : {}) })) }
+        : {}),
     }],
     targetIds: plan?.targetId ? [plan.targetId] : [],
     action,
@@ -506,6 +509,7 @@ async function executeReminderResolution({
   damageRoll = 0,
   turbineSize = "",
   turbineStrengthOutcome = "",
+  ignoredDefenses = [],
   sceneEpoch = currentSceneEpoch(),
   historyReplay = null,
 } = {}) {
@@ -537,6 +541,7 @@ async function executeReminderResolution({
     damageRoll,
     turbineSize,
     turbineStrengthOutcome,
+    ignoredDefenses,
     gridDpi,
     gridScale,
     sceneMetadata,

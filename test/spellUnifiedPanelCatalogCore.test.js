@@ -36,7 +36,8 @@ test("il catalogo unificato coincide con l'unione deduplicata delle due fonti le
   // 75 since lotto L2; 71 since CAP-HP-BRANCH; 67 since CAP-CLEANSE; 66 with Magic Missile; 65 with Goodberry; 64 with
   // Negative Energy Flood; 58 with the six spells of CAP-STABILIZE; 57 with Plant Growth; 60 with Control Flames, Shape
   // Water and Mold Earth (lotto P2 of the polish).
-  assert.equal(recordIds.size, 60);
+  // 59: Remove Curse now ends the curses (polish, P4).
+  assert.equal(recordIds.size, 59);
   assert.equal([...recordIds].some((id) => spellsPanelIds.has(id) || areaConsoleIds.has(id)), false);
   assert.equal(entries.length, getSpellCatalog().length);
   assert.equal(entries.length, 477);
@@ -55,7 +56,8 @@ test("i record recuperati dalla Console area mantengono lane e contratto", () =>
   // 43 with the discrete heals and the saves with damage of lotto L2; 41 since Ice Storm and Earth Tremor are
   // tracked too (lotto L3); 45 with the four instantaneous spells of CAP-HP-BRANCH, 49 with the four of CAP-CLEANSE,
   // 50 with Magic Missile, 51 with Negative Energy Flood, 57 with the six spells of CAP-STABILIZE.
-  assert.equal(recovered.length, 57);
+  // 58 with Remove Curse (polish, P4).
+  assert.equal(recovered.length, 58);
   for (const id of ["fireball", "chain-lightning", "mass-cure-wounds", "misty-step", "cure-wounds", "blight", "magic-missile"]) {
     const entry = entries.find((candidate) => candidate.key === id);
     assert.ok(entry, id);
@@ -77,15 +79,15 @@ test("ogni voce esposta ha un ID stabile, contratto e executor dichiarato", () =
 });
 
 // 60 con Controllare Fiamme, Modellare Acqua e Modellare Terra (lotto P2 del polishing).
-test("i 60 record non automatizzati sono esposti come registrazione del lancio, nessuno resta escluso", () => {
+test("i 59 record non automatizzati sono esposti come registrazione del lancio, nessuno resta escluso", () => {
   const entries = buildSpellUnifiedCatalogEntries();
   const exclusions = buildSpellUnifiedCatalogExclusions({ currentEntries: entries });
   const audit = buildSpellUnifiedCatalogAudit({ currentEntries: entries });
   assert.equal(exclusions.length, getSpellCatalog().length - entries.length);
   assert.deepEqual(exclusions, []);
   const recorded = entries.filter((entry) => entry.status === "registrazione");
-  assert.equal(recorded.length, 60);
-  for (const id of ["counterspell", "remove-curse", "wish", "acid-splash"]) {
+  assert.equal(recorded.length, 59);
+  for (const id of ["counterspell", "greater-restoration", "wish", "acid-splash"]) {
     const entry = entries.find((candidate) => candidate.key === id);
     assert.ok(entry, id);
     assert.deepEqual(entry.sources, [SPELL_UNIFIED_CATALOG_SOURCES.CAST_RECORD], id);

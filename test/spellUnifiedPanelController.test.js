@@ -1432,7 +1432,7 @@ test("un incantesimo non automatizzato si registra dal pannello, anche senza ber
   const { root, panel } = boot({
     provider,
     broadcast: new FakeBroadcast(),
-    route: { status: "ready", spellId: "remove-curse", session: { casterId: "caster-a" } },
+    route: { status: "ready", spellId: "create-food-and-water", session: { casterId: "caster-a" } },
     lifecycleExecutor: async (request) => {
       requests.push(request);
       return [];
@@ -1446,7 +1446,7 @@ test("un incantesimo non automatizzato si registra dal pannello, anche senza ber
   await settle(10);
   assert.equal(requests.length, 1);
   assert.equal(requests[0].recordOnly, true);
-  assert.equal(requests[0].spell.id, "remove-curse");
+  assert.equal(requests[0].spell.id, "create-food-and-water");
   assert.deepEqual(requests[0].targetIds, []);
   assert.equal(requests[0].castContext.slotLevel, 3);
   assert.equal(panel.state.session.feedback.state, "success");
@@ -1716,7 +1716,7 @@ test("Lentezza: a map selection while the area is drawn never replaces the other
 // Lot L4 of the bugfix pass (SP-3): two clicks before the commit takes the busy state (while it reads its scene
 // context, the concentration and the slot) cast the spell twice, with two slots.
 test("L4: un doppio clic su Registra lancio o su Applica esegue una volta sola", async () => {
-  for (const [spellId, target] of [["remove-curse", null], ["bless", "target-a"]]) {
+  for (const [spellId, target] of [["create-food-and-water", null], ["bless", "target-a"]]) {
     const requests = [];
     const { root, panel } = boot({
       provider: createProvider(),
