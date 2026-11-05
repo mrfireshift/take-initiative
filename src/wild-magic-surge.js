@@ -30,15 +30,33 @@ let rows = catalogRows;
 let sorcererName = "Stregone";
 let currentRow = null;
 let busy = false;
+// This roll's row is already written: a second Applica would write it again, until a new d100 is typed.
+let applied = false;
 
-function setStatus(message, tone = "") {
+function setStatus(message, kind = "") {
   $("status").textContent = message || "";
-  $("status").dataset.tone = tone;
+  $("status").dataset.kind = kind;
+}
+
+// The healing row needs its total: until then Applica stays off and the fixed row says so.
+function healTotalMissing() {
+  return !!healDice(currentRow) && !(Math.floor(Number($("heal-total").value)) > 0);
 }
 
 function syncButtons() {
-  $("apply").disabled = busy || !currentRow;
+  $("apply").disabled = busy || !currentRow || applied || healTotalMissing();
   $("pill-apply").disabled = busy || !currentRow;
+}
+
+// The fixed row: what is missing, or what Applica does with this row.
+function renderSummary() {
+  const typed = !!String($("roll").value || "").trim();
+  const action = WILD_MAGIC_SURGE_ACTIONS[currentRow?.d100];
+  $("summary").dataset.kind = !currentRow && typed ? "warning" : "";
+  if (!currentRow) $("summary").textContent = typed ? "Numero fuori tabella (1-100)." : "Manca il d100.";
+  else if (applied) $("summary").textContent = "Già applicato: un nuovo d100 per un altro Impulso.";
+  else if (healTotalMissing()) $("summary").textContent = "Manca il totale dei PF.";
+  else $("summary").textContent = action && action.kind !== "manual" ? "Applica riproduce l'esito." : "Applica non scrive nulla: usa la pillola se serve.";
 }
 
 function healDice(row) {
@@ -58,10 +76,13 @@ function fillBuilder(row) {
 function renderRow() {
   const row = wildMagicRowForRoll(rows, $("roll").value);
   currentRow = row;
+  applied = false;
+  // A message about the row before says nothing about this one.
+  setStatus("");
   $("outcome").hidden = !row;
   $("builder").hidden = !row;
   if (!row) {
-    $("summary").textContent = String($("roll").value || "").trim() ? "Numero fuori tabella (1-100)." : "";
+    renderSummary();
     syncButtons();
     return;
   }
@@ -72,7 +93,7 @@ function renderRow() {
   $("auto-tag").textContent = automated ? "Automatico" : "Al tavolo";
   $("effect").textContent = row.effect || privateTextMissingNote("phb2014");
   const spell = row.spellId ? getSpellDefinition(row.spellId) : null;
-  $("action-line").textContent = `⟶ ${wildMagicActionSummary(row)}${spell ? `: ${spell.displayName || spell.name}` : ""}`;
+  $("action-line").textContent = `${wildMagicActionSummary(row)}${spell ? `: ${spell.displayName || spell.name}` : ""}`;
   const notes = [
     action?.kind === "manual" ? action.hint : "",
     action?.note || "",
@@ -84,9 +105,9 @@ function renderRow() {
   $("heal-row").hidden = !dice;
   $("heal-roll").textContent = dice ? `🎲 Tira ${dice}` : "";
   $("heal-total").value = "";
-  $("summary").textContent = automated ? "Applica riproduce l'esito." : "Applica non scrive nulla: usa la pillola se serve.";
+  renderSummary();
   fillBuilder(row);
-  $("builder").open = !automated;
+  $("builder").open = false;
   $("d100").classList.remove("flash");
   void $("d100").offsetWidth;
   $("d100").classList.add("flash");
@@ -114,7 +135,7 @@ async function openSpellPanel(route) {
 }
 
 async function run(useDraft) {
-  if (busy || !currentRow) return;
+  if (busy || !currentRow || (applied && !useDraft)) return;
   busy = true;
   syncButtons();
   setStatus("Applicazione…");
@@ -156,6 +177,10 @@ async function run(useDraft) {
       setStatus(message, "ok");
     }
     if (recoverTides) $("tides-row").hidden = true;
+    if (!useDraft) {
+      applied = true;
+      renderSummary();
+    }
   } catch (error) {
     setStatus(String(error?.message || error || "Applicazione non riuscita."), "error");
   } finally {
@@ -177,6 +202,16 @@ $("random").addEventListener("click", () => {
 $("heal-roll").addEventListener("click", () => {
   const total = rollWildMagicDice(healDice(currentRow));
   if (total) $("heal-total").value = String(total);
+  renderSummary();
+  syncButtons();
+});
+$("heal-total").addEventListener("input", () => {
+  renderSummary();
+  syncButtons();
+});
+// Open, the builder can go past the fixed window: the panel brings it into view.
+$("builder").addEventListener("toggle", () => {
+  if ($("builder").open) $("builder").scrollIntoView({ block: "nearest" });
 });
 $("apply").addEventListener("click", () => void run(false));
 $("pill-apply").addEventListener("click", () => void run(true));

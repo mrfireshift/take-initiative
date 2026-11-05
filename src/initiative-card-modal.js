@@ -95,6 +95,7 @@ import { executeDirectQuickAction } from "./quickActionExecution.js";
 import { isCounterspell } from "./counterspellCore.js";
 import { openCounterspellPopover } from "./counterspellLauncher.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
+import { WILD_MAGIC_SURGE_POPOVER_HEIGHT } from "./wildMagicSurgeCore.js";
 import { getEffectsMutationSceneContext } from "./effectsMutations.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import {
@@ -1962,7 +1963,7 @@ function buildWildMagicSurgeControls() {
       id: `${ID}/wild-magic-surge`,
       url: `/wild-magic-surge.html?source=${encodeURIComponent(item.id)}`,
       width: 420,
-      height: 600,
+      height: WILD_MAGIC_SURGE_POPOVER_HEIGHT,
       anchorReference: "POSITION",
       anchorPosition: { left: 120, top: 80 },
       anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },

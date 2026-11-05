@@ -4,7 +4,7 @@ Audit del 05/11/2026, chiesto dall'utente perché font, colori, pesi, gerarchia 
 
 Schermate e proposte disegnate, una accanto all'altra: https://claude.ai/artifact/QENFMdDi2KnatrRGG6Smuq
 
-Stato: D1-D7 decise dall'utente il 05/11/2026 (D1 e D6 diverse dal consiglio). Da V1 a V8 fatti; restano V9, V10 e V11.
+Stato: D1-D7 decise dall'utente il 05/11/2026 (D1 e D6 diverse dal consiglio). Da V1 a V9 fatti; restano V10 e V11.
 
 ## In breve
 
@@ -149,7 +149,7 @@ Hanno la stessa dichiarazione anche `faction-configurator.html:10` e `public/aoe
 
 ## Difetti trovati lungo la strada
 
-Non sono questioni di aspetto. F1 e F4 sono ancora aperti; F2, F3, F5, F6 e F7 sono corretti.
+Non sono questioni di aspetto. F1 e F4 sono ancora aperti; F2, F3, F5, F6, F7 e F8 sono corretti.
 
 - **F1. Le punizioni ignorano le difese.** Punizione Tonante da 9 su un goblin resistente al tuono: 7 PF → 0, invece di 3. Punizione Incandescente da 6 su uno resistente al fuoco: 7 → 1, invece di 4. Nessun chip. Provate due su due. Le altre punizioni passano dalla stessa strada: `applyPreparedResolution` non guarda le difese e nessuna sta in `SPELL_DAMAGE_TYPES`. Lo studio dirà se vale anche per Colpo Intrappolante, Raffica di Spine e Freccia Folgorante. Tocca i PF: va prima studiato.
 - **F2. Detonazione precompila il danno con il numero dei dadi.** A 12d6 il campo dice `Danno 12` (`src/delayed-blast-fireball-resolution.js:137`): scelti gli esiti `Detona` è acceso, e registra 12 invece del tiro. Provato al banco. Corretto con V8.
@@ -158,6 +158,7 @@ Non sono questioni di aspetto. F1 e F4 sono ancora aperti; F2, F3, F5, F6 e F7 s
 - **F5. `dalla mano` dove non c'è nessuna mano.** La gittata misurata dalla zona si scrive sempre `N m dalla mano` (`renderActiveMicropills`), scritta pensata per Mano arcana: Muro di Luce dice `18 m dalla mano`, Controllare acqua `30 m dalla mano`. C'era già prima dei lotti. Corretto con V5: una parola per incantesimo (`rangeOriginLabel`).
 - **F6. Un errore detto con il codice.** Una fessura di Terremoto che non attraversa il bordo della zona si ferma con `Risoluzione non riuscita: Invalid active spell resolution: child-placement-outside-parent`. La regola è giusta, la frase no: il GM non sa che cosa cambiare. C'era già prima dei lotti. Corretto con V6: `La fessura deve andare da un bordo all'altro della zona: riposizionala.`
 - **F7. Popup che non si trascinano.** Segnalato da te su Controincantesimo. C'era già prima dei lotti. Corretto: il capitolo `Fatto: il trascinamento` dice dove e come.
+- **F8. `Applica` due volte scrive due volte.** Il popup di Impulso resta aperto dopo `Applica`: al banco un secondo clic su 41-42 dà due «Pianta in vaso» e due Incapacitato, e `Invio` fa lo stesso. Provato su quella riga; il percorso è lo stesso per ogni esito, cura compresa. C'era già prima dei lotti. Corretto con V9: `Applica` si spegne finché non arriva un nuovo d100, e la riga fissa lo dice.
 
 ## Lotti
 
@@ -272,6 +273,31 @@ Solo il popup di attivazione: Scelta, Detonazione e Controincantesimo hanno i lo
 - **Provato al banco:** Mano arcana, Stretta della Terra, Controllare Venti, Telecinesi, Sguardo, Frecce Infuocate, Sudario Spirituale e Marchio del cacciatore. Da Mano arcana all'azione e di nuovo alla Scelta, con l'altezza giusta. Marchio del cacciatore fino all'applicazione. F6 con una fessura sbagliata.
 - **Da guardare in stanza.** Sguardo applica la condizione, ma al banco il finto SDK dà `scene-item-reconcile-exhausted:add`: il popup resta aperto con il messaggio in rosso. Quel flusso non è cambiato, e il messaggio viene dalla riconciliazione degli effetti, che al banco fallisce sempre; nella stanza non dovrebbe comparire. Sortilegio non è stato aperto: è lo stesso caso di Marchio.
 
+## Fatto: V9
+
+- **Fogli comuni.** La pagina carica anche `console-panel.css`: testata, maniglia, riga fissa e barra dei messaggi sono quelle delle console. Della pagina restano il vetro fucsia e la scheda del d100, come dice D6. L'esagono passa da 86 a 72 px.
+- **Altezza, D2.** Da 600 a 470 px, una costante sola (`WILD_MAGIC_SURGE_POPOVER_HEIGHT`) letta dalle due aperture. La proposta disegnata diceva 369, ma aveva un esito solo, con poco testo. Ho misurato le 50 righe con testi di riempimento lunghi quanto quelli del pacchetto: la più piena chiede 331 px di pannello, più 36 se compare la scelta delle Onde di Caos, e a 470 il pannello ne ha 371. Una riga di lunghezza mediana lascia 74 px vuoti in fondo; prima erano circa 185.
+- **Il costruttore della pillola resta chiuso.** Prima si apriva da solo nelle 8 righe `Al tavolo`, ma aperto non entra nella finestra: chiederebbe altri 100 px. Ora si apre con un clic e il pannello lo porta in vista. Ogni nuovo numero lo richiude.
+- **L'esito.** Un riquadro come gli altri: via la pill con il gradiente, il bordo colorato e la freccia. `Automatico` è verde, `Al tavolo` grigio. Le indicazioni non sono più gialle: il giallo resta per l'avviso vero, `Numero fuori tabella (1-100).`.
+- **Riga fissa.** `Manca il d100.`, `Numero fuori tabella (1-100).`, `Manca il totale dei PF.`, poi `Applica riproduce l'esito.` o `Applica non scrive nulla: usa la pillola se serve.`. `Applica` sta a destra, blu; nella cura resta spento finché manca il totale.
+- **Costruttore.** Etichette a sinistra (`Pillola`, `Note`, `Durata`), controlli da 32 px, `Metti la pillola` nella riga della durata: da quattro righe a tre.
+- **Messaggi.** Nella barra in fondo, che c'è solo quando serve: ✓ verde, ✕ rosso. Prima `Pronto.` restava lì fisso, e un errore aveva il colore di ogni altro messaggio. Un messaggio sparisce quando scrivi un altro numero, perché parlava della riga di prima.
+- **F8.** Dopo `Applica` il pulsante si spegne e la riga dice `Già applicato: un nuovo d100 per un altro Impulso.`. Lo riaccendono un numero riscritto, anche lo stesso, e `Tira qui`. Se `Applica` fallisce resta acceso. `Metti la pillola` non ha questo limite. Una conseguenza: se dopo una riga di lancio chiudi il pannello senza lanciare, per riaprirlo devi riscrivere il numero.
+- **Provato al banco, con Dars Stregone di Magia Selvaggia:**
+  - aperto dalla console e dalla scheda: 470 px, e si trascina da entrambe;
+  - i tipi di esito fino all'applicazione: pillola con condizione, condizione sullo Stregone, cura (40 → 47 PF), punti stregoneria, slot, riga al tavolo, lancio che apre il pannello, pillola del costruttore;
+  - Onde di Caos spese: la scelta compare, la risorsa torna a 1 e la riga sparisce;
+  - la condizione sui selezionati senza selezione: errore rosso, `Applica` resta acceso.
+- **Non provato al banco.** I testi veri del pacchetto: al banco c'è solo la nota del pacchetto mancante, e le lunghezze le ho misurate con testi di riempimento. La condizione sui selezionati con una selezione vera è solo nei test.
+
+## Prova in stanza di V9
+
+- Una riga automatica e una `Al tavolo`: l'altezza va bene? Il costruttore chiuso ti sta bene anche nelle righe al tavolo?
+- Con i testi veri del tuo pacchetto: a costruttore chiuso, qualche riga fa scorrere il pannello?
+- `Applica` su una pillola, poi di nuovo: resta spento? Il nuovo d100 lo riaccende?
+- Una cura: `Tira 2d10`, poi `Applica`.
+- Con Onde di Caos spese: la scelta si legge, e la risorsa torna?
+
 ## Fatto: V8
 
 - **Testata e fatti.** Chi lancia sta sotto il titolo. Via le cinque pill scritte nell'HTML: `TS Destrezza CD 15 · metà se supera`, con la CD del lancio o della scheda.
@@ -312,7 +338,7 @@ Un popup si trascina solo se tre cose funzionano insieme: la pagina conosce il p
   - si spostano Controincantesimo, Detonazione, scheda del token, popup d'azione, punizione, Scelta del turno, Impulso;
   - di controllo, e funzionavano già: console attacchi, PF rapidi, opzioni, manuale, cronologia, effetti, scheda, riposo, stile delle aree, aura, PF condivisi, dadi, fazioni;
   - popup d'azione e Detonazione anche dopo la chiusura del pannello, con i dati scritti ancora lì.
-- **Solo nel codice e nei test, non al banco:** Impulso aperto dalla scheda, pannello e popup d'azione aperti dal menu ⚡.
+- **Solo nel codice e nei test, non al banco:** pannello e popup d'azione aperti dal menu ⚡. Impulso aperto dalla scheda è provato con V9.
 - **Da guardare in stanza.** Il banco tiene vive le finestre chiuse, quindi il difetto del proprietario chiuso lì non si vede da solo: viene dal codice, dove solo chi ha aperto il popup può spostarlo. Per provare la sostituzione ho tolto a mano il loro ascolto, come succede in OBR quando una finestra si chiude. La prova vera è in stanza.
 
 ## Prova in stanza del trascinamento

@@ -8,6 +8,9 @@ import { BUFF_ALL_DAMAGE_TYPES, planBuffApplication } from "./buffPresetCore.js"
 export const WILD_MAGIC_SURGE_FEATURE_ID = "stregone-magia-selvaggia-impulso-di-magia-selvaggia";
 export const WILD_MAGIC_TIDES_POOL_ID = "stregone-magia-selvaggia-onde-di-caos-usi";
 export const WILD_MAGIC_SORCERY_POINTS_POOL_ID = "stregone-punti-stregoneria";
+// The popup's one height, read by whoever opens it: every row of the table fits, with the fold of the pill builder and the
+// choice of the Tides of Chaos. The builder, once opened, scrolls the panel.
+export const WILD_MAGIC_SURGE_POPOVER_HEIGHT = 470;
 
 export const WILD_MAGIC_ACTION_KINDS = Object.freeze({
   BUFF: "buff",

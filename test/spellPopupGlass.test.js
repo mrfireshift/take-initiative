@@ -405,3 +405,50 @@ test("the detonation's one height is read by who opens it: the popup no longer r
   }
   assert.doesNotMatch(fireballController, /OBR\.popover\.setHeight|requestCompactPopoverResize/);
 });
+
+// Lot V9: the surge on the consoles' sheets, in a window as tall as its rows. Its behaviour: test/wildMagicSurgePopup.test.js.
+test("the surge loads the common sheets, and keeps of its own only the glass and the d100's card", () => {
+  const order = ["/ui-typography.css", "/popover-glass.css", "/console-shell.css", "/console-panel.css"].map((href) => surge.indexOf(`href="${href}"`));
+  assert.ok(order.every((at) => at >= 0), "a sheet is missing");
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), "the sheets out of order");
+  assert.doesNotMatch(surge, /\.drag-grip \{|\.apply-row \{|\.apply:not|--chaos|\.small\.chaos|class="small chaos"/, "copies of the common sheet, or the old colours");
+  assert.doesNotMatch(surge, / style="/, "no style on the elements");
+  assert.match(surge, /\.roll-card \{/);
+  assert.match(surge, /\.d100 \{ width: 72px; height: 72px;/);
+  assert.match(surge, /\.glass-shell \{ box-shadow: inset/, "no shadow to show in the corners");
+});
+
+test("the surge's row in a box: its range, its text, its facts, with no pill and no coloured border", () => {
+  assert.doesNotMatch(surge, /\.range \{[^}]*(?:gradient|radius)/);
+  assert.doesNotMatch(surge, /border-left: 3px/);
+  assert.match(surge, /\.outcome \{[^}]*background: var\(--surface-soft\)/);
+  assert.match(surge, /<p class="action-facts" id="action-line"><\/p>/);
+  assert.match(surge, /<p class="action-facts" id="note" hidden><\/p>/);
+  assert.doesNotMatch(surge, /\.note \{|--warn-text/, "yellow only for real warnings: this page's come from the fixed row's kind");
+});
+
+test("the surge's builder: labels on the left of 32 px controls, folded in its box", () => {
+  assert.match(surge, /<details class="builder spell-details" id="builder" hidden>/);
+  for (const [label, control] of [["Pillola", "pill-name"], ["Note", "pill-notes"], ["Durata", "pill-duration"]]) {
+    assert.match(surge, new RegExp(`<label class="form-label" for="${control}">${label}</label>`), label);
+  }
+  assert.match(surge, /\.builder input \{[^}]*min-height: var\(--obrt-h-control-md\)/);
+  assert.match(surge, /\.builder select \{ min-height: var\(--obrt-h-control-md\);/);
+  assert.match(surge, /<label class="more-option" id="tides-row" hidden>/);
+});
+
+test("the surge's fixed row: the message on the left, the blue button on the right; a message is the bar's", () => {
+  assert.match(surge, /<div class="apply-row"><span class="total" id="summary">Manca il d100\.<\/span><button class="apply primary" id="apply" type="button" disabled>Applica<\/button><\/div>/);
+  assert.match(surge, /\.status-bar:has\(> \.status:empty\) \{ display: none; \}/);
+  const controller = read("../src/wild-magic-surge.js");
+  assert.match(controller, /\$\("status"\)\.dataset\.kind = kind;/);
+  assert.doesNotMatch(controller, /dataset\.tone/);
+});
+
+test("the surge's one height is read by who opens it, and every row of the table fits it", async () => {
+  const { WILD_MAGIC_SURGE_POPOVER_HEIGHT } = await import("../src/wildMagicSurgeCore.js");
+  assert.equal(WILD_MAGIC_SURGE_POPOVER_HEIGHT, 470);
+  assert.match(read("../src/initiative-card-modal.js"), /wild-magic-surge\.html[^\n]*\n\s*width: 420,\n\s*height: WILD_MAGIC_SURGE_POPOVER_HEIGHT,/);
+  assert.match(read("../src/pc-attack.js"), /wild-magic-surge\.html[^\n]*\n\s*width:420,height:WILD_MAGIC_SURGE_POPOVER_HEIGHT,/);
+  assert.doesNotMatch(read("../src/wild-magic-surge.js"), /setHeight|ResizeObserver/, "the window does not follow the content");
+});

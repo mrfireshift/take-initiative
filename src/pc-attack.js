@@ -32,6 +32,7 @@ import { pcAttackFeatureForm, pcAttackFeatureRequest } from "./pcAttackFeatureFo
 import { getSpellCatalog } from "./spells-srd.js";
 import { hasReactionUsed, isOffTurn, isReactionClassFeature } from "./reactionTrackerCore.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
+import { WILD_MAGIC_SURGE_POPOVER_HEIGHT } from "./wildMagicSurgeCore.js";
 import { classFeatureDescription, classFeatureDescriptionsLoaded, classFeatureMissingText, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
 import { pcAttackPickerDefault, pcAttackPickerEntries, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
 import { PC_MANEUVER_CONTEST, PC_MANEUVER_NOTES, PC_MANEUVER_OUTCOMES, PC_MANEUVER_OUTCOME_LABELS, PC_SHOVE_EFFECTS, PC_SHOVE_EFFECT_LABELS,
@@ -1429,7 +1430,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // Wild Magic Surge's d100 engine, beside the console.
   function openWildMagicSurge() {
     void openTrackedPopover({id:`${ID}/wild-magic-surge`,url:`/wild-magic-surge.html?source=${encodeURIComponent(sourceId)}`,
-      width:420,height:600,anchorReference:"POSITION",anchorPosition:{left:80+PC_ATTACK_WIDTH+12,top:60},
+      width:420,height:WILD_MAGIC_SURGE_POPOVER_HEIGHT,anchorReference:"POSITION",anchorPosition:{left:80+PC_ATTACK_WIDTH+12,top:60},
       anchorOrigin:{horizontal:"LEFT",vertical:"TOP"},transformOrigin:{horizontal:"LEFT",vertical:"TOP"},disableClickAway:true,
       marginThreshold:12,hidePaper:true}).catch(error=>setStatus(String(error?.message || error),"error"));
   }
