@@ -1,5 +1,5 @@
-// What a creature's defenses do to the damage of a spell, where the GM writes the damage by hand: the panel's cast and the ⚡
-// actions. Pure data and arithmetic: the preview and the commit read the same rows, so they always agree.
+// What a creature's defenses do to the damage of a spell, where the GM writes the damage by hand: the panel's cast, the ⚡
+// actions and the smites' popup. Pure data and arithmetic: the preview and the commit read the same rows, so they always agree.
 import {
   DAMAGE_TYPES,
   componentDamageAfterDefense,
@@ -37,6 +37,12 @@ const SPELL_DAMAGE_TYPES = Object.freeze(Object.fromEntries([
   ...spellsOfType("radiant", ["guiding-bolt", "sunbeam", "sunburst", "xanathar-alba", "xanathar-muro-di-luce",
     "xanathar-parola-radiosa"]),
   ...spellsOfType("thunder", ["shatter", "storm-of-vengeance", "thunderwave", "xanathar-passo-del-tuono", "xanathar-rombo-di-tuono"]),
+  // The smites: their popup asks for their own dice, apart from the weapon's, which the attack console registers with its type.
+  ...spellsOfType("fire", ["phb2014-punizione-incandescente"]),
+  ...spellsOfType("force", ["phb2014-punizione-esiliante"]),
+  ...spellsOfType("psychic", ["phb2014-punizione-collerica", "phb2014-punizione-demoralizzante"]),
+  ...spellsOfType("radiant", ["branding-smite", "phb2014-punizione-accecante"]),
+  ...spellsOfType("thunder", ["phb2014-punizione-tonante"]),
   // Two types in one number: the panel cannot know how much is of each, and the defense stays with the GM.
   ["flame-strike", Object.freeze(["fire", "radiant"])],
   ["ice-storm", Object.freeze(["bludgeoning", "cold"])],
@@ -52,13 +58,6 @@ export const SPELL_DAMAGE_TYPE_LEFT_TO_GM = Object.freeze({
   // The weapon's type.
   "phb2014-evoca-raffica": "dell'arma",
   "phb2014-evoca-pioggia-di-armi": "dell'arma",
-  // Riders on a weapon's hit, written with the attack.
-  "phb2014-punizione-accecante": "con l'attacco",
-  "phb2014-punizione-collerica": "con l'attacco",
-  "phb2014-punizione-demoralizzante": "con l'attacco",
-  "phb2014-punizione-esiliante": "con l'attacco",
-  "phb2014-punizione-incandescente": "con l'attacco",
-  "phb2014-punizione-tonante": "con l'attacco",
 });
 
 export function spellDamageTypes(spellId) {

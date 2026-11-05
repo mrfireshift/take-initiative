@@ -186,8 +186,8 @@ quel personaggio.
   dimezzano o azzerano il danno di quel tipo, e il GM può ignorare il chip della
   difesa per un singolo attacco o lancio. Le altre etichette dei benefici (Armatura
   magica, Pelle coriacea, Pelle di pietra…) sono promemoria per il tavolo.
-- **Le difese nei danni degli incantesimi.** Nel pannello, nel popup delle azioni e
-  nei promemoria scrivi il danno intero: il conto delle resistenze, delle immunità e
+- **Le difese nei danni degli incantesimi.** Nel pannello, nel popup delle azioni, in
+  quello delle punizioni e nei promemoria scrivi il danno intero: il conto delle resistenze, delle immunità e
   delle vulnerabilità lo fa il plugin, per ogni bersaglio. Quando una difesa entra in gioco
   compare un chip giallo accanto al nome del bersaglio, già prima che tu scriva il
   danno; scende sotto il nome solo se non ci sta. Dice il conto (`Res. freddo: 20 → 10`)
@@ -207,8 +207,7 @@ quel personaggio.
     meteore): il chip dice `Res. fuoco: al GM`, e non tocca il numero;
   - **un tipo che il plugin non conosce**: Onda distruttiva e Guardiani spirituali (a
     scelta), il Soffio di Drago illusorio (scelto al lancio), Evoca raffica ed Evoca
-    pioggia di armi (quello dell'arma). Qui non compare nessun chip;
-  - **le punizioni**, il cui danno si somma all'attacco.
+    pioggia di armi (quello dell'arma). Qui non compare nessun chip.
 - Protezione dai veleni al lancio toglie anche **Avvelenato**: una sola volta se
   la creatura ne ha più d'uno, perché neutralizza un veleno solo, e il plugin
   sceglie il primo in elenco. Nulla se «Applica condizioni dell'incantesimo» è
@@ -771,7 +770,10 @@ plugin chiede bersagli e variante senza creare una seconda concentrazione.
 
 Le punizioni da incantesimo e Colpo Intrappolante si risolvono nel popup accanto al
 token, che compare al turno del caster: si seleziona il bersaglio sulla mappa, si
-scrive il danno e si preme **Risolvi**. Chiuso con la ×, o passato il turno, il popup
+scrive il danno e si preme **Risolvi**. Il danno è solo quello della punizione, con i
+suoi dadi: l'arma si registra a parte nella console attacchi. Se il bersaglio ha una
+difesa contro quel tipo, il chip accanto a **Risolvi** lo dice e il conto la applica;
+un clic la ignora. Chiuso con la ×, o passato il turno, il popup
 torna al turno dopo del caster. Per un colpo fuori turno, come un attacco di
 opportunità, o fuori combattimento, si passa dal pannello incantesimi: fra gli
 **Incantesimi attivi sul campo** si preme **Risolvi**, si seleziona il bersaglio sulla

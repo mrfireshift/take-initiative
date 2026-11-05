@@ -188,3 +188,91 @@ test("miss prepared non consuma e stale resolve non duplica mutation", async () 
   assert.equal(stale.stale, true);
   assert.equal(mutationCalls.length, 0);
 });
+
+// F1 of the purple popups' audit: a smite's damage meets the target's defense, and the GM may ignore it.
+const withDefenses = (damageDefenses) => {
+  items.get("target").metadata[META_KEY].initiativeCard = { damageDefenses };
+};
+
+test("F1: a resistance halves the smite, an immunity cancels it, a vulnerability doubles it", async () => {
+  for (const [defenses, hp, applied] of [
+    [{ resistances: ["thunder"] }, 46, 4],
+    [{ immunities: ["thunder"] }, 50, 0],
+    [{ vulnerabilities: ["thunder"] }, 32, 18],
+    [{ resistances: ["fire"] }, 41, 9],
+  ]) {
+    resetScene();
+    withDefenses(defenses);
+    await executeSpellApplication(request({ damageValue: 9 }));
+    const [{ options }] = mutationCalls;
+    const target = options.history.payload.causality.targets[0];
+    assert.equal(options.history.payload.causality.action.damageRoll, 9, "the number written stays the roll");
+    assert.equal(target.requestedDamage, applied, JSON.stringify(defenses));
+    if (applied === 0) assert.equal(options.metadataPatches.length, 0, "immune: no hit point to write");
+    else assert.equal(options.metadataPatches.find((patch) => patch.id === "target").fields.hp.value, hp, JSON.stringify(defenses));
+  }
+});
+
+test("F1: the combat log says which defense counted, and the hit point intent carries what was taken", async () => {
+  resetScene();
+  withDefenses({ resistances: ["thunder"] });
+  await executeSpellApplication(request({ damageValue: 9 }));
+  const [{ options }] = mutationCalls;
+  assert.deepEqual(options.history.payload.causality.targets[0].defenses, [{ type: "thunder", defense: "resistance" }]);
+  assert.equal(options.metadataPatches[0].hpIntent.amount, 4);
+});
+
+test("F1: a defense ignored with a click on its chip does not count, and the log says so", async () => {
+  resetScene();
+  withDefenses({ resistances: ["thunder"] });
+  await executeSpellApplication(request({ damageValue: 9, ignoredDefenses: { target: ["thunder"] } }));
+  const [{ options }] = mutationCalls;
+  assert.equal(options.metadataPatches[0].fields.hp.value, 41);
+  assert.deepEqual(options.history.payload.causality.targets[0].defenses, [{ type: "thunder", defense: "resistance", ignored: true }]);
+});
+
+test("F1: no defense, no change: the smite deals what is written", async () => {
+  resetScene();
+  await executeSpellApplication(request({ damageValue: 9 }));
+  const [{ options }] = mutationCalls;
+  assert.equal(options.metadataPatches[0].fields.hp.value, 41);
+  assert.equal("defenses" in options.history.payload.causality.targets[0], false);
+});
+
+// Banishing Smite: the 50 hit points are read after the damage, so after the defense.
+function banishingScene(hp) {
+  resetScene();
+  items.set("caster", token("caster", "Paladino", {
+    [SPELLS_KEY]: [{ spellId: "phb2014-punizione-esiliante", instanceId: "banishing-instance", castContext: { phase: "prepare", slotLevel: 5 } }],
+    [CONCENTRATION_KEY]: {
+      "Punizione Esiliante": { spellId: "phb2014-punizione-esiliante", instanceId: "banishing-instance", targets: ["caster"] },
+    },
+  }));
+  items.set("target", token("target", "Diavolo", { hp, hpMax: 80, initiativeCard: { damageDefenses: { resistances: ["force"] } } }));
+}
+function banishingRequest(overrides = {}) {
+  const spell = getSpellDefinition("phb2014-punizione-esiliante");
+  const castContext = { phase: "resolve", slotLevel: 5 };
+  return request({
+    spell,
+    enteredName: spell.displayName,
+    castContext,
+    phasePlan: getSpellCastPhasePlan(spell, "resolve", castContext),
+    activeConcentration: { instanceId: "banishing-instance", targets: ["caster"] },
+    saveOutcome: undefined,
+    ...overrides,
+  });
+}
+const banished = () => mutationCalls[0].operations.some((operation) => operation?.type === "condition:add"
+  && (operation.targetIds || []).includes("target"));
+
+test("F1: Banishing Smite reads the 50 hit points after the defense", async () => {
+  banishingScene(60);
+  await executeSpellApplication(banishingRequest({ damageValue: 20 }));
+  assert.equal(mutationCalls[0].options.metadataPatches[0].fields.hp.value, 50, "20 force, halved: 60 → 50");
+  assert.equal(banished(), true, "at 50 the target goes");
+  banishingScene(60);
+  await executeSpellApplication(banishingRequest({ damageValue: 18 }));
+  assert.equal(mutationCalls[0].options.metadataPatches[0].fields.hp.value, 51, "18 force, halved: 60 → 51");
+  assert.equal(banished(), false, "the resistance keeps it above 50: before F1 the 18 whole sent it away");
+});

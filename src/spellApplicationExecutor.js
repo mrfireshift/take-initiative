@@ -45,10 +45,12 @@ import { spellCasterHealingChange } from "./spellDamageHealingCore.js";
 import {
   magicalDamageDefensesForItem,
   spellActionDamageTypes,
+  spellDamageAfterDefense,
   spellDamageDefenseApplied,
   spellDamageDefenseRows,
   spellDamagePartAfterDefense,
   spellDamagePartsDefenses,
+  spellDamageTypes,
 } from "./spellDamageDefenseCore.js";
 import { spellCastHealingDice, spellCastTemporaryHpAmount, spellCastTemporaryHpRule } from "./spellTemporaryHpRules.js";
 import {
@@ -665,9 +667,13 @@ async function buildCastTemporaryHpMutation({ spell, phase = "", targetIds = [],
   return { metadataPatches, targets };
 }
 
+// A smite's damage, written apart from the weapon's: each target's defense against its type counts, as in every other spell
+// (spellDamageDefenseCore.js), unless the GM ignored it with a click on its chip (ignoredDefenses, by target).
 async function buildPreparedInitialDamageMutation({
   targetIds = [],
   amount = null,
+  damageTypes = [],
+  ignoredDefenses = {},
 } = {}) {
   const damage = manualDamageValue(amount);
   if (damage === null || damage <= 0) {
@@ -695,9 +701,15 @@ async function buildPreparedInitialDamageMutation({
     }
     const current = currentHpById.get(targetId) || { hp: meta.hp, tempHp: meta.tempHp };
     const currentHp = current.hp;
+    const defenses = spellDamageDefenseRows({
+      types: damageTypes,
+      defenses: magicalDamageDefensesForItem(item, `${ID}/meta`),
+      ignoredTypes: ignoredDefenses?.[targetId],
+    });
+    const taken = spellDamageAfterDefense(damage, "full", spellDamageDefenseApplied(defenses));
     const hpChange = calculateQuickHPChange({
       mode: QUICK_HP_MODES.DAMAGE,
-      value: damage,
+      value: taken,
       factor: QUICK_HP_FACTORS.FULL,
       hp: current.hp,
       hpMax: meta.hpMax,
@@ -708,15 +720,19 @@ async function buildPreparedInitialDamageMutation({
     targets.push({
       id: targetId,
       name: item.name,
-      requestedDamage: damage,
+      requestedDamage: taken,
       appliedDamage: Math.max(0, -hpChange.delta),
       beforeHP: currentHp,
       afterHP: hpChange.afterHP,
+      // The combat log says which defense counted, or that the GM ignored it.
+      ...(defenses.length
+        ? { defenses: defenses.map(({ type, defense, ignored }) => ({ type, defense, ...(ignored ? { ignored: true } : {}) })) }
+        : {}),
     });
     if (!hpChange.changed) continue;
     metadataPatches.push({
       id: targetId,
-      hpIntent: { mode: "damage", amount: damage, eventId: "prepared-initial-damage" },
+      hpIntent: { mode: "damage", amount: taken, eventId: "prepared-initial-damage" },
       fields: {
         hp: {
           expected: metadataSnapshot(meta, "hp"),
@@ -2203,6 +2219,8 @@ export async function executeSpellApplication({
   primaryTargetId = "",
   manualAttackOutcomeRequired = false,
   ignoreTargetLimit = false,
+  // The damage defenses the GM ignores in a smite's resolution: { targetId: [type] }.
+  ignoredDefenses = {},
   // Operations committed with the spell in the same command and History entry (the spell slot spent).
   extraOperations = [],
   // What the cast spends (planSpellCastCost's spent), named in the combat log: "slot di 3° livello".
@@ -2360,6 +2378,8 @@ export async function executeSpellApplication({
     ? await buildPreparedInitialDamageMutation({
       targetIds: intent.subjects,
       amount: manualDamage,
+      damageTypes: spellDamageTypes(spell?.id),
+      ignoredDefenses,
     })
     : { metadataPatches: [], operations: [], applied: 0, targets: [] };
   if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {

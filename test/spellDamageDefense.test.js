@@ -529,3 +529,26 @@ test("il comando dell'adattatore porta le difese ignorate dal pannello al lancio
   const command = buildSpellUnifiedAreaCommand({ contract, session, sceneEpoch: 3 });
   assert.deepEqual(command?.hp?.ignoredDefenses, { sera: ["cold"] });
 });
+
+// F1 dell'audit dei popup viola: le punizioni hanno il loro tipo, come ogni altro incantesimo, e nessuna resta al GM.
+test("le sette punizioni dichiarano il tipo del loro danno, letto dalle regole della risoluzione", async () => {
+  const { getSpellCastPhasePlan } = await import("../src/spellCastPhaseCore.js");
+  const { spellActionDamageTypes } = await import("../src/spellDamageDefenseCore.js");
+  const smites = {
+    "phb2014-punizione-tonante": "thunder",
+    "phb2014-punizione-incandescente": "fire",
+    "phb2014-punizione-collerica": "psychic",
+    "phb2014-punizione-accecante": "radiant",
+    "phb2014-punizione-demoralizzante": "psychic",
+    "phb2014-punizione-esiliante": "force",
+    "branding-smite": "radiant",
+  };
+  for (const [id, type] of Object.entries(smites)) {
+    assert.deepEqual([...spellDamageTypes(id)], [type], id);
+    assert.equal(SPELL_DAMAGE_TYPE_LEFT_TO_GM[id], undefined, `${id} non resta al GM`);
+    const spell = getSpellDefinition(id);
+    const bonus = getSpellCastPhasePlan(spell, "resolve", { slotLevel: spell.level || 1 })?.resolution?.mechanics?.damageBonus;
+    assert.deepEqual(spellActionDamageTypes({ damage: { type: bonus?.type } }), [type], `${id}: il tipo delle regole`);
+  }
+  assert.equal(Object.keys(SPELL_DAMAGE_TYPE_LEFT_TO_GM).some((id) => /punizione|smite/.test(id)), false);
+});

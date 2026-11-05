@@ -4,7 +4,7 @@ Audit del 05/11/2026, chiesto dall'utente perché font, colori, pesi, gerarchia 
 
 Schermate e proposte disegnate, una accanto all'altra: https://claude.ai/artifact/QENFMdDi2KnatrRGG6Smuq
 
-Stato: D1-D7 decise dall'utente il 05/11/2026 (D1 e D6 diverse dal consiglio). Da V1 a V11 fatti: i lotti sono finiti. Resta aperto F1, che chiede uno studio a parte.
+Stato: D1-D7 decise dall'utente il 05/11/2026 (D1 e D6 diverse dal consiglio). Da V1 a V11 fatti: i lotti sono finiti. F1 è corretto dopo uno studio, con le decisioni D1-D4 dell'utente.
 
 ## In breve
 
@@ -149,9 +149,9 @@ Hanno la stessa dichiarazione anche `faction-configurator.html:10` e `public/aoe
 
 ## Difetti trovati lungo la strada
 
-Non sono questioni di aspetto. F1 è ancora aperto; tutti gli altri sono chiusi.
+Non sono questioni di aspetto. Sono tutti chiusi.
 
-- **F1. Le punizioni ignorano le difese.** Punizione Tonante da 9 su un goblin resistente al tuono: 7 PF → 0, invece di 3. Punizione Incandescente da 6 su uno resistente al fuoco: 7 → 1, invece di 4. Nessun chip. Provate due su due. Le altre punizioni passano dalla stessa strada: `applyPreparedResolution` non guarda le difese e nessuna sta in `SPELL_DAMAGE_TYPES`. Lo studio dirà se vale anche per Colpo Intrappolante, Raffica di Spine e Freccia Folgorante. Tocca i PF: va prima studiato.
+- **F1. Le punizioni ignorano le difese.** Punizione Tonante da 9 su un goblin resistente al tuono: 7 PF → 0, invece di 3. Punizione Incandescente da 6 su uno resistente al fuoco: 7 → 1, invece di 4. Nessun chip. Provate due su due. Le altre punizioni passano dalla stessa strada: `applyPreparedResolution` non guarda le difese e nessuna sta in `SPELL_DAMAGE_TYPES`. Lo studio dirà se vale anche per Colpo Intrappolante, Raffica di Spine e Freccia Folgorante. Tocca i PF: va prima studiato. Corretto dopo lo studio: il capitolo `Fatto: F1` dice come.
 - **F2. Detonazione precompila il danno con il numero dei dadi.** A 12d6 il campo dice `Danno 12` (`src/delayed-blast-fireball-resolution.js:137`): scelti gli esiti `Detona` è acceso, e registra 12 invece del tiro. Provato al banco. Corretto con V8.
 - **F3. Detonazione dimezza senza dirlo.** Mira resistente al fuoco: 12 diventa 6, giusto, ma nessun chip lo dice. Hai chiesto che sia chiaro. Corretto con V8: il chip c'è, e un clic ignora la difesa.
 - **F4. Pagina morta.** `prepared-spell-resolution.html` si aprirebbe solo per un'azione che non è né `resolve` né `manual`, ma quel caso esclude il gruppo prima (`preparedSpellResolutionGroups`). Censimento su tutto il catalogo: 9 `resolve`, 2 `manual`, gli altri nessuna azione. Tolta con V11.
@@ -274,6 +274,30 @@ Solo il popup di attivazione: Scelta, Detonazione e Controincantesimo hanno i lo
 - **F6.** La fessura rifiutata dice che cosa cambiare. Lo stesso per un vortice fuori dalla zona. Ogni altro rifiuto tiene il suo codice, per chi deve capire che cosa è successo.
 - **Provato al banco:** Mano arcana, Stretta della Terra, Controllare Venti, Telecinesi, Sguardo, Frecce Infuocate, Sudario Spirituale e Marchio del cacciatore. Da Mano arcana all'azione e di nuovo alla Scelta, con l'altezza giusta. Marchio del cacciatore fino all'applicazione. F6 con una fessura sbagliata.
 - **Da guardare in stanza.** Sguardo applica la condizione, ma al banco il finto SDK dà `scene-item-reconcile-exhausted:add`: il popup resta aperto con il messaggio in rosso. Quel flusso non è cambiato, e il messaggio viene dalla riconciliazione degli effetti, che al banco fallisce sempre; nella stanza non dovrebbe comparire. Sortilegio non è stato aperto: è lo stesso caso di Marchio.
+
+## Fatto: F1
+
+- **Lo studio.** Non era una svista. P4 (lotto 2) aveva lasciato le punizioni al GM, «con l'attacco», pensando che arma e punizione finissero in un solo numero. Ma il loro popup chiede solo i dadi della punizione (`Tuono 2d6`), e l'arma si registra a parte nella console, che le difese le conta già. E lo stesso incantesimo faceva il conto nel promemoria e non nel popup: il fuoco a inizio turno di Punizione Incandescente diceva già `Res. fuoco`.
+- **Le decisioni dell'utente, il 05/11.**
+  - D1: nel popup si scrive solo il danno della punizione, e il popup fa il conto.
+  - D2: un clic sul chip ignora la difesa.
+  - D3: anche Punizione Marchiante, la versione SRD, che non stava in nessuna delle due liste.
+  - D4: il colpo diretto di Freccia Folgorante resta un totale finale scritto dal GM.
+- **I tipi.** Le sette punizioni sono nella tabella di `src/spellDamageDefenseCore.js`: Tonante tuono, Incandescente fuoco, Collerica e Demoralizzante psichici, Accecante e Marchiante radiosi, Esiliante forza. Nessuna resta più al GM. Un test le confronta con le regole della risoluzione.
+- **Il popup.** Il chip sta nella riga fissa già prima del danno, come negli altri popup: `Res. tuono`, con il suggerimento di scrivere il danno intero, poi `Res. tuono: 9 → 4`, e la riga dice `Danni 4`. Un clic lo ignora.
+- **I PF.** `buildPreparedInitialDamageMutation` fa lo stesso conto, bersaglio per bersaglio, con le difese ignorate dal clic. Il registro di combattimento dice quale difesa ha contato. La scrittura dei PF, l'`Annulla` e le barre restano quelli di prima: cambia solo il numero. Le condizioni restano anche con un'immunità al danno.
+- **Punizione Esiliante.** La soglia dei 50 PF legge i PF dopo il danno, quindi dopo la difesa. Con resistenza alla forza, 20 danni portano 60 PF a 50 e il bersaglio va; 18 lo lasciano a 51 e resta. Prima i 18 interi lo mandavano via.
+- **Provato al banco:**
+  - Tonante da 9 su un goblin resistente al tuono: `Danni 4`, 7 → 3, Prono;
+  - lo stesso col clic sul chip: `Danni 9`, 7 → 0;
+  - Incandescente da 6 su uno resistente al fuoco: `Danni 3`, 7 → 4, e il fuoco a inizio turno resta com'era;
+  - Tonante anche in vista compatta: 7 → 3.
+- **Solo nei test.** Immunità, vulnerabilità ed Esiliante sopra e sotto i 50 PF.
+
+## Prova in stanza di F1
+
+- Una punizione su una creatura resistente al suo tipo: il chip si legge prima di scrivere il danno? Il numero torna?
+- Se ti capita di scriverlo già dimezzato: un clic sul chip, e il conto resta il tuo.
 
 ## Fatto: V11
 

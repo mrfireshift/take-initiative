@@ -91,6 +91,8 @@ export function buildPreparedSpellResolutionRequest({
   damageValue = undefined,
   primaryDamageValue = undefined,
   primaryTargetId = "",
+  // The defenses the GM ignored with a click on their chip, by target: { targetId: [type] }.
+  ignoredDefenses = undefined,
 } = {}) {
   const spell = preparedSpellDefinition(group);
   const stillPrepared = String(group?.castContext?.phase || "").trim() === "prepare";
@@ -128,6 +130,7 @@ export function buildPreparedSpellResolutionRequest({
     ...(damageValue !== undefined ? { damageValue } : {}),
     ...(primaryDamageValue !== undefined ? { primaryDamageValue } : {}),
     ...(primaryTargetId ? { primaryTargetId: String(primaryTargetId).trim() } : {}),
+    ...(ignoredDefenses && Object.keys(ignoredDefenses).length ? { ignoredDefenses } : {}),
     activeConcentration: {
       instanceId: String(group.instanceId || "").trim(),
       spellId: String(group.spellId || spell?.id || "").trim(),

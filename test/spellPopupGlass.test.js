@@ -513,3 +513,14 @@ test("the attack's heights hold the button: the line of the advantage has its ow
   assert.equal(spellActiveResolutionPopoverHeight({ action: { resolutionKind: "single-attack", shortenStaticZone: { chooseFrom: true } } }), 354);
   assert.equal(spellActiveResolutionPopoverHeight({ action: { resolutionKind: "single-attack", maxAttacks: 2 } }), 480);
 });
+
+// F1 of the audit: the smite's popup says the target's defense and counts it, as every other popup.
+test("F1: the smite's popup reads the smite's type, draws the chip and passes the click on", () => {
+  assert.match(activeController, /function popupDamageTypes\(\) \{\s*return isPreparedResolution\(\)\s*\? spellDamageTypes\(preparedSpellDefinition\(\{ spellId: payload\?\.spellId \}\)\?\.id\)/);
+  assert.match(activeController, /if \(isPreparedResolution\(\)\) return \{ valid: true, amount: spellDamageAfterDefense\(Number\(roll\), "full", defense\) \};/, "a smite has no save that halves it");
+  assert.match(activeController, /if \(isPreparedResolution\(\)\) \{\s*return preparedPhasePlan\(\)\?\.resolution\?\.mechanics\?\.damageBonus \? byId\(selectedAttackTarget, "hit", \$\("attackDamage"\)\.value\) : \[\];/);
+  assert.match(activeController, /subjectDamage\(damageDefenseSubjects\(\)\[0\]\) \?\? Number\(damageInput\.value\)/, "the fixed row's total is after the defense");
+  assert.match(activeController, /ignoredDefenses: Object\.fromEntries\(\[\.\.\.ignoredDefenses\]\.map\(\(\[targetId, types\]\) => \[targetId, \[\.\.\.types\]\]\)\),\s*\}\);\s*return executeSpellApplication/);
+  const preparedBranch = activeController.slice(activeController.indexOf("async function renderPrepared"), activeController.indexOf("function prismaticWallNumericDamageReady"));
+  assert.match(preparedBranch, /renderDamageDefenseChips\(\);/);
+});

@@ -73,6 +73,7 @@ import {
   spellDamageDefenseText,
   spellDamageDefenseTitle,
   spellDamagePartAfterDefense,
+  spellDamageTypes,
 } from "./spellDamageDefenseCore.js";
 
 const META_KEY = `${ID}/meta`;
@@ -1077,14 +1078,21 @@ function renderSummary(missing = "", label = "", amount = null) {
 function subjectDamage(subject) {
   const written = String(subject?.roll ?? "").trim() !== "" && Number.isFinite(Number(subject?.roll));
   if (!subject?.outcome || !written) return null;
-  const resolved = resolveSpellActiveResolutionDamage({
-    action: payload.action,
-    slotLevel: payload.slotLevel,
-    outcome: subject.outcome,
-    roll: Number(subject.roll),
-    defense: spellDamageDefenseApplied(targetDefenseRows(subject.item)),
-  });
+  const resolved = resolvedDamage(subject.outcome, subject.roll, spellDamageDefenseApplied(targetDefenseRows(subject.item)));
   return resolved?.valid ? resolved.amount : null;
+}
+
+// The damage this popup writes, after a defense. A smite's has no save to halve it: only the defense changes it.
+function resolvedDamage(outcome, roll, defense) {
+  if (isPreparedResolution()) return { valid: true, amount: spellDamageAfterDefense(Number(roll), "full", defense) };
+  return resolveSpellActiveResolutionDamage({ action: payload.action, slotLevel: payload.slotLevel, outcome, roll: Number(roll), defense });
+}
+
+// The type of that damage: the action's, or a smite's own (spellDamageDefenseCore.js), by the spell's id as the executor reads it.
+function popupDamageTypes() {
+  return isPreparedResolution()
+    ? spellDamageTypes(preparedSpellDefinition({ spellId: payload?.spellId })?.id)
+    : spellActionDamageTypes(payload?.action);
 }
 
 function renderSave() {
@@ -1777,8 +1785,12 @@ async function renderPrepared() {
       : !saveReady ? "Seleziona l'esito del TS."
       : !damageReady ? "Manca il danno." : "",
     "Danni",
-    damageRequired && damageReady ? Number(damageInput.value) : null,
+    damageRequired && damageReady
+      ? subjectDamage(damageDefenseSubjects()[0]) ?? Number(damageInput.value)
+      : null,
   );
+  // F1 of the purple popups' audit: the target's defense against the smite, in the fixed row as in every other popup.
+  renderDamageDefenseChips();
   renderHeadingSubtitle();
   requestCompactPopoverResize();
 }
@@ -2164,7 +2176,7 @@ function renderTargetLine(targetName = "", emptyText = "", item = null) {
 
 function targetDefenseRows(item) {
   return spellDamageDefenseRows({
-    types: spellActionDamageTypes(payload?.action),
+    types: popupDamageTypes(),
     defenses: magicalDamageDefensesForItem(item, META_KEY),
     ignoredTypes: [...(ignoredDefenses.get(item?.id) || [])],
   });
@@ -2177,6 +2189,10 @@ function damageDefenseSubjects() {
     const item = sceneItems.find((entry) => entry?.id === id);
     return item ? [{ item, outcome, roll }] : [];
   };
+  // A smite hits its one target: its damage, when it has some to write.
+  if (isPreparedResolution()) {
+    return preparedPhasePlan()?.resolution?.mechanics?.damageBonus ? byId(selectedAttackTarget, "hit", $("attackDamage").value) : [];
+  }
   if (kind === "save-area") {
     if (childZone()) return [];
     return currentTargetItems().map((item) => ({ item, outcome: outcomes.get(item.id), roll: $("damage").value }));
@@ -2220,13 +2236,11 @@ function damageDefenseChip({ item, row, numbers, label }) {
 function renderDamageDefenseChips() {
   const box = $("damageDefenses");
   if (!box) return;
-  const subjects = spellActionDamageTypes(payload?.action).length ? damageDefenseSubjects() : [];
+  const subjects = popupDamageTypes().length ? damageDefenseSubjects() : [];
   const chips = subjects.flatMap(({ item, outcome, roll }) => {
     const rows = targetDefenseRows(item);
     const written = String(roll ?? "").trim() !== "" && Number.isFinite(Number(roll));
-    const resolve = (defense) => (outcome && written
-      ? resolveSpellActiveResolutionDamage({ action: payload.action, slotLevel: payload.slotLevel, outcome, roll: Number(roll), defense })
-      : null);
+    const resolve = (defense) => (outcome && written ? resolvedDamage(outcome, roll, defense) : null);
     return rows.map((row) => {
       const before = resolve(null);
       const after = resolve(row.ignored ? null : row.defense);
@@ -2720,6 +2734,7 @@ async function applyPreparedResolution() {
           attackOutcome: "hit",
           saveOutcome,
           damageValue: $("attackDamage").value,
+          ignoredDefenses: Object.fromEntries([...ignoredDefenses].map(([targetId, types]) => [targetId, [...types]])),
         });
         return executeSpellApplication({
           ...request,
