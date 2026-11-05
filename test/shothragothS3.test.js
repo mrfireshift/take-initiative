@@ -47,7 +47,7 @@ test("Cucitura and Strappare as closed v19 data; the names they refer to are res
   assert.equal(bossActionRowMeta(cucitura, {}).tag, "Cucitura fino a 120 ft · prima del round");
   assert.equal(bossActionRowMeta(strappare, {}).tag, "TS INT 18 · linea sulla cucitura 20 ft · ultima del round");
   assert.deepEqual(bossActionRowMeta(corpo, { tracked: true, available: false, remaining: 1, limit: 1, period: "round", sequenceBlocked: true }),
-    { kind: "save-damage", tag: "TS DES 18", badge: "Bloccata", exhausted: true });
+    { kind: "save-damage", tag: "TS DES 18", badge: "Bloccata", exhausted: true, short: "TS DES 18", mark: "Bloccata" });
   assert.deepEqual(auril.abilities.filter((entry) => entry.sequence).map((entry) => entry.name),
     ["Breathe Deep", "Breath of the Long Night", "Rock", "Meteor Swarm", "Gather the Winter Sky"], "tranche 12: Auril's sequence");
 
