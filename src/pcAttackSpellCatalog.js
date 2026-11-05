@@ -33,7 +33,7 @@ export const PC_ATTACK_SPELLS = Object.freeze([
     ruleNote: "Un tiro per colpire per raggio: registra un raggio alla volta, anche sullo stesso bersaglio." }),
   Object.freeze({ spellId: "vampiric-touch", name: "Tocco del vampiro", level: 3, range: "melee", type: "necrotic",
     dice: "3d6", perSlot: "1d6", casterHealRatio: 0.5, fromActiveSpell: true,
-    ruleNote: "Lancialo dal pannello incantesimi: qui registri il tocco del lancio e quelli dei turni seguenti, finché dura la concentrazione." }),
+    ruleNote: "Registra il tocco del lancio e quelli dei turni seguenti, finché dura la concentrazione." }),
 ]);
 
 const SPELL_BY_ID = new Map(PC_ATTACK_SPELLS.map((spell) => [spell.spellId, spell]));

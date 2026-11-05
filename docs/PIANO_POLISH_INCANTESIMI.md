@@ -1,6 +1,6 @@
 # Polishing degli incantesimi (piano)
 
-Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 fatto (lotti da 1 a 11 e D6: 477 incantesimi letti su 477, 167 corretti); P4 quasi chiuso (azioni del ⚡, zone che si spostano, difetti certi e difese nei danni e nei promemoria fatti; resta la console attacchi); resta P5**. Questo piano guida la
+Stato: **studio chiuso il 3/11/2026, decisioni D1–D5 approvate il 4/11/2026; P0, P1 e P2 fatti, P3 fatto (lotti da 1 a 11 e D6: 477 incantesimi letti su 477, 167 corretti); P4 fatto (azioni del ⚡, zone che si spostano, difetti certi, difese nei danni e nei promemoria, console attacchi e schede dei mostri); resta P5**. Questo piano guida la
 revisione di tutti i 477 incantesimi prima di aggiungere nuove capacità. Per ognuno si controlla:
 
 - **A, l'interpretazione:** il motore fa ciò che dice il testo 2014?
@@ -551,7 +551,7 @@ scadenze sbagliate, le difese scritte solo come etichette, le note mai arrivate 
 | Un giro automatico al banco sui casi complessi | `actionRun` e `actionLine` di `polishBench.js` lo permettono. Le azioni si provano così; una lista fissa non serve finché non cambia il motore delle azioni |
 | Le resistenze nei danni degli incantesimi | Fatto il 5/11: il pannello, le azioni del ⚡ e i promemoria |
 | Santificare: un pulsante vero per il TS Carisma | Deciso il 5/11: resta solo tracking, non è un incantesimo da combattimento |
-| La console attacchi e il lancio dalle schede dei mostri | Da provare quando è chiuso l'[audit del pannello attacchi](AUDIT_UX_PANNELLO_ATTACCHI.md), che lo sta rifacendo |
+| La console attacchi e il lancio dalle schede dei mostri | Fatto il 5/11. L'[audit del pannello attacchi](AUDIT_UX_PANNELLO_ATTACCHI.md) è ancora aperto, ma tocca solo l'aspetto: danni, PF e registrazione restano uguali |
 
 #### Primo lotto (fatto il 4/11): le azioni del ⚡ e i difetti certi
 
@@ -633,6 +633,39 @@ Provato al banco: Cono di freddo su Sera con TS fallito e superato, il clic che 
 Rimuovi maledizione su Sortilegio e Scagliare maledizione insieme, con le due concentrazioni che cadono, su Costrizione e su una creatura pulita; Miraggio arcano senza sagoma, in vista espansa e compatta. I promemoria: Nube di Pugnali su chi resiste ai
 taglienti (9 → 4) e con la difesa ignorata, Bagliore lunare con TS superato (10, 5, 2), Guardiani spirituali senza chip. Spruzzo prismatico con il chip che segue raggio, danno e TS, e il lancio (30 → 15); Muro prismatico con tutti gli strati (resistenza, immunità e i tre
 pieni: 38 → 17) e le due condizioni; Trasmutare Roccia. **Non provati:** gli attacchi multipli di Lama del Disastro, Simbolo (Morte), che chiede il glifo e poi l'attivazione, coperto dal test sulla vista, e il registro di combattimento a video, coperto dal test su `spellAreaCausality`. Test in `test/spellDamageDefense.test.js` e `test/cleanseSpells.test.js`.
+
+#### Terzo lotto (fatto il 5/11): la console attacchi e le schede dei mostri
+
+Provati dal pannello vero tutti i 30 incantesimi delle tabelle della console, su un PG e su mostri importati dallo statblock come fa il GM: **Modifica**, **Importa**, **Leggi**, **Applica al modulo**, **Salva**. Con l'azione salvata sulla scheda la console era a posto: dadi, slot, tipi, balzo di Dardo di caos, durate turno per turno, aree, Annulla che rende lo slot solo al primo raggio.
+
+Decisioni del proprietario, il 5/11:
+- **La console offre da sola gli incantesimi d'attacco del libro**, a PG e mostri: la strada scelta fra le tre studiate. L'azione è costruita dal libro come l'arma a soffio dal suo tratto (`spellbookAttackAction`, id `book-attack:cantrip` e `book-attack:spell`) e non si scrive sulla scheda.
+- **La ⚙ della scheda resta anche sugli incantesimi d'attacco**: apre il pannello, per un lancio senza slot o per Dardo incantato con tutti i dardi insieme.
+- **Con un'azione salvata che ne elenca solo alcuni**, gli altri del libro vanno comunque in console: una regola sola.
+
+| Prima | Dove | Ora |
+|---|---|---|
+| Un incantesimo d'attacco nel libro senza un'azione negli Attacchi registrava solo il lancio, senza tiro né danni | Ogni incantatore importato (Mago, Sacerdote, Fanatico, Lich…) e ogni PG senza quell'azione | La console lo risolve con dadi e slot. Vale anche per i mostri già importati, senza reimportarli. Un'azione salvata ha la precedenza |
+| Creare Falò non si lanciava con un'azione Trucchetti che li offre tutti: **Lancia** riapriva la console | I PG con quell'azione, come nell'esempio di [Importare una scheda](IMPORT_SCHEDA.md) | Creare Falò è sempre del pannello, e un lancio chiesto dalla console non la riapre più |
+| Lama Roboante e Lama Verdefiamma nel libro senza azione: la console diceva di attivarle fra gli extra al colpo, ma la riga non c'era | Gli attacchi con arma da mischia | L'attacco le legge dal libro, e la riga nomina solo quelle che il personaggio ha |
+| Tocco del vampiro: senza azione il tocco non si registrava, con l'azione la console bloccava senza dare **Lancia** | La console e la scheda | **Lancia** finché non è attivo, poi la console passa da sola al tocco. Se dietro c'è un attacco con scelte già fatte, resta su quello e non chiede nulla |
+| Le note dei trucchetti parlavano di Lama Roboante e Creare Falò anche a chi non li ha | Un'azione che li offre tutti | Con un libro ogni trucchetto ha la sua riga, e quelle note non compaiono |
+| **Risolvi** di un incantesimo preparato non si accendeva mai nel pannello: «Seleziona al massimo 0 bersagli», perché un limite non dichiarato valeva zero. Senza il popup al token non restava altra strada | Le sette punizioni da incantesimo e Colpo Intrappolante, con il popup chiuso, fuori turno o fuori combattimento | Il limite si scrive solo se l'azione ne dichiara uno. Il pulsante dice che cosa aspetta: `Seleziona il bersaglio sulla mappa`, poi **Apri risoluzione**. Confrontate prima e dopo tutte le azioni del catalogo: cambia solo questa |
+| Il bonus degli incantesimi era sulla scheda ma non in console: per un mostro il GM lo cercava altrove | I trucchetti e gli incantesimi con tiro | `+6 al tiro` sopra il danno, come gli attacchi dei mostri. Non su un TS né su Dardo incantato |
+| «Nessuno slot libero» a chi non ha slot tracciati: un mostro senza classe che li tiene al tavolo | Il riquadro di **Lancia** | L'avviso solo a chi ha slot sulla scheda e li ha finiti |
+| Frusta di Spine dimezzata dalla difesa contro le armi non magiche: era un limite noto, da ignorare a mano | La console, sui mostri con quella difesa | Un incantesimo è magico: danno pieno e nessun pulsante, come nel pannello. Una lancia resta dimezzata. L'unico tipo fisico delle tabelle è il suo, e un test lo controlla |
+| Il pannello diceva il TS ma non la CD | Ogni lancio con TS, anche dalle azioni boss | `Tiro salvezza: Costituzione (CD 14).`: la CD della scheda, dell'azione boss o del tratto di specie |
+| `Prossimo attacco: vant..` | Il riepilogo dopo **Registra** | Un punto solo |
+
+La risoluzione dal pannello è provata fino al danno: Punizione Tonante fuori turno, Punizione Accecante fuori combattimento, Colpo Intrappolante dopo la ×, Punizione Incandescente con due creature selezionate (il popup ne chiede una), e **Annulla**, che rimette PF, condizione, pill e concentrazione. Dopo una risoluzione il popup non torna al turno del caster.
+
+Provati e a posto anche: il lancio dalla scheda del mostro (Armatura magica spende lo slot e dura 8 ore), il pulsante della scheda che apre la console e la ⚙ che apre il pannello, **Lancia** dalla console in vista espansa e compatta, gli slot dello statblock uguali a quelli calcolati dalla classe, Lentezza dalle azioni boss con la CD dell'azione.
+
+Scelte:
+- **Un incantesimo d'attacco innato resta sul ⚡**, che spende il suo uso. In console spenderebbe uno slot di classe, se ne ha, e non l'uso: chi ne ha uno scrive il danno a mano, quando il pannello non lo chiede. Dardo incantato il danno lo chiede.
+- **I dadi dei trucchetti di un mostro senza classe** restano quelli di base: il livello dello statblock arriva alla scheda solo con la classe. Il numero lo scrive il GM, il dado è un'indicazione.
+
+Resta per P5 la prova in una stanza vera, con un mostro importato dall'archivio. Test in `test/spellPolishP4Console.test.js` e `test/pcAttackPopover.test.js`.
 
 ### P5, la prova in stanza
 

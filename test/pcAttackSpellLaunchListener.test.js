@@ -14,7 +14,7 @@ function harness({ isGm = true, current = true, entries = null, run = async () =
   const start = source.indexOf("function mountPcAttackSpellLaunchListener()");
   const end = source.indexOf("function __toggleTrackerQuickActionsPopover", start);
   assert.ok(start >= 0 && end > start);
-  const listeners = [], sent = [], runs = [], activations = [];
+  const listeners = [], sent = [], runs = [], runOptions = [], activations = [];
   const OBR = { broadcast: {
     onMessage: (channel, listener) => { listeners.push({ channel, listener }); return () => {}; },
     sendMessage: async (channel, data, options) => { sent.push({ channel, data, options }); },
@@ -31,7 +31,7 @@ function harness({ isGm = true, current = true, entries = null, run = async () =
     "__isCurrentSceneOperation", "sanitizeQuickActions", "isSpellbookQuickAction", "__runTrackerQuickAction", "__activateClassFeatureFromContext",
     `${source.slice(start, end)}\nreturn mountPcAttackSpellLaunchListener;`)(
     OBR, CHANNEL, isGm, () => 7, async () => list, () => current, sanitizeQuickActions, isSpellbookQuickAction,
-    async (entry, action) => { runs.push([entry.id, action.id]); return run(entry, action); },
+    async (entry, action, options) => { runs.push([entry.id, action.id]); runOptions.push(options); return run(entry, action); },
     async (entry, featureId) => { activations.push([entry.id, featureId]); return activate(entry, featureId); });
   mount();
   const send = async (data) => {
@@ -40,8 +40,16 @@ function harness({ isGm = true, current = true, entries = null, run = async () =
     await new Promise((resolve) => setTimeout(resolve, 0));
   };
   const results = () => sent.filter((message) => message.data.type === "launch-result").map((message) => message.data);
-  return { send, sent, runs, activations, results };
+  return { send, sent, runs, runOptions, activations, results };
 }
+
+test("Lancia casts the spell: the tracker is told it comes from the console, which must not open again", async () => {
+  const h = harness();
+  await h.send({ type: "launch", requestId: "c1", sourceId: "mira", actionId: "book:bless" });
+  assert.deepEqual(h.runOptions, [{ fromConsole: true }]);
+  const runner = source.slice(source.indexOf("async function __runTrackerQuickAction"), source.indexOf("// anchor: where the launchers stand"));
+  assert.match(runner, /!fromConsole && isSpellbookQuickAction\(action\)/u);
+});
 
 test("Lancia runs the 🪄 routing for a spell of the book, acknowledged at once and answered with the result", async () => {
   const h = harness();

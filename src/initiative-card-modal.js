@@ -48,8 +48,9 @@ import {
   sanitizeSpellbook,
 } from "./spellbookCore.js";
 import {
-  spellbookCantripAttackAction,
-  spellbookSpellAttackAction,
+  spellbookActiveSpellIds,
+  spellbookAttackActionFor,
+  spellbookAttackWaitsForCast,
   spellbookGroups,
   spellbookGroupsForProfile,
   spellbookPreparation,
@@ -1013,10 +1014,11 @@ function renderQuickActionList(list, actions, emptyText) {
   }
 }
 
-// The cantrip attack that records this cantrip in the attack console, when the character has one; a leveled attack
-// spell (lotto L4) the same way, through an attack spell action.
+// The action that records this attack cantrip or leveled attack spell (lotto L4) in the console: the card's own, else the one
+// built from the book. Vampiric Touch goes to the panel until it is cast, then the console records its touches.
 function spellbookCantripAttack(spellId) {
-  return isGM ? spellbookCantripAttackAction(profile?.quickActions, spellId) || spellbookSpellAttackAction(profile?.quickActions, spellId) : null;
+  if (!isGM || spellbookAttackWaitsForCast(spellId, spellbookActiveSpellIds(item?.metadata?.[META_KEY]))) return null;
+  return spellbookAttackActionFor(profile, spellId);
 }
 
 function spellbookSpellSummary(spell, cantripAttack) {
@@ -1404,7 +1406,8 @@ function buildSpellbookEntry(spell) {
   // Every catalog spell has a text: the SRD ones arrive with the reference, loaded on the first expansion.
   const hasDetails = !!details || (spell.level !== null && !spellbookSpellReferenceLoaded());
   const expanded = hasDetails && expandedSpellbookSpellId === spell.id;
-  if (spell.prepared && spell.launchable && !cantripAttack) {
+  // On an attack spell too: the panel's cast without a slot (a scroll), Magic Missile's darts all at once.
+  if (spell.prepared && spell.launchable) {
     const panel = document.createElement("button");
     panel.type = "button";
     panel.className = "spellbook-panel";
@@ -1505,11 +1508,11 @@ function buildSpellbookDetails(spell, details) {
 }
 
 // A spellbook spell runs through the quick action path: "auto" applies it when nothing needs the GM,
-// "review" opens the spell panel. An attack cantrip opens the attack console instead.
+// "review" opens the spell panel. Its main button on an attack cantrip or spell opens the attack console instead; ⚙ the panel.
 async function launchSpellbookSpell(spellId, launchMode, { cost = "slot" } = {}) {
   const surface = { listId: "spellbookList", statusId: "spellbookRunStatus" };
   const entry = spellbookSpell(spellId);
-  const cantripAttack = entry.attackCantrip || entry.attackSpell ? spellbookCantripAttack(spellId) : null;
+  const cantripAttack = launchMode !== "review" && (entry.attackCantrip || entry.attackSpell) ? spellbookCantripAttack(spellId) : null;
   if (cantripAttack) {
     // The console opens on this spell.
     await launchQuickAction({ ...cantripAttack, launchSpellId: spellId }, "", {}, surface);

@@ -9,7 +9,7 @@ import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAtta
   pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction, pcAttackOutcomesFor, pcAttackSaveLabel, pcAttackDamageFactor,
   pcAttackCantripPillLabels, pcAttackWeaponCantripOptions, pcAttackActionWeaponCantripIds, pcAttackQuiveringPalm,
   pcAttackModeOptions, pcAttackAreaPreview, pcAttackAreaRowDamage, pcAttackActionPanelCantripIds, pcAttackSpellIds, pcAttackWithSpellType, pcAttackOpenSpellCast,
-  pcAttackMonsterAreaNote, pcAttackMonsterTags } from "./pcAttackCore.js";
+  pcAttackMonsterAreaNote, pcAttackMonsterTags, pcAttackSpellBonusTags } from "./pcAttackCore.js";
 import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileCore.js";
 import { PC_ATTACK_MONSTER_GROUP_TITLES, pcAttackMonsterTraitEntries } from "./pcAttackMonsterTraitsCore.js";
 import { monsterStatblockTextRef } from "./monsterStatblockTextCore.js";
@@ -153,7 +153,8 @@ export function resultSummary(result) {
     ...(result?.activations || []).map(activation=>activation.save?`${activation.name} (${PC_ATTACK_OUTCOME_LABELS[activation.save.outcome] || ""})`:activation.name),
     ...(result?.extras || []).map(extra=>extra.label || extra.typeLabel)];
   const second=result?.secondary?` ${result.secondary.name}: PF ${result.secondary.before} → ${result.secondary.after}.`:"";
-  const conditions=(result?.conditions || []).length?` ${name}: ${result.conditions.join(", ")}.`:"";
+  // A pill's label may end with its own dot (Prossimo attacco: vant.): one dot, not two.
+  const conditions=(result?.conditions || []).length?` ${name}: ${result.conditions.join(", ")}.`.replace(/\.\.$/u,"."):"";
   const tempHp=(result?.tempHp || []).length?` PF temporanei: ${result.tempHp.map(row=>`${row.name} ${row.before} → ${row.after}`).join(", ")}.`:"";
   // Vampiric Bite: the attacker's healing, or its bonus pill.
   const bite=result?.vampiricBite;
@@ -425,7 +426,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // Booming Blade and Green-Flame Blade are cast with a melee weapon attack: the cantrip console points there (or
   // says that this actor has no melee weapon attack to cast them with).
   function weaponCantripHint() {
-    const names=pcAttackActionWeaponCantripIds(presentation?.action).map(spellId=>getPcAttackCantrip(spellId)?.name).filter(Boolean);
+    const names=pcAttackActionWeaponCantripIds(presentation?.action,attackerCard()).map(spellId=>getPcAttackCantrip(spellId)?.name).filter(Boolean);
     if(!names.length) return "";
     const listed=names.length>1?`${names.slice(0,-1).join(", ")} e ${names.at(-1)}`:names[0];
     const hasMeleeWeapon=(Array.isArray(attackerCard().quickActions)?attackerCard().quickActions:[])
@@ -436,7 +437,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   // Create Bonfire: a lasting zone with concentration, cast from the spell panel.
   function panelCantripHint() {
-    const names=pcAttackActionPanelCantripIds(presentation?.action).map(spellId=>getPcAttackCantrip(spellId)?.name).filter(Boolean);
+    const names=pcAttackActionPanelCantripIds(presentation?.action,attackerCard()).map(spellId=>getPcAttackCantrip(spellId)?.name).filter(Boolean);
     return names.length?`${names.join(", ")}: lancialo dal pannello incantesimi (zona con concentrazione e TS all'ingresso).`:"";
   }
   // Cantrip actions: the cantrip picker, the on-hit effect still resolved by hand and Eldritch Blast's beams.
@@ -991,7 +992,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const field=name=>wovenBox.querySelector(`[data-woven-field="${name}"]`);
     const critical=dice=>draft.outcome==="critical" && dice?`${dice} · critico ${pcAttackCriticalDice(dice)}`:dice;
     const meta=field("meta");
-    if(meta) meta.textContent=!option?"Lama Roboante o Lama Verdefiamma, se l'attacco colpisce."
+    if(meta) meta.textContent=!option?`${wovenOptions().map(entry=>entry.name).join(" o ")}, se l'attacco colpisce.`
       :[option.dice.hit?`${critical(option.dice.hit)} ${damageTypeLabel(option.type)}`:"",
         option.trigger?`etichetta «Movimento: danni tuono» (${option.dice.trigger}) fino all'inizio del tuo prossimo turno`:""].filter(Boolean).join(" · ")
         || "Nessun danno extra al colpo prima del 5° livello.";
@@ -1664,8 +1665,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       ...(isFeature?[entry.species?"Tratto di specie":"Capacità di classe"]:[level===0?"Trucchetto":`Incantesimo di ${level}° livello`])].filter(Boolean).join(" · ");
     const others=concentrationNames().filter(name=>name.toLocaleLowerCase("it")!==String(entry?.label || "").toLocaleLowerCase("it"));
     const meta=presentation?.item?.metadata?.[META_KEY] || {};
-    const freeSlot=!level || spellSlotStatus(meta.initiativeCard?.characterBuild,meta.classFeatureState?.resources)
-      .some(row=>row.level>=level && row.current>0);
+    // No slots on the sheet (a monster without a class): the table counts them, there is nothing to warn about.
+    const slotRows=spellSlotStatus(meta.initiativeCard?.characterBuild,meta.classFeatureState?.resources);
+    const freeSlot=!level || !slotRows.length || slotRows.some(row=>row.level>=level && row.current>0);
     const feature=isFeature?featureCard(entry):null;
     const notes=!entry?[["Nessun attacco, incantesimo o capacità da mostrare per questo attore.",""]]
       :isFeature?feature.notes
@@ -1796,7 +1798,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       }
       setStatus(launchSummary(entry,result),!result?"warn":result.ok && ["review","executed"].includes(result.mode)?"ok":"error");
       if(result?.ok) rememberEntry(entry.key);
-    } finally {launchBusy=false;renderLaunch();}
+    } finally {
+      // The cast may have reached the console first (Vampiric Touch: from Lancia to its touch): the form it shows stays.
+      launchBusy=false;
+      if(launching()) renderLaunch();else render();
+    }
   }
   // The title is who acts (D3 of the console's audit); what it does is in the picker, its details in the line under it.
   const actorName=()=>presentation?.item?.name || presentation?.item?.id || "Attacco";
@@ -1841,6 +1847,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     $("pc-attack-subtitle").textContent=pickerNamesEntry?"":line([named || action?.label,...(attack?.cantrip?["Trucchetto"]:[]),...(attack?.spell?[`Incantesimo di ${attack.spell.level}° livello`]:[])]);
     // What the roll needs, right above the damage it leads to.
     if(attackFacts) attackFacts.textContent=line([...(area.length?area:[saveLabel || (attack?.spell?.delivery==="auto"?"Senza tiro per colpire":pickerNamesRange?"":RANGE_LABELS[attack?.range]) || ""]),
+      ...pcAttackSpellBonusTags(attack,presentation?.item?.metadata?.[META_KEY]?.initiativeCard),
       // A monster's attack: its bonus, reach or range, recharge and uses, as its stat block prints them; the uses left and a
       // recharge already used from the actor's resources.
       ...pcAttackMonsterTags(attack,presentation?.item?.metadata?.[META_KEY]?.classFeatureState?.resources || {})]);
@@ -2278,7 +2285,13 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // Another action (the picker) starts without the previous one's arrow.
     if(fresh) draft=emptyDraft(loaded.action,draft?.targetId || null,requested || defaultCantripId(loaded.action,loaded.item,loaded.picker),switched?"":draft?.attackMode || "");
     if(draft.targetId && !targetById(draft.targetId)) draft.targetId=null;
-    if(fresh || form.hidden) render();else renderLive();
+    // Vampiric Touch, just cast: its row turns from Lancia into an attack, and the console goes on with it, unless the attack
+    // behind holds decisions. An entry gone for any other reason falls back in render().
+    const launchGone=!!launchKey && !loaded.picker.some(entry=>entry.key===launchKey);
+    const launched=launchGone?launchKey.slice(launchKey.indexOf("::")+2):"";
+    const touch=launched?loaded.picker.find(entry=>entry.mode==="attack" && entry.spellId===launched):null;
+    if(touch && !busy && !draftLocked(draft)){chooseEntry(touch);return;}
+    if(fresh || form.hidden || launchGone) render();else renderLive();
   }
   function scheduleRefresh() {
     if(refreshTimer || invalidated) return;

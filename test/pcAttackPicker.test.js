@@ -80,10 +80,11 @@ test("with a book the cantrips and spells tabs list the book: attacks in the con
   assert.deepEqual([fire.actionId, fire.key], ["cantrip", "cantrip::fire-bolt"]);
 });
 
-test("an attack spell without its attack action is launched like the 🪄 menu; a spell not prepared is left out", () => {
+test("an attack spell without its attack action is resolved in the console all the same; a spell not prepared is left out", () => {
   const entries = pcAttackPickerEntries({ quickActions: [], characterBuild: [{ classId: "chierico", level: 3 }],
     spellbook: book(["guiding-bolt", "bless", "cure-wounds"], { unpreparedIds: ["cure-wounds"] }) });
-  assert.deepEqual(entries.filter((entry) => entry.tab !== "features").map((entry) => [entry.spellId, entry.mode]), [["bless", "launch"], ["guiding-bolt", "launch"]]);
+  assert.deepEqual(entries.filter((entry) => entry.tab !== "features").map((entry) => [entry.spellId, entry.mode]), [["bless", "launch"], ["guiding-bolt", "attack"]]);
+  assert.equal(entries.find((entry) => entry.spellId === "guiding-bolt").actionId, "book-attack:spell", "built from the book, never stored");
 });
 
 test("pinned spells come first in their level; a list named by the attack action stays beside the book", () => {

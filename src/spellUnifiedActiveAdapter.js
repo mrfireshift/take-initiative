@@ -198,6 +198,9 @@ export function normalizeSpellUnifiedActiveAction(action = null) {
   const unavailableTargetIds = uniqueIds(
     action?.unavailableTargetIds ?? definition?.unavailableTargetIds,
   );
+  // Only a limit the action declares: without one there is none, and a 0 written here would read as "at most 0 targets" and
+  // leave the action off for good (the Risolvi of a prepared spell in the panel).
+  const declaredMaxTargets = action?.maxTargets ?? definition?.maxTargets ?? null;
   return {
     id: actionId(action),
     type: actionType(action),
@@ -208,9 +211,9 @@ export function normalizeSpellUnifiedActiveAction(action = null) {
     resolutionKind: text(action?.resolutionKind || definition?.resolutionKind),
     subjectMode: text(action?.subjectMode || definition?.subjectMode) || "none",
     requiresTargets: action?.requiresTargets === true || definition?.requiresTargets === true,
-    maxTargets: Number.isInteger(Number(action?.maxTargets ?? definition?.maxTargets))
-      ? Math.max(0, Number(action?.maxTargets ?? definition?.maxTargets))
-      : 0,
+    ...(declaredMaxTargets !== null && Number.isInteger(Number(declaredMaxTargets))
+      ? { maxTargets: Math.max(0, Number(declaredMaxTargets)) }
+      : {}),
     ...(requiredTargetEffectId ? { requiredTargetEffectId } : {}),
     ...(requiredTargetIds.length ? { requiredTargetIds } : {}),
     ...(unavailableTargetIds.length ? { unavailableTargetIds } : {}),

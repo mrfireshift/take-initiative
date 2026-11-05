@@ -9,6 +9,8 @@ import { bossActionTargets } from "./bossActionsViewCore.js";
 import { postBossDamage, quietReads } from "./bossActionExecution.js";
 import { buildPcAttackAreaMutation, buildPcAttackMutation, buildPcAttackQuiveringPalmMutation, pcAttackAction, pcAttackNearbyIds } from "./pcAttackCore.js";
 import { pcAttackPickerDefault, pcAttackPickerEntries } from "./pcAttackPickerCore.js";
+import { spellbookActiveSpellIds, spellbookAttackAction } from "./spellbookCatalog.js";
+import { isSpellbookAttackActionId } from "./spellbookCore.js";
 import { buildPcGrappleEndMutation, buildPcManeuverMutation } from "./pcAttackManeuverCore.js";
 import { bossFeetPerCell } from "./bossActionsViewCore.js";
 import { getEffectsMutationSceneContext, runEffectsMutation, requireAppliedEffectsMutation } from "./effectsMutations.js";
@@ -154,9 +156,12 @@ export function createPcAttackRuntime({
   }
   function attackOf(item,actionId) {
     // A dragonborn's breath weapon: built from the species trait, not stored among the quick actions.
+    // A book's attack spells without an action on the sheet: built from the book, the same way.
     const action=String(actionId || "").startsWith(PC_ATTACK_BREATH_PREFIX)
       ? pcAttackBreathAction(getCard(item),actionId)
-      : pcAttackAction(findQuickAction(getCard(item),actionId));
+      : isSpellbookAttackActionId(actionId)
+        ? pcAttackAction(spellbookAttackAction(getCard(item),actionId))
+        : pcAttackAction(findQuickAction(getCard(item),actionId));
     if(!action) throw new Error("Azione di attacco non trovata nel profilo: riapri l'attacco.");
     return action;
   }
@@ -174,7 +179,7 @@ export function createPcAttackRuntime({
     // The console's picker (pcAttackPickerCore.js). Without an action: the last attack, else the first weapon; an actor
     // with spells and no attack opens with no action (the console shows its spells).
     const card=getCard(scope.item);
-    const picker=pcAttackPickerEntries(card);
+    const picker=pcAttackPickerEntries(card,{activeSpellIds:spellbookActiveSpellIds(scope.item?.metadata?.[`${ID}/meta`])});
     const chosen=actionId?null:pcAttackPickerDefault(picker,{lastAttack:scope.item?.metadata?.[`${ID}/meta`]?.pcAttackState?.lastAttack,attackOnly:true});
     const action=actionId || chosen?attackOf(scope.item,actionId || chosen.actionId):null;
     const items=await itemsRead;

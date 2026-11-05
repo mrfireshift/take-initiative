@@ -10,6 +10,7 @@ mock.module("@owlbear-rodeo/sdk", { exports: { default: sdk, buildLabel() {}, bu
 const { bootPcAttack, defaultCantripId, resultSummary, areaSummary } = await import("../src/pc-attack.js");
 const { sanitizeQuickAction } = await import("../src/quickActionsCore.js");
 const { pcAttackPickerEntries } = await import("../src/pcAttackPickerCore.js");
+const { spellbookActiveSpellIds, spellbookAttackAction } = await import("../src/spellbookCatalog.js");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 // The line under the picker, whose short parts keep their words together with no-break spaces.
 // Above the damage, the attack's figures; under the picker, only the name when the picker does not say it.
@@ -2130,4 +2131,122 @@ test("the header's Mostri switch shows and changes the monsters' auto-open optio
   assert.equal(box.checked, true);
   await f.$("pc-attack-close").click();
   assert.equal(notifyMonsters, null);
+});
+
+// P4 of the spell polish: the attack console for the monsters' spells.
+test("a spell's attack roll says the caster's bonus above the damage; a save says its DC", async () => {
+  const tricks = sanitizeQuickAction({ id: "tricks", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["fire-bolt", "sacred-flame"] } });
+  const f = fixture({ action: tricks, actionId: "tricks", attacker: { initiativeCard: { spellAttackBonus: 6, spellSaveDC: 14 } } });
+  await f.controller.ready; await tick();
+  assert.equal(facts(f), "Distanza · +6 al tiro");
+  const picker = f.$("pc-attack-cantrip");
+  picker.value = "sacred-flame"; await picker.emit("change");
+  assert.equal(facts(f), "TS Destrezza (CD 14)", "no bonus on a save");
+});
+
+test("a caster without slots on its sheet gets no warning about them; one that has spent them does", async () => {
+  const entryOf = async (card, meta = {}) => {
+    const f = fixture({ card, attacker: { initiativeCard: card, ...meta } });
+    await f.controller.ready; await tick();
+    await pickerTabs(f).find((tab) => tab.textContent === "Incantesimi").click(); await tick();
+    return textOf(f.$("pc-attack-launch"));
+  };
+  const book = { spellIds: ["fireball"] };
+  assert.doesNotMatch(await entryOf({ quickActions: [sword], spellbook: book }), /Nessuno slot libero/);
+  const mage = { characterBuild: [{ classId: "mago", level: 5 }], quickActions: [sword], spellbook: book };
+  assert.doesNotMatch(await entryOf(mage), /Nessuno slot libero/);
+  assert.match(await entryOf(mage, { classFeatureState: { resources: { "spell-slot-3": { current: 0 } } } }), /Nessuno slot libero dal 3° livello in su/);
+});
+
+// The console with a book and no action for it (spellbookAttackAction): the runtime as pcAttackExecution.js builds it.
+function bookFixture(card) {
+  const f = fixture({ card, attacker: { initiativeCard: card } });
+  f.runtime.getPcAttackPresentation = async (sourceId, asked) => {
+    const item = f.items[0];
+    const picker = pcAttackPickerEntries(card, { activeSpellIds: spellbookActiveSpellIds(item.metadata[META]) });
+    const action = !asked ? null : asked === "holy-sword" ? sword : spellbookAttackAction(card, asked);
+    return { item, action, actionId: action?.id || "", picker, featureState: null, targets: f.items.slice(1), turnState: null, sceneIdentity: "scene-A" };
+  };
+  return f;
+}
+const CONCENTRATION = "com.thebigpicture.initiative/concentration";
+
+test("Vampiric Touch just cast: the console goes from Lancia to its touch", async () => {
+  const f = bookFixture({ quickActions: [sword], spellbook: { spellIds: ["vampiric-touch"] } });
+  await f.controller.ready; await tick();
+  await pickerTabs(f).find((tab) => tab.textContent === "Incantesimi").click(); await tick();
+  assert.equal(f.$("pc-attack-launch-button").hidden, false);
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Lancia");
+  f.items[0].metadata[META][CONCENTRATION] = { tocco: { spellId: "vampiric-touch", instanceId: "vt", castContext: { slotLevel: 3 } } };
+  await f.itemsChanged(); await tick(); await tick();
+  assert.equal(f.$("pc-attack-attack-view").hidden, false, "the attack form");
+  assert.equal(f.controller.getDraft().spellId, "vampiric-touch");
+  assert.equal(f.$("pc-attack-apply").hidden, false);
+  assert.equal(f.$("pc-attack-launch-button").hidden, true);
+});
+
+test("Vampiric Touch just cast, with an attack in progress behind it: the console keeps that attack and never asks", async () => {
+  const asked = [];
+  const f = bookFixture({ quickActions: [sword], spellbook: { spellIds: ["vampiric-touch"] } });
+  await f.controller.ready; await tick();
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  await pickerTabs(f).find((tab) => tab.textContent === "Incantesimi").click(); await tick();
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Lancia");
+  globalThis.confirm = (message) => { asked.push(message); return true; };
+  f.items[0].metadata[META][CONCENTRATION] = { tocco: { spellId: "vampiric-touch", instanceId: "vt", castContext: { slotLevel: 3 } } };
+  await f.itemsChanged(); await tick(); await tick();
+  delete globalThis.confirm;
+  assert.deepEqual(asked, []);
+  assert.equal(f.$("pc-attack-attack-view").hidden, false);
+  assert.equal(f.controller.getDraft().outcome, "hit", "the attack and its decisions are still there");
+  assert.equal(f.controller.getDraft().spellId, "");
+});
+
+test("Vampiric Touch: the cast reaches the console before the tracker's answer, and the form it moved to stays", async () => {
+  const listeners = new Set();
+  let pending = null;
+  const broadcast = {
+    onMessage: (channel, listener) => { const entry = { channel, listener }; listeners.add(entry); return () => listeners.delete(entry); },
+    sendMessage: async (channel, data) => {
+      if (data.type !== "launch") return;
+      const reply = (message) => { for (const entry of [...listeners]) if (entry.channel === channel) entry.listener({ data: { requestId: data.requestId, ...message } }); };
+      reply({ type: "launch-accepted" });
+      pending = () => reply({ type: "launch-result", ok: true, mode: "executed" });
+    },
+  };
+  const card = { quickActions: [sword], spellbook: { spellIds: ["vampiric-touch"] } };
+  const f = fixture({ card, attacker: { initiativeCard: card }, broadcast });
+  f.runtime.getPcAttackPresentation = async (sourceId, asked) => {
+    const item = f.items[0];
+    const picker = pcAttackPickerEntries(card, { activeSpellIds: spellbookActiveSpellIds(item.metadata[META]) });
+    const action = !asked ? null : asked === "holy-sword" ? sword : spellbookAttackAction(card, asked);
+    return { item, action, actionId: action?.id || "", picker, featureState: null, targets: f.items.slice(1), turnState: null, sceneIdentity: "scene-A" };
+  };
+  await f.controller.ready; await tick();
+  await pickerTabs(f).find((tab) => tab.textContent === "Incantesimi").click(); await tick();
+  await f.$("pc-attack-launch-button").click(); await tick();
+  assert.equal(typeof pending, "function", "the tracker is working on the cast");
+  f.items[0].metadata[META][CONCENTRATION] = { tocco: { spellId: "vampiric-touch", instanceId: "vt", castContext: { slotLevel: 3 } } };
+  await f.itemsChanged(); await tick(); await tick();
+  assert.equal(f.controller.getDraft().spellId, "vampiric-touch");
+  pending(); await tick(); await tick();
+  assert.equal(f.$("pc-attack-attack-view").hidden, false, "still the attack form");
+  assert.equal(f.$("pc-attack-launch").hidden, true);
+  assert.equal(f.$("pc-attack-apply").hidden, false, "Registra is there");
+  assert.equal(f.$("pc-attack-launch-button").hidden, true);
+  assert.match(f.$("pc-attack-status").textContent, /lancio registrato/);
+});
+
+test("a console with a book says nothing of the cantrips the actor does not have", async () => {
+  const every = sanitizeQuickAction({ id: "tricks", label: "Trucchetto", kind: "attack", source: { kind: "cantrip" } });
+  const f = fixture({ action: every, actionId: "tricks", attacker: { initiativeCard: { quickActions: [every], spellbook: { spellIds: ["fire-bolt"] } } } });
+  await f.controller.ready; await tick();
+  assert.doesNotMatch(f.$("pc-attack-cantrip-note").textContent, /Lama Roboante|Creare Falò/);
+});
+
+test("a pill's label ending with its own dot does not double it in the summary", () => {
+  const hit = { outcome: "hit", target: { name: "Ghoul" }, damageComponents: [{ amount: 5 }], hpChange: { before: 30, after: 25 } };
+  assert.equal(resultSummary({ ...hit, conditions: ["Prossimo attacco: vant."] }), "Registrato: Colpito, 5 danni a Ghoul. PF 30 → 25. Ghoul: Prossimo attacco: vant.");
+  assert.equal(resultSummary({ ...hit, conditions: ["Velocità −3 m"] }), "Registrato: Colpito, 5 danni a Ghoul. PF 30 → 25. Ghoul: Velocità −3 m.");
 });

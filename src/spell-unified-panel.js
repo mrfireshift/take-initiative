@@ -614,6 +614,15 @@ export function bootSpellUnifiedPanel(
 
   const spentText = (slotSpend) => (slotSpend?.spellCost ? ` · speso: ${slotSpend.spellCost}` : "");
 
+  // The DC beside the save the cast asks for: a monster action's, a species spell's, otherwise the caster's own.
+  const castSaveDC = () => {
+    const caster = state.casters.find((item) => item.id === state.session?.casterId);
+    const dc = state.session?.monsterActionContext?.spellcasting?.saveDC
+      ?? speciesCastFor(caster, state.contract?.spell?.id)?.dc
+      ?? caster?.metadata?.[`${ID}/meta`]?.initiativeCard?.spellSaveDC;
+    return Number.isInteger(dc) && dc > 0 ? dc : null;
+  };
+
   const render = () => {
     if (destroyed) return null;
     const assumedSaveOutcome = state.contract?.spell?.id === state.assumedSaveSpellId ? state.assumedSaveOutcome : "";
@@ -629,6 +638,7 @@ export function bootSpellUnifiedPanel(
       },
       selectedCatalogKey: state.contract?.spell?.id,
       casterOptions: casterOptions(state.casters),
+      castSaveDC: castSaveDC(),
       targetCandidates: state.targetCandidates,
       teleportPassengerCandidateIds: state.teleportPassengerCandidateIds,
       targetFilters: state.targetFilters,

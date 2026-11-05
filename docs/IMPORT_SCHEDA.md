@@ -52,8 +52,7 @@ testo (`"+7"`, `"15"`).
   "cantrips": ["Dardo di fuoco", "Mano magica"],
   "spells": ["Scudo", "Armatura magica", { "name": "Palla di fuoco", "pinned": true }, { "name": "Volare", "prepared": false }],
   "attacks": [
-    { "label": "Pugnale", "range": "melee", "components": [{ "type": "perforanti", "formula": "1d4+2" }] },
-    { "label": "Trucchetti", "source": { "kind": "cantrip" } }
+    { "label": "Pugnale", "range": "melee", "components": [{ "type": "perforanti", "formula": "1d4+2" }] }
   ],
   "notes": "Familiare: gufo."
 }
@@ -70,7 +69,7 @@ testo (`"+7"`, `"15"`).
 | `savingThrows` | Bonus totali dei tiri salvezza, stesse chiavi. |
 | `damageDefenses` | Liste `resistances`, `immunities`, `vulnerabilities` di tipi di danno, con l'id inglese (`fire`) o il nome italiano (`fuoco`). |
 | `cantrips`, `spells` | Nomi in italiano o in inglese. `spells` può essere una lista o un oggetto per livello (`{ "1": [...], "3": [...] }`). `"pinned": true` mette l'incantesimo tra i preferiti del menu 🪄; `"prepared": false` lo tiene nel libro ma non preparato (il grimorio del mago). |
-| `attacks` | Come l'import della scheda Attacchi: `label`, `range` (`melee` o `ranged`), `components` (1-3, con `type` e `formula` facoltativa) oppure `source: { "kind": "cantrip" }` per l'azione Trucchetto. Il tipo di danno può essere anche in italiano. |
+| `attacks` | Come l'import della scheda Attacchi: `label`, `range` (`melee` o `ranged`), `components` (1-3, con `type` e `formula` facoltativa). Il tipo di danno può essere anche in italiano. I trucchetti e gli incantesimi d'attacco del libro non servono qui: la console li risolve da sola. Per un trucchetto fuori dal libro, da una specie o da un talento: `source: { "kind": "cantrip", "spellIds": ["ray-of-frost"] }`. |
 | `notes` | Testo breve, fino a 280 caratteri. |
 
 Gli incantesimi concessi da talenti, specie o oggetti vanno nelle **Azioni
@@ -245,7 +244,9 @@ una propria:
   incantatore a slot («è un incantatore di 9° livello… incantesimi da mago»).
   Classe e livello danno gli slot, calcolati dal plugin come per un
   personaggio; per un mostro le **capacità della classe partono spente**
-  (resta solo la magia). Gli incantesimi vanno nel libro, tutti preparati;
+  (resta solo la magia). Gli incantesimi vanno nel libro, tutti preparati: la
+  console risolve da sola, con dadi e slot, i trucchetti e gli incantesimi
+  d'attacco del libro (Dardo di fuoco, Dardo incantato…);
 - `innateSpells`: gli incantesimi innati, `[{ "name": "Darkness",
   "perDay": 1 }, { "name": "Detect Magic" }]`; senza `perDay` sono a
   volontà. Ognuno diventa un'**azione rapida** (⚡): «Gratuito» a volontà,

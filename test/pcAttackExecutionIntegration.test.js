@@ -276,6 +276,58 @@ test("Eldritch Smite with Prono: one command for damage and pill; Undo removes b
   assert.equal(conditions(meta("ghoul").conditions).includes("Prono"), false);
 });
 
+test("a book's attack spells without an action on the sheet: the console builds it, registers, logs and undoes as with a saved one", async () => {
+  const { buildCombatLogPresentation } = await import("../src/combatLogPresentationCore.js");
+  meta("aria").initiativeCard = { characterBuild: [{ classId: "mago", level: 5 }], spellbook: { spellIds: ["fire-bolt", "guiding-bolt", "bless"] } };
+  const opened = await runtime.getPcAttackPresentation("aria", "");
+  assert.deepEqual([opened.actionId, opened.spellId, opened.action.source], ["book-attack:cantrip", "fire-bolt", { kind: "cantrip", spellIds: ["fire-bolt"] }],
+    "an actor without weapons opens on its first attack of the book");
+  assert.deepEqual(opened.picker.filter((entry) => entry.spellId).map((entry) => [entry.spellId, entry.mode]),
+    [["fire-bolt", "attack"], ["bless", "launch"], ["guiding-bolt", "attack"]]);
+
+  const presentation = await runtime.getPcAttackPresentation("aria", "book-attack:spell");
+  const hit = await runtime.executePcAttack({ sourceId: "aria", actionId: "book-attack:spell", spellId: "guiding-bolt", targetId: "ghoul",
+    sceneIdentity: presentation.sceneIdentity, expectedAction: presentation.action, expectedDefenses: {}, outcome: "hit", componentAmounts: { c1: 12 },
+    spellCast: { castId: "bolt-1", slotLevel: 2 }, attackInstanceId: "bolt" });
+  assert.equal(meta("ghoul").hp, 18);
+  assert.equal(hit.spell.slotSpent, "slot di 2° livello");
+  assert.equal(meta("aria").classFeatureState.resources["spell-slot-2"].current, 2, "the slot is spent as with a saved action");
+  assert.deepEqual(meta("aria").initiativeCard.quickActions, undefined, "nothing is written on the card");
+  assert.equal(meta("aria").pcAttackState.lastAttack.quickActionId, "book-attack:spell");
+  const reopened = await runtime.getPcAttackPresentation("aria", "");
+  assert.deepEqual([reopened.actionId, reopened.spellId], ["book-attack:spell", "guiding-bolt"], "it opens on the last attack");
+
+  const entry = await attackEntry();
+  const details = buildCombatLogPresentation(null, [combatEventFromHistoryEntryV3(entry)]).events[0].details.flatMap((section) => section.lines).join(" | ");
+  assert.match(details, /Dardo tracciante/);
+  await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(meta("ghoul").hp, 30);
+  assert.equal(meta("aria").classFeatureState?.resources?.["spell-slot-2"]?.current ?? 3, 3, "Undo gives the slot back");
+});
+
+test("a book that changes under an open attack: the console asks to reopen it, and writes nothing", async () => {
+  meta("aria").initiativeCard = { characterBuild: [{ classId: "mago", level: 5 }], spellbook: { spellIds: ["fire-bolt", "ray-of-frost"] } };
+  const presentation = await runtime.getPcAttackPresentation("aria", "book-attack:cantrip");
+  meta("aria").initiativeCard.spellbook.spellIds = ["fire-bolt"];
+  const request = { sourceId: "aria", actionId: "book-attack:cantrip", spellId: "fire-bolt", targetId: "ghoul", sceneIdentity: presentation.sceneIdentity,
+    expectedAction: presentation.action, expectedDefenses: {}, outcome: "hit", componentAmounts: { c1: 5 }, attackInstanceId: "changed" };
+  await assert.rejects(() => runtime.executePcAttack(request), /L'azione è cambiata/);
+  meta("aria").initiativeCard.spellbook.spellIds = ["mage-hand"];
+  await assert.rejects(() => runtime.getPcAttackPresentation("aria", "book-attack:cantrip"), /Azione di attacco non trovata/);
+  assert.equal(meta("ghoul").hp, 30);
+});
+
+test("Vampiric Touch: the runtime offers its cast until the caster concentrates on it, then its touches", async () => {
+  meta("aria").initiativeCard = { characterBuild: [{ classId: "mago", level: 5 }], spellbook: { spellIds: ["vampiric-touch"] } };
+  const entry = (presentation) => presentation.picker.find((row) => row.spellId === "vampiric-touch");
+  const waiting = await runtime.getPcAttackPresentation("aria", "");
+  assert.equal(entry(waiting).mode, "launch");
+  assert.equal(waiting.action, null, "no attack to open on yet");
+  meta("aria")["com.thebigpicture.initiative/concentration"] = { tocco: { spellId: "vampiric-touch", instanceId: "vt", castContext: { slotLevel: 3 } } };
+  const active = await runtime.getPcAttackPresentation("aria", "");
+  assert.deepEqual([entry(active).mode, active.actionId, active.spellId], ["attack", "book-attack:spell", "vampiric-touch"]);
+});
+
 test("a cantrip attack: one History entry, an Attack event in the Combat Log naming the cantrip", async () => {
   const { buildCombatLogPresentation } = await import("../src/combatLogPresentationCore.js");
   Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "mago", level: 11 }],

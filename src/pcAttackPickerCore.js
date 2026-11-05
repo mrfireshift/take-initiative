@@ -2,10 +2,10 @@ import { sanitizeQuickActions } from "./quickActionsCore.js";
 import { pcAttackAction, pcAttackBreathActionsForCard, pcAttackCantripIds, pcAttackSpellIds } from "./pcAttackCore.js";
 import { getPcAttackCantrip } from "./pcAttackCantripCatalog.js";
 import { getPcAttackSpell } from "./pcAttackSpellCatalog.js";
-import { spellbookCantripAttackAction, spellbookGroupsForProfile, spellbookSpellAttackAction } from "./spellbookCatalog.js";
+import { spellbookAttackAction, spellbookAttackWaitsForCast, spellbookCantripAttackAction, spellbookGroupsForProfile, spellbookSpellAttackAction } from "./spellbookCatalog.js";
 import { classFeatureDisplayNameWithParent, getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import { pcAttackFeatureReactable, pcAttackFeatureSpendable, pcAttackFeatureUsable } from "./pcAttackFeatureFormCore.js";
-import { spellbookQuickActionId } from "./spellbookCore.js";
+import { spellbookAttackActionId, spellbookQuickActionId } from "./spellbookCore.js";
 
 // The attack console's picker: everything the actor can do with an attack or a spell on its turn, one entry each.
 // Attacchi: the weapon attacks and the breath weapons. Trucchetti and Incantesimi: the spells of the book the actor
@@ -32,7 +32,8 @@ const attackLabel = (spellId) => getPcAttackCantrip(spellId)?.name || getPcAttac
 
 // [{ key, tab, actionId, spellId, label, mode, level, concentration, ritual, recordOnly, pinned }], grouped by tab.
 // card: the actor's card (its quick actions, book, build and traits); a plain list of quick actions is read as one.
-export function pcAttackPickerEntries(card) {
+// activeSpellIds: what the actor keeps active with its concentration: Vampiric Touch is launched, then its touches recorded.
+export function pcAttackPickerEntries(card, { activeSpellIds = [] } = {}) {
   const profile = Array.isArray(card) ? { quickActions: card } : (card && typeof card === "object" ? card : {});
   const quickActions = sanitizeQuickActions(profile.quickActions, { limit: 64, attackLimit: 64 });
   const entries = { attacks: [], cantrips: [], spells: [], features: [] };
@@ -64,12 +65,16 @@ export function pcAttackPickerEntries(card) {
     for (const action of attackActions) if (["cantrip", "spell"].includes(action.source?.kind)) addOffered(action, false);
     return PC_ATTACK_PICKER_TABS.flatMap((tab) => entries[tab.id]);
   }
+  // A book's attack spell needs no action on the sheet: the console builds it from the book, once per kind.
+  const builtCantrips = spellbookAttackAction(profile, spellbookAttackActionId("cantrip"));
+  const builtSpells = spellbookAttackAction(profile, spellbookAttackActionId("spell"));
   for (const spell of book) {
     const tab = spell.level === 0 ? "cantrips" : "spells";
     const details = { level: spell.level, concentration: spell.concentration, ritual: spell.ritual, recordOnly: spell.recordOnly, pinned: spell.pinned };
-    const attack = spell.level === 0 ? spellbookCantripAttackAction(quickActions, spell.id) : spellbookSpellAttackAction(quickActions, spell.id);
+    const attack = spell.level === 0 ? spellbookCantripAttackAction(quickActions, spell.id) || builtCantrips
+      : spellbookSpellAttackAction(quickActions, spell.id) || builtSpells;
     const offered = attack && (spell.level === 0 ? pcAttackCantripIds(attack) : pcAttackSpellIds(attack)).includes(spell.id);
-    if (offered) add(tab, attack.id, spell.id, attackLabel(spell.id), details);
+    if (offered && !spellbookAttackWaitsForCast(spell.id, activeSpellIds)) add(tab, attack.id, spell.id, attackLabel(spell.id), details);
     else if (getPcAttackCantrip(spell.id)?.delivery === "weapon") add(tab, "", spell.id, spell.label, { ...details, mode: "weapon" });
     else if (spell.launchable) add(tab, spellbookQuickActionId(spell.id), spell.id, spell.label, { ...details, mode: "launch" });
     else add(tab, "", spell.id, spell.label, { ...details, mode: "manual" });

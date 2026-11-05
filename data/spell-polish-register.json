@@ -43,8 +43,8 @@
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "Il terzo bersaglio è rifiutato."
+        "date": "2026-11-05",
+        "note": "Il terzo bersaglio è rifiutato. P4: console: TS, nota sul secondo bersaglio."
       }
     },
     {
@@ -806,8 +806,8 @@
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "Dal pannello: pill Niente recupero PF (I) in entrambe le viste, formula 1d8 e suggerimento del trucchetto."
+        "date": "2026-11-05",
+        "note": "Dal pannello: pill Niente recupero PF (I) in entrambe le viste, formula 1d8 e suggerimento del trucchetto. P4: console: etichetta fino all'inizio del turno del caster, turno per turno."
       }
     },
     {
@@ -1027,7 +1027,7 @@
       },
       "bench": {
         "date": "2026-11-05",
-        "note": "9d8 al 6°. P4: le difese nel pannello: Sera 38 → 28 con la resistenza, 38 → 33 con il TS superato, 38 → 18 ignorata; lancio e Annulla."
+        "note": "9d8 al 6°. P4: le difese nel pannello: Sera 38 → 28 con la resistenza, 38 → 33 con il TS superato, 38 → 18 ignorata; lancio e Annulla. P4: caster un Mago importato: CD 14 nella riga del TS, slot di 5° speso, resistenze sul conto."
       }
     },
     {
@@ -1931,8 +1931,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: 2 raggi al 5°, un attacco per raggio."
       }
     },
     {
@@ -2331,8 +2331,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: 2d10 al 5° e al 9°, +6 al tiro; da un Mago importato, senza azioni sulla scheda: l'azione la costruisce la console."
       }
     },
     {
@@ -2391,8 +2391,8 @@
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "9d6 al 4°."
+        "date": "2026-11-05",
+        "note": "9d6 al 4°. P4: Lancia dalla console di un mostro, in vista espansa e compatta: pannello aperto con la CD."
       }
     },
     {
@@ -2951,8 +2951,8 @@
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "Mancato: nulla. Colpito: vantaggio al prossimo attacco."
+        "date": "2026-11-05",
+        "note": "Mancato: nulla. Colpito: vantaggio al prossimo attacco. P4: console: etichetta e pill fino alla fine del turno del caster; Annulla rende PF, etichetta e slot. Da un chierico senza azioni sulla scheda: slot speso, Annulla lo rende; il libro resta com'è."
       }
     },
     {
@@ -3411,8 +3411,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: critico 10d10 allo slot di 3°, slot speso."
       }
     },
     {
@@ -3731,8 +3731,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: scheda di un Mago importato: applicata, slot di 1° speso, 8 ore."
       }
     },
     {
@@ -3811,8 +3811,8 @@
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "Pannello: nessun TS."
+        "date": "2026-11-05",
+        "note": "Pannello: nessun TS. P4: console: dardi registrati uno per volta, slot speso una volta sola, Annulla del secondo non lo rende; da un Mago importato con lo slot di 2°: 4 dardi; la ⚙ della scheda apre il pannello con tutti i dardi."
       }
     },
     {
@@ -4454,8 +4454,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: TS superato, nessun danno."
       }
     },
     {
@@ -4634,8 +4634,8 @@
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "Pill di 10 minuti; l'attacco resta alla console (P4)."
+        "date": "2026-11-05",
+        "note": "Pill di 10 minuti; l'attacco resta alla console (P4). P4: console: danno e bonus."
       }
     },
     {
@@ -4816,8 +4816,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: Velocità −3 m fino all'inizio del turno del caster, turno per turno."
       }
     },
     {
@@ -5022,8 +5022,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: TS Destrezza (CD 14), danno. Da un chierico senza azioni sulla scheda: Registra, TS e danno."
       }
     },
     {
@@ -5062,8 +5062,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: 3 raggi, uno mancato, il lancio si chiude al terzo."
       }
     },
     {
@@ -5302,8 +5302,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: Niente reazioni fino all'inizio del turno del bersaglio."
       }
     },
     {
@@ -5422,8 +5422,8 @@
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "TS a fine turno, superato finisce e con l'ultimo bersaglio la concentrazione."
+        "date": "2026-11-05",
+        "note": "TS a fine turno, superato finisce e con l'ultimo bersaglio la concentrazione. P4: dalle azioni boss: CD 19 dell'azione nella riga del TS."
       }
     },
     {
@@ -6086,8 +6086,8 @@
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "Lancio e pill; il tocco si risolve nella console attacchi (P4)."
+        "date": "2026-11-05",
+        "note": "Lancio e pill; il tocco si risolve nella console attacchi (P4). P4: console: Lancia finché non è attivo, poi la console passa al tocco, che cura il caster di metà; con la scheda, il pulsante lancia e poi apre la console."
       }
     },
     {
@@ -6106,8 +6106,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: etichetta fino alla fine del turno del bersaglio."
       }
     },
     {
@@ -6806,8 +6806,8 @@
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "TS al lancio, a fine turno e all'ingresso."
+        "date": "2026-11-05",
+        "note": "TS al lancio, a fine turno e all'ingresso. P4: console: Lancia apre il pannello anche con un'azione che offre tutti i trucchetti: prima riapriva la console."
       }
     },
     {
@@ -6866,8 +6866,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: d8 uguali, balzo su un'altra creatura con il suo tipo e la sua difesa."
       }
     },
     {
@@ -7026,8 +7026,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: danno."
       }
     },
     {
@@ -7226,8 +7226,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: TS e nota del movimento."
       }
     },
     {
@@ -7506,8 +7506,8 @@
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "TS superato: nulla, senza chiedere il danno."
+        "date": "2026-11-05",
+        "note": "TS superato: nulla, senza chiedere il danno. P4: console: etichetta fino alla fine del turno del bersaglio."
       }
     },
     {
@@ -7726,8 +7726,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: Proponi, Tutti falliti, solo chi si sceglie."
       }
     },
     {
@@ -7866,8 +7866,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: 2d12 sul bersaglio ferito."
       }
     },
     {
@@ -7886,8 +7886,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: Proponi, Tutti falliti, due creature."
       }
     },
     {
@@ -8606,8 +8606,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: con la spada e il solo libro, 1d8 al 5°, etichetta sul bersaglio; il movimento resta un'etichetta da leggere."
       }
     },
     {
@@ -8626,8 +8626,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: con la spada, seconda creatura col suo danno."
       }
     },
     {
@@ -8646,8 +8646,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: TS e nota del trascinamento."
       }
     },
     {
@@ -8686,8 +8686,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: etichetta fino alla fine del turno del caster."
       }
     },
     {
@@ -8746,8 +8746,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: Proponi, una casella in diagonale resta fuori dal cerchio."
       }
     },
     {
@@ -8786,8 +8786,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: danno pieno contro la difesa alle armi non magiche, una lancia resta dimezzata."
       }
     },
     {
@@ -8866,8 +8866,8 @@
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "Dal popup vero: Trattenuto, promemoria 2d6 allo slot 2."
+        "date": "2026-11-05",
+        "note": "Dal popup vero: Trattenuto, promemoria 2d6 allo slot 2. P4: Risolvi dal pannello dopo la × del popup: Trattenuto e danni a inizio turno; il popup non torna al turno dopo."
       }
     },
     {
@@ -8926,8 +8926,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: console: blocca senza tipo, fuoco, slot speso."
       }
     },
     {
@@ -8966,8 +8966,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: Risolvi dal pannello con due creature selezionate: il popup ne chiede una, poi danno e fuoco a inizio turno."
       }
     },
     {
@@ -8986,8 +8986,8 @@
         "findings": []
       },
       "bench": {
-        "date": null,
-        "note": ""
+        "date": "2026-11-05",
+        "note": "P4: Risolvi dal pannello fuori turno: TS, danno e Prono, la punizione termina; Annulla rimette tutto, anche in vista compatta."
       }
     },
     {
@@ -9286,8 +9286,8 @@
         "findings": []
       },
       "bench": {
-        "date": "2026-11-04",
-        "note": "Dal popup vero: danno, Accecato, concentrazione sul bersaglio, TS superato chiude."
+        "date": "2026-11-05",
+        "note": "Dal popup vero: danno, Accecato, concentrazione sul bersaglio, TS superato chiude. P4: Risolvi dal pannello fuori combattimento: danno e Accecato sul bersaglio, la concentrazione resta."
       }
     },
     {

@@ -9005,7 +9005,7 @@ async function __resetClassFeatureResourcesFromContext(entry) {
   return result;
 }
 
-async function __runTrackerQuickAction(sourceEntry, action) {
+async function __runTrackerQuickAction(sourceEntry, action, { fromConsole = false } = {}) {
   const sourceId = splitParagonId(sourceEntry?.id).baseId;
   if (!sourceId) throw new Error("quick-action-source-missing");
   if (action?.kind === "feature") {
@@ -9047,8 +9047,9 @@ async function __runTrackerQuickAction(sourceEntry, action) {
     return { mode: "review", route: "pc-attack" };
   }
   // A cantrip (or a leveled attack spell, lotto L4) of the spellbook recorded in the attack console: the 🪄 menu opens
-  // the console with the character's attack action, on that spell, as the sheet does (spellbookCatalog.js).
-  const cantripAttack = isSpellbookQuickAction(action)
+  // the console with the character's attack action, on that spell, as the sheet does (spellbookCatalog.js). Not when the console
+  // itself asked for the cast (Lancia): reopening it would cast nothing.
+  const cantripAttack = !fromConsole && isSpellbookQuickAction(action)
     ? spellbookCantripAttackAction(sourceEntry?.quickActions, action.spellId)
       || spellbookSpellAttackAction(sourceEntry?.quickActions, action.spellId)
     : null;
@@ -9387,7 +9388,7 @@ function mountPcAttackSpellLaunchListener() {
       const action = sanitizeQuickActions(sourceEntry?.quickActions, { limit: 64, attackLimit: 64 })
         .find((entry) => entry.id === String(data.actionId || "") && isSpellbookQuickAction(entry));
       if (!sourceEntry || !action) return { ok: false, message: "Incantesimo non più nel grimorio." };
-      const result = await __runTrackerQuickAction(sourceEntry, action);
+      const result = await __runTrackerQuickAction(sourceEntry, action, { fromConsole: true });
       return { ok: true, mode: result?.mode || "", ...(result?.message ? { message: String(result.message) } : {}) };
     })()
       .catch((error) => ({ ok: false, message: String(error?.message || error) }))

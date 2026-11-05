@@ -62,3 +62,15 @@ export function spellbookQuickActionId(spellId) {
 export function isSpellbookQuickAction(action) {
   return String(action?.id || "").startsWith(SPELLBOOK_QUICK_ACTION_PREFIX);
 }
+
+// The attack the console builds from the book for a card without its own (spellbookCatalog.js): addressed by kind, "cantrip"
+// or "spell", never stored. Not a spellbook quick action, whose id launches a spell.
+const SPELLBOOK_ATTACK_ACTION_PREFIX = "book-attack:";
+
+export function spellbookAttackActionId(kind) {
+  return `${SPELLBOOK_ATTACK_ACTION_PREFIX}${kind}`;
+}
+
+export function isSpellbookAttackActionId(actionId) {
+  return String(actionId || "").startsWith(SPELLBOOK_ATTACK_ACTION_PREFIX);
+}

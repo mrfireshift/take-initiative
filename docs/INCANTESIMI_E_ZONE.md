@@ -401,6 +401,11 @@ risolvibili, compare un controllo dedicato che:
 Se la concentrazione o l'istanza preparata non esistono più, la risoluzione
 viene considerata obsoleta e non viene applicata.
 
+Il controllo è il popup accanto al token (`spell-active-resolution.html`), che
+`preparedSpellResolutionController.js` apre al turno del caster e chiude fuori da
+quel turno. Fuori turno o fuori combattimento lo apre **Risolvi** fra gli incantesimi
+attivi del pannello, con il bersaglio selezionato sulla mappa.
+
 ## Azioni rapide delle card
 
 La scheda personaggio dispone di una sezione **Azioni rapide**. Ogni profilo può

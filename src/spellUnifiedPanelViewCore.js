@@ -879,6 +879,7 @@ export function buildUnifiedPanelViewModel({
   catalogState = {},
   selectedCatalogKey = "",
   casterOptions = [],
+  castSaveDC = null,
   targetCandidates = [],
   teleportPassengerCandidateIds = [],
   targetFilters = {},
@@ -1324,7 +1325,7 @@ export function buildUnifiedPanelViewModel({
           : "Esiti TS / attacco",
         mode: outcomeMode,
         options: outcomeOptions,
-        save: saveDescriptor,
+        save: saveDescriptor && castSaveDC ? { ...saveDescriptor, dc: castSaveDC } : saveDescriptor,
         assumedFailed: asText(assumedSaveOutcome) === "failed"
           && inputs.outcomes?.required === true
           && ["save", "attack-and-save"].includes(outcomeMode),
@@ -1354,8 +1355,11 @@ export function buildUnifiedPanelViewModel({
       primaryAction: selectedActiveAction
         ? {
           id: "resolve-active-action",
+          // The button says what it waits for: the panel lists no targets here, the map's selection is the target.
           label: selectedActiveAction.type === "resolve"
-            ? "Apri risoluzione"
+            ? (selectedActiveAction.requiresTargets === true && !selectedTargetIds.length
+              ? "Seleziona il bersaglio sulla mappa"
+              : "Apri risoluzione")
             : selectedActiveAction.buttonLabel || selectedActiveAction.label || "Risolvi azione",
           disabled: selectedActiveAction.disabled
             || selectedActiveAction.presentation?.disabled === true

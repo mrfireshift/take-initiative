@@ -12,6 +12,7 @@ import { spellCasterHealingChange } from "./spellDamageHealingCore.js";
 import { sanitizeQuickAction, sanitizeQuickActions, QUICK_ACTION_ATTACK_DAMAGE_TYPES, QUICK_ACTION_VERSION, quickActionRechargeState,
   quickActionUsesLeft } from "./quickActionsCore.js";
 import { pcAttackBreathActionId, pcAttackBreathFeatureId, pcAttackBreathVariant } from "./pcAttackBreathId.js";
+import { sanitizeSpellbook } from "./spellbookCore.js";
 import {
   isBossActionCreature, isBossActionTargetItem, bossMetadataSnapshot, bossConditionAppliedAt,
   damageAmount, defendedComponents, targetProfileAssert, bossGroupConditionInstanceId,
@@ -301,29 +302,34 @@ export function pcAttackSpellIds(action) {
   return attack.source.spellIds?.length ? [...attack.source.spellIds] : PC_ATTACK_SPELLS.map((spell) => spell.spellId);
 }
 
+// What the console's notes point to for a cantrip action: the cantrips it lists; one that lists none offers them all, unless the
+// actor has a book, whose own rows say how each is cast.
+function pcAttackActionNotedCantrips(attack, card) {
+  if (attack.source.spellIds?.length) return attack.source.spellIds;
+  return sanitizeSpellbook(card?.spellbook).spellIds.length ? [] : PC_ATTACK_CANTRIPS.map((cantrip) => cantrip.spellId);
+}
+
 // The cantrips a cantrip action lists that the spell panel casts (Create Bonfire): the console points there.
-export function pcAttackActionPanelCantripIds(action) {
+export function pcAttackActionPanelCantripIds(action, card = null) {
   const attack = pcAttackAction(action);
   if (attack?.source?.kind !== "cantrip") return [];
-  const offered = attack.source.spellIds?.length ? attack.source.spellIds : PC_ATTACK_CANTRIPS.map((cantrip) => cantrip.spellId);
-  return offered.filter((spellId) => getPcAttackCantrip(spellId)?.delivery === "panel");
+  return pcAttackActionNotedCantrips(attack, card).filter((spellId) => getPcAttackCantrip(spellId)?.delivery === "panel");
 }
 
 // The weapon cantrips a cantrip action lists (Booming Blade, Green-Flame Blade): not picked in its console but
 // woven into a melee weapon attack, so the console points there.
-export function pcAttackActionWeaponCantripIds(action) {
+export function pcAttackActionWeaponCantripIds(action, card = null) {
   const attack = pcAttackAction(action);
   if (attack?.source?.kind !== "cantrip") return [];
-  const offered = attack.source.spellIds?.length ? attack.source.spellIds : PC_ATTACK_CANTRIPS.map((cantrip) => cantrip.spellId);
-  return offered.filter((spellId) => getPcAttackCantrip(spellId)?.delivery === "weapon");
+  return pcAttackActionNotedCantrips(attack, card).filter((spellId) => getPcAttackCantrip(spellId)?.delivery === "weapon");
 }
 
-// The weapon cantrips (C4) a melee weapon attack offers: those the actor's cantrip quick actions list (an action
-// that lists none offers them all).
+// The weapon cantrips (C4) a melee weapon attack offers: those of the actor's book and those its cantrip quick actions
+// list (an action that lists none offers them all).
 export function pcAttackWeaponCantripIds(action, card = {}) {
   const attack = pcAttackAction(action);
   if (!attack || ["cantrip", "spell"].includes(attack.source?.kind) || attack.range !== "melee") return [];
-  const known = new Set();
+  const known = new Set(sanitizeSpellbook(card?.spellbook).spellIds);
   for (const quick of sanitizeQuickActions(card?.quickActions, { limit: 64 })) {
     if (quick.kind !== "attack" || quick.source?.kind !== "cantrip") continue;
     for (const spellId of quick.source.spellIds?.length ? quick.source.spellIds : PC_ATTACK_CANTRIPS.map((cantrip) => cantrip.spellId)) known.add(spellId);
@@ -453,7 +459,7 @@ export function pcAttackSpellCastPlan({ attack, sourceItem, targetItem = null, s
     return blocked(`Il bersaglio è protetto da Scudo: ${spell.name} non lo colpisce.`);
   if (spell.fromActiveSpell) {
     const active = activeSpellCast(sourceMeta, spell.spellId);
-    if (!active) return blocked(`${spell.name}: lancialo prima dal pannello incantesimi, poi registra qui il tocco.`);
+    if (!active) return blocked(`${spell.name}: lancialo prima, poi registra qui il tocco.`);
     const slotLevel = Math.max(spell.level, active.slotLevel || spell.level);
     return { ok: true, spell, slotLevel, dice: pcAttackSpellDice(spell, slotLevel), firstOfCast: false, fromActiveSpell: true,
       instanceId: active.instanceId, index: 1, total: 1, next: null };
@@ -937,6 +943,14 @@ export function pcAttackMonsterTags(attack, resources = {}) {
   ];
 }
 
+// A spell's attack roll: the caster's bonus from its card, what the GM rolls for a monster (its own attacks print theirs, above).
+// Nothing for a save or a spell without a roll.
+export function pcAttackSpellBonusTags(attack, card = {}) {
+  if ((!attack?.cantrip && !attack?.spell) || pcAttackSave(attack) || attack.spell?.delivery === "auto") return [];
+  const bonus = card?.spellAttackBonus;
+  return Number.isInteger(bonus) ? [`${bonus >= 0 ? "+" : "−"}${Math.abs(bonus)} al tiro`] : [];
+}
+
 const MONSTER_AREA_TEXT = Object.freeze({
   cone: (area) => `Cono di ${pcAttackFeetLabel(area.sizeFeet)}`,
   line: (area) => `Linea di ${pcAttackFeetLabel(area.sizeFeet)}${area.widthFeet ? ` larga ${pcAttackFeetLabel(area.widthFeet)}` : ""}`,
@@ -1003,6 +1017,14 @@ function extraLabel(value) {
   return String(value ?? "").trim().slice(0, 40);
 }
 
+// A spell's damage is magical: a monster's defense against nonmagical weapons does not hold (Thorn Whip's piercing), as in the
+// spell panel. Its types count as ignored from the start, and the console does not offer them.
+function pcAttackMagicIgnoredDefenses(attack, targetItem) {
+  if (!attack?.cantrip && !attack?.spell) return [];
+  const types = targetItem?.metadata?.[META_KEY]?.initiativeCard?.monster?.nonmagicalDefenses?.types;
+  return Array.isArray(types) ? types : [];
+}
+
 // What the GM sees before committing: the defenses that apply, the damage after them and the HP it leaves.
 // The commit recomputes everything from live state; this is a read model only.
 export function pcAttackPreview({
@@ -1049,18 +1071,21 @@ export function pcAttackPreview({
   // A spell with several types (Chromatic Orb): until one is picked no defense applies to its damage, whatever type it holds meanwhile.
   const typedComponents = attack.spell?.types && !attack.spell.types.includes(spellCast?.damageType)
     ? components.filter((component) => component.id !== attack.components[0]?.id) : components;
+  const magicIgnored = pcAttackMagicIgnoredDefenses(attack, targetItem);
+  const heldDefense = (row) => !magicIgnored.includes(row.type);
+  const appliedIgnored = [...ignoredDefenses, ...magicIgnored];
   const defenses = markNonmagicalDefenses(relevantDamageDefenses(profileDefenses, typedComponents.filter((component) => damageTypeSet.has(component.type)), ignoredDefenses),
-    targetItem?.metadata?.[META_KEY]?.initiativeCard);
+    targetItem?.metadata?.[META_KEY]?.initiativeCard).filter(heldDefense);
   // Full damage on a hit, a critical or a failed save (the shared helper would halve a "passed" save).
   // A monster's hit effect (fase 5, lotto 4): its save's damage on top, with the target's defenses.
   const hitPlan = targetItem ? pcAttackHitEffectPlan({ attack, outcome, hitEffect, targetItem, sourceItem }) : null;
   const total = (targetItem && outcome && !miss
-    ? bossDefendedDamage(components, allAmounts, factor === "half" ? "passed" : "hit", profileDefenses, ignoredDefenses) : 0)
+    ? bossDefendedDamage(components, allAmounts, factor === "half" ? "passed" : "hit", profileDefenses, appliedIgnored) : 0)
     + (hitPlan?.components || []).reduce((sum, component) => sum + component.amount, 0);
   // The count the console shows: what each defense did to the damage typed, and to a monster's save on the hit.
   const targetCard = targetItem?.metadata?.[META_KEY]?.initiativeCard;
   const defenseCounts = targetItem && outcome && !miss
-    ? markNonmagicalDefenses(bossDefenseCounts(typedComponents, allAmounts, factor === "half" ? "passed" : "hit", profileDefenses, ignoredDefenses), targetCard) : [];
+    ? markNonmagicalDefenses(bossDefenseCounts(typedComponents, allAmounts, factor === "half" ? "passed" : "hit", profileDefenses, appliedIgnored), targetCard).filter(heldDefense) : [];
   const hitEffectCounts = markNonmagicalDefenses((hitPlan?.components || []).filter((component) => component.defense)
     .map((component) => ({ type: component.type, defense: component.defense, before: Number(component.inputAmount), after: component.amount })), targetCard);
   const meta = targetItem?.metadata?.[META_KEY] || {};
@@ -1132,7 +1157,7 @@ export function pcAttackPreview({
   const sourceMeta = sourceItem?.metadata?.[META_KEY] || {};
   // Only the spell's own necrotic damage counts (after the target's defenses), not the extras.
   const spellDamage = spellPlan?.ok && attack.spell.casterHealRatio && targetItem && outcome && !miss && validAmount(amounts?.c1)
-    ? bossDefendedDamage([attack.components[0]], { c1: amounts.c1 }, "hit", profileDefenses, ignoredDefenses) : 0;
+    ? bossDefendedDamage([attack.components[0]], { c1: amounts.c1 }, "hit", profileDefenses, appliedIgnored) : 0;
   const casterHeal = spellDamage > 0 && Number.isFinite(sourceMeta.hp) && Number.isFinite(sourceMeta.hpMax)
     ? spellCasterHealingChange({ damageChanges: [{ requested: spellDamage }], ratio: attack.spell.casterHealRatio, hp: sourceMeta.hp, hpMax: sourceMeta.hpMax, tempHp: sourceMeta.tempHp })
     : null;
@@ -1250,7 +1275,7 @@ export function buildPcAttackMutation({
   const hitPlan = pcAttackHitEffectPlan({ attack, outcome, hitEffect, targetItem, sourceItem, attackInstanceId, turnState });
   if (hitPlan.blocker) throw new Error(hitPlan.blocker);
   // A critical hit keeps the full factor: the totals the GM enters already include the doubled dice.
-  const damageComponents = [...defendedComponents(components, inputs, factor, targetItem, ignoredDefenses, expectedDefenses), ...hitPlan.components];
+  const damageComponents = [...defendedComponents(components, inputs, factor, targetItem, [...ignoredDefenses, ...pcAttackMagicIgnoredDefenses(attack, targetItem)], expectedDefenses), ...hitPlan.components];
   const requestedDamage = damageComponents.reduce((sum, component) => sum + component.amount, 0);
   const targetMeta = targetItem.metadata?.[META_KEY] || {};
   let change = null;

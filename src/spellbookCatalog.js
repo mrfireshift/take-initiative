@@ -2,10 +2,11 @@
 // spell quick actions that launch it. Loads spells-srd.js: import it only where the catalog is already loaded
 // (the character sheet and the tracker), never from initiativeCards.js.
 import { getQuickActionSpellOptions, getSpellCatalog, getSpellDefinition } from "./spells-srd.js";
+import { ID } from "./constants.js";
 import { PC_ATTACK_CANTRIPS } from "./pcAttackCantripCatalog.js";
-import { PC_ATTACK_SPELLS } from "./pcAttackSpellCatalog.js";
+import { PC_ATTACK_SPELLS, getPcAttackSpell } from "./pcAttackSpellCatalog.js";
 import { QUICK_ACTION_VERSION, sanitizeQuickAction } from "./quickActionsCore.js";
-import { sanitizeSpellbook, spellbookQuickActionId } from "./spellbookCore.js";
+import { sanitizeSpellbook, spellbookAttackActionId, spellbookQuickActionId } from "./spellbookCore.js";
 import { preparesSpells, spellPreparationClasses, spellPreparationLimit } from "./spellPreparationCore.js";
 import { subclassGrantedSpells } from "./subclassSpellsCatalog.js";
 import spellReferenceRuntime from "./spell-reference-it-runtime.json" with { type: "json" };
@@ -21,7 +22,10 @@ function launchOption(spellId) {
   return launchOptionsById.get(spellId) || null;
 }
 
-const ATTACK_CANTRIP_IDS = new Set(PC_ATTACK_CANTRIPS.map((cantrip) => cantrip.spellId));
+// The cantrips the console has a say in: Create Bonfire is the spell panel's, whatever an action lists.
+const ATTACK_CANTRIP_IDS = new Set(PC_ATTACK_CANTRIPS.filter((cantrip) => cantrip.delivery !== "panel").map((cantrip) => cantrip.spellId));
+// The ones it resolves on their own: Booming Blade and Green-Flame Blade are woven into a melee weapon attack.
+const PICKED_CANTRIP_IDS = new Set(PC_ATTACK_CANTRIPS.filter((cantrip) => !["panel", "weapon"].includes(cantrip.delivery)).map((cantrip) => cantrip.spellId));
 const ATTACK_SPELL_IDS = new Set(PC_ATTACK_SPELLS.map((spell) => spell.spellId));
 
 export function spellbookLevelTitle(level) {
@@ -214,6 +218,41 @@ export function spellbookGroupsForProfile(profile) {
     preparing: preparesSpells(profile?.characterBuild),
     granted: subclassGrantedSpells(profile),
   });
+}
+
+// The attack the console resolves a book's spells with when the card has no action for them: built from the book and never
+// stored, as a breath weapon from its trait. kind by id (spellbookAttackActionId); only what the character can cast today; null
+// when the book has none. The attack core's sanitizer reads it like an action saved by hand.
+export function spellbookAttackAction(profile, actionId) {
+  const kind = ["cantrip", "spell"].find((entry) => spellbookAttackActionId(entry) === actionId);
+  if (!kind) return null;
+  const table = kind === "cantrip" ? PICKED_CANTRIP_IDS : ATTACK_SPELL_IDS;
+  const spellIds = spellbookGroupsForProfile(profile).flatMap((group) => group.spells)
+    .filter((spell) => spell.prepared && table.has(spell.id)).map((spell) => spell.id);
+  if (!spellIds.length) return null;
+  return sanitizeQuickAction({ version: QUICK_ACTION_VERSION, id: actionId, kind: "attack",
+    label: kind === "cantrip" ? "Trucchetto" : "Incantesimi d'attacco", source: { kind, spellIds } });
+}
+
+// The action that records this spell of the book in the console: the card's own, else the one built from the book.
+export function spellbookAttackActionFor(profile, spellId) {
+  const own = spellbookCantripAttackAction(profile?.quickActions, spellId) || spellbookSpellAttackAction(profile?.quickActions, spellId);
+  if (own) return own;
+  const kind = PICKED_CANTRIP_IDS.has(spellId) ? "cantrip" : ATTACK_SPELL_IDS.has(spellId) ? "spell" : "";
+  const built = kind ? spellbookAttackAction(profile, spellbookAttackActionId(kind)) : null;
+  return built?.source?.spellIds?.includes(spellId) ? built : null;
+}
+
+// The spells a caster keeps active with its concentration (its token's metadata).
+export function spellbookActiveSpellIds(meta) {
+  const entries = meta?.[`${ID}/concentration`];
+  return entries && typeof entries === "object" ? Object.values(entries).map((entry) => entry?.spellId).filter(Boolean) : [];
+}
+
+// A spell cast from the panel whose attacks the console records (Vampiric Touch): until it is active there is nothing to record,
+// only a cast to launch.
+export function spellbookAttackWaitsForCast(spellId, activeSpellIds = []) {
+  return getPcAttackSpell(spellId)?.fromActiveSpell === true && !activeSpellIds.includes(spellId);
 }
 
 // How many spells the character has prepared, against its limit: { preparing, prepared, limit, classes }.

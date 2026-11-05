@@ -79,7 +79,8 @@ selezionati); ⚙ apre il pannello per scegliere lo slot superiore, il Patto o
 menu 🪄 un lancio registrato mostra un avviso con lo slot speso, perché sulla
 mappa non cambia nulla. Un trucchetto d'attacco (Dardo di fuoco…) apre la
 console attacchi quando la card ha un'azione Trucchetto, come già faceva la
-scheda; altrimenti se ne registra il lancio.
+scheda; altrimenti se ne registra il lancio. Dal 5 novembre l'azione non serve
+più: la console la costruisce dal libro ([P4 del polishing](PIANO_POLISH_INCANTESIMI.md)).
 
 Anche i lanci automatizzati guadagnano qualcosa: la causalità di ogni lancio
 (pannello, console ad area, azioni rapide) riporta ciò che ha speso, e i lanci
@@ -263,7 +264,8 @@ d'attacco», accanto a quella dei trucchetti: la tabella curata
 `PC_ATTACK_SPELLS` (`src/pcAttackSpellCatalog.js`) con dadi, aumento per
 slot, raggi o dardi, tipi a scelta. Sulla card si aggiunge un attacco con
 questa fonte; il libro e il menu 🪄 aprono la console sull'incantesimo scelto,
-e senza quell'attacco il libro continua a registrare il lancio.
+e senza quell'attacco il libro continua a registrare il lancio. Dal 5 novembre
+quell'attacco la console lo costruisce dal libro ([P4 del polishing](PIANO_POLISH_INCANTESIMI.md)).
 
 - Lo slot (o il Patto) si sceglie nella console e si spende **nel comando
   della prima registrazione**, come la Punizione divina: un Undo restituisce
@@ -281,8 +283,8 @@ e senza quell'attacco il libro continua a registrare il lancio.
 - Globo cromatico (nessun rimbalzo nel testo 2014) e Dardo di caos chiedono il
   tipo; con due d8 uguali il Dardo di caos balza su un'altra creatura senza
   nuovo slot, mai due volte sulla stessa.
-- Tocco del vampiro si lancia dal pannello, che spende lo slot e tiene la
-  concentrazione; la console registra i tocchi finché la concentrazione è
+- Tocco del vampiro si lancia con **Lancia** o dal pannello, che spende lo slot e
+  tiene la concentrazione; la console registra i tocchi finché la concentrazione è
   attiva, e il caster recupera metà del danno necrotico (dopo le difese del
   bersaglio) nello stesso comando, con barra, testo e memoria HP.
 - I rider dei trucchetti (Incantesimi potenti, Deflagrazione agonizzante) e

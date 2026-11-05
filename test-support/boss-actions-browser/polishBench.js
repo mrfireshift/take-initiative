@@ -446,6 +446,56 @@ export async function preparedRun({ spellId, caster = "dars", slot = null, targe
   return log;
 }
 
+// A prepared spell resolved from the panel, when its popup is not there (closed with the ×, off turn, out of combat): Risolvi among
+// the active spells, the target selected on the map, Apri risoluzione, then the popup. To call with the spell already cast.
+export async function resolveFromPanel({ spellId, caster = "dars", slot = null, target = "goblin-a", outcome = "failed", damage = 3 }) {
+  const pill = (meta(caster)[SPELLS] || []).find((entry) => entry.spellId === spellId);
+  if (!pill?.instanceId) return { errors: [...errors, "no pill on the caster"] };
+  await selectOnMap([]);
+  await openPanel(spellId, caster, slot, { activeInstanceId: pill.instanceId });
+  const log = {};
+  const popupFrame = () => frameBy("spell-active-resolution");
+  const buttonState = () => ({ label: primary().textContent, off: primary().disabled, title: primary().title });
+  [...doc().querySelectorAll("[data-active-instance]")].find((button) => !button.disabled)?.click();
+  await sleep(800);
+  log.withoutTarget = buttonState();
+  log.panelText = doc().body.innerText.replace(/\s*\n+\s*/g, " | ").slice(-260);
+  await selectOnMap([target]);
+  await sleep(700);
+  log.withTarget = buttonState();
+  if (primary().disabled) { log.errors = errors.slice(); return log; }
+  primary().click();
+  await sleep(1500);
+  log.feedback = doc().querySelector(".unified-feedback")?.textContent || "";
+  if (!popupFrame()) { log.errors = [...errors, "no popup"]; return log; }
+  guard(popupFrame().contentWindow);
+  await sleep(500);
+  const popup = () => popupFrame()?.contentDocument;
+  const fire = (node, type) => node.dispatchEvent(new (popupFrame().contentWindow.Event)(type, { bubbles: true }));
+  log.popup = popup().body.innerText.replace(/\s*\n+\s*/g, " | ").slice(0, 300);
+  const visible = () => [...popup().querySelectorAll("button")].filter((button) => button.offsetParent !== null);
+  const field = popup().querySelector("#attackDamage");
+  if (field && field.offsetParent !== null) {
+    field.value = String(damage);
+    fire(field, "input");
+    fire(field, "change");
+    await sleep(200);
+  }
+  visible().find((button) => button.textContent.trim() === (outcome === "passed" ? "Superato" : outcome === "immune" ? "Immune" : "Fallito"))?.click();
+  await sleep(250);
+  const resolve = visible().find((button) => /^Risolvi/.test(button.textContent.trim()));
+  log.resolve = resolve ? `${resolve.textContent.trim()}${resolve.disabled ? " (spento)" : ""}` : null;
+  log.status = popup().getElementById("status")?.textContent || "";
+  resolve?.click();
+  await sleep(1500);
+  log.popupOpen = !!popupFrame();
+  log.target = snapshotCreature(target);
+  log.caster = snapshotCreature(caster);
+  log.errors = errors.slice();
+  await closePanel();
+  return log;
+}
+
 const hpOfAll = () => Object.fromEntries(creatures().map((item) => [item.id, meta(item.id).hp]));
 const hpChanges = (before) => Object.fromEntries(Object.entries(hpOfAll())
   .filter(([id, hp]) => hp !== before[id]).map(([id, hp]) => [id, `${before[id]}→${hp}`]));
@@ -623,6 +673,227 @@ export async function actionRun({ nextRound = false, castTargets = [], spellId, 
   log.errors = errors.slice();
   return log;
 }
+
+// P4. The attack console, the page the GM uses: the card written on the token, the console opened by the tracker, its controls
+// pressed. A fresh page for each attack that depends on the selection.
+const consoleFrame = () => frameBy("/pc-attack.html");
+const consoleDoc = () => consoleFrame()?.contentDocument;
+const consoleWin = () => consoleFrame()?.contentWindow;
+
+export async function setCard(id, card, fields = {}) {
+  await sdk(`await OBR.scene.items.updateItems([${JSON.stringify(id)}], (items) => { for (const item of items) { const key = ${JSON.stringify(META)}; item.metadata[key] = { ...item.metadata[key], ...${JSON.stringify(fields)}, initiativeCard: ${JSON.stringify(card)} }; } });`);
+  await sleep(500);
+}
+
+export async function closeConsole() {
+  if (!consoleFrame()) return;
+  await sdk("await OBR.popover.close('com.thebigpicture.initiative/pc-attack');");
+  for (let attempt = 0; attempt < 20 && consoleFrame(); attempt += 1) await sleep(100);
+}
+
+export async function openConsole(source, actionId = "", spellId = "") {
+  await closeConsole();
+  await tracker().eval(`(async()=>{
+    const { openPcAttackPopover, openPcAttackConsoleForActor } = await import('/src/pcAttackLauncher.js');
+    ${actionId ? `await openPcAttackPopover(${JSON.stringify(source)}, ${JSON.stringify(actionId)}, ${JSON.stringify(spellId)});` : `await openPcAttackConsoleForActor(${JSON.stringify(source)});`}
+  })()`);
+  for (let attempt = 0; attempt < 40 && !consoleWin(); attempt += 1) await sleep(100);
+  guard(consoleWin());
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    if (consoleDoc()?.getElementById("pc-attack-title")?.textContent.trim()) break;
+    await sleep(100);
+  }
+  await sleep(500);
+}
+
+const consoleText = (id) => {
+  const node = consoleDoc()?.getElementById(id);
+  return node && !node.hidden ? node.innerText.replace(/\s*\n+\s*/g, " | ").trim() : "";
+};
+
+// The fixed row's button: Registra on an attack, Lancia or Usa on the other entries.
+const consoleButton = () => ["pc-attack-apply", "pc-attack-launch-button"].map((id) => consoleDoc()?.getElementById(id)).find((button) => button && !button.hidden) || null;
+
+// What the console says now: every line the GM reads, the entries of its picker and its button.
+export function consoleView() {
+  const doc = consoleDoc();
+  if (!doc) return null;
+  const button = consoleButton();
+  return {
+    title: consoleText("pc-attack-title"),
+    turn: consoleText("pc-attack-turn"),
+    picker: consoleText("pc-attack-picker-dropdown-button") || consoleText("pc-attack-cantrip-row"),
+    facts: consoleText("pc-attack-facts"),
+    subtitle: consoleText("pc-attack-subtitle"),
+    note: consoleText("pc-attack-cantrip-note"),
+    monsterNote: consoleText("pc-attack-monster-note"),
+    spell: [...doc.querySelectorAll("#pc-attack-spell-controls select")].map((select) => `${select.getAttribute("aria-label") || select.title || "select"}=${select.value}`),
+    target: consoleText("pc-attack-target-button"),
+    outcomes: [...doc.querySelectorAll("#pc-attack-outcomes button")].filter((entry) => entry.offsetParent !== null).map((entry) => `${entry.textContent.trim()}${entry.getAttribute("aria-pressed") === "true" ? "*" : ""}`),
+    damage: consoleText("pc-attack-damage"),
+    placeholders: [...doc.querySelectorAll("#pc-attack-damage input")].map((input) => input.placeholder),
+    defenses: consoleText("pc-attack-defenses"),
+    total: consoleText("pc-attack-total"),
+    launch: consoleText("pc-attack-launch"),
+    area: consoleText("pc-attack-area-list"),
+    status: consoleText("pc-attack-status"),
+    button: button && !button.hidden ? `${button.textContent.trim()}${button.disabled ? " (spento)" : ""}` : "",
+  };
+}
+
+// The console's tabs and their rows, tab by tab.
+export async function consoleEntries() {
+  const doc = consoleDoc();
+  const tabs = {};
+  for (const tab of [...doc.querySelectorAll("#pc-attack-picker-tabs button")]) {
+    tab.click();
+    await sleep(200);
+    const rows = [...consoleDoc().querySelectorAll("#pc-attack-picker-list [data-picker-key], #pc-attack-picker-list button, #pc-attack-picker-menu button")];
+    tabs[tab.textContent.trim()] = [...new Set(rows.map((row) => row.innerText.replace(/\s*\n+\s*/g, " · ").trim()))];
+  }
+  return tabs;
+}
+
+export async function consolePick(tabLabel, label) {
+  const doc = consoleDoc();
+  [...doc.querySelectorAll("#pc-attack-picker-tabs button")].find((tab) => tab.textContent.trim() === tabLabel)?.click();
+  await sleep(200);
+  const rows = [...consoleDoc().querySelectorAll("#pc-attack-picker-list button, #pc-attack-picker-menu button")];
+  const row = rows.find((entry) => entry.innerText.includes(label));
+  if (!row) return false;
+  row.click();
+  await sleep(300);
+  return true;
+}
+
+const fireConsole = (node, type) => node.dispatchEvent(new (consoleWin().Event)(type, { bubbles: true }));
+
+// A choice in the spell's row, by its current options: the slot level or the damage type.
+export async function consoleChoose(value) {
+  const select = [...consoleDoc().querySelectorAll("#pc-attack-spell-controls select")]
+    .find((entry) => [...entry.options].some((option) => option.value === String(value)));
+  if (!select) return false;
+  select.value = String(value);
+  fireConsole(select, "change");
+  await sleep(250);
+  return true;
+}
+
+export async function consoleOutcome(outcome) {
+  const button = consoleDoc().querySelector(`#pc-attack-outcomes button[data-outcome="${outcome}"]`);
+  if (!button || button.offsetParent === null) return false;
+  button.click();
+  await sleep(250);
+  return true;
+}
+
+export async function consoleDamage(amount, component = "c1") {
+  const input = consoleDoc().querySelector(`#pc-attack-damage input[data-damage-input="${component}"]`);
+  if (!input) return false;
+  input.value = String(amount);
+  fireConsole(input, "input");
+  await sleep(200);
+  return true;
+}
+
+export async function consolePress() {
+  const button = consoleButton();
+  if (!button || button.disabled) return false;
+  button.click();
+  await sleep(1200);
+  return true;
+}
+
+export const creatureNow = (id) => snapshotCreature(id);
+
+// The slots left on a creature: only the pools of spell slots, level by level.
+export function slotsOf(id) {
+  const resources = meta(id).classFeatureState?.resources || {};
+  return Object.fromEntries(Object.entries(resources).filter(([key]) => /slot/i.test(key)).map(([key, value]) => [key, value?.current ?? value]));
+}
+
+// An attack registered in the console: the target selected on the map, the spell and its slot, the outcome and the damage.
+export async function consoleAttack({ source = "dars", actionId = "", spellId = "", target = "goblin-a", slot = null, type = "", outcome = "hit", amount = 7, press = true }) {
+  await setupBench();
+  await selectOnMap(target ? [target] : []);
+  await openConsole(source, actionId, spellId);
+  if (slot) await consoleChoose(slot);
+  if (type) await consoleChoose(type);
+  if (outcome) await consoleOutcome(outcome);
+  if (amount !== null) await consoleDamage(amount);
+  const log = { before: consoleView(), hpBefore: hpOfAll() };
+  if (press) {
+    log.pressed = await consolePress();
+    log.after = consoleView();
+    log.hp = hpChanges(log.hpBefore);
+    log.target = target ? snapshotCreature(target) : null;
+    log.source = snapshotCreature(source);
+    log.slots = slotsOf(source);
+  }
+  log.errors = errors.slice();
+  return log;
+}
+
+// A monster's stat block imported on its sheet, as the GM does: Modifica, Importa, Leggi, Applica al modulo, Salva.
+export async function importMonster(id, data) {
+  await setupBench();
+  token(id).metadata[META].attitude = "enemy";
+  await sdk(`await OBR.popover.open({ id: 'com.thebigpicture.initiative/initiative-card-modal', url: '/initiative-card-modal.html?source=${id}', width: 440, height: 560, anchorReference: 'POSITION', anchorPosition: { left: 700, top: 20 }, anchorOrigin: { horizontal: 'LEFT', vertical: 'TOP' }, transformOrigin: { horizontal: 'LEFT', vertical: 'TOP' } });`);
+  const modalFrame = () => frameBy("/initiative-card-modal.html");
+  for (let attempt = 0; attempt < 40 && !modalFrame(); attempt += 1) await sleep(100);
+  guard(modalFrame().contentWindow);
+  const modal = () => modalFrame().contentDocument;
+  for (let attempt = 0; attempt < 60 && !modal()?.getElementById("edit"); attempt += 1) await sleep(100);
+  await sleep(500);
+  modal().getElementById("edit").click();
+  await sleep(300);
+  modal().getElementById("sheetImportToggle").click();
+  await sleep(300);
+  const text = modal().getElementById("sheetImportText");
+  text.value = JSON.stringify(data);
+  text.dispatchEvent(new (modalFrame().contentWindow.Event)("input", { bubbles: true }));
+  modal().getElementById("sheetImportRead").click();
+  await sleep(900);
+  const report = { read: modal().getElementById("sheetImportStatus").innerText, sections: modal().getElementById("sheetImportSections").innerText.replace(/\s*\n+\s*/g, " | ").slice(0, 900) };
+  modal().getElementById("sheetImportApply").click();
+  await sleep(500);
+  modal().querySelector("button.primary[type=submit]").click();
+  await sleep(1800);
+  await sdk("await OBR.popover.close('com.thebigpicture.initiative/initiative-card-modal');");
+  await sleep(300);
+  report.card = meta(id).initiativeCard;
+  report.errors = errors.slice();
+  return report;
+}
+
+// The ⚡ of a card: its menu opened from the tracker and a row pressed, as the GM does. The answer is on the screen: a console,
+// the panel or a notification. The creature must be the only one with a ⚡, or the first in the order.
+export async function quickActionRun(label) {
+  const trackerDoc = frameBy("surface=tracker").contentDocument;
+  const toggle = trackerDoc.querySelector("[data-tracker-quick-action-toggle]");
+  if (!toggle) return { pressed: false, reason: "no ⚡" };
+  toggle.click();
+  await sleep(600);
+  const menu = () => frameBy("/tracker-quick-actions.html");
+  for (let attempt = 0; attempt < 20 && !menu(); attempt += 1) await sleep(100);
+  if (!menu()) return { pressed: false, reason: "no menu" };
+  guard(menu().contentWindow);
+  await sleep(300);
+  const rows = [...menu().contentDocument.querySelectorAll("button")];
+  const view = rows.map((row) => `${row.innerText.replace(/\s*\n+\s*/g, " · ").trim()}${row.disabled ? " (spento)" : ""}`);
+  const row = rows.find((entry) => entry.innerText.includes(label));
+  if (!row || row.disabled) return { pressed: false, view };
+  row.click();
+  await sleep(1300);
+  return { pressed: true, view, frames: [...document.querySelectorAll("iframe")].map((frame) => (frame.src || "").split("/").pop().split("?")[0]) };
+}
+
+// A registration in one line: what the console showed and what it wrote.
+export const attackLine = (log) => ({
+  facts: log.before?.facts, note: log.before?.note, spell: log.before?.spell, outcomes: log.before?.outcomes, damage: log.before?.damage,
+  defenses: log.before?.defenses, total: log.before?.total, button: log.before?.button, pressed: log.pressed,
+  status: log.after?.status, hp: log.hp, target: log.target, slots: log.slots, errors: log.errors,
+});
 
 // An action run in few words.
 export const actionBrief = (log) => ({

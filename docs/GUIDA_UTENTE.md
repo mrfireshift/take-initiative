@@ -137,21 +137,27 @@ quel personaggio.
 
 - Il pulsante dell'incantesimo lo lancia come un'azione rapida: applicato
   subito quando non serve altro, altrimenti aperto nel pannello incantesimi.
-- ⚙ apre sempre il pannello, per scegliere slot, bersagli e varianti.
-- I trucchetti d'attacco aprono la console attacchi quando negli **Attacchi**
-  c'è un'azione Trucchetto.
+- ⚙ apre sempre il pannello, per scegliere slot, bersagli e varianti. Serve anche su
+  un incantesimo d'attacco: per un lancio senza slot, come da una pergamena, o per
+  Dardo incantato con tutti i dardi insieme.
+- I trucchetti d'attacco del libro aprono la console attacchi, che li risolve con
+  dadi, esito e danno: sulla scheda non serve nessuna azione. Creare Falò, che è una
+  zona, si lancia nel pannello; Lama Roboante e Lama Verdefiamma si scelgono
+  sull'attacco con arma da mischia, fra gli extra al colpo. Un trucchetto che non sta
+  nel libro, da una specie o da un talento, si aggiunge negli **Attacchi** con
+  un'azione Trucchetto.
 - Allo stesso modo Infliggi ferite, Dardo tracciante, Dardo incantato, Raggio
   rovente, Globo cromatico, Dardo di caos e Tocco del vampiro aprono la console
-  sull'incantesimo scelto quando negli **Attacchi** c'è un'azione
-  **Incantesimo d'attacco**. Nella console si sceglie lo slot (o il Patto): lo
+  sull'incantesimo scelto. Nella console si sceglie lo slot (o il Patto): lo
   spende il primo raggio o dardo, i successivi dello stesso lancio no, e la
   console dice quanti ne restano. Dardo incantato colpisce senza tiro (Scudo lo
   blocca): non c'è un esito da scegliere, si scrive il danno del dardo e si preme
   Invio, e il dardo dopo è pronto sullo stesso bersaglio. Globo cromatico e
   Dardo di caos chiedono il tipo, e con due d8
-  uguali il dardo balza su un'altra creatura. Tocco del vampiro si lancia dal
-  pannello incantesimi; la console registra poi i tocchi finché dura la
-  concentrazione, e il caster recupera metà del danno necrotico.
+  uguali il dardo balza su un'altra creatura. Tocco del vampiro mostra **Lancia**
+  finché non è attivo; lanciato, la console passa da sola al tocco e registra i
+  tocchi finché dura la concentrazione, e il caster recupera metà del danno
+  necrotico.
 - Gli incantesimi che il plugin non automatizza (Controincantesimo,
   Desiderio, Identificare…) mostrano **Registra il lancio**: il lancio
   spende lo slot e finisce nel registro di combattimento, senza etichette; gli
@@ -518,6 +524,13 @@ Al turno del mostro la console mostra:
   bonus al tiro, portata o gittata in metri («+14 al tiro · portata 3 m»): si tirano i
   dadi al tavolo, si sceglie Colpito, Critico o Mancato e si inseriscono i
   danni, come per un PG;
+- gli **incantesimi**: i trucchetti e gli incantesimi d'attacco del libro (Dardo di
+  fuoco, Dardo incantato, Dardo tracciante…) si risolvono in console, con i dadi del
+  livello, lo slot e, sopra il danno, il bonus della scheda («+6 al tiro») o la CD.
+  Gli altri si lanciano con **Lancia** nel pannello incantesimi, che dice la CD accanto al
+  TS. Senza una classe gli slot restano al tavolo: la console non ne scala e non avvisa.
+  Un incantesimo d'attacco innato («3/giorno») sta sul ⚡, che spende l'uso: il danno, se
+  il pannello non lo chiede, si scrive a mano;
 - le **azioni a tiro salvezza** (soffi, sguardi, Presenza terrificante): la
   riga sopra il danno dice area, TS, CD e cosa succede a chi fallisce e a
   chi supera; il danno viene prima dell'elenco delle creature.
@@ -553,9 +566,10 @@ totale, accanto a **Registra** e sempre in vista; nelle aree il danno sta sulla
 riga della creatura (`−30`) e la difesa sotto (`Res. fuoco: 60 → 30`). Anche le difese limitate alle armi
 non magiche, come `Res. taglienti non magici: 10 → 5` nella console attacchi,
 con il materiale nel suggerimento del pulsante, si applicano da sole, perché il
-plugin non sa di che arma si tratta. Per un'arma magica, del materiale giusto o
-per Frusta di Spine, un clic
-sul pulsante con la **✕** la ignora in quell'attacco; all'attacco dopo vale di nuovo. Le aree
+plugin non sa di che arma si tratta. Per un'arma magica o del materiale giusto, un clic
+sul pulsante con la **✕** la ignora in quell'attacco; all'attacco dopo vale di nuovo. Un
+trucchetto o un incantesimo della console è magico, e queste difese non lo toccano: Frusta
+di Spine fa il danno pieno. Le aree
 della console non hanno il pulsante e la difesa vale sempre: in pratica conta
 solo per la Freccia perforante dell'Arciere arcano e per l'azione ad area di un
 mostro contro un altro mostro. Gli incantesimi fanno il loro conto nel pannello,
@@ -754,6 +768,14 @@ una variante di Controllare Venti o applicare un esito di Sguardo penetrante.
 
 Gli incantesimi preparati restano sul caster. Quando devono essere risolti, il
 plugin chiede bersagli e variante senza creare una seconda concentrazione.
+
+Le punizioni da incantesimo e Colpo Intrappolante si risolvono nel popup accanto al
+token, che compare al turno del caster: si seleziona il bersaglio sulla mappa, si
+scrive il danno e si preme **Risolvi**. Chiuso con la ×, o passato il turno, il popup
+torna al turno dopo del caster. Per un colpo fuori turno, come un attacco di
+opportunità, o fuori combattimento, si passa dal pannello incantesimi: fra gli
+**Incantesimi attivi sul campo** si preme **Risolvi**, si seleziona il bersaglio sulla
+mappa e **Apri risoluzione** apre lo stesso popup.
 
 ### Azioni dalla pill sulla card
 

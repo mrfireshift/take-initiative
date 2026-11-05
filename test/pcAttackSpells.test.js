@@ -126,7 +126,7 @@ test("Guiding Bolt puts its pill on a hit, none on a miss", () => {
 });
 
 test("Vampiric Touch: only while its concentration is active; the caster regains half the necrotic damage in the same write", () => {
-  assert.throws(() => cast("vampiric-touch"), /pannello incantesimi/u);
+  assert.throws(() => cast("vampiric-touch"), /lancialo prima/u);
   const caster = wizard({ hp: 20, [CONCENTRATION]: { "tocco del vampiro": { spellId: "vampiric-touch", instanceId: "vt", castContext: { slotLevel: 5 } } } });
   const touch = cast("vampiric-touch", { sourceItem: caster, amount: 15 });
   assert.equal(touch.causality.spell.dice, "5d6");
