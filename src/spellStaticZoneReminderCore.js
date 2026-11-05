@@ -79,6 +79,11 @@ export function planStaticSpellZoneReminder({
       === "prismatic-wall"
     && prismaticWallProximityTriggerIds.size > 0
   );
+  const zoneCasterId = String(zoneMetadata.casterId || "").trim();
+  const castBaselineIds = withoutExemptions([
+    ...normalizedIds(zoneMetadata.targetIds),
+    ...(zoneCasterId && scopedDesiredTargetIds.includes(zoneCasterId) ? [zoneCasterId] : []),
+  ]);
   const planningRuntime = previousRuntime.initialized || !hasCastMembershipBaseline
     ? previousRuntime
     : {
@@ -87,8 +92,9 @@ export function planStaticSpellZoneReminder({
       // reale. Muro Prismatico fa eccezione: per i trigger di prossimità la
       // baseline deve fotografare la hot zone, altrimenti un token già vicino
       // viene scambiato per un ingresso durante il bootstrap del cast.
+      // Il caster che è già dentro non entra: la sagoma può escluderlo dai bersagli (P4).
       initialized: true,
-      memberIds: withoutExemptions(zoneMetadata.targetIds),
+      memberIds: castBaselineIds,
       ...(Object.keys(scopedCurrentTargetIdsByTrigger).length
         ? {
           memberIdsByTrigger: Object.fromEntries(
@@ -97,7 +103,7 @@ export function planStaticSpellZoneReminder({
               usePrismaticWallProximityBaseline
                 && prismaticWallProximityTriggerIds.has(triggerId)
                 ? scopedCurrentTargetIdsByTrigger[triggerId]
-                : withoutExemptions(zoneMetadata.targetIds),
+                : castBaselineIds,
             ]),
           ),
         }

@@ -225,9 +225,14 @@ function placementClick(event) {
     }
   } else if (!placement.origin) placement.origin = point;
   else {
-    // A cone: from the side of the origin's cell that faces its direction, as the real tool does.
+    // A cone: from the side of the origin's cell that faces its direction, or the caster when it starts next to the caster,
+    // as the real tool does.
     const cell = nearestGridCellCenter(placement.origin, cornerNear(placement.origin), GRID).position;
-    const side = nearestGridCellSideCenter(cell, cornerNear(cell), GRID, { x: point.x - cell.x, y: point.y - cell.y }).position;
+    const caster = ruleOf(placement).placement.origin === "caster-adjacent"
+      ? fakeHost.state.items.find((item) => item.id === placement.casterId)
+      : null;
+    const facing = caster || { position: point };
+    const side = nearestGridCellSideCenter(cell, cornerNear(cell), GRID, { x: facing.position.x - cell.x, y: facing.position.y - cell.y }).position;
     placement.origin = side;
     Object.assign(placement, coneFor(side, point));
   }
@@ -256,7 +261,12 @@ async function finishPlacement(status) {
     preview = { type, start: areas[0].start, end: areas[0].end, targetIds: [...new Set(areas.flatMap((area) => area.targetIds))], areas };
   } else if (status === "confirmed") preview = { type, start: current.origin, end: current.end, dpi: GRID, targetIds: hitIds(current, current.area),
     // The grid corner next to the start: with no corner the zone's cells would shift half a cell from the placed ones.
-    ...(type === "circle" ? {} : { gridOrigin: { x: Math.floor(current.origin.x / GRID) * GRID, y: Math.floor(current.origin.y / GRID) * GRID } }),
+    // A circle is centred on a grid intersection: its corner is its centre, and an action in the popup asks for it as the real tool gives it.
+    gridOrigin: type === "circle"
+      ? { x: current.origin.x, y: current.origin.y }
+      : { x: Math.floor(current.origin.x / GRID) * GRID, y: Math.floor(current.origin.y / GRID) * GRID },
+    // A square also reports its centre, as the real tool does: the reach of Maximilian's hand is measured from there.
+    ...(type === "square" ? { position: { x: (current.origin.x + current.end.x) / 2, y: (current.origin.y + current.end.y) / 2 } } : {}),
     ...(Number.isInteger(current.ringInnerSquares) ? { ringInnerSquares: current.ringInnerSquares } : {}) };
   if (preview && current.keep) {
     await OBR.scene.items.addItems([

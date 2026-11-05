@@ -234,28 +234,18 @@ test("Colpo dello Zefiro consuma la carica e applica +9 m al caster", () => {
   assert.match(plan.historyLabel, /Attivazione: Colpo dello Zefiro · Usa colpo/);
 });
 
-test("Investitura del Ghiaccio richiede i falliti selezionati e prepara il dimezzamento", () => {
+test("Investitura del Ghiaccio: il Cono gelido chiede sagoma, TS e danno, e dimezza la velocità di chi fallisce", () => {
   const spell = getSpellDefinition("Investitura del Ghiaccio");
-  const missing = buildSpellActiveActionPlan({
-    spell,
-    actionId: "ice-investiture-cone",
-    group: group({ name: spell.displayName }),
-  });
-  assert.equal(missing.valid, false);
-  assert.ok(missing.errors.includes("targets-required"));
-
-  const plan = buildSpellActiveActionPlan({
-    spell,
-    actionId: "ice-investiture-cone",
-    group: group({ name: spell.displayName }),
-    selectedTargetIds: ["target-a", "target-b", "target-a"],
-    appliedAt: { round: 3, actorId: "caster", turnKey: "3:0:caster" },
-    casterName: "Druido",
-  });
-  assert.equal(plan.valid, true);
-  assert.deepEqual(plan.operations[0].targetIds, ["target-a", "target-b"]);
-  assert.equal(plan.operations[0].options.mechanics.movement.multiplier, 0.5);
-  assert.deepEqual(plan.operations[0].options.expiry, {
+  const [action] = spell.activeActions;
+  assert.equal(action.id, "ice-investiture-cone");
+  assert.equal(action.resolutionKind, "save-area");
+  assert.equal(action.placementRuleId, "xanathar-investitura-del-ghiaccio:ice-investiture-cone");
+  assert.equal(action.save.ability, "con");
+  assert.equal(action.damage.formula, "4d6");
+  assert.equal(action.availableAfterCast, true);
+  const [slow] = action.failureEffects;
+  assert.equal(slow.mechanics.movement.multiplier, 0.5);
+  assert.deepEqual(slow.expiry, {
     mode: "turn-start",
     actor: "source",
     remaining: 1,

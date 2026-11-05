@@ -1,4 +1,4 @@
-// Mano arcana (Bigby, PHB 2014): the hand's five effects in the spell's popup, from the turn after the cast.
+// Mano arcana (Bigby, PHB 2014): the hand's five effects in the spell's popup, from the turn of the cast.
 import test from "node:test";
 import assert from "node:assert/strict";
 
@@ -42,7 +42,7 @@ test("le cinque azioni della mano sono valide, azioni bonus nel popup di turno",
     assert.deepEqual(validateSpellActiveResolutionAction(entry).errors || [], [], id);
     assert.equal(entry.economy, "bonus-action", id);
     assert.equal(entry.turnStartPrompt, true, id);
-    assert.equal(entry.availableAfterCast, true, id);
+    assert.notEqual(entry.availableAfterCast, true, `${id}: la mano agisce già quando l'incantesimo è lanciato`);
   }
   // A Large hand: its 1,5 m reach is measured from its edge (adjacentRing), not from its centre.
   for (const id of ["arcane-hand-clenched", "arcane-hand-grasping", "arcane-hand-forceful"]) {
@@ -122,7 +122,7 @@ test("Mano possente registra la contesa senza condizioni; Mano interposta segna 
   assert.equal(interposing.replaceLinkedEffectId, "arcane-hand-interposed");
 });
 
-test("dal turno dopo il lancio il caster riceve un solo popup con i cinque effetti della mano", () => {
+test("già nel turno del lancio il caster riceve un solo popup con i cinque effetti della mano", () => {
   const castTurn = "1:0:caster";
   const items = [
     { id: "caster", name: "Mago", metadata: { [META_KEY]: { [SPELLS_KEY]: [{
@@ -135,8 +135,12 @@ test("dal turno dopo il lancio il caster riceve un solo popup con i cinque effet
       slotLevel: 5, state: { revision: 0 },
     } } },
   ];
-  assert.deepEqual(spellTurnPromptRequests({ items, actorId: "caster", sceneEpoch: 4, turnKey: castTurn }), []);
-  // "Azioni della Mano" from the token's menu asks without a turn: the popup is there even on the cast turn.
+  // P4: the text gives the hand one effect when the spell is cast, and then one per bonus action.
+  const [onCast, ...restOnCast] = spellTurnPromptRequests({ items, actorId: "caster", sceneEpoch: 4, turnKey: castTurn });
+  assert.equal(restOnCast.length, 0);
+  assert.equal(onCast?.kind, "choice");
+  assert.equal(onCast.zoneItemId, "hand-token");
+  // "Azioni della Mano" from the token's menu asks without a turn: the same popup.
   const [fromMenu] = spellTurnPromptRequests({ items, actorId: "caster", sceneEpoch: 4, turnKey: "" });
   assert.equal(fromMenu?.kind, "choice");
   assert.equal(fromMenu.instanceId, "hand-cast-1");

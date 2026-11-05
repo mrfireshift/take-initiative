@@ -196,6 +196,8 @@ export function spellAreaOriginAdjacentToCaster({
   origin = null,
   casterBounds = null,
   dpi = 1,
+  // A cone starts from the side of its adjacent cell that faces the caster: on the caster's own edge, not outside it.
+  allowCasterEdge = false,
 } = {}) {
   if (!origin || !casterBounds?.min || !casterBounds?.max) return false;
   const point = finitePoint(origin);
@@ -213,7 +215,7 @@ export function spellAreaOriginAdjacentToCaster({
     : point.y > max.y
       ? point.y - max.y
       : 0;
-  const outsideCaster = distanceX > 1e-9 || distanceY > 1e-9;
+  const outsideCaster = allowCasterEdge || distanceX > 1e-9 || distanceY > 1e-9;
   const adjacentThreshold = Math.max(1, Number(dpi) || 1) * 0.75;
   return outsideCaster
     && distanceX <= adjacentThreshold + 1e-9

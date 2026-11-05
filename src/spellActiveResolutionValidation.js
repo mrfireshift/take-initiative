@@ -508,7 +508,7 @@ async function validateSaveArea({ payload, placement, targetIds, outcomes, damag
     errors.push("placement-out-of-range");
   }
   if (origin && casterBounds && rule?.placement?.origin === "caster-adjacent"
-    && !spellAreaOriginAdjacentToCaster({ origin, casterBounds, dpi })) {
+    && !spellAreaOriginAdjacentToCaster({ origin, casterBounds, dpi, allowCasterEdge: area?.type === "cone" })) {
     errors.push("placement-not-adjacent");
   }
   if (area && items.some((item, index) => !areaHitsBounds(area, bounds[index]))) {

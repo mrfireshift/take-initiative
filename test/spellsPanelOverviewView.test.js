@@ -271,7 +271,7 @@ test("Colpo dello Zefiro mostra e consuma l'azione direttamente nella scheda", a
   assert.deepEqual(activations[0].targetIds, []);
 });
 
-test("Investitura del Ghiaccio conta i falliti selezionati nell'azione", async () => {
+test("Investitura del Ghiaccio: il Cono gelido non chiede i falliti prima, li trova la sagoma", async () => {
   const documentRef = createTestDocument();
   const overviewList = documentRef.createElement("div");
   const spell = getSpellDefinition("Investitura del Ghiaccio");
@@ -283,8 +283,8 @@ test("Investitura del Ghiaccio conta i falliti selezionati nell'azione", async (
     casterName: "Druido",
     targets: new Map([["caster", "Druido"]]),
   });
-  let selectedTargetIds = [];
   const activations = [];
+  const resolutions = [];
 
   renderSpellOverview({
     document: documentRef,
@@ -293,24 +293,24 @@ test("Investitura del Ghiaccio conta i falliti selezionati nell'azione", async (
     createReferenceButton: (title, onClick) => (
       createReferenceButton(documentRef, title, onClick)
     ),
-    getSelectedTargetIds: () => selectedTargetIds,
+    // A selection on the map changes nothing: the targets come from the placement.
+    getSelectedTargetIds: () => ["enemy-a", "enemy-b"],
     async onActivate(payload) {
       activations.push(payload);
+    },
+    async onOpenActiveResolution(payload) {
+      resolutions.push(payload);
     },
   });
 
   const action = overviewList.children[0].children[1].children[0];
-  assert.equal(action.textContent, "Cono gelido · 0 falliti");
-  assert.equal(action.disabled, true);
+  assert.equal(action.textContent, "Cono gelido");
+  assert.equal(action.disabled, false);
 
   await action.dispatch("click");
   assert.equal(activations.length, 0);
-
-  selectedTargetIds = ["enemy-a", "enemy-b"];
-  action.disabled = false;
-  await action.dispatch("click");
-  assert.equal(activations.length, 1);
-  assert.deepEqual(activations[0].targetIds, ["enemy-a", "enemy-b"]);
+  assert.equal(resolutions.length, 1);
+  assert.equal(resolutions[0].action.id, "ice-investiture-cone");
 });
 
 test("Sguardo Penetrante dispone i quattro esiti in una card compatta", () => {

@@ -73,6 +73,8 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     actionId: "illusory-dragon-breath",
     ownerContext: "caster",
     availableAfterCast: true,
+    // A bonus action, and the dragon has no pill with a ⚡: the popup is the way to it on the cast turn too.
+    availableOnCastTurn: true,
   }),
   Object.freeze({
     spellId: "xanathar-investitura-del-vento",
@@ -83,6 +85,12 @@ const TURN_PROMPT_SPELLS = Object.freeze([
   Object.freeze({
     spellId: "xanathar-investitura-della-fiamma",
     actionId: FLAME_INVESTITURE_TURN_PROMPT_ACTION_ID,
+    ownerContext: "mobileAura",
+    availableAfterCast: true,
+  }),
+  Object.freeze({
+    spellId: "xanathar-investitura-del-ghiaccio",
+    actionId: "ice-investiture-cone",
     ownerContext: "mobileAura",
     availableAfterCast: true,
   }),
@@ -203,12 +211,12 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     availableAfterCast: true,
     choice: true,
   }),
-  // Mano arcana (Bigby): one effect of the hand per bonus action, from the turn after the cast.
+  // Mano arcana (Bigby): one effect of the hand when the spell is cast, and then per bonus action on the following turns.
   Object.freeze({
     spellId: "arcane-hand",
     actionIds: ARCANE_HAND_TURN_PROMPT_ACTION_IDS,
     ownerContext: "boardToken",
-    availableAfterCast: true,
+    availableOnCastTurn: true,
     choice: true,
     choiceHint: "Muovi la mano fino a 18 m, poi scegli il suo effetto.",
   }),

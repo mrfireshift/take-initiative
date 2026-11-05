@@ -446,6 +446,202 @@ export async function preparedRun({ spellId, caster = "dars", slot = null, targe
   return log;
 }
 
+const hpOfAll = () => Object.fromEntries(creatures().map((item) => [item.id, meta(item.id).hp]));
+const hpChanges = (before) => Object.fromEntries(Object.entries(hpOfAll())
+  .filter(([id, hp]) => hp !== before[id]).map(([id, hp]) => [id, `${before[id]}→${hp}`]));
+
+// P4. A spell's action from the ⚡, in the panel's list of active spells: where the GM reaches it from the tracker too. It casts
+// the spell, opens the list and runs the action, filling what the panel asks. A fresh page: it uses the selection. nextRound: an
+// action of the turns after the cast, on the caster's next turn.
+export async function actionRun({ nextRound = false, castTargets = [], spellId, caster = "dars", slot = null, variant = "", at = { x: 1040, y: 600 }, toward = null, targets = ["goblin-a"], outcomes = "failed", damage = 10,
+  actionId = "", actionVariant = "", actionTargets = ["goblin-a"], actionAt = { x: 1040, y: 600 }, actionToward = null, actionOutcome = "failed", actionDamage = 7, actionHealing = 7,
+  arrange = { mira: { x: 960, y: 640 }, "goblin-a": { x: 1040, y: 600 }, "goblin-b": { x: 1040, y: 520 } }, onTurn = true, hostile = ["goblin-a", "goblin-b"] }) {
+  await setupBench();
+  for (const [id, position] of Object.entries(arrange)) await moveToken(id, position.x, position.y);
+  for (const id of hostile) token(id).metadata[META].attitude = "enemy";
+  if (onTurn) await advanceTo(caster);
+  await selectOnMap([]);
+  await openPanel(spellId, caster, slot);
+  const firstOption = () => {
+    const select = doc().querySelector("#spell-unified-placement-choice") || doc().querySelector("#spell-unified-variant");
+    return select ? [...select.options].map((option) => option.value).find(Boolean) || "" : "";
+  };
+  const castVariant = variant || firstOption();
+  const needsTarget = /Seleziona almeno un bersaglio/.test(primary().textContent);
+  const log = {
+    spellId,
+    cast: await castFromPanel({ spellId, caster, slot, variant: castVariant, at, toward, targets: castTargets.length ? castTargets : needsTarget ? targets : [], outcomes, damage }),
+  };
+  await sleep(400);
+  log.afterCast = scene();
+  if (nextRound) {
+    await nextTurn();
+    await advanceTo(caster);
+    await sleep(500);
+    await answerAll("failed", 3);
+  }
+  const holder = items().find((item) => (item.metadata?.[META]?.[SPELLS] || []).some((pill) => pill.spellId === spellId));
+  const pill = (holder?.metadata?.[META]?.[SPELLS] || []).find((entry) => entry.spellId === spellId);
+  // A spell with no pill (the Illusory Dragon) is reached from the caster's concentration.
+  const instanceId = pill?.instanceId || Object.values(meta(caster)[CONCENTRATION] || {})[0]?.instanceId;
+  if (!instanceId) { log.errors = [...errors, "no pill after the cast"]; return log; }
+  // Some actions light up only with their target selected on the map.
+  await selectOnMap(actionTargets);
+  await openPanel(spellId, caster, slot, { activeInstanceId: instanceId });
+  const actionButtons = () => [...doc().querySelectorAll("[data-active-instance]")];
+  log.buttons = actionButtons().map((button) => `${button.dataset.value || button.textContent.trim()}${button.disabled ? " (spento)" : ""}`);
+  const button = actionButtons().find((entry) => (actionId ? entry.dataset.value === actionId : !entry.disabled));
+  if (!button) { log.errors = [...errors, `no action to run: ${log.buttons.join(", ")}`]; await closePanel(); return log; }
+  log.actionId = button.dataset.value;
+  const actionLabel = button.textContent.trim();
+  const before = scene();
+  const hpBefore = hpOfAll();
+  button.click();
+  await sleep(1200);
+  // Most actions resolve in the popup at the token, with the target selected on the map.
+  const popupFrame = () => frameBy("spell-active-resolution");
+  if (popupFrame()) {
+    guard(popupFrame().contentWindow);
+    await sleep(500);
+    await selectOnMap(actionTargets);
+    await sleep(700);
+    const popup = () => popupFrame()?.contentDocument;
+    const popupWindow = () => popupFrame()?.contentWindow;
+    const shown = (node) => !!node && node.offsetParent !== null;
+    const fire = (node, type) => node.dispatchEvent(new (popupWindow().Event)(type, { bubbles: true }));
+    log.popup = popup().body.innerText.replace(/\n+/g, " | ").slice(0, 420);
+    const placeButton = popup().getElementById("place");
+    if (shown(placeButton) && !placeButton.disabled) {
+      placeButton.click();
+      await sleep(600);
+      mapClick(actionAt.x, actionAt.y);
+      await sleep(250);
+      if (actionToward) mapClick(actionToward.x, actionToward.y);
+      await sleep(250);
+      [...document.querySelectorAll("button")].find((entry) => /Conferma sagoma/.test(entry.title || entry.textContent))?.click();
+      await sleep(900);
+      log.popupAfterPlace = popup()?.body.innerText.replace(/\n+/g, " | ").slice(0, 420);
+    }
+    for (const id of ["attackTarget", "saveTarget"]) {
+      const select = popup().getElementById(id);
+      if (shown(select) && !select.value && [...select.options].some((option) => option.value === actionTargets[0])) {
+        select.value = actionTargets[0];
+        fire(select, "change");
+        await sleep(250);
+      }
+    }
+    for (const id of ["attackDamage", "saveDamage", "damage", "healAmount"]) {
+      const field = popup().getElementById(id);
+      if (shown(field)) {
+        field.value = String(actionDamage);
+        fire(field, "input");
+        fire(field, "change");
+        await sleep(150);
+      }
+    }
+    // An attack with its damage written resolves on the outcome button, and the popup closes.
+    const outcomeLabel = { passed: "Superato", failed: "Fallito", immune: "Immune" }[actionOutcome];
+    const outcomeButtons = [
+      ...popup().querySelectorAll(`[data-attack-outcome="hit"], [data-save-outcome="${actionOutcome}"]`),
+      ...[...popup().querySelectorAll("#targets button")].filter((entry) => entry.textContent.trim() === outcomeLabel),
+    ].filter(shown);
+    for (const entry of outcomeButtons) {
+      if (!popupFrame()) break;
+      entry.click();
+      await sleep(250);
+    }
+    await sleep(500);
+    if (popupFrame()) {
+      const apply = popup().getElementById("apply");
+      log.popupFilled = popup().body.innerText.replace(/\n+/g, " | ").slice(0, 420);
+      log.primary = apply?.textContent.trim() || "(nessun pulsante)";
+      log.blocked = apply ? apply.disabled : true;
+      if (apply && !apply.disabled) {
+        apply.click();
+        await sleep(1300);
+      }
+    } else {
+      log.primary = "(risolto con l'esito)";
+    }
+    log.status = popupFrame() ? popup()?.getElementById("status")?.textContent || "" : "(popup chiuso)";
+    await closePanel();
+    await sleep(300);
+    log.changes = changedSince(before, scene());
+    log.hp = hpChanges(hpBefore);
+    log.zones = zonesDrawn().map((zone) => `${zone.name}: ${zone.members.join(",")}`);
+    log.errors = errors.slice();
+    return log;
+  }
+  // An action that needs nothing else has already run: the panel is back on the cast, and its button would cast the spell again.
+  log.immediate = doc().querySelector(".unified-feedback")?.textContent || "";
+  if (!primary().textContent.includes(actionLabel)) {
+    log.primary = "(eseguita al clic)";
+    log.feedback = log.immediate;
+    await closePanel();
+    await sleep(300);
+    log.changes = changedSince(before, scene());
+    log.hp = hpChanges(hpBefore);
+    log.zones = zonesDrawn().map((zone) => `${zone.name}: ${zone.members.join(",")}`);
+    log.errors = errors.slice();
+    return log;
+  }
+  const choice = actionVariant || firstOption();
+  const select = doc().querySelector("#spell-unified-placement-choice") || doc().querySelector("#spell-unified-variant");
+  if (select && choice && select.value !== choice) {
+    select.value = choice;
+    select.dispatchEvent(new (panel().Event)("change", { bubbles: true }));
+    await sleep(350);
+  }
+  if (hasPlacement()) await place(actionAt, actionToward);
+  for (const target of actionTargets) {
+    if (checkedTargets().includes(target)) continue;
+    doc().querySelector(`.unified-target-row[data-target-key="${target}"] input[type=checkbox]`)?.click();
+    await sleep(180);
+  }
+  log.selected = checkedTargets();
+  log.save = doc().querySelector("[data-cast-save]")?.textContent || null;
+  log.fields = fieldLabels();
+  for (const target of log.selected) {
+    const outcome = doc().querySelector(`.unified-target-row[data-target-key="${target}"] [data-outcome="${actionOutcome}"]`);
+    if (outcome) { outcome.click(); await sleep(120); }
+  }
+  await setField("damage", actionDamage);
+  await setField("healing", actionHealing);
+  log.previews = log.selected.map((target) => doc().querySelector(`.unified-target-row[data-target-key="${target}"]`)?.innerText.replace(/\n+/g, " | ").slice(0, 80));
+  log.primary = primary().textContent;
+  log.blocked = primary().disabled;
+  if (!log.blocked) {
+    primary().click();
+    await sleep(1000);
+    log.feedback = doc().querySelector(".unified-feedback")?.textContent || "";
+  }
+  await closePanel();
+  await sleep(300);
+  log.changes = changedSince(before, scene());
+  log.hp = hpChanges(hpBefore);
+  log.zones = zonesDrawn().map((zone) => `${zone.name}: ${zone.members.join(",")}`);
+  log.errors = errors.slice();
+  return log;
+}
+
+// An action run in few words.
+export const actionBrief = (log) => ({
+  cast: `${log.cast?.primary}${log.cast?.blocked ? " (bloccato)" : ""}: ${log.cast?.feedback || ""}`,
+  buttons: log.buttons,
+  action: log.actionId,
+  popup: log.popup,
+  status: log.status,
+  afterPlace: log.popupAfterPlace,
+  zones: log.zones,
+  save: log.save,
+  fields: log.fields,
+  selected: log.selected,
+  primary: `${log.primary}${log.blocked ? " (bloccato)" : ""}`,
+  feedback: log.feedback,
+  changes: log.changes,
+  errors: log.errors,
+});
+
 // A run in few words: who was hit, what the panel asked, every reminder with its turn, how it ended.
 export const brief = (log) => ({
   selected: log.cast?.selected, save: log.cast?.save, fields: log.cast?.fields, feedback: log.cast?.feedback || log.cast?.primary,
@@ -458,3 +654,15 @@ export const brief = (log) => ({
   ...(log.afterDamage ? { afterDamage: log.afterDamage } : {}),
   errors: log.errors,
 });
+
+// Several actions in a line: one short line for each.
+export const actionLine = (log) => [
+  log.cast?.blocked ? `LANCIO BLOCCATO: ${log.cast?.primary}` : "",
+  `${log.actionId || "-"}: ${log.primary || ""}${log.blocked ? " BLOCCATO" : ""}`,
+  Object.keys(log.hp || {}).length ? `PF ${JSON.stringify(log.hp)}` : "",
+  log.save || "",
+  log.status && log.status !== "(popup chiuso)" ? `«${log.status.slice(0, 90)}»` : "",
+  log.feedback ? `«${log.feedback.slice(0, 70)}»` : "",
+  Object.entries(log.changes || {}).map(([id, value]) => `${id}: PF ${value?.hp} ${(value?.conditions || []).join(",")} ${(value?.pills || []).length}p`).join(" ; "),
+  (log.errors || []).length ? `ERRORI ${log.errors.join("|").slice(0, 120)}` : "",
+].filter(Boolean).join(" | ");

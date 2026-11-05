@@ -85,7 +85,7 @@ test("SP-B06E.2 — espone Lancia una stella come attacco bonus a 36 m", () => {
   assert.equal(action.buttonLabel, "Lancia una stella");
   assert.equal(action.economy, "bonus-action");
   assert.equal(action.turnStartPrompt, true);
-  assert.equal(action.availableAfterCast, true);
+  assert.notEqual(action.availableAfterCast, true, "un'azione bonus: si può usare già nel turno del lancio");
   assert.equal(action.resolutionKind, "single-attack");
   assert.equal(action.requiresZoneRoot, false);
   assert.equal(action.rangeOrigin, "caster");

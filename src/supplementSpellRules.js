@@ -476,32 +476,6 @@ export const SUPPLEMENT_ACTIVE_ACTIONS = Object.freeze({
       }),
     })]),
   })]),
-  "xanathar-investitura-del-ghiaccio": Object.freeze([Object.freeze({
-    id: "ice-investiture-cone",
-    label: "Cono gelido",
-    buttonLabel: "Cono gelido",
-    detail: "Applica velocità dimezzata ai bersagli selezionati che hanno fallito il TS; i danni restano manuali.",
-    emptySelectionTitle: "Seleziona i bersagli che hanno fallito il TS su Costituzione.",
-    subjectMode: "selected",
-    countLabelSingular: "fallito",
-    countLabelPlural: "falliti",
-    effects: Object.freeze([Object.freeze({
-      id: "ice-investiture-slow",
-      kind: "debuff",
-      label: "Velocità dimezzata",
-      detail: "Velocità dimezzata fino all'inizio del turno successivo del caster.",
-      summaryParts: Object.freeze([
-        Object.freeze({ id: "ice-investiture-slow", label: "Vel ½" }),
-      ]),
-      expiry: nextTurn("turn-start", "source"),
-      mechanics: Object.freeze({
-        movement: Object.freeze({
-          multiplier: 0.5,
-          label: "Investitura del Ghiaccio: velocità dimezzata",
-        }),
-      }),
-    })]),
-  })]),
 });
 
 export const SUPPLEMENT_EXPIRY = Object.freeze({
