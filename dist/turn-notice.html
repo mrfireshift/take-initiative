@@ -495,6 +495,40 @@
         cursor: default;
         opacity: var(--obrt-btn-disabled-opacity, .48);
       }
+      .zone-resolution-defenses {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 3px;
+      }
+      .zone-resolution-defenses[hidden] {
+        display: none !important;
+      }
+      .zone-resolution button.zone-resolution-defense {
+        min-height: 19px;
+        padding: 1px 7px;
+        border-color: rgba(251,191,36,.55);
+        border-radius: 999px;
+        background: rgba(251,191,36,.14);
+        color: #fde68a;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .zone-resolution button.zone-resolution-defense:hover {
+        border-color: rgba(251,191,36,.9);
+        background: rgba(251,191,36,.24);
+      }
+      .zone-resolution button.zone-resolution-defense.is-vulnerability {
+        border-color: rgba(248,113,113,.6);
+        background: rgba(248,113,113,.14);
+        color: #fecaca;
+      }
+      .zone-resolution button.zone-resolution-defense[data-ignored="true"] {
+        border-style: dashed;
+        background: transparent;
+        color: rgba(226,232,240,.6);
+        text-decoration: line-through;
+      }
       .zone-resolution-damage {
         display: inline-flex;
         align-items: center;
@@ -556,38 +590,38 @@
         .zone-title { font-size: 14px; }
       }
     </style>
-    <script type="module" crossorigin src="/assets/turnNotice-CWZvwGWj.js"></script>
+    <script type="module" crossorigin src="/assets/turnNotice-B39Tetz1.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
     <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
     <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
     <link rel="modulepreload" crossorigin href="/assets/sceneEpoch-B8A8dIDk.js">
     <link rel="modulepreload" crossorigin href="/assets/sceneItemEvents-DPr5kuM4.js">
-    <link rel="modulepreload" crossorigin href="/assets/distance3dCore-BP_RpOao.js">
-    <link rel="modulepreload" crossorigin href="/assets/blinkRules-DuD81qsE.js">
+    <link rel="modulepreload" crossorigin href="/assets/distance3dCore-aaV57Xzg.js">
+    <link rel="modulepreload" crossorigin href="/assets/blinkRules-CH5vV_CF.js">
     <link rel="modulepreload" crossorigin href="/assets/quickHpCore-B-UpYtUG.js">
     <link rel="modulepreload" crossorigin href="/assets/deathSaveCore-BHeheoEn.js">
-    <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-0MjRgINv.js">
+    <link rel="modulepreload" crossorigin href="/assets/effectSaveReminderCore-QHUL_CRa.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeStyle-BBl-cwqV.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-D9UI-Ijo.js">
     <link rel="modulepreload" crossorigin href="/assets/customAuraCore-Cig87-uH.js">
     <link rel="modulepreload" crossorigin href="/assets/effectLabelCore-BVOJN7Do.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-B7EH_HXq.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-DvPwfWlb.js">
     <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-CdDyG0T-.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellAreaRules-DxlXH_HW.js">
-    <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-DCdG23n7.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellAreaRules-DhD4gyU7.js">
+    <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-_BcsAKGs.js">
     <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-2NI10rhQ.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-BV2hOuYl.js">
-    <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-BZ8ga99i.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-CJlpAUu6.js">
+    <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-DF_16Yuc.js">
     <link rel="modulepreload" crossorigin href="/assets/lazyModule-BEU7KMxf.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-Bl62c76W.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementClient-DUxlziqb.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-Bpe1qDxK.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementClient-BVHoiz0w.js">
     <link rel="modulepreload" crossorigin href="/assets/turnNotice-BIDK-JRW.js">
     <link rel="modulepreload" crossorigin href="/assets/fiveToolsArchiveCore-tLcUxIcx.js">
     <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-D27kjyro.js">
     <link rel="modulepreload" crossorigin href="/assets/optionsProjection-RstzBNPG.js">
-    <link rel="modulepreload" crossorigin href="/assets/perfProbe-BjxYM0kF.js">
-    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-CNdk6T0R.js">
-    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-BReBSU1f.js">
+    <link rel="modulepreload" crossorigin href="/assets/perfProbe-Bwvo2a-S.js">
+    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-Dbt6oBHk.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-COvzUnkO.js">
   </head>
   <body>
     <div id="notice-stack">
