@@ -4,7 +4,7 @@ Micro-audit del 04/11/2026 su `pc-attack.html` e `src/pc-attack.js`, chiesto dal
 
 Restano fermi i colori del costo in stile Baldur's Gate, il rosso solo per il danno e niente conteggi sui tab, già decisi dall'utente.
 
-Stato: D2 e D3 approvate il 04/11/2026; D1 rovesciata dall'utente dopo la prova. Lotti 1, 2, 3, 4 e 5 fatti, il 6 annullato, resta il 7. Prima del 7, altre rifiniture chieste dall'utente: vedi «Dopo la prova dell'utente».
+Stato: D2 e D3 approvate il 04/11/2026; D1 rovesciata dall'utente dopo la prova. Lotti 1, 2, 3, 4, 5 e 7 fatti, il 6 annullato.
 
 ## Misure
 
@@ -99,7 +99,7 @@ Tutti riguardano l'aspetto: danni, PF e registrazione non si toccano.
 4. **Aree.** Danno prima dell'elenco, righe compatte, PF sempre visibili. Fatto. In più, area, TS e CD una volta sola sotto il selettore, `Tiro` sotto il selettore anche fuori dalle aree, `+ Danno extra` sulla riga del danno.
 5. **Pill, icone e colori.** Una forma per gli usi, una famiglia di frecce, emoji, colori per significato, note brevi di Immagine speculare e Scudo. Fatto sul pannello attacchi. La console boss conserva testi lunghi e colori fino al lotto 7. Gli usi a zero passano dal rosso al giallo: il rosso è solo del danno.
 6. **Altezza della finestra.** Fatto in `e5c01287`, annullato in `a03ebd7d` dopo la prova dell'utente: la finestra resta di 560 px.
-7. **Console boss.** Quello che vale anche lì: condividono `public/console-shell.css`.
+7. **Console boss.** Fatto il 05/11/2026, col principio dato dall'utente: è parente stretta del pannello attacchi, quindi stessi principi. Vedi «Lotto 7».
 
 ## Decisioni
 
@@ -134,6 +134,27 @@ Al banco, sui 38 stati:
 - 33 stati hanno più di 40 px vuoti (mediana 180, massimo 258): è il prezzo dell'altezza costante.
 - Scorre un solo stato: le manovre, di 172 px.
 - I nomi lunghi si tagliano prima: `Mischia` divide il selettore col nome, che resta intero nel suggerimento.
+
+## Lotto 7: la console boss
+
+Le regole comuni stanno ora in `public/console-panel.css`, caricato da `pc-attack.html` e `boss-actions.html`: le due console non possono più divergere. Al banco il pannello attacchi resta identico al pixel. La finestra del Caos selvaggio, che carica solo `console-shell.css`, non cambia. Danni, PF, usi e registrazione restano gli stessi: cambiano parole e disposizione.
+
+Resta diversa la struttura: la console boss ha un elenco di azioni e un modulo con la freccia per tornare, il pannello attacchi un menu sopra il modulo. Con 14 azioni in gruppi l'elenco serve, e riscriverla non era nel lotto.
+
+- **Finestra.** Alta 560 px invece di 500.
+- **Testata.** Maniglia e nome come nel pannello attacchi, menu ⋯ con `Gestisci profilo`, che prima stava in fondo all'elenco. Fase, round e Azione Epica stanno sopra l'elenco, interi; la riga sotto il nome compare solo a console ridotta.
+- **Barra di stato.** `Pronto.` non c'è più: compare dopo una registrazione, con la spunta verde o l'errore.
+- **Elenco delle azioni.** Stesso riquadro, gruppi con una linea, tab sottolineate senza conteggi, passo di 28 px. In ogni riga nome, `TS COS 19` o `Attacco +12`, usi a destra (`1/1`, giallo a zero, `Bloccata`). Il resto sta nel suggerimento e nel modulo. Prima una riga prendeva 48 px.
+- **Passive.** Un solo riquadro con una linea fra i tratti.
+- **Bersaglio.** Etichetta e menu disegnato coi PF a destra, invece del riquadro con `Cambia`. Sotto, in giallo, perché manca.
+- **Modulo.** `Mischia` e `Distanza` su una riga `Tiro`. Bonus e gittata in cima al riquadro del danno, poi il danno su una riga, i dadi accanto al nome, regole e `Dettagli` in fondo con le frecce del pannello. `Fallito` e `Superato` invece di `TS fallito` e `TS superato`.
+- **Riga fissa.** Totale e bottone fuori dal pannello che scorre, difese sotto il totale. `21 danni · PF 60 → 39` invece di `Totale 21`, `Registra` invece di `Applica`. Se è spenta dice perché, al posto del totale.
+- **Gruppi.** Prima il danno, poi la tabella delle creature nel riquadro: nome, PF, esito, danno e ×. `Tutti falliti` come testo a destra del titolo. Il promemoria «A mano» sotto la tabella. La condizione non si ripete su ogni riga: la dicono la riga dei dati e il totale. Si è tolto lo scorrimento interno: scorre il pannello.
+- **Reazioni e Immagine speculare.** Una riga senza colore col dato che serve, la regola nel suggerimento, come nel pannello attacchi.
+- **Metri.** Le distanze in metri (`Cono 18 m`, `portata 3 m`). Restano in ft il testo originale dello statblock nei `Dettagli`, la Cronologia e il registro, che questa console non scrive.
+- **Parole.** `1 creatura colpita` invece di `1 creature colpite`; i numeri dei passi solo quando sono due.
+
+Non è stato portato: `Immune` e `Marchio` restano piccole pill colorate sotto la creatura, e `Regole e verifiche del DM` ha il titolo giallo. I testi di profilo e regole restano quelli dell'importazione, in inglese dove lo statblock è in inglese.
 
 ## Prova in stanza del lotto 1
 
@@ -195,3 +216,18 @@ Al banco, sui 38 stati:
 - [ ] **Mostro con effetto al colpo:** `Effetto del colpo` sotto il danno; TS, pulsanti e danno del veleno funzionano come prima.
 - [ ] **Manovra:** `Spingi via di 1,5 m` e `Butta Prono`, poi il riquadro della prova contrapposta. Registra come prima.
 - [ ] **Dettagli aperti:** uno stacco fra dati, testo e «Ai livelli superiori».
+
+## Prova in stanza del lotto 7
+
+- [ ] **Finestra:** la console boss è alta come il pannello attacchi e non cambia altezza.
+- [ ] **Testata:** maniglia, nome, ⋯, riduci e chiudi come nel pannello attacchi; trascinarla funziona. Ridotta, sotto il nome c'è l'azione in corso, e `+` la riapre com'era.
+- [ ] **Elenco:** fase, round e Azione Epica interi in cima; righe a un solo passo; `Bloccata` e `0/1` in giallo; il suggerimento di una riga dice il resto. `Gestisci profilo` sta nel ⋯.
+- [ ] **Bersaglio:** segue la mappa finché non decidi nulla; il menu si apre, le frecce lo percorrono, Esc lo chiude senza chiudere il modulo. Con più token selezionati compaiono i loro pulsanti.
+- [ ] **Icekiss:** `Tiro`, esiti, dati nel riquadro, danno precompilato. `21 danni · PF 60 → 39`, difese sotto; un clic su una difesa la ignora e il conto cambia.
+- [ ] **Invio:** in una casella del danno registra, come il bottone.
+- [ ] **Soffio:** disegna, `Fallito` e `Superato` per creatura, `Tutti falliti`, totale con le creature e la condizione. La × toglie una creatura. Scorre il pannello e la riga fissa resta ferma.
+- [ ] **Meteor Swarm:** i pulsanti `≤3 m` includono ed escludono, con le difese sotto la creatura.
+- [ ] **Hurl, Scagliare, Epic Resistance, Cuciture, Corpo Non Era Qui:** i passi e i disegni funzionano come prima; danni e condizioni uguali.
+- [ ] **Spellcasting:** un clic su un incantesimo apre il suo pannello, come prima.
+- [ ] **Metri:** ovunque nella console, tranne il testo originale nei `Dettagli`.
+- [ ] **Annulla:** dopo `Registra` la barra dice cosa è successo, con la spunta, e **Annulla** torna indietro.

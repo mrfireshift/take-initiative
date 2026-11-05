@@ -15,7 +15,7 @@ test("the page folds a reduced console before its first paint, with the console'
   const inline = html.match(/<body>\s*<script>([\s\S]*?)<\/script>/)?.[1] || "";
   assert.ok(inline.includes(`sessionStorage.getItem("${key}") === "true"`), "the inline script reads the console's key");
   assert.match(inline, /document\.body\.dataset\.minimized = "true"/);
-  assert.match(html, /body\[data-minimized="true"\] \.panel, body\[data-minimized="true"\] \.status-bar \{ display: none; \}/);
+  assert.match(html, /body\[data-minimized="true"\] \.panel, body\[data-minimized="true"\] \.more-menu, body\[data-minimized="true"\] \.apply-host, body\[data-minimized="true"\] \.status-bar \{ display: none !important; \}/);
 });
 
 test("the console restores its reduced height at startup, before the scene reads, and only once", () => {

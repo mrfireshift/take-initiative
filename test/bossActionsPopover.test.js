@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test,{mock} from "node:test";
 import {readFile} from "node:fs/promises";
 import {createBossActionProfileStore} from "../src/bossActionProfileStore.js";
-import {createBossActionsDocument,textOf,createMemorySessionStorage} from "../test-support/fakeBossActionsDom.js";
+import {createBossActionsDocument,textOf as rawTextOf,createMemorySessionStorage} from "../test-support/fakeBossActionsDom.js";
+const textOf=(node)=>rawTextOf(node).replaceAll("\u00a0"," ");
 const META="com.thebigpicture.initiative/meta";
 const STATE="com.thebigpicture.initiative/state";
 const sdk={onReady(){},broadcast:{onMessage:()=>()=>{},sendMessage:async()=>{}},scene:{items:{getItems:async()=>[]}},popover:{close:async()=>{}}};
@@ -69,7 +70,8 @@ const listGroups=f=>f.$("boss-action-rows").children.filter(section=>section.dat
 const actionNamed=(f,name)=>profileOf(f).abilities.find(a=>a.name===name);
 const row=(f,name)=>f.$("boss-abilities").querySelectorAll("button").find(b=>b.dataset.actionId===actionNamed(f,name)?.id);
 const outcome=(f,value)=>f.$("boss-resolution").querySelector(`[data-outcome="${value}"]`);
-const targetName=f=>f.$("boss-target-name")?.textContent;
+// The creature on the menu's button; with none, the hint under it says why.
+const targetName=f=>f.$("boss-target-hint")?.textContent || f.$("boss-target-name")?.textContent;
 const apply=f=>f.$("boss-resolution").querySelectorAll("button").find(b=>b.id==="boss-apply");
 async function open(f,name){await row(f,name).click();await tick();}
 async function submit(f){await f.$("boss-resolution").querySelector("#boss-action-form").emit("submit");await tick();}
@@ -86,8 +88,8 @@ test("unbound token opens profile management; import and bind real fixtures then
     ["Proiezione Fatata",["Icekiss +2","Frostmaiden's Kiss","Mark of the Frostmaiden","Spellcasting","Meteor Swarm"]],
     ["Auril",["Gather the Winter Sky","Epic Resistance"]],
   ],"combat abilities by manifestation; traits are not in this list");
-  assert.equal(f.$("boss-tab-actions").textContent,"Azioni (14)");
-  assert.equal(f.$("boss-tab-passives").textContent,"Passive (7)");
+  assert.equal(f.$("boss-tab-actions").textContent,"Azioni");
+  assert.equal(f.$("boss-tab-passives").textContent,"Passive");
   f.controller.destroy();
 });
 
@@ -99,7 +101,7 @@ test("Icekiss with a selected map creature: Colpito then Applica sends frozen de
   assert.equal(apply(f).disabled,true);
   await outcome(f,"hit").click();
   assert.equal(apply(f).disabled,false);
-  assert.match(textOf(f.$("boss-total")),/Totale 25/);
+  assert.match(textOf(f.$("boss-total")),/25 danni/);
   await submit(f);
   assert.equal(f.calls.length,1);
   assert.deepEqual(f.calls[0].componentAmounts,{slashing:18,cold:7});
@@ -129,7 +131,7 @@ test("Blizzard: TS outcome buttons, halved total preview, unhalved components to
   assert.match(textOf(f.$("boss-resolution")),/Manuale su TS fallito: Il bersaglio viene spinto/);
   assert.equal(f.$("boss-mode"),null,"no mode choice for a save action");
   await outcome(f,"passed").click();
-  assert.match(textOf(f.$("boss-total")),/Totale 8 \(metà\)/);
+  assert.match(textOf(f.$("boss-total")),/8 danni \(metà\)/);
   await submit(f);
   assert.deepEqual(f.calls[0].componentAmounts,{bludgeoning:9,cold:9});assert.equal(f.calls[0].outcome,"passed");
   f.controller.destroy();
@@ -208,11 +210,11 @@ test("Applica reads Applico… while the command runs, and Applica again on an u
   await open(f,"Rock");await outcome(f,"hit").click();
   let release;f.runtime.executeBossAction=request=>{f.calls.push(request);return new Promise((_,reject)=>{release=()=>reject(new Error("Conferma incerta"));});};
   const running=f.$("boss-resolution").querySelector("#boss-action-form").emit("submit");await tick();
-  assert.equal(apply(f).textContent,"Applico…");assert.equal(apply(f).disabled,true);
+  assert.equal(apply(f).textContent,"Registro…");assert.equal(apply(f).disabled,true);
   await submit(f);
   assert.equal(f.calls.length,1,"a second submit while the first runs sends nothing");
   release();await running;await tick();
-  assert.equal(apply(f).textContent,"Applica");assert.equal(apply(f).disabled,false);
+  assert.equal(apply(f).textContent,"Registra");assert.equal(apply(f).disabled,false);
   f.controller.destroy();
 });
 
@@ -220,9 +222,9 @@ test("refresh and other non-resolution commands leave the Applica label alone",a
   const f=fixture({selection:["dars"]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
   await open(f,"Rock");await outcome(f,"hit").click();
   const refreshing=f.$("boss-refresh").click();
-  assert.equal(apply(f).textContent,"Applica");
+  assert.equal(apply(f).textContent,"Registra");
   await refreshing;await tick();
-  assert.equal(apply(f).textContent,"Applica");
+  assert.equal(apply(f).textContent,"Registra");
   f.controller.destroy();
 });
 
@@ -289,12 +291,36 @@ test("action search filters executable and manual rows",async()=>{
   f.controller.destroy();
 });
 
+test("the form speaks the attack panel's language: the target's menu, the facts in the box, the defenses and the total in the fixed row",async()=>{
+  const f=fixture({selection:["dars"]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
+  await open(f,"Icekiss +2");
+  assert.equal(f.$("boss-target-name").textContent,"Dars");
+  assert.equal(f.$("boss-target-choices"),null,"closed");
+  await f.$("boss-target-change").click();await tick();
+  assert.equal(f.$("boss-target-change").getAttribute("aria-expanded"),"true");
+  const menu=f.$("boss-target-choices");
+  assert.deepEqual(menu.querySelectorAll("button").map(button=>button.querySelector(".picker-row-name").textContent),["Dars","Mira"]);
+  assert.equal(menu.querySelector('[aria-pressed="true"]').dataset.targetId,"dars");
+  await f.documentRef.keydown("Escape");await tick();
+  assert.equal(f.$("boss-target-choices"),null,"Esc closes the menu");
+  assert.ok(f.$("boss-action-form"),"and not the form");
+  await f.$("boss-target-change").click();await tick();
+  await f.$("boss-target-choices").querySelector('[data-target-id="mira"]').click();await tick();
+  assert.equal(f.$("boss-target-name").textContent,"Mira");
+  assert.equal(f.$("boss-target-choices"),null);
+  assert.match(f.$("boss-damage-card").querySelector(".action-facts").textContent.replaceAll("\u00a0"," "),/^\+12 al tiro · portata 3 m · gittata 45\/180 m/);
+  assert.equal(f.$("boss-apply").textContent,"Registra");
+  assert.equal(f.$("boss-apply").getAttribute("form"),"boss-action-form","outside the panel, Enter in a field still submits");
+  await outcome(f,"hit").click();await tick();
+  assert.match(textOf(f.$("boss-total")),/25 danni · PF 45 → 20/);
+});
+
 test("an exhausted action shows a short badge, stays consultable and cannot be applied",async()=>{
   const f=fixture({selection:["mira"]});await f.controller.ready;await importAndBind(f,"auril-phase-3.html");
   const action=actionNamed(f,"Blizzard Strike");
   f.availability[action.id]={tracked:true,available:false,remaining:0,used:1,limit:1,period:"round",reason:"Risorsa esaurita."};
   await f.controller.refresh();
-  assert.match(textOf(row(f,"Blizzard Strike")),/Esaurita/);
+  assert.match(textOf(row(f,"Blizzard Strike")),/0\/1/);assert.match(row(f,"Blizzard Strike").title,/Esaurita/);
   await open(f,"Blizzard Strike");await outcome(f,"failed").click();
   assert.equal(apply(f).disabled,true);assert.match(f.$("boss-apply-hint").textContent,/esaurita/i);
   await submit(f);assert.equal(f.calls.length,0);
@@ -400,7 +426,7 @@ test("Breath: draw the cone, enter saves, apply — the drawn hits become the gr
   assert.equal(request.ruleId,"boss-action-area:cone:60ft");assert.equal(request.casterId,"auril");
   assert.deepEqual(f.heights.map(([,height])=>height),[46,500],"the console steps aside while drawing");
   assert.deepEqual(groupRows(f).map(row=>row.dataset.targetId),["dars","mira","sera"]);
-  assert.match(textOf(f.$("boss-area-step")),/Cono 60 ft disegnato: 3 creature/);
+  assert.match(textOf(f.$("boss-area-step")),/Cono 18 m disegnato: 3 creature/);
   assert.match(f.$("boss-apply-hint").textContent,/Manca l’esito di 3 bersagli/);
   await groupOutcome(f,"dars","failed").click();await groupOutcome(f,"mira","passed").click();await groupOutcome(f,"sera","passed").click();
   assert.match(textOf(groupRows(f)[0]),/−46 Accecato/);assert.match(textOf(groupRows(f)[1]),/−22/);
@@ -479,9 +505,9 @@ test("defenses: Icekiss shows the target's cold resistance, previews it and can 
   await f.controller.refresh();await open(f,"Icekiss +2");await outcome(f,"hit").click();
   const chip=f.$("boss-target-defenses").querySelector('[data-defense-type="cold"]');
   assert.equal(chip.textContent,"Res. freddo: 7 → 3","what it did to the damage");assert.equal(chip.getAttribute("aria-pressed"),"true");
-  assert.match(textOf(f.$("boss-total")),/Totale 21/,"18 + floor(7/2)");
+  assert.match(textOf(f.$("boss-total")),/21 danni/,"18 + floor(7/2)");
   await chip.click();
-  assert.match(textOf(f.$("boss-total")),/Totale 25/);
+  assert.match(textOf(f.$("boss-total")),/25 danni/);
   const ignored=f.$("boss-target-defenses").querySelector('[data-defense-type="cold"]');
   assert.equal(ignored.textContent,"Res. freddo","ignored: nothing to count");assert.equal(ignored.getAttribute("aria-pressed"),"false");
   await submit(f);
@@ -499,7 +525,7 @@ test("defenses: Breath rows apply each creature's resistance and send the frozen
   const coldChip=row=>row.querySelector('[data-defense-type="cold"]');
   assert.equal(coldChip(groupRows(f)[0]).textContent,"Res. freddo: 33 → 16","the chip says what the defense did");
   assert.equal(coldChip(groupRows(f)[1]),null);
-  assert.match(textOf(f.$("boss-total")),/Totale 75/);
+  assert.match(textOf(f.$("boss-total")),/75 danni/);
   await coldChip(groupRows(f)[0]).click();
   assert.equal(coldChip(groupRows(f)[0]).textContent,"Res. freddo","ignored: nothing to count");
   assert.match(textOf(groupRows(f)[0]),/−46/);
@@ -526,10 +552,10 @@ test("Hand Slam: no confirmation step; draw the 20 ft circle, saves, apply with 
   assert.match(f.$("boss-apply-hint").textContent,/Disegna il cerchio sulla mappa/);
   const request=await drawCone(f,["dars","mira"]);
   assert.equal(request.ruleId,"boss-action-area:circle:20ft");
-  assert.match(textOf(f.$("boss-area-step")),/1 · Cerchio 20 ft disegnato: 2 creature/);
+  assert.match(textOf(f.$("boss-area-step")),/Cerchio 6 m disegnato: 2 creature/);
   await groupOutcome(f,"dars","failed").click();await groupOutcome(f,"mira","passed").click();
   assert.match(textOf(groupRows(f)[0]),/−34 Prono/);assert.match(textOf(groupRows(f)[1]),/−16/);
-  assert.match(textOf(f.$("boss-total")),/Totale 50 · 1 Prono/);
+  assert.match(textOf(f.$("boss-total")),/50 danni · 2 creature · 1 Prono/);
   await submit(f);
   assert.equal(f.calls.length,1);
   assert.equal(f.calls[0].manualConfirmed,false);
@@ -543,16 +569,16 @@ test("Blinding Gleam: the emanation is centred on the boss, an immune creature s
   assert.equal(f.$("boss-manual-confirmed"),null);
   assert.match(textOf(f.$("boss-resolution")),/Accecato sui falliti per 1 minuto \(TS COS 19 a fine turno\) · Immune sui superati/);
   assert.equal(f.$("boss-draw-area").textContent,"Posiziona emanazione");
-  assert.match(textOf(f.$("boss-area-step")),/Emanazione 30 ft, centrata su Auril/);
+  assert.match(textOf(f.$("boss-area-step")),/Emanazione 9 m, centrata su Auril/);
   const request=await drawCone(f,["dars","mira"]);
   assert.equal(request.ruleId,"boss-action-area:emanation:30ft");assert.equal(request.casterId,"auril");
-  assert.match(textOf(f.$("boss-area-step")),/Emanazione 30 ft posizionata: 2 creature/);
+  assert.match(textOf(f.$("boss-area-step")),/Emanazione 9 m posizionata: 2 creature/);
   assert.match(textOf(groupRows(f)[1]),/Mira.*Immune/);
   await groupOutcome(f,"dars","passed").click();
   assert.match(textOf(groupRows(f)[0]),/−13 → Immune/);
   await groupOutcome(f,"mira","failed").click();
   assert.match(textOf(groupRows(f)[1]),/−27 Immune/,"damage, but Immune instead of Accecato");
-  assert.match(textOf(f.$("boss-total")),/Totale 40\s*$/,"no Accecato counted for the immune creature");
+  assert.match(textOf(f.$("boss-total")),/40 danni · 2 creature\s*$/,"no Accecato counted for the immune creature");
   await submit(f);
   assert.deepEqual(f.calls[0].expectedImmuneIds,["mira"]);
   f.controller.destroy();
@@ -573,10 +599,10 @@ test("Titan's Grasp: all-or-nothing damage, the grapple conditions on failure, a
   assert.match(textOf(rules.querySelector("pre")),/35 danni effettivi nello stesso turno/);
   assert.match(textOf(rules.querySelector("pre")),/da qualsiasi fonte/);
   await outcome(f,"passed").click();
-  assert.match(textOf(f.$("boss-total")),/Totale 0 \(nessun danno\)/);
+  assert.match(textOf(f.$("boss-total")),/^\s*0 danni/);
   assert.ok(f.$("boss-resolution").querySelectorAll("[data-component-id]").every(input=>input.disabled));
   await outcome(f,"failed").click();
-  assert.match(textOf(f.$("boss-total")),/Totale 43/);
+  assert.match(textOf(f.$("boss-total")),/43 danni/);
   assert.equal(apply(f).disabled,false);
   await submit(f);
   assert.equal(f.calls.length,1);assert.equal(f.calls[0].outcome,"failed");assert.equal(f.calls[0].targetId,"dars");
@@ -599,7 +625,7 @@ test("Crush asks for the creature Auril holds and then resolves it",async()=>{
   assert.match(f.$("boss-apply-hint").textContent,/deve essere Afferrato dal boss/);
   markGrappled(f,"dars");await f.controller.refresh();
   assert.equal(apply(f).disabled,false);
-  assert.match(textOf(f.$("boss-total")),/Totale 21 \(metà\)/);
+  assert.match(textOf(f.$("boss-total")),/21 danni \(metà\)/);
   f.controller.destroy();
 });
 
@@ -609,7 +635,7 @@ test("Soul-Numbing Cold: map-selected group without area or damage, at most thre
   assert.equal(f.$("boss-area-step"),null,"no drawing step");
   assert.equal(f.$("boss-manual-confirmed"),null,"nothing to confirm");
   assert.equal(f.$("boss-resolution").querySelectorAll("[data-component-id]").length,0,"no damage inputs");
-  assert.match(textOf(f.$("boss-resolution")),/TS COS CD 15 · fino a 3 creature entro 60 ft\. · Soul-Numbing Cold sui falliti fino alla fine del loro turno successivo/);
+  assert.match(textOf(f.$("boss-resolution")),/TS COS CD 15 · fino a 3 creature entro 18 m · Soul-Numbing Cold sui falliti fino alla fine del loro turno successivo/);
   assert.deepEqual(groupRows(f).map(row=>row.dataset.targetId),["dars","mira"]);
   await groupOutcome(f,"dars","failed").click();await groupOutcome(f,"mira","passed").click();
   assert.match(textOf(groupRows(f)[0]),/Debuff/);
@@ -643,7 +669,7 @@ test("Frostmaiden's Kiss: no prerequisite to confirm, a manual maximum-HP note a
   assert.equal(rules.open,false);
   assert.match(textOf(f.$("boss-resolution")),/A mano: Riduci a mano il massimo dei Punti Ferita/);
   await outcome(f,"hit").click();
-  assert.match(textOf(f.$("boss-total")),/Totale 25 · boss \+18 PF/);
+  assert.match(textOf(f.$("boss-total")),/25 danni · PF 60 → 35 · boss \+18 PF/);
   assert.equal(apply(f).disabled,false);
   await submit(f);
   assert.equal(f.calls.length,1);assert.deepEqual(f.calls[0].expectedMarkedIds,[]);
@@ -656,7 +682,7 @@ test("a marked creature: the Marchio badge, the cold resistance ignored in the p
   await f.controller.refresh();await open(f,"Icekiss +2");await outcome(f,"hit").click();
   assert.match(textOf(f.$("boss-target-defenses")),/Marchio/);
   assert.doesNotMatch(textOf(f.$("boss-target-defenses")),/Res\. freddo/,"the mark removes the cold resistance for this hit");
-  assert.match(textOf(f.$("boss-total")),/Totale 25/);
+  assert.match(textOf(f.$("boss-total")),/25 danni/);
   await submit(f);
   assert.deepEqual(f.calls[0].expectedMarkedIds,["dars"]);
   f.controller.destroy();
@@ -664,7 +690,7 @@ test("a marked creature: the Marchio badge, the cold resistance ignored in the p
   resistCold(g,"dars");markTarget(g,"dars");g.items[0].metadata[META].bossActionState={markUses:{dars:3}};
   await g.controller.refresh();await open(g,"Icekiss +2");await outcome(g,"hit").click();
   assert.match(textOf(g.$("boss-target-defenses")),/Res\. freddo.*Marchio \(usato\)/);
-  assert.match(textOf(g.$("boss-total")),/Totale 21/);
+  assert.match(textOf(g.$("boss-total")),/21 danni/);
   await submit(g);
   assert.deepEqual(g.calls[0].expectedMarkedIds,[]);
   g.controller.destroy();
@@ -673,7 +699,7 @@ test("a marked creature: the Marchio badge, the cold resistance ignored in the p
 test("Mark of the Frostmaiden: one creature from the map, Marchio on a failure, Già marchiato for a marked one",async()=>{
   const f=fixture({selection:["dars","mira"]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");markTarget(f,"mira");
   await f.controller.refresh();await open(f,"Mark of the Frostmaiden");
-  assert.match(textOf(f.$("boss-resolution")),/TS COS CD 19 · 1 creatura entro 60 ft\. · marchio sul fallimento fino alla detonazione/);
+  assert.match(textOf(f.$("boss-resolution")),/TS COS CD 19 · 1 creatura entro 18 m · marchio sul fallimento fino alla detonazione/);
   await groupOutcome(f,"dars","failed").click();await groupOutcome(f,"mira","failed").click();
   assert.match(f.$("boss-apply-hint").textContent,/Un solo bersaglio: togline 1/);
   assert.match(textOf(groupRows(f).find(row=>row.dataset.targetId==="dars")),/Marchio/);
@@ -813,7 +839,7 @@ test("Hurl: the held creature is picked, distance sets the suggested damage, lan
   assert.match(f.$("boss-apply-hint").textContent,/Scegli la distanza del lancio/);
   await f.$("boss-throw-distance").querySelectorAll("[data-throw-distance]")[1].click();await tick();
   const damage=f.$("boss-resolution").querySelector("[data-throw-damage]");
-  assert.equal(damage.value,"6","20 ft: twice the printed average");
+  assert.equal(damage.value,"6","6 m: twice the printed average");
   assert.equal(f.$("boss-throw-formula").textContent,"Contundenti 2d6");
   await f.$("boss-throw-distance").querySelectorAll("[data-throw-distance]")[2].click();await tick();
   assert.equal(damage.value,"9","the suggestion follows the distance until the GM types");
@@ -822,7 +848,7 @@ test("Hurl: the held creature is picked, distance sets the suggested damage, lan
   assert.equal(damage.value,"11","a typed roll stays");
   assert.match(f.$("boss-apply-hint").textContent,/Scegli dove atterra/);
   await f.$("boss-throw-landing").querySelectorAll("[data-throw-landing]")[1].click();await tick();
-  assert.match(textOf(f.$("boss-total")),/Totale 11 · oltre il bordo/);
+  assert.match(textOf(f.$("boss-total")),/11 danni · PF 60 → 49 · oltre il bordo/);
   await submit(f);
   assert.equal(f.calls.length,1);
   assert.deepEqual([f.calls[0].targetId,f.calls[0].distance,f.calls[0].damage,f.calls[0].landing],["dars",10,11,"edge"]);
@@ -848,8 +874,8 @@ test("Meteor Swarm: one drawing asks for every point and one confirmation return
   f.placements.at(-1).resolve({status:"confirmed",preview:{...shape(0,["dars","mira"]),targetIds:["dars","mira"],
     areas:[shape(0,["dars","mira"]),shape(3000,["mira"]),shape(6000,[]),shape(9000,[])]}});
   await tick();await tick();await tick();await tick();
-  assert.match(textOf(f.$("boss-area-step")),/4 esplosioni disegnate: 2 creature, 1 entro 10 ft/);
-  assert.match(f.$("boss-status").textContent,/^4 esplosioni: 2 creature, 1 entro 10 ft\. Inserisci i tiri salvezza\./);
+  assert.match(textOf(f.$("boss-area-step")),/4 esplosioni disegnate: 2 creature, 1 entro 3 m/);
+  assert.match(f.$("boss-status").textContent,/^4 esplosioni: 2 creature, 1 entro 3 m\. Inserisci i tiri salvezza\./);
   assert.equal(f.$("boss-draw-area").textContent,"Ridisegna tutte");
   // Redrawing keeps the confirmed set until a new one is confirmed.
   await f.$("boss-draw-area").click();await tick();
@@ -881,12 +907,12 @@ test("Meteor Swarm: draw four spaced points, within 10 ft from the drawn centres
   assert.equal(f.$("boss-draw-area").textContent,"Disegna esplosione 2/4","a shape without areas falls back to one point at a time");
   assert.match(textOf(f.$("boss-area-step")),/Esplosioni 1\/4/);
   await point(300,["dars"]);
-  assert.match(f.$("boss-status").textContent,/troppo vicina alla 1: i punti devono distare almeno 20 ft/);
+  assert.match(f.$("boss-status").textContent,/troppo vicina alla 1: i punti devono distare almeno 6 m/);
   assert.match(textOf(f.$("boss-area-step")),/Esplosioni 1\/4/,"the rejected point is not added");
   await point(3000,["mira"]);await point(6000,[]);
   assert.match(f.$("boss-apply-hint").textContent,/Disegna tutte le 4 esplosioni \(3\/4\)/);
   await point(9000,[]);
-  assert.match(textOf(f.$("boss-area-step")),/4 esplosioni disegnate: 2 creature, 1 entro 10 ft/);
+  assert.match(textOf(f.$("boss-area-step")),/4 esplosioni disegnate: 2 creature, 1 entro 3 m/);
   assert.equal(f.$("boss-draw-area").textContent,"Ridisegna tutte");
   const innerChip=id=>groupRows(f).find(row=>row.dataset.targetId===id).querySelectorAll("button").find(b=>b.dataset.innerFor===id);
   assert.equal(innerChip("dars").getAttribute("aria-pressed"),"true");
@@ -895,7 +921,7 @@ test("Meteor Swarm: draw four spaced points, within 10 ft from the drawn centres
   assert.match(textOf(groupRows(f).find(row=>row.dataset.targetId==="dars")),/−82/);
   assert.match(textOf(groupRows(f).find(row=>row.dataset.targetId==="mira")),/−49/);
   await innerChip("mira").click();await tick();
-  assert.match(textOf(groupRows(f).find(row=>row.dataset.targetId==="mira")),/−82/,"the GM includes Mira within 10 ft");
+  assert.match(textOf(groupRows(f).find(row=>row.dataset.targetId==="mira")),/−82/,"the GM includes Mira within 3 m");
   await submit(f);
   assert.equal(f.calls.length,1);
   assert.equal(f.calls[0].areaPlacements.length,4);
@@ -931,7 +957,7 @@ test("Divine Brilliance: reminded below 105 PF, confirm, emanation of conscious 
   f.items[0].metadata[META].hp=98;await f.controller.refresh();
   assert.match(textOf(f.$("boss-trigger-warning")),/Auril è sotto 105 PF \(98\): Divine Brilliance si innesca, se la Reazione è disponibile\./);
   await f.$("boss-trigger-open").click();await tick();
-  assert.match(textOf(f.$("boss-resolution")),/Polar Ray \+11 · gittata 120 ft\. · ogni creatura cosciente entro 120 ft\./);
+  assert.match(textOf(f.$("boss-resolution")),/Polar Ray \+11 · gittata 36 m · ogni creatura cosciente entro 36 m/);
   assert.match(textOf(f.$("boss-trigger-state")),/Innesco: Auril a 98 PF · sotto 105: innescata/);
   assert.match(f.$("boss-apply-hint").textContent,/Conferma innesco e Reazione disponibile/);
   assert.equal(f.$("boss-draw-area").disabled,true);
@@ -1018,7 +1044,7 @@ test("Arto che Precede il Corpo: after a hit the effect is chosen; a grab is ref
   assert.equal(f.$("boss-manual-confirmed"),null,"the manual text is a follow-up, not a prerequisite");
   await f.$("boss-outcome").querySelectorAll("[data-outcome]")[0].click();await tick();
   assert.equal(f.$("boss-hit-choice").hidden,false);
-  assert.deepEqual(f.$("boss-hit-rider").querySelectorAll("[data-hit-rider]").map(choice=>choice.textContent),["Trascinare · 10 ft","Afferrare · CD 18"]);
+  assert.deepEqual(f.$("boss-hit-rider").querySelectorAll("[data-hit-rider]").map(choice=>choice.textContent),["Trascinare · 3 m","Afferrare · CD 18"]);
   assert.match(f.$("boss-apply-hint").textContent,/Scegli l’effetto del colpo/);
   await f.$("boss-hit-rider").querySelectorAll("[data-hit-rider]")[1].click();await tick();
   assert.equal(f.$("boss-apply").disabled,false);
@@ -1048,7 +1074,7 @@ test("Scagliare: the held creature, the printed average, always Prono; a creatur
   assert.equal(f.$("boss-throw-landing"),null,"no edge: always Prono");
   assert.equal(f.$("boss-resolution").querySelector("[data-throw-damage]").value,"13");
   assert.equal(f.$("boss-throw-formula").textContent,"Forza 3d8");
-  assert.match(textOf(f.$("boss-total")),/Totale 13 · Prono/);
+  assert.match(textOf(f.$("boss-total")),/13 danni · PF 60 → 47 · Prono/);
   const collision=f.$("boss-collision-target").querySelectorAll("[data-collision-target]");
   assert.deepEqual(collision.map(choice=>choice.textContent),["Nessuna","Dars","Mira"]);
   assert.equal(collision[1].disabled,true,"the thrown creature cannot be hit by itself");
@@ -1076,7 +1102,7 @@ test("Cucitura: the slot in the header, the seam drawn up to 120 ft and kept on 
   withSequence(f,()=>({}));await f.controller.refresh();
   if(f.$("boss-tab-actions"))await f.$("boss-tab-actions").click();await tick();
   assert.match(f.$("boss-phase").textContent,/Round 3 · Azione Epica 1\/3/);
-  assert.match(textOf(row(f,"Cucitura del Non-Luogo")),/Cucitura fino a 120 ft · prima del round/);
+  assert.match(textOf(row(f,"Cucitura del Non-Luogo")),/Cucitura/);assert.match(row(f,"Cucitura del Non-Luogo").title,/Cucitura fino a 36 m · prima del round/);
   await open(f,"Cucitura del Non-Luogo");
   assert.match(textOf(f.$("boss-resolution")),/Finché esiste blocca Il Corpo Non Era Qui\. Strappare la Cucitura la usa come ultima Azione Epica del round\./);
   assert.equal(f.$("boss-draw-seam").textContent,"Disegna cucitura");
@@ -1089,14 +1115,14 @@ test("Cucitura: the slot in the header, the seam drawn up to 120 ft and kept on 
   assert.match(keep.id,/^boss-seam-/);
   assert.deepEqual(keep.metadata,{"com.thebigpicture.initiative/bossSeam":{sourceId:"auril",actionInstanceId:keep.metadata["com.thebigpicture.initiative/bossSeam"].actionInstanceId}});
   pending.resolve({status:"confirmed",preview:{...SEAM_LINE,targetIds:[]}});await tick();await tick();
-  assert.equal(f.$("boss-seam-label").textContent,"Cucitura disegnata: 45 ft.");
+  assert.equal(f.$("boss-seam-label").textContent,"Cucitura disegnata: 13,5 m.");
   // A portal on the Props layer at each end, attached to the seam drawing and marked as part of it.
   const portalIds=[`${keep.id}-portal-start`,`${keep.id}-portal-end`];
   assert.deepEqual(f.added.map(item=>[item.id,item.layer,item.attachedTo,item.position,item.metadata["com.thebigpicture.initiative/bossSeam"].portal]),
     [[portalIds[0],"PROP",keep.id,SEAM_LINE.start,"start"],[portalIds[1],"PROP",keep.id,SEAM_LINE.end,"end"]]);
   assert.match(f.added[0].image.url,/\/boss-seam-portal\.webp$/);
   assert.deepEqual([f.added[0].image.width,f.added[0].grid.dpi,f.added[0].locked,f.added[0].disableHit],[1254,627,true,true]);
-  assert.match(textOf(f.$("boss-total")),/Cucitura 45 ft fino a fine round/);
+  assert.match(textOf(f.$("boss-total")),/Cucitura 13,5 m fino a fine round/);
   assert.equal(f.$("boss-draw-seam").textContent,"Ridisegna");
   assert.equal(apply(f).disabled,false);
   await submit(f);
@@ -1127,9 +1153,9 @@ test("Cucitura Spezzata: three segments one after the other, each from the previ
   const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"shothragoth.html");grid(f);
   withSequence(f,()=>({}));await f.controller.refresh();
   if(f.$("boss-tab-actions"))await f.$("boss-tab-actions").click();await tick();
-  assert.match(textOf(row(f,"Cucitura Spezzata")),/4 punti · fino a 120 ft per tratto · prima del round/);
+  assert.match(row(f,"Cucitura Spezzata").title,/4 punti · fino a 36 m per tratto · prima del round/);
   await open(f,"Cucitura Spezzata");
-  assert.match(textOf(f.$("boss-resolution")),/3 cuciture larghe 5 ft fra 4 punti entro 60 ft · fino a 120 ft ciascuna/);
+  assert.match(textOf(f.$("boss-resolution")),/3 cuciture larghe 1,5 m fra 4 punti entro 18 m · fino a 36 m ciascuna/);
   assert.equal(f.$("boss-draw-seam").textContent,"Disegna cuciture");
   assert.match(f.$("boss-apply-hint").textContent,/Disegna tutte le cuciture \(0\/3\)/);
   const draw=async(start,end)=>{await f.$("boss-draw-seam").click();await tick();const pending=f.placements.at(-1);
@@ -1139,11 +1165,11 @@ test("Cucitura Spezzata: three segments one after the other, each from the previ
   assert.equal(first.ruleId,"boss-action-area:line:120ft:5ft");
   assert.equal(first.context.lineStart,undefined);
   assert.match(first.context.keepOnMap.id,/^boss-seam-.+-s1$/);
-  assert.equal(f.$("boss-seam-label").textContent,"Cuciture 1/3: 20 ft.");
+  assert.equal(f.$("boss-seam-label").textContent,"Cuciture 1/3: 6 m.");
   assert.equal(f.$("boss-draw-seam").textContent,"Disegna cucitura 2/3");
   assert.equal(f.$("boss-restart-seam").hidden,false);
   const second=await draw(B,C);
-  assert.equal(second.ruleId,"boss-action-area:line:120ft:5ft","every segment reaches the full 120 ft");
+  assert.equal(second.ruleId,"boss-action-area:line:120ft:5ft","every segment reaches the full 36 m");
   assert.deepEqual(second.context.lineStart,B,"the segment starts where the previous one ended");
   assert.equal(f.added.length,0,"the portals wait for the whole chain");
   const third=await draw(C,D);
@@ -1152,7 +1178,7 @@ test("Cucitura Spezzata: three segments one after the other, each from the previ
   const base=first.context.keepOnMap.id.replace(/-s1$/,"");
   assert.deepEqual(f.added.map(item=>[item.id,item.layer,item.attachedTo,item.position]),[[`${base}-portal-1`,"PROP",`${base}-s1`,A],
     [`${base}-portal-2`,"PROP",`${base}-s1`,B],[`${base}-portal-3`,"PROP",`${base}-s2`,C],[`${base}-portal-4`,"PROP",`${base}-s3`,D]]);
-  assert.equal(f.$("boss-seam-label").textContent,"Cuciture disegnate: 3 tratti, 55 ft in tutto.");
+  assert.equal(f.$("boss-seam-label").textContent,"Cuciture disegnate: 3 tratti, 16,5 m in tutto.");
   assert.equal(f.$("boss-restart-seam").hidden,true);
   assert.equal(apply(f).disabled,false);
   await submit(f);
@@ -1170,7 +1196,7 @@ test("Strappare le Cuciture: the GM picks the segments; a line on each one in tu
   await open(f,"Strappare le Cuciture");
   const boxes=f.$("boss-seam-segments").querySelectorAll("input");
   assert.deepEqual(boxes.map(box=>[box.dataset.segment,box.checked]),[["0",true],["1",true],["2",true]],"every segment by default");
-  assert.match(textOf(f.$("boss-seam-segments")),/A–B · 20 ft.*B–C · 15 ft.*C–D · 20 ft/);
+  assert.match(textOf(f.$("boss-seam-segments")),/A–B · 6 m.*B–C · 4,5 m.*C–D · 6 m/);
   boxes[1].checked=false;await boxes[1].emit("change");await tick();
   assert.equal(f.$("boss-draw-area").textContent,"Mostra le linee");
   assert.match(f.$("boss-apply-hint").textContent,/Mostra le linee delle cuciture scelte \(0\/2\)/);
@@ -1204,7 +1230,7 @@ test("Strappare la Cucitura: the line is laid on the seam; outside the last slot
   await f.$("boss-back").click();await tick();
   seam={round:3,actionId:actionNamed(f,"Cucitura del Non-Luogo").id,...SEAM_LINE,lengthFeet:45,itemIds:["boss-seam-a","boss-seam-a-geometry"]};
   await f.controller.refresh();
-  assert.match(textOf(f.$("boss-seam-note")),/Cucitura attiva \(45 ft\) fino alla fine del round 3: Il Corpo Non Era Qui bloccato; Strappare la Cucitura come ultima Azione Epica\./);
+  assert.match(textOf(f.$("boss-seam-note")),/Cucitura attiva \(13,5 m\) fino alla fine del round 3: Il Corpo Non Era Qui bloccato; Strappare la Cucitura come ultima Azione Epica\./);
   await open(f,"Strappare la Cucitura");
   assert.match(textOf(f.$("boss-sequence-step")),/È l’ultima Azione Epica del round\. Non è l’ultimo slot del round: devono ancora agire Mira, Sera/);
   assert.equal(f.$("boss-draw-area").textContent,"Mostra la linea");
@@ -1252,7 +1278,7 @@ test("Il Corpo Non Era Qui: the destination is picked on the map like Misty Step
   if(f.$("boss-tab-actions"))await f.$("boss-tab-actions").click();await tick();
   await open(f,"Il Corpo Non Era Qui");
   assert.equal(f.$("boss-pick-teleport").textContent,"Scegli destinazione");
-  assert.match(f.$("boss-teleport-label").textContent,/Dove si teletrasporta Auril \(entro 60 ft\)/);
+  assert.match(f.$("boss-teleport-label").textContent,/Dove si teletrasporta Auril \(entro 18 m\)/);
   await outcome(f,"failed").click();await tick();
   assert.match(f.$("boss-apply-hint").textContent,/Scegli dove si teletrasporta il boss/);
   assert.equal(apply(f).disabled,true);

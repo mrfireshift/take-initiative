@@ -16,7 +16,7 @@ import { bossActionTargets,bossActionGroups,bossActionExecutionKind,bossActionDa
   bossDefendedDamage,bossDefenseCounts,bossConditionDurationText,bossAreaNoun,bossCombatGroups,bossPassiveAbilities,
   bossFeetPerCell,bossInnerTargetIds,bossPointTooClose,bossGroupConfirmationText,bossGroupOutcomes,bossGroupMissingDamageIds,bossAreaTheme,bossPointDistanceFeet,
   validateBossThrowSelection,validateBossEffectEndSelection,bossReachFeet,
-  BOSS_ACTIONS_HEIGHT } from "./bossActionsViewCore.js";
+  BOSS_ACTIONS_HEIGHT,bossMetricText } from "./bossActionsViewCore.js";
 import { damageDefensesForItem, markNonmagicalDefenses, relevantDamageDefenses, damageDefenseCount, damageDefenseTag, EVASION_DEFENSE, evasionAppliesTo, evasionForItem, evasionFactor } from "./damageDefensesCore.js";
 import { bossActionAreaRuleId,bossAreaShapeLabel,bossGroupRequiresConfirmation,bossTargetImmune,bossGrappledIds,bossGrappleBlocker,bossEffectSummaryParts,
   bossMarkApplies,bossMarkReady,bossTargetMarked,bossMarkBlocker,bossMarkedDefenses,bossTriggerMet,bossActiveEffects,bossThrowDistances,
@@ -26,7 +26,7 @@ import { spellTeleportDestinationPosition } from "./spellTeleportCore.js";
 import { bossSeamDrawingIds,bossSeamPortalSpecs,bossSeamChainPortalSpecs,BOSS_SEAM_PORTAL_ASSET,BOSS_SEAM_PORTAL_PIXELS,BOSS_SEAM_PORTAL_CELLS } from "./bossSeamPortalCore.js";
 import "./popoverDrag.js";
 import { BOSS_ACTIONS_CONSOLE_CHANNEL } from "./bossActionsLauncher.js";
-import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageState } from "./mirrorImageCore.js";
+import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageShortNotice, mirrorImageState } from "./mirrorImageCore.js";
 import { renderAttackReactions } from "./attackReactionsView.js";
 import { hasReactionUsed } from "./reactionTrackerCore.js";
 import { perfBootPage } from "./perfProbe.js";
@@ -78,6 +78,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
   const $=id=>documentRef.getElementById(id);
   const status=$("boss-status"),abilities=$("boss-abilities"),resolution=$("boss-resolution"),profileSelect=$("boss-profile");
   const listView=$("boss-list-view"),manageView=$("boss-manage-view"),undoButton=$("boss-undo");
+  // Total and Registra stay in view, outside the scrolling panel, as in the attack panel.
+  const applyHost=$("boss-apply-host");
   const toolbar=["boss-import","boss-bind","boss-unbind","boss-export","boss-refresh"].map($).filter(Boolean);
   let presentation=null,targets=[],busy=false,invalidated=false,view="list",draft=null,lastUndo=null;
   let selection={status:"none",target:null,candidates:[]},searchQuery="",minimized=false,restoreHeight=DEFAULT_HEIGHT;
@@ -86,10 +88,16 @@ export function bootBossActions(documentRef=document, overrides={}) {
   let listTab=readSession(LIST_TAB_STORAGE_KEY)==="passives"?"passives":"actions";
   let refreshing=false,refreshPending=false,refreshTimer=null,liveSignature="",selectionSequence=0;
   const unsubscribers=[];
-  const node=(tag,text="",className="")=>{const element=documentRef.createElement(tag);element.textContent=text;if(className)element.className=className;return element;};
+  const node=(tag,text="",className="")=>{const element=documentRef.createElement(tag);element.textContent=bossMetricText(text);if(className)element.className=className;return element;};
+  // The stat block's own words, as printed.
+  const printed=(text,className="")=>{const element=node("pre","",className);element.textContent=text;return element;};
+  // A line of figures: on a wrap the dot stays at the end of the line, as in the attack panel.
+  const factsLine=text=>node("p",text.replace(/ · /gu,"\u00a0· "),"action-facts");
+  const creatures=(count,word="creature")=>`${count} ${count===1?(word==="creature"?"creatura":"creatura colpita"):word}`;
   const button=(text,className="small")=>{const element=node("button",text,className);element.type="button";return element;};
   const clear=element=>element?.replaceChildren();
-  const setStatus=message=>{status.textContent=message;};
+  // kind: "ok" or "error", as in the attack panel: an icon before the same text.
+  const setStatus=(message,kind="")=>{status.textContent=bossMetricText(message);if(status.dataset)status.dataset.kind=kind;};
   const selectedProfile=()=>store.list()[Number(profileSelect.value)] || null;
   const availabilityFor=action=>presentation?.availability?.[action?.id];
   const available=action=>availabilityFor(action)?.available!==false;
@@ -99,18 +107,18 @@ export function bootBossActions(documentRef=document, overrides={}) {
     lastUndo=entry?.undoAvailable && entry.historyEntryId ? {historyEntryId:entry.historyEntryId} : null;
     if(undoButton){undoButton.hidden=!lastUndo;undoButton.disabled=busy;}
   }
-  // commit (lot U4): the work applies the resolution open in the console; the button pressed reads "Applico…"
+  // commit (lot U4): the work applies the resolution open in the console; the button pressed reads "Registro…"
   // meanwhile, as the attack console's Registra reads "Registro…".
   function labelCommit(button) {
     if(!button) return;
-    if(button.dataset.idleLabel===undefined){button.dataset.idleLabel=button.textContent;button.textContent="Applico…";}
+    if(button.dataset.idleLabel===undefined){button.dataset.idleLabel=button.textContent;button.textContent="Registro…";}
     else {button.textContent=button.dataset.idleLabel;delete button.dataset.idleLabel;}
   }
   async function perform(work,{commit=false}={}) {
     if(busy || invalidated || !lifecycle.isReady()) return;
     const operation=lifecycle.capture();
     const pressed=documentRef.activeElement?.closest?.("[data-resource-commit]");
-    const commitButton=commit ? (pressed?.closest?.("#boss-resolution") ? pressed : $("boss-apply")) : null;
+    const commitButton=commit ? (pressed?.closest?.("#boss-resolution, #boss-apply-host") ? pressed : $("boss-apply")) : null;
     busy=true;toolbarState();renderBusy();labelCommit(commitButton);
     try {await work(operation);}
     catch(error) {
@@ -119,7 +127,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
         if(["conflict","rejected"].includes(error?.status) && error.result?.committed!==true && draft) {
           closeDraft({persist:false});
         }
-        setStatus(describeError(error));
+        setStatus(describeError(error),"error");
       }
     }
     finally {
@@ -163,6 +171,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     // v19: one Epic Action at the end of each character's turn.
     const slot=presentation?.sequence?.slot;
     if(slot)parts.push(slot.index?`Azione Epica ${slot.index}/${slot.total}${slot.last?" (ultima)":""}`:`Azioni Epiche: ${slot.total}`);
+    const roundLine=$("boss-round-line");if(roundLine)roundLine.textContent=parts.join(" · ");
     if(minimized && draft)parts.push(draft.action.name);
     $("boss-phase").textContent=parts.join(" · ");
   }
@@ -186,6 +195,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
   function setView(next) {
     view=next;
     listView.hidden=next!=="list";resolution.hidden=next!=="resolve";if(manageView)manageView.hidden=next!=="manage";
+    if(applyHost)applyHost.hidden=next!=="resolve";
   }
   // ---- local library: revision labels, stale binding warning, two-step cleanup ----
   let sceneBindings=[],pendingCleanup=null;
@@ -279,7 +289,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       const result=await runtime.resetBossActionResources({sourceId,profileId:presentation.profile.profileId,profileRevision:presentation.profile.profileRevision,
         bossInstanceId:presentation.bossInstanceId,sceneIdentity:presentation.sceneIdentity});
       if(!lifecycle.isCurrent(operation))return;
-      setStatus(`Risorse azzerate${result.rounds?.length?`: round ${result.rounds.join(", ")}`:""}${result.phaseUses?`, ${result.phaseUses} usi per fase`:""}.`);
+      setStatus(`Risorse azzerate${result.rounds?.length?`: round ${result.rounds.join(", ")}`:""}${result.phaseUses?`, ${result.phaseUses} usi per fase`:""}.`,"ok");
       showUndo(result);
       await refresh(operation);
     });
@@ -291,12 +301,14 @@ export function bootBossActions(documentRef=document, overrides={}) {
     sceneBindings=presentation?.binding?[{tokenId:sourceId,name:presentation.item?.name || sourceId,...presentation.binding}]:[];
   }
   function selectionLine() {
-    const line=node("div","","target-line");
-    line.appendChild(node("span","Bersaglio","caption"));
+    const line=node("div","","form-row");
+    line.appendChild(node("span","Bersaglio","form-label"));
     const target=selection.status==="single"?selection.target:null;
+    const value=node("div","","target-line");
     const name=node("span",target?target.name || target.id:bossSelectionHint(selection.status),"target-name"+(target?"":" is-empty"));
-    line.appendChild(name);
-    if(target)line.appendChild(node("span",hpText(target),"target-hp"));
+    value.appendChild(name);
+    if(target)value.appendChild(node("span",hpText(target),"target-hp"));
+    line.appendChild(value);
     line.id="boss-selection-line";
     return line;
   }
@@ -366,15 +378,23 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const meta=item?.metadata?.[META_KEY] || {};
     return Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax) ? `${meta.hp}/${meta.hpMax} PF` : "";
   }
+  // What the damage does to this creature, beside the total, as in the attack panel; what its temporary hit points take first.
+  function hpChangeText(id,amount) {
+    const meta=targetById(id)?.metadata?.[META_KEY];
+    if(!meta || !Number.isFinite(meta.hp)) return "";
+    const change=calculateQuickHPChange({value:Number(amount) || 0,hp:meta.hp,hpMax:meta.hpMax,tempHp:meta.tempHp});
+    return ` · PF ${meta.hp} → ${change.afterHP}`;
+  }
   function actionRow(action) {
     const meta=bossActionRowMeta(action,availabilityFor(action));
-    const row=button("","action-row"+(meta.exhausted?" is-exhausted":""));row.dataset.actionId=action.id;
-    const text=node("span");text.append(node("span",action.name,"action-name"),node("span",meta.tag,"action-tag"));
-    row.appendChild(text);
-    if(meta.badge){const badge=node("span",meta.badge,"badge"+(meta.exhausted?" is-exhausted":""));row.appendChild(badge);}
+    const row=button("","picker-row action-row"+(meta.exhausted?" is-exhausted":""));row.dataset.actionId=action.id;
+    // On the list's columns, as in the attack panel: the name, what it is, its uses on the right.
+    const marks=node("span","","picker-row-marks");
+    if(meta.mark){const badge=node("span",meta.mark,"badge uses-badge"+(meta.exhausted?" is-exhausted":""));badge.dataset.zero=String(meta.exhausted);if(meta.badge)badge.title=meta.badge;marks.appendChild(badge);}
+    row.append(node("span",action.name,"picker-row-name action-name"),node("span",meta.short,"picker-row-cost action-tag"),marks);
     // A sequence or hit point block names its reason; a spent counter keeps the generic text.
     const blockReason=availabilityFor(action)?.sequenceBlocked || availabilityFor(action)?.hpGated ? availabilityFor(action)?.reason : "";
-    row.title=blockReason?`${blockReason} Consultabile, non eseguibile.`:meta.exhausted?"Esaurita: consultabile, non eseguibile":action.name;
+    row.title=blockReason?`${blockReason} Consultabile, non eseguibile.`:meta.exhausted?"Esaurita: consultabile, non eseguibile":bossMetricText(`${action.name}: ${meta.tag}`);
     row.addEventListener("click",()=>{if(!busy && !invalidated)openAction(action);});
     return row;
   }
@@ -407,8 +427,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const groups=bossCombatGroups(presentation.profile),passives=bossPassiveAbilities(presentation.profile);
     const combatCount=groups.reduce((sum,group)=>sum+group.abilities.length,0);
     if(listTab==="passives" && !passives.length)listTab="actions";
-    const tabs=node("div","","segmented list-tabs");tabs.id="boss-list-tabs";tabs.setAttribute("role","tablist");
-    for(const [value,label] of [["actions",`Azioni (${combatCount})`],["passives",`Passive (${passives.length})`]]) {
+    const tabs=node("div","","segmented picker-tabs list-tabs");tabs.id="boss-list-tabs";tabs.setAttribute("role","tablist");
+    for(const [value,label] of [["actions","Azioni"],["passives","Passive"]]) {
       const tab=button(label,"");tab.id=`boss-tab-${value}`;tab.dataset.listTab=value;tab.setAttribute("role","tab");
       tab.setAttribute("aria-selected",String(listTab===value));tab.setAttribute("aria-pressed",String(listTab===value));
       tab.disabled=value==="passives" && !passives.length;
@@ -436,19 +456,19 @@ export function bootBossActions(documentRef=document, overrides={}) {
       return;
     }
     if(combatCount>8) {
-      const search=node("input","","search");search.id="boss-action-search";search.type="search";search.placeholder="Cerca azione…";
+      const search=node("input","","picker-search");search.id="boss-action-search";search.type="search";search.placeholder="Cerca azione…";
       search.setAttribute("aria-label","Cerca azione");search.value=searchQuery;
       search.addEventListener("input",()=>{searchQuery=search.value;renderListRows();});
       abilities.appendChild(search);
     }
-    const rows=node("div","","action-groups");rows.id="boss-action-rows";rows.setAttribute("role","tabpanel");abilities.appendChild(rows);
+    const rows=node("div","","picker-list action-groups");rows.id="boss-action-rows";rows.setAttribute("role","tabpanel");abilities.appendChild(rows);
     function renderListRows() {
       const q=searchQuery.trim().toLocaleLowerCase(),visible=action=>!q || action.name.toLocaleLowerCase().includes(q);
       clear(rows);
       for(const group of groups) {
         const shown=group.abilities.filter(visible);if(!shown.length)continue;
         const section=node("section","","action-group");section.dataset.group=group.key;
-        section.appendChild(node("h3",group.label,"action-group-title"));
+        section.appendChild(node("h3",group.label,"picker-level action-group-title"));
         const list=node("div","","action-list");shown.forEach(action=>list.appendChild(actionRow(action)));
         section.appendChild(list);rows.appendChild(section);
       }
@@ -533,12 +553,13 @@ export function bootBossActions(documentRef=document, overrides={}) {
   function renderSeamResolution() {
     const action=draft.action,seam=action.execution.seam;
     const form=node("form");form.id="boss-action-form";form.className="view";
-    form.appendChild(node("p",seam.points
+    const card=node("section","","boss-card");card.id="boss-damage-card";
+    card.appendChild(factsLine(seam.points
       ? `${seam.points-1} cuciture larghe ${seam.width} ft fra ${seam.points} punti entro ${seam.range} ft · fino a ${seam.maxLength} ft ciascuna · fino alla fine del round · prima Azione Epica del round`
-      : `Cucitura larga ${seam.width} ft fra due punti entro ${seam.range} ft · lunga al massimo ${seam.maxLength} ft · fino alla fine del round · prima Azione Epica del round`,"stat-line"));
+      : `Cucitura larga ${seam.width} ft fra due punti entro ${seam.range} ft · lunga al massimo ${seam.maxLength} ft · fino alla fine del round · prima Azione Epica del round`));
     const blocked=seam.blocks.map(actionName);
     const tear=presentation?.profile?.abilities.find(entry=>entry.sequence?.after===action.id);
-    form.appendChild(node("p",[blocked.length?`Finché esiste blocca ${blocked.join(", ")}.`:"",tear?`${tear.name} la usa come ultima Azione Epica del round.`:""].filter(Boolean).join(" "),"note"));
+    card.appendChild(node("p",[blocked.length?`Finché esiste blocca ${blocked.join(", ")}.`:"",tear?`${tear.name} la usa come ultima Azione Epica del round.`:""].filter(Boolean).join(" "),"note"));
     const areaStep=node("div","","area-step");areaStep.id="boss-seam-step";
     const label=node("span","","area-label");label.id="boss-seam-label";
     const draw=button("","small");draw.id="boss-draw-seam";const cancel=button("Annulla disegno","small");cancel.id="boss-cancel-seam";
@@ -551,9 +572,10 @@ export function bootBossActions(documentRef=document, overrides={}) {
       restart.addEventListener("click",()=>{if(!draft || busy || draft.drawing || !draft.seam)return;void dropSeamDrawing(draft.seam.itemIds);draft.seam=null;
         setStatus("Cuciture annullate: ricomincia dal punto A.");renderSpecialState();persistDraft();});
     }
-    form.appendChild(areaStep);
-    form.appendChild(manualRulesBlock("A mano: "+action.manualText));
-    applyRow(form,"Applica",submitSeam);
+    card.appendChild(areaStep);
+    card.appendChild(manualRulesBlock("A mano: "+action.manualText));
+    form.appendChild(card);
+    applyRow(form,"Registra",submitSeam,card);
     resolution.appendChild(form);
     renderSpecialState();
   }
@@ -590,7 +612,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       const previous=active.seam?.itemIds || [];
       active.seam={start,end,lengthFeet:Math.min(seam.maxLength,Math.max(0,lengthFeet ?? 0)),itemIds:[itemId,`${itemId}-geometry`,...portalIds]};
       if(previous.length)void dropSeamDrawing(previous);
-      setStatus(`Cucitura disegnata: ${active.seam.lengthFeet} ft. Premi «Applica» per registrarla.`);
+      setStatus(`Cucitura disegnata: ${active.seam.lengthFeet} ft. Premi «Registra» per registrarla.`);
     } else {
       setStatus(result?.status==="cancelled"?"Disegno annullato: nessuna modifica.":`Disegno non riuscito${result?.error?": "+result.error:""}.`);
     }
@@ -652,7 +674,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
         if(draft!==active || !lifecycle.isCurrent(operation)) {void dropSeamDrawing(drawn.itemIds);return;}
       }
       active.seam=drawn;
-      setStatus(complete?`Cuciture disegnate: ${count-1} tratti, ${drawn.lengthFeet} ft in tutto. Premi «Applica» per registrarle.`
+      setStatus(complete?`Cuciture disegnate: ${count-1} tratti, ${drawn.lengthFeet} ft in tutto. Premi «Registra» per registrarle.`
         :`Cucitura ${seamLetter(index)}–${seamLetter(index+1)}: ${lengthFeet} ft. Disegna la successiva.`);
     } else {
       setStatus(result?.status==="cancelled"?"Disegno annullato: nessuna modifica.":`Disegno non riuscito${result?.error?": "+result.error:""}.`);
@@ -677,7 +699,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       active.attempted=true;active.locked=true;persistDraft();
       const result=await runtime.executeBossAction({sourceId,actionId:active.action.id,seam,...active.binding});
       if(!lifecycle.isCurrent(operation))return;
-      setStatus(`${active.action.name}: ${bossActionResultSummary(result) || "registrata"}.${result.undoAvailable?"":result.historyPending?" Cronologia in attesa di conferma: non ripetere l’azione.":" Verifica la Cronologia per annullare."}${result.manualText?"\nManuale: "+result.manualText:""}`);
+      setStatus(`${active.action.name}: ${bossActionResultSummary(result) || "registrata"}.${result.undoAvailable?"":result.historyPending?" Cronologia in attesa di conferma: non ripetere l’azione.":" Verifica la Cronologia per annullare."}${result.manualText?"\nManuale: "+result.manualText:""}`,"ok");
       showUndo(result);
       if(draft===active)closeDraft({persist:false});
       await refresh(operation);
@@ -715,7 +737,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const actionId=draft?.action?.id;
     if(draft?.drawing)void cancelArea(draft.drawing).catch(()=>{});
     if(draft?.kind==="seam" && draft.seam && !draft.attempted)void dropSeamDrawing(draft.seam.itemIds);
-    draft=null;clear(resolution);resolution.classList?.remove?.("is-group");setView("list");if(persist)persistDraft();else writeSession(draftStorageKey(),null);
+    draft=null;clear(resolution);clear(applyHost);setView("list");if(persist)persistDraft();else writeSession(draftStorageKey(),null);
     renderList();renderHeader();
     if(focusAction && actionId)[...abilities.querySelectorAll("button")].find(row=>row.dataset.actionId===actionId)?.focus?.();
   }
@@ -750,7 +772,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       target,attacker:presentation?.item || null,items:[...targets,...(presentation?.item?[presentation.item]:[])],
       attack:{roll:draft.kind==="attack-damage",melee:mode==="melee",outcome:outcomeChoice(),
         damageTypes:bossActionDamageComponents(draft.action).map(component=>component.type)},
-    },{busy:busy || reactionsBusy,retaliate:retaliateOnBoss,cast:castTargetReaction,buttonClass:"small"});
+    },{busy:busy || reactionsBusy,retaliate:retaliateOnBoss,cast:castTargetReaction,compact:true});
   }
   async function retaliateOnBoss(row,amount) {
     if(reactionsBusy || !presentation?.item) return;
@@ -801,50 +823,80 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(!box || !draft) return;
     clear(box);
     const target=targetById(draft.targetId);
-    const line=node("div","","target-line");
-    line.appendChild(node("span","Bersaglio","caption"));
-    const hint=draft.targetId?"Bersaglio non più nel tracker.":draft.candidates?.length?bossSelectionHint("multiple")
-      :selection.status==="single"?"Scegli il bersaglio.":bossSelectionHint(selection.status) || bossSelectionHint("none");
-    const name=node("span",target?target.name || target.id:hint,"target-name"+(target?"":" is-empty"));
-    name.id="boss-target-name";line.appendChild(name);
-    if(target)line.appendChild(node("span",hpText(target),"target-hp"));
+    const field=node("div","","form-row");field.appendChild(node("span","Bersaglio","form-label"));
+    // The creature on the menu's button, its hit points on the right, as in the attack panel; the map still drives it.
+    const dropdown=node("div","","picker-dropdown");dropdown.id="boss-target-dropdown";
+    const change=button("","picker-dropdown-button");change.id="boss-target-change";change.disabled=busy;
+    change.setAttribute("aria-haspopup","true");change.setAttribute("aria-expanded",String(!!draft.picker));change.setAttribute("aria-label","Bersaglio");
+    const name=node("span",target?target.name || target.id:"—","picker-row-name");name.id="boss-target-name";
+    change.append(name,...(target && hpText(target)?[node("span",hpText(target),"picker-row-hp")]:[]),node("span","","picker-dropdown-caret"));
+    change.addEventListener("click",()=>{if(!draft || busy)return;draft.picker=!draft.picker;renderTargetBox();if(draft.picker)focusTargetMenu();});
+    change.addEventListener("keydown",event=>{if(event.key==="ArrowDown" && draft && !draft.picker && !busy){event.preventDefault?.();draft.picker=true;renderTargetBox();focusTargetMenu();}});
+    dropdown.appendChild(change);field.appendChild(dropdown);box.appendChild(field);
+    if(!target) {
+      const hint=node("p",draft.targetId?"Bersaglio non più nel tracker.":draft.candidates?.length?bossSelectionHint("multiple")
+        :selection.status==="single"?"Scegli il bersaglio.":bossSelectionHint(selection.status) || bossSelectionHint("none"),"hint");
+      hint.id="boss-target-hint";box.appendChild(hint);
+    }
+    // In the fixed row, under the total they explain, as in the attack panel; what they did to the damage is on each chip.
     let chips=target?defenseChips(target.id,()=>{renderTargetBox();renderDraftState();},defenseCountsFor(target.id,draft.outcome)):null;
     const mark=target?markBadge(target.id):null;
     if(mark){if(!chips){chips=node("span","","defense-chips");chips.dataset.defensesFor=target.id;}chips.appendChild(mark);}
-    const change=button(draft.picker?"Chiudi":"Cambia");change.id="boss-target-change";change.disabled=busy;
-    change.addEventListener("click",()=>{if(!draft || busy)return;draft.picker=!draft.picker;renderTargetBox();});
-    line.appendChild(change);box.appendChild(line);
-    if(chips){const defenses=node("div","","target-line");defenses.id="boss-target-defenses";defenses.append(node("span","Difese","caption"),chips);box.appendChild(defenses);}
+    const defenses=$("boss-target-defenses");
+    if(defenses)defenses.replaceChildren(...(chips?[chips]:[]));
     // Mirror Image on the target of an attack roll (lotto C): a hit on a duplicate destroys it, the caster takes nothing.
     const mirror=target && draft.kind==="attack-damage"?mirrorImageState(target):null;
     if(mirror) {
       const row=node("div","","mirror-image");row.id="boss-target-mirror-image";
-      const hit=button("Duplicato colpito");hit.id="boss-target-mirror-image-hit";hit.disabled=busy || mirrorBusy;
+      const hit=button("Duplicato colpito","mini-button");hit.id="boss-target-mirror-image-hit";hit.disabled=busy || mirrorBusy;
       hit.addEventListener("click",()=>void destroyMirrorDuplicate(mirror.instanceId));
-      row.append(node("p",mirrorImageNotice(mirror),"mirror-image-note"),hit);box.appendChild(row);
+      const note=node("p",mirrorImageShortNotice(mirror),"mirror-image-note");note.title=mirrorImageNotice(mirror);
+      row.append(note,hit);box.appendChild(row);
     }
     // CAP-REACTION: the target's Sanctuary, its shield's retaliation and the reactions it can still cast.
     if(target && ["attack-damage","save-damage"].includes(draft.kind)) {
       const reactions=node("div","","attack-reactions");reactions.id="boss-target-reactions";reactions.hidden=true;
       box.appendChild(reactions);renderBossTargetReactions();
     }
-    const choices=draft.picker?targets:draft.candidates?.length?draft.candidates:[];
     if(draft.suggestion && !draft.picker) {
       const offer=node("div","","target-line");offer.appendChild(node("span",`Selezione mappa: ${draft.suggestion.name || draft.suggestion.id}`,"muted"));
-      const use=button("Usa questo");use.id="boss-target-use-selection";use.disabled=busy;
+      const use=button("Usa questo","mini-button");use.id="boss-target-use-selection";use.disabled=busy;
       use.addEventListener("click",()=>chooseTarget(draft.suggestion.id));offer.appendChild(use);box.appendChild(offer);
     }
-    if(choices.length) {
+    if(draft.picker) {
+      // The menu: one row each, the hit points on the right.
+      const menu=node("div","","picker-menu");menu.id="boss-target-choices";menu.setAttribute("role","group");menu.setAttribute("aria-label","Bersagli");
+      targets.forEach(item=>{
+        const choice=button("","picker-row");choice.dataset.targetId=item.id;choice.disabled=busy;choice.title=`${item.name || item.id}${hpText(item)?" · "+hpText(item):""}`;
+        choice.setAttribute("aria-pressed",String(draft.targetId===item.id));
+        choice.append(node("span",item.name || item.id,"picker-row-name"),...(hpText(item)?[node("span",hpText(item),"picker-row-hp")]:[]));
+        choice.addEventListener("click",()=>chooseTarget(item.id));menu.appendChild(choice);
+      });
+      if(!targets.length)menu.appendChild(node("p","Nessuna creatura nel tracker.","muted"));
+      dropdown.appendChild(menu);
+    } else if(draft.candidates?.length) {
+      // Several tokens selected on the map: one button each, under the hint.
       const list=node("div","","target-choices");list.id="boss-target-choices";
-      choices.forEach(item=>{
-        const choice=button(`${item.name || item.id}${hpText(item)?" · "+hpText(item):""}`);choice.dataset.targetId=item.id;choice.disabled=busy;
+      draft.candidates.forEach(item=>{
+        const choice=button(`${item.name || item.id}${hpText(item)?" · "+hpText(item):""}`,"mini-button");choice.dataset.targetId=item.id;choice.disabled=busy;
         choice.setAttribute("aria-pressed",String(draft.targetId===item.id));
         choice.addEventListener("click",()=>chooseTarget(item.id));list.appendChild(choice);
       });
       box.appendChild(list);
-      const names=choices.map(item=>item.name || item.id);
+      const names=draft.candidates.map(item=>item.name || item.id);
       if(new Set(names).size<names.length)box.appendChild(node("p","Nomi uguali: seleziona un solo token sulla mappa.","muted"));
-    } else if(draft.picker) box.appendChild(node("p","Nessuna creatura nel tracker.","muted"));
+    }
+  }
+  // The target's menu, opened: the focus on the row in use, the arrows move through it.
+  function focusTargetMenu() {
+    const menu=resolution.querySelector?.("#boss-target-choices");
+    (menu?.querySelector?.('[aria-pressed="true"]') || menu?.querySelector?.("button"))?.focus?.();
+    menu?.scrollIntoView?.({block:"nearest"});
+  }
+  function closeTargetMenu({focus=false}={}) {
+    if(!draft?.picker) return;
+    draft.picker=false;renderTargetBox();
+    if(focus)resolution.querySelector?.("#boss-target-change")?.focus?.();
   }
   function segmented(id,className,options,current,onChoose) {
     const group=node("div","","segmented "+className);group.id=id;group.setAttribute("role","group");
@@ -897,7 +949,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const total=$("boss-total");
     if(total && ["attack-damage","save-damage"].includes(draft.kind)) {
       const amount=noDamageOutcome()?0:draft.targetId?defendedDamage(draft.targetId,draft.outcome):bossDamageTotal(bossActionDamageComponents(draft.action),draft.amounts,draft.outcome);
-      clear(total);total.append("Totale ",node("strong",String(amount)),noDamageOutcome()?" (nessun danno)":draft.outcome==="passed"?" (metà)":draft.outcome==="miss"?" (mancato)":"");
+      clear(total);total.append(node("strong",String(amount))," danni",noDamageOutcome()?"":draft.outcome==="passed"?" (metà)":draft.outcome==="miss"?" (mancato)":"",hpChangeText(draft.targetId,amount));
       if(draft.action.execution.drain && draft.outcome==="hit" && draft.targetId) {
         const necrotic=bossDefendedDamage(bossActionDamageComponents(draft.action).filter(component=>component.id===draft.action.execution.drain.component),
           draft.amounts,"hit",defensesOf(draft.targetId),ignoredFor(draft.targetId));
@@ -907,10 +959,10 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const apply=$("boss-apply");
     if(apply) {
       const reason=applyBlocker();
-      apply.disabled=busy || !!reason;apply.title=reason || "Applica";
-      const hint=$("boss-apply-hint");if(hint)hint.textContent=busy?"Applicazione in corso…":reason;
+      apply.disabled=busy || !!reason;apply.title=reason || "Registra";
+      const hint=$("boss-apply-hint");if(hint)hint.textContent=busy?"Registrazione in corso…":reason;
     }
-    resolution.querySelectorAll?.("[data-resource-commit]").forEach(element=>{if(element!==apply)element.disabled=busy || !available(draft.action);});
+    for(const element of [...(resolution.querySelectorAll?.("[data-resource-commit]") || []),...(applyHost?.querySelectorAll?.("[data-resource-commit]") || [])]) {if(element!==apply)element.disabled=busy || !available(draft.action);}
     renderTeleportState();
   }
   // ---- Il Corpo Non Era Qui (v21): the destination of the boss's teleport, as with Misty Step ----
@@ -933,7 +985,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(!teleport || !label) return;
     const boss=presentation?.item?.name || "Il boss";
     label.textContent=draft.drawing?`Sulla mappa: clicca la casella d'arrivo entro ${teleport.range} ft (Esc annulla).`
-      :draft.teleport?`Destinazione scelta: ${boss} si teletrasporta all'Applica.`:`1 · Dove si teletrasporta ${boss} (entro ${teleport.range} ft).`;
+      :draft.teleport?`Destinazione scelta: ${boss} si teletrasporta quando registri.`:`1 · Dove si teletrasporta ${boss} (entro ${teleport.range} ft).`;
+    label.textContent=bossMetricText(label.textContent);
     const pick=$("boss-pick-teleport"),cancel=$("boss-cancel-teleport");
     if(pick){pick.textContent=draft.teleport?"Cambia":"Scegli destinazione";pick.disabled=busy || !!draft.drawing || !available(draft.action);}
     if(cancel){cancel.hidden=!draft.drawing;cancel.disabled=busy;}
@@ -943,7 +996,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       const reach=draft.teleportReach,range=draft.action.execution.target.range;
       const show=!!reach && reach.targetId===draft.targetId && reach.ok===false;
       warning.hidden=!show;
-      warning.textContent=show?`${targetById(draft.targetId)?.name || "Il bersaglio"} non è entro ${range} ft dallo spazio lasciato né da quello d'arrivo: verifica sulla mappa.`:"";
+      warning.textContent=bossMetricText(show?`${targetById(draft.targetId)?.name || "Il bersaglio"} non è entro ${range} ft dallo spazio lasciato né da quello d'arrivo: verifica sulla mappa.`:"");
     }
   }
   // A warning, never a block: the creature must be within range of the space left or the one reached.
@@ -986,7 +1039,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const destination=result?.status==="confirmed"?spellTeleportDestinationPosition(result.preview):null;
     if(destination) {
       active.teleport=destination;active.teleportReach=null;
-      setStatus(`Destinazione scelta: ${presentation?.item?.name || "il boss"} si teletrasporta all'Applica.`);
+      setStatus(`Destinazione scelta: ${presentation?.item?.name || "il boss"} si teletrasporta quando registri.`);
     } else setStatus(result?.status==="cancelled"?"Scelta annullata: nessuna modifica.":`Destinazione non scelta${result?.error?": "+result.error:""}.`);
     renderDraftState();persistDraft();
   }
@@ -1013,16 +1066,16 @@ export function bootBossActions(documentRef=document, overrides={}) {
   const noDamageOutcome=()=>draft?.kind==="save-damage" && draft.outcome==="passed" && draft.action.execution.success==="none";
   const manualPrerequisite=action=>bossActionExecutionKind(action)==="attack-damage" && !action.execution?.drain && !action.execution?.onHit && !action.sequence && action.automation==="PARTIAL" && !!String(action.manualText || "").trim();
   function manualRulesBlock(text) {
-    const details=node("details","","details manual-rules");
+    const details=node("details","","spell-details manual-rules");
     details.append(node("summary","Regole e verifiche del DM"),node("pre",text));
     return details;
   }
   function detailsBlock(action) {
-    const details=node("details","","details");details.id="boss-action-details";
-    details.appendChild(node("summary","Dettagli e testo originale"));
+    const details=node("details","","spell-details");details.id="boss-action-details";
+    details.appendChild(node("summary","Dettagli"));
     const automation=bossActionAutomationSummary(action,availabilityFor(action));
     if(automation)details.appendChild(node("pre",automation.automatic+"\n"+automation.manual));
-    details.appendChild(node("pre",action.rawText));
+    details.appendChild(printed(action.rawText));
     return details;
   }
   function resolveHead(action) {
@@ -1032,11 +1085,15 @@ export function bootBossActions(documentRef=document, overrides={}) {
     head.appendChild(back);
     const title=node("h2",action.name,"title");title.id="boss-action-title";head.appendChild(title);
     const meta=bossActionRowMeta(action,availabilityFor(action));
-    if(meta.badge){const badge=node("span",meta.badge,"badge"+(meta.exhausted?" is-exhausted":""));badge.id="boss-resource-badge";head.appendChild(badge);}
+    if(meta.mark){const badge=node("span",meta.mark,"badge uses-badge"+(meta.exhausted?" is-exhausted":""));badge.id="boss-resource-badge";badge.dataset.zero=String(meta.exhausted);if(meta.badge)badge.title=meta.badge;head.appendChild(badge);}
     return head;
   }
+  // The fixed row in its place outside the panel; a page without one (the tests' document) keeps it in the form.
+  function placeApplyRow(form,row) {
+    if(applyHost)applyHost.replaceChildren(row);else form.appendChild(row);
+  }
   function renderResolution() {
-    clear(resolution);
+    clear(resolution);clear(applyHost);
     if(!draft) return;
     const action=draft.action;
     resolution.appendChild(resolveHead(action));
@@ -1044,10 +1101,10 @@ export function bootBossActions(documentRef=document, overrides={}) {
       // One button per printed spell (v8); a v1-v7 profile lists Slow alone. Area, targets and saves go to the spell panel.
       const spells=Array.isArray(action.execution.spells)?action.execution.spells:[{spellId:action.execution.spellId,name:"lentezza"}];
       resolution.appendChild(node("p",`CD ${action.execution.saveDC} · attacco +${action.execution.attackBonus}. Area, bersagli e TS si risolvono nel pannello incantesimi; l’uso 1/round viene registrato solo alla risoluzione.`,"note"));
-      const list=node("div","","spell-choices");list.id="boss-spells";
+      const list=node("div","","picker-list spell-choices");list.id="boss-spells";list.dataset.short="true";
       spells.forEach((spell,index)=>{
         const label=capitalize(spell.name)+(spell.atWill?" · a volontà":spell.perDay?` · ${spell.perDay}/giorno`:"");
-        const cast=button(label,"apply secondary");cast.id=`boss-cast-${spell.spellId}`;cast.dataset.spellId=spell.spellId;cast.dataset.resourceCommit="true";
+        const cast=button(label,"picker-row");cast.id=`boss-cast-${spell.spellId}`;cast.dataset.spellId=spell.spellId;cast.dataset.resourceCommit="true";
         if(index===0)cast.dataset.autofocus="true";
         cast.disabled=busy || !available(action);
         cast.addEventListener("click",()=>{
@@ -1068,7 +1125,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(draft.kind==="effect-end") return renderEffectEndResolution();
     if(draft.kind==="seam") return renderSeamResolution();
     if(!["attack-damage","save-damage"].includes(draft.kind)) {
-      resolution.appendChild(node("pre",action.rawText,"reference-text"));
+      resolution.appendChild(printed(action.rawText,"reference-text"));
       // Every manual combat ability can record its use (History, Combat Log); a 1/Round or 1/Phase one also spends its counter.
       if(action.automation==="UNSUPPORTED" && ["epic-action","action","reaction"].includes(action.category)) {
         const counted=action.usage?.limit===1 && ["round","phase"].includes(action.usage?.period);
@@ -1085,11 +1142,11 @@ export function bootBossActions(documentRef=document, overrides={}) {
             draft.attempted=true;persistDraft();
             const result=await runtime.registerBossActionUse({sourceId,actionId:action.id,manualConfirmed:true,...draft.binding});
             if(!lifecycle.isCurrent(operation))return;
-            setStatus(`Uso registrato: ${action.name}.`);showUndo(result);
+            setStatus(`Uso registrato: ${action.name}.`,"ok");showUndo(result);
             closeDraft({persist:false});await refresh(operation);
           });
         });
-        row.appendChild(register);resolution.appendChild(row);
+        row.appendChild(register);placeApplyRow(resolution,row);
       } else resolution.appendChild(node("p","Riferimento manuale: nessun effetto automatico.","note"));
       renderDraftState();return;
     }
@@ -1097,18 +1154,23 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const targetBox=node("div","","target-box");targetBox.id="boss-target-box";form.appendChild(targetBox);
     const execution=action.execution;
     if(execution.teleport)form.appendChild(teleportStep(execution.teleport));
+    // What gets filled in, in a box as in the attack panel: its figures on top, the rules and the details at the bottom.
+    const card=node("section","","boss-card");card.id="boss-damage-card";
     if(draft.kind==="attack-damage") {
-      form.appendChild(node("p",bossActionAttackSummary(action).replace(" (verifica manuale)",""),"stat-line"));
-      if(execution.attack.modes.length>1)form.appendChild(segmented("boss-mode","mode",execution.attack.modes.map(value=>[value,value==="melee"?"Mischia":"Distanza"]),draft.mode,
-        value=>{draft.mode=value;lockDraft();renderDecisions();persistDraft();}));
+      card.appendChild(factsLine(bossActionAttackSummary(action).replace(" (verifica manuale)","").replace(/\.$/u,"")));
+      if(execution.attack.modes.length>1) {
+        const modeRow=node("div","","form-row");modeRow.append(node("span","Tiro","form-label"),segmented("boss-mode","mode",execution.attack.modes.map(value=>[value,value==="melee"?"Mischia":"Distanza"]),draft.mode,
+          value=>{draft.mode=value;lockDraft();renderDecisions();persistDraft();}));
+        form.appendChild(modeRow);
+      }
     } else {
       const failed=(execution.onFailed?.conditions || []).map(entry=>`${entry.condition}${entry.escapeDC?` (fuga CD ${entry.escapeDC})`:""}`).join(" e ");
-      form.appendChild(node("p",[`TS ${bossAbilityLabel(execution.save.ability)} CD ${execution.save.dc}`,...(execution.target.range?[`entro ${execution.target.range} ft.`]:[]),
+      card.appendChild(factsLine([`TS ${bossAbilityLabel(execution.save.ability)} CD ${execution.save.dc}`,...(execution.target.range?[`entro ${execution.target.range} ft.`]:[]),
         execution.success==="none"?"nessun danno su successo":"metà danni su successo",...(failed?[`${failed} sui falliti`]:[]),
-        ...(execution.grapple==="hold"?["solo la creatura Afferrata dal boss, che resta Afferrata e Trattenuta"]:[])].join(" · "),"stat-line"));
+        ...(execution.grapple==="hold"?["solo la creatura Afferrata dal boss, che resta Afferrata e Trattenuta"]:[])].join(" · ")));
     }
     // Critico: the GM types the doubled dice; on a PC at 0 HP the hit is two death save failures.
-    form.appendChild(segmented("boss-outcome","outcome",draft.kind==="attack-damage"?[["hit","Colpito"],["critical","Critico"],["miss","Mancato"]]:[["failed","TS fallito"],["passed","TS superato"]],outcomeChoice(),
+    form.appendChild(segmented("boss-outcome","outcome",draft.kind==="attack-damage"?[["hit","Colpito"],["critical","Critico"],["miss","Mancato"]]:[["failed","Fallito"],["passed","Superato"]],outcomeChoice(),
       value=>{draft.critical=value==="critical";draft.outcome=value==="critical"?"hit":value;lockDraft();renderTargetBox();renderDecisions();persistDraft();}));
     if(draft.kind==="attack-damage" && execution.onHit) {
       const labels={pull:choice=>`Trascinare · ${choice.distance} ft`,grab:choice=>`Afferrare · CD ${choice.escapeDC}`};
@@ -1124,37 +1186,33 @@ export function bootBossActions(documentRef=document, overrides={}) {
       formula.dataset.damageFormula=component.formula;
       formula.dataset.damageAverage=component.printedAverage!==undefined?"media "+component.printedAverage:"calc. "+component.average;
       row.append(node("span",capitalize(bossDamageTypeLabel(component.type)),"damage-type"),formula);
-      const input=node("input");input.type="number";input.min="0";input.max="1000000";input.step="1";input.inputMode="numeric";
+      const input=node("input","","amount");input.type="number";input.min="0";input.max="1000000";input.step="1";input.inputMode="numeric";
       input.value=draft.amounts[component.id] ?? "";input.dataset.componentId=component.id;
       input.setAttribute("aria-label",`Danni ${bossDamageTypeLabel(component.type)}`);
       input.addEventListener("input",()=>{draft.amounts[component.id]=input.value;lockDraft();renderDraftState();renderTargetBox();persistDraft();});
       row.appendChild(input);damage.appendChild(row);
     }
-    form.appendChild(damage);
+    card.appendChild(damage);form.appendChild(card);
     if(execution.printedTotalAverage!==undefined) {
       const components=bossActionDamageComponents(action);
-      form.appendChild(node("p",`Totale stampato ${execution.printedTotalAverage}; medie calcolate ${components.map(c=>c.defaultAmount).join(" + ")} = ${components.reduce((sum,c)=>sum+Number(c.defaultAmount || 0),0)}. Nessuna ripartizione automatica del resto.`,"note"));
+      card.appendChild(node("p",`Totale stampato ${execution.printedTotalAverage}; medie calcolate ${components.map(c=>c.defaultAmount).join(" + ")} = ${components.reduce((sum,c)=>sum+Number(c.defaultAmount || 0),0)}. Nessuna ripartizione automatica del resto.`,"note"));
     }
     if(execution.drain && String(action.manualText || "").trim()) {
-      form.appendChild(manualRulesBlock("A mano: "+action.manualText));
+      card.appendChild(manualRulesBlock("A mano: "+action.manualText));
     }
     if(manualPrerequisite(action)) {
       const step=node("div","","manual-step");const label=node("label");
       const input=node("input");input.type="checkbox";input.id="boss-manual-confirmed";input.checked=draft.manualConfirmed;
       input.addEventListener("change",()=>{draft.manualConfirmed=input.checked;lockDraft();renderDraftState();renderTargetBox();persistDraft();});
-      label.append(input,node("span","Prerequisito soddisfatto: "+action.manualText));step.appendChild(label);form.appendChild(step);
+      label.append(input,node("span","Prerequisito soddisfatto: "+action.manualText));step.appendChild(label);card.appendChild(step);
     } else if(draft.kind==="save-damage" && String(action.manualText || "").trim() && execution.grapple!=="hold") {
       // Crush's text is already in the stat line; Titan's Grasp mixes a check before rolling with an effect;
       // the teleport's remainder (a free space, the target's distance) is checked before, not on a failure.
       const before=execution.grapple==="grab" || execution.teleport;
-      form.appendChild(manualRulesBlock((before?"A mano: ":"Manuale su TS fallito: ")+action.manualText));
+      card.appendChild(manualRulesBlock((before?"A mano: ":"Manuale su TS fallito: ")+action.manualText));
     }
-    form.appendChild(detailsBlock(action));
-    const row=node("div","","apply-row");
-    const totals=node("div","","total");const total=node("div");total.id="boss-total";const hint=node("div","","");hint.id="boss-apply-hint";
-    totals.append(total,hint);row.appendChild(totals);
-    const apply=button("Applica","apply");apply.type="submit";apply.id="boss-apply";apply.dataset.resourceCommit="true";row.appendChild(apply);
-    form.appendChild(row);
+    card.appendChild(detailsBlock(action));
+    placeApplyRow(form,fixedRow("Registra"));
     form.addEventListener("submit",event=>{event.preventDefault?.();return submitDraft();});
     resolution.appendChild(form);
     renderTargetBox();renderDecisions();
@@ -1211,7 +1269,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const total=$("boss-total");
     if(total && draft.kind==="throw") {
       const amount=draft.targetId?bossDefendedDamage([throwComponent()],{[throwComponent().id]:draft.damage},"hit",defensesOf(draft.targetId),ignoredFor(draft.targetId)):0;
-      clear(total);total.append("Totale ",node("strong",String(amount)),draft.landing==="edge"?" · oltre il bordo":draft.landing==="platform"?" · Prono":"");
+      clear(total);total.append(node("strong",String(amount))," danni",hpChangeText(draft.targetId,amount),draft.landing==="edge"?" · oltre il bordo":draft.landing==="platform"?" · Prono":"");
       const hit=targetById(draft.collisionTargetId);
       if(hit && draft.collisionOutcome==="failed")total.append(` · ${hit.name || hit.id} −${bossDefendedDamage([throwComponent()],{[throwComponent().id]:draft.damage},"hit",defensesOf(hit.id),ignoredFor(hit.id))} e Prono`);
       else if(hit && draft.collisionOutcome==="passed")total.append(` · ${hit.name || hit.id} illeso`);
@@ -1221,8 +1279,9 @@ export function bootBossActions(documentRef=document, overrides={}) {
       const label=$("boss-seam-label"),draw=$("boss-draw-seam"),cancel=$("boss-cancel-seam"),restart=$("boss-restart-seam");
       if(label)label.textContent=draft.drawing?"Sulla mappa: trascina fino al punto successivo, poi «Conferma sagoma» (Esc annulla)."
         :complete?`Cuciture disegnate: ${segments} tratti, ${draft.seam.lengthFeet} ft in tutto.`
-        :segments?`Cuciture ${segments}/${chain-1}: ${draft.seam.segmentsFeet.join(" + ")} ft.`
+        :segments?`Cuciture ${segments}/${chain-1}: ${draft.seam.segmentsFeet.map(feet=>`${feet} ft`).join(" + ")}.`
         :`Traccia ${chain-1} cuciture fra ${chain} punti, uno dopo l’altro.`;
+      if(label)label.textContent=bossMetricText(label.textContent);
       if(draw){draw.textContent=complete?"Ridisegna":segments?`Disegna cucitura ${segments+1}/${chain-1}`:"Disegna cuciture";draw.disabled=busy || !!draft.drawing || !available(draft.action);}
       if(cancel){cancel.hidden=!draft.drawing;cancel.disabled=busy;}
       if(restart){restart.hidden=!segments || complete || !!draft.drawing;restart.disabled=busy;}
@@ -1230,6 +1289,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     } else if(draft.kind==="seam") {
       const label=$("boss-seam-label"),draw=$("boss-draw-seam"),cancel=$("boss-cancel-seam");
       if(label)label.textContent=draft.drawing?"Sulla mappa: dal primo punto al secondo, poi «Conferma sagoma» (Esc annulla).":draft.seam?`Cucitura disegnata: ${draft.seam.lengthFeet} ft.`:"Traccia la cucitura fra i due punti.";
+      if(label)label.textContent=bossMetricText(label.textContent);
       if(draw){draw.textContent=draft.seam?"Ridisegna":"Disegna cucitura";draw.disabled=busy || !!draft.drawing || !available(draft.action);}
       if(cancel){cancel.hidden=!draft.drawing;cancel.disabled=busy;}
       if(total){clear(total);if(draft.seam)total.append("Cucitura ",node("strong",`${draft.seam.lengthFeet} ft`)," fino a fine round");}
@@ -1244,16 +1304,23 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(apply) {
       const reason=draft.kind==="throw"?throwBlocker():draft.kind==="seam"?seamBlocker():effectEndBlocker();
       apply.disabled=busy || !!reason;apply.title=reason || apply.textContent;
-      const hint=$("boss-apply-hint");if(hint)hint.textContent=busy?"Applicazione in corso…":reason;
+      const hint=$("boss-apply-hint");if(hint)hint.textContent=busy?"Registrazione in corso…":reason;
     }
   }
-  function applyRow(form,label,onSubmit) {
-    form.appendChild(detailsBlock(draft.action));
+  // The fixed row of a form: the total or why it is off, the defenses under it, the button. Outside the form, its button
+  // belongs to it all the same: Enter in a field still submits.
+  function fixedRow(label) {
     const row=node("div","","apply-row");
     const totals=node("div","","total");const total=node("div");total.id="boss-total";const hint=node("div","","");hint.id="boss-apply-hint";
-    totals.append(total,hint);row.appendChild(totals);
-    const apply=button(label,"apply");apply.type="submit";apply.id="boss-apply";apply.dataset.resourceCommit="true";row.appendChild(apply);
-    form.appendChild(row);
+    totals.append(total,hint);
+    const defenses=node("div","","defense-chips");defenses.id="boss-target-defenses";
+    const apply=button(label,"apply");apply.type="submit";apply.id="boss-apply";apply.dataset.resourceCommit="true";apply.setAttribute("form","boss-action-form");
+    row.append(defenses,totals,apply);
+    return row;
+  }
+  function applyRow(form,label,onSubmit,detailsHost=form) {
+    detailsHost.appendChild(detailsBlock(draft.action));
+    placeApplyRow(form,fixedRow(label));
     form.addEventListener("submit",event=>{event.preventDefault?.();return onSubmit();});
   }
   function choiceGroup(id,label,options,dataName,onChoose) {
@@ -1270,9 +1337,10 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(!draft.targetId && heldIds().length===1)draft.targetId=heldIds()[0];
     const form=node("form");form.id="boss-action-form";form.className="view";
     const damageLabel=bossDamageTypeLabel(execution.damage[0].type);
-    form.appendChild(node("p",execution.distance.step
+    const card=node("section","","boss-card");card.id="boss-damage-card";
+    card.appendChild(factsLine(execution.distance.step
       ? `Lancia la creatura Afferrata fino a ${execution.distance.max} ft · ${execution.damage[0].formula} ${damageLabel} ogni ${execution.distance.step} ft · Prono sulla piattaforma, TS DES CD ${execution.edge.save.dc} oltre il bordo`
-      : `Lancia la creatura Afferrata fino a ${execution.distance.max} ft · ${execution.damage[0].formula} ${damageLabel} · sempre Prono${execution.collision?` · contro un’altra creatura: TS DES CD ${execution.collision.save.dc}`:""}`,"stat-line"));
+      : `Lancia la creatura Afferrata fino a ${execution.distance.max} ft · ${execution.damage[0].formula} ${damageLabel} · sempre Prono${execution.collision?` · contro un’altra creatura: TS DES CD ${execution.collision.save.dc}`:""}`));
     const targetBox=node("div","","target-box");targetBox.id="boss-target-box";form.appendChild(targetBox);
     // A flat throw starts from the printed average; a stepped one waits for the distance.
     if(!execution.distance.step && !draft.damage)draft.damage=String(throwAverage(execution.distance.max));
@@ -1287,11 +1355,11 @@ export function bootBossActions(documentRef=document, overrides={}) {
     }));
     const damage=node("label","","damage-row");
     const formula=node("span",capitalize(damageLabel),"damage-type");formula.id="boss-throw-formula";
-    const input=node("input");input.type="number";input.min="0";input.max="1000000";input.step="1";input.inputMode="numeric";input.value=draft.damage ?? "";
+    const input=node("input","","amount");input.type="number";input.min="0";input.max="1000000";input.step="1";input.inputMode="numeric";input.value=draft.damage ?? "";
     input.dataset.throwDamage="true";input.setAttribute("aria-label",`Danni ${damageLabel} del lancio`);
     input.addEventListener("input",()=>{draft.damage=input.value;lockDraft();renderSpecialState();persistDraft();});
     const average=throwComponent()?.defaultAmount;
-    damage.append(formula,node("span",execution.distance.step?`media ${average} ogni ${execution.distance.step} ft`:`media ${average}`,"damage-formula"),input);form.appendChild(damage);
+    damage.append(formula,node("span",execution.distance.step?`media ${average} ogni ${execution.distance.step} ft`:`media ${average}`,"damage-formula"),input);card.appendChild(damage);
     if(execution.edge)form.appendChild(choiceGroup("boss-throw-landing","Atterra",[["platform","Sulla piattaforma · Prono"],["edge",`Oltre il bordo · TS DES ${execution.edge.save.dc}`]],"throwLanding",value=>{
       draft.landing=value;lockDraft();renderSpecialState();persistDraft();
     }));
@@ -1306,15 +1374,17 @@ export function bootBossActions(documentRef=document, overrides={}) {
       });
       save.id="boss-collision-save";save.hidden=!draft.collisionTargetId;form.appendChild(save);
     }
-    form.appendChild(manualRulesBlock("A mano: "+action.manualText));
-    applyRow(form,"Applica",submitThrow);
+    card.appendChild(manualRulesBlock("A mano: "+action.manualText));
+    form.appendChild(card);
+    applyRow(form,"Registra",submitThrow,card);
     resolution.appendChild(form);
     renderTargetBox();renderSpecialState();
   }
   function renderEffectEndResolution() {
     const action=draft.action,execution=action.execution;
     const form=node("form");form.id="boss-action-form";form.className="view";
-    form.appendChild(node("p",`d${execution.roll.die} · con ${execution.roll.threshold}+ l’effetto scelto termina · riuscita o fallita, il tentativo finisce nel registro combattimento`,"stat-line"));
+    const card=node("section","","boss-card");card.id="boss-damage-card";
+    card.appendChild(factsLine(`d${execution.roll.die} · con ${execution.roll.threshold}+ l’effetto scelto termina · riuscita o fallita, il tentativo finisce nel registro combattimento`));
     const effects=effectsOnBoss();
     const list=node("div","","effect-choices");list.id="boss-effect-choices";list.setAttribute("role","group");list.setAttribute("aria-label",`Effetti attivi su ${presentation?.item?.name || "boss"}`);
     if(!effects.length)list.appendChild(node("p",`Nessun effetto attivo su ${presentation?.item?.name || "boss"}.`,"muted"));
@@ -1329,11 +1399,12 @@ export function bootBossActions(documentRef=document, overrides={}) {
     }
     form.appendChild(list);
     const roll=node("label","","damage-row");
-    const input=node("input");input.type="number";input.min="1";input.max=String(execution.roll.die);input.step="1";input.inputMode="numeric";input.value=draft.roll ?? "";
+    const input=node("input","","amount");input.type="number";input.min="1";input.max=String(execution.roll.die);input.step="1";input.inputMode="numeric";input.value=draft.roll ?? "";
     input.dataset.effectRoll="true";input.setAttribute("aria-label",`Risultato del d${execution.roll.die}`);
     input.addEventListener("input",()=>{draft.roll=input.value;lockDraft();renderSpecialState();persistDraft();});
-    roll.append(node("span",`d${execution.roll.die}`,"damage-type"),node("span","niente bonus, Vantaggio o Svantaggio","damage-formula"),input);form.appendChild(roll);
-    applyRow(form,"Registra",submitEffectEnd);
+    roll.append(node("span",`d${execution.roll.die}`,"damage-type"),node("span","niente bonus, Vantaggio o Svantaggio","damage-formula"),input);card.appendChild(roll);
+    form.appendChild(card);
+    applyRow(form,"Registra",submitEffectEnd,card);
     resolution.appendChild(form);
     renderSpecialState();
   }
@@ -1350,7 +1421,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       const result=await runtime.executeBossAction({...validation.value,ignoredDefenses:ignoredFor(frozen.targetId),expectedDefenses:frozen.defenses,
         ...(frozen.collisionTargetId?{collisionIgnoredDefenses:ignoredFor(frozen.collisionTargetId),collisionExpectedDefenses:frozen.collisionDefenses}:{}),...active.binding});
       if(!lifecycle.isCurrent(operation))return;
-      setStatus(`${active.action.name}: ${bossActionResultSummary(result) || "applicata"}.${result.undoAvailable?"":result.historyPending?" Cronologia in attesa di conferma: non ripetere l’azione.":" Verifica la Cronologia per annullare."}${result.warnings?.length?"\n"+result.warnings.join("\n"):""}`);
+      setStatus(`${active.action.name}: ${bossActionResultSummary(result) || "applicata"}.${result.undoAvailable?"":result.historyPending?" Cronologia in attesa di conferma: non ripetere l’azione.":" Verifica la Cronologia per annullare."}${result.warnings?.length?"\n"+result.warnings.join("\n"):""}`,"ok");
       showUndo(result);
       if(draft===active)closeDraft({persist:false});
       await refresh(operation);
@@ -1365,7 +1436,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       active.attempted=true;active.locked=true;persistDraft();
       const result=await runtime.executeBossAction({...validation.value,...active.binding});
       if(!lifecycle.isCurrent(operation))return;
-      setStatus(`${active.action.name} ${bossActionResultSummary(result) || "registrata"}.${result.undoAvailable?"":result.historyPending?" Cronologia in attesa di conferma: non ripetere l’azione.":" Verifica la Cronologia per annullare."}`);
+      setStatus(`${active.action.name} ${bossActionResultSummary(result) || "registrata"}.${result.undoAvailable?"":result.historyPending?" Cronologia in attesa di conferma: non ripetere l’azione.":" Verifica la Cronologia per annullare."}`,"ok");
       showUndo(result);
       if(draft===active)closeDraft({persist:false});
       await refresh(operation);
@@ -1408,7 +1479,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const list=$("boss-group-targets"),offer=$("boss-group-offer"),count=$("boss-group-count");
     if(!list || !draft) return;
     clear(list);
-    if(count)count.textContent=`Bersagli (${draft.targetIds.length})`;
+    if(count)count.textContent=areaAction()?"Creature colpite":"Bersagli";
     if(!draft.targetIds.length)list.appendChild(node("p",areaAction()
       ? (areaDrawn()?"Nessuna creatura del tracker nell’area.":multiArea()?`Disegna le ${multiArea().count} esplosioni: le creature colpite compariranno qui.`:`${capitalize(groupArea()?.shape==="emanation"?"posiziona":"disegna")} ${bossAreaNoun(groupArea())}: le creature colpite compariranno qui.`)
       : selection.status==="boss"?bossSelectionHint("boss"):draft.action.execution.target.maxTargets===1?"Seleziona sulla mappa una creatura.":draft.action.execution.target.maxTargets?`Seleziona sulla mappa fino a ${draft.action.execution.target.maxTargets} creature.`:"Seleziona sulla mappa le creature nell’area.","muted"));
@@ -1420,7 +1491,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       // The name alone on its first line (it must stay readable), the HP on the second.
       const label=node("span",item?.name || id,"group-label");label.title=item?.name || id;title.appendChild(label);
       name.appendChild(title);
-      const details=node("span","","group-details");details.appendChild(node("small",item?hpText(item):"non nel tracker","group-hp"));
+      const details=node("span","","group-details");const hp=node("small",item?hpText(item).replace(/ PF$/u,""):"non nel tracker","group-hp");hp.title="Punti ferita";details.appendChild(hp);
       name.appendChild(details);
       // Defenses and immunity: a line of their own across the row (CSS), with what each one did to the damage.
       let chips=item?defenseChips(id,()=>{renderGroupTargets();renderGroupState();},outcome?defenseCountsFor(id,outcome):[]):null;
@@ -1480,7 +1551,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       }
       row.appendChild(seg);
       const damage=groupRowDamage(outcome,id);
-      damageCell.textContent=!groupComponents().length?"":damage===null?"—":"−"+damage;
+      damageCell.textContent=!groupComponents().length || damage===null?"":"−"+damage;
       row.appendChild(damageCell);
       const immunity=draft.action.execution.onPassed?.immunity;
       // An effect pill (Soul-Numbing Cold) shows a short tag; its parts are in the tooltip.
@@ -1489,6 +1560,10 @@ export function bootBossActions(documentRef=document, overrides={}) {
       const tag=node("span",outcome==="failed"?(immuneTo(id)?"Immune":effect?"Debuff":markRule?(bossTargetMarked(item,presentation?.profile)?"Già marchiato":"Marchio"):failedConditions.map(entry=>entry.condition).join(", "))
         :outcome==="passed" && immunity && !immuneTo(id)?"→ Immune":"","group-tag");
       if(effect && outcome==="failed")tag.title=`${draft.action.name}: ${bossEffectSummaryParts(effect).map(part=>part.label).join(", ")}`;
+      // With damage the facts line and the total say the condition; on the row, only what is not the same for all. Without
+      // damage it takes the damage's place.
+      tag.hidden=!!groupComponents().length && outcome==="failed";
+      row.dataset.damageless=String(!groupComponents().length);
       row.appendChild(tag);
       const remove=button("×","icon-button group-remove");remove.title=`Togli ${item?.name || id}`;remove.setAttribute("aria-label",remove.title);remove.disabled=busy;
       remove.addEventListener("click",()=>{if(!busy)setGroup(draft.targetIds.filter(entry=>entry!==id));});
@@ -1536,7 +1611,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
       const affected=draft.targetIds.filter(id=>draft.outcomes[id]==="failed" && !immuneTo(id)).length;
       const label=conditionName==="Accecato"?`Accecat${affected===1?"o":"i"}`:conditionName;
       clear(total);
-      if(groupComponents().length)total.append("Totale ",node("strong",String(damages.reduce((sum,value)=>sum+value,0))),affected && conditionName?` · ${affected} ${label}`:"");
+      const creatures=draft.targetIds.length?` · ${draft.targetIds.length} ${draft.targetIds.length===1?"creatura":"creature"}`:"";
+      if(groupComponents().length)total.append(node("strong",String(damages.reduce((sum,value)=>sum+value,0)))," danni",creatures,affected && conditionName?` · ${affected} ${label}`:"");
       else total.append(node("strong",String(affected))," con ",draft.action.name);
     }
     const apply=$("boss-apply");
@@ -1553,8 +1629,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
           drawnCount:(draft.areas || []).length,...((multiArea() || segmentArea())&&areaDrawn()?{area:draft.areas}:{}),
           outcomeValues:bossGroupOutcomes(draft.action).map(([value])=>value),
           missingDamageIds:bossGroupMissingDamageIds(draft.action,draft.targetIds,draft.outcomes,draft.targetAmounts)}));
-      apply.disabled=busy || !!reason || sharedPreview.conflicts.length>0;apply.title=reason || "Applica";
-      const hint=$("boss-apply-hint");if(hint)hint.textContent=busy?"Applicazione in corso…":reason;
+      apply.disabled=busy || !!reason || sharedPreview.conflicts.length>0;apply.title=reason || "Registra";
+      const hint=$("boss-apply-hint");if(hint)hint.textContent=busy?"Registrazione in corso…":reason;
     }
   }
   function renderAreaStep() {
@@ -1562,14 +1638,15 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(!step || !draft) return;
     const area=draft.action.execution.target.area;
     const [label,draw,cancel,restart]=step.children;
-    const number=confirmNeeded()?"2 · ":"1 · ",shape=capitalize(bossAreaShapeLabel(area));
+    const number=confirmNeeded()?"2 · ":"",shape=capitalize(bossAreaShapeLabel(area));
     if(area.count) {
       const drawn=(draft.areas || []).length;
       label.textContent=draft.drawing
         ? `${number}Sulla mappa: i ${area.count} centri uno dopo l’altro; trascina il cerchio arancione per spostarne uno, poi «Conferma sagoma» una volta sola (Esc annulla).`
         : drawn===area.count
-          ? `${number}${area.count} esplosioni disegnate: ${draft.targetIds.length} creature${area.innerRadius?`, ${(draft.innerIds || []).filter(id=>draft.targetIds.includes(id)).length} entro ${area.innerRadius} ft`:""}.`
+          ? `${number}${area.count} esplosioni disegnate: ${creatures(draft.targetIds.length)}${area.innerRadius?`, ${(draft.innerIds || []).filter(id=>draft.targetIds.includes(id)).length} entro ${area.innerRadius} ft`:""}.`
           : `${number}Esplosioni ${drawn}/${area.count}: raggio ${area.size} ft${area.innerRadius?`, punti ad almeno ${area.innerRadius*2} ft`:""}.`;
+      label.textContent=bossMetricText(label.textContent);
       draw.textContent=drawn===area.count?"Ridisegna tutte":drawn?`Disegna esplosione ${drawn+1}/${area.count}`:`Disegna le ${area.count} esplosioni`;
       const locked=confirmNeeded() && !draft.manualConfirmed;
       draw.disabled=busy || !!draft.drawing || locked;draw.title=locked?"Conferma prima il requisito.":"";
@@ -1582,8 +1659,9 @@ export function bootBossActions(documentRef=document, overrides={}) {
       label.textContent=draft.drawing
         ? `${number}Sulla mappa: la linea sulla cucitura ${bossSeamSegmentLabel(next ?? chosen[0] ?? 0)}, controllala e «Conferma sagoma» (Esc annulla).`
         : !seamSegments().length ? `${number}Nessuna cucitura in questo round.`
-        : areaDrawn() ? `${number}${drawn} ${drawn===1?"linea mostrata":"linee mostrate"}: ${draft.targetIds.length} creature colpite.`
+        : areaDrawn() ? `${number}${drawn} ${drawn===1?"linea mostrata":"linee mostrate"}: ${creatures(draft.targetIds.length,"creature colpite")}.`
         : `${number}Linee ${drawn}/${chosen.length} sulle cuciture scelte.`;
+      label.textContent=bossMetricText(label.textContent);
       draw.textContent=areaDrawn()?"Mostra di nuovo":drawn?`Mostra la linea ${bossSeamSegmentLabel(next)}`:"Mostra le linee";
       draw.disabled=busy || !!draft.drawing || !chosen.length;
       draw.title=!seamSegments().length?"Nessuna cucitura in questo round.":!chosen.length?"Scegli almeno una cucitura.":"";
@@ -1595,8 +1673,9 @@ export function bootBossActions(documentRef=document, overrides={}) {
     label.textContent=draft.drawing
       ? `${number}Sulla mappa: ${gesture}, poi «Conferma sagoma» (Esc annulla).`
       : draft.area
-        ? `${number}${shape} ${area.size} ft ${area.shape==="emanation"?"posizionata":area.shape==="seam"?"disegnata":"disegnato"}: ${draft.area.areaTargetIds.length} creature colpite.`
+        ? `${number}${shape} ${area.size} ft ${area.shape==="emanation"?"posizionata":area.shape==="seam"?"disegnata":"disegnato"}: ${creatures(draft.area.areaTargetIds.length,"creature colpite")}.`
         : `${number}${shape} ${area.size} ft, ${area.shape==="emanation"?`centrata su ${presentation?.item?.name || area.origin}`:`origine libera (${area.origin})`}.`;
+    label.textContent=bossMetricText(label.textContent);
     draw.textContent=draft.area?"Ridisegna":area.shape==="emanation"?"Posiziona emanazione":area.shape==="seam"?"Mostra la linea":`Disegna ${bossAreaShapeLabel(area)}`;
     // Strappare la Cucitura: the line follows the seam of this round.
     const noSeam=area.shape==="seam" && !presentation?.sequence?.seam;
@@ -1711,7 +1790,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       const shape=capitalize(bossAreaShapeLabel(active.action.execution.target.area));
       const done=["emanation","seam"].includes(active.action.execution.target.area.shape)?"confermata":"confermato";
       const excluded=unconscious?` (${unconscious} a 0 PF esclus${unconscious===1?"a":"e"})`:"";
-      setStatus(ids.length?`${shape} ${done}: ${ids.length} creature${excluded}. ${attackGroup()?"Inserisci i tiri per colpire e i danni.":"Inserisci i tiri salvezza."}`:`${shape} ${done}, ma non contiene creature${conscious?" coscienti":""} del tracker${excluded}.`);
+      setStatus(ids.length?`${shape} ${done}: ${creatures(ids.length)}${excluded}. ${attackGroup()?"Inserisci i tiri per colpire e i danni.":"Inserisci i tiri salvezza."}`:`${shape} ${done}, ma non contiene creature${conscious?" coscienti":""} del tracker${excluded}.`);
     } else {
       renderGroupTargets();renderGroupState();persistDraft();
       setStatus(result?.status==="cancelled"?"Disegno annullato: nessuna modifica.":`Disegno non riuscito${result?.error?": "+result.error:""}.`);
@@ -1737,18 +1816,17 @@ export function bootBossActions(documentRef=document, overrides={}) {
   }
   function renderGroupResolution() {
     const action=draft.action,execution=action.execution;
-    resolution.classList?.add?.("is-group");
     const form=node("form");form.id="boss-action-form";form.className="view group-form";
     const conditions=(execution.onFailed?.conditions || []).map(entry=>`${entry.condition} sui falliti ${bossConditionDurationText(entry,presentation?.item?.name)}`).join(", ");
     const immunity=execution.onPassed?.immunity?" · Immune sui superati":"";
     const sourceAttack=execution.sourceAction?presentation?.profile?.abilities.find(entry=>entry.id===execution.sourceAction)?.name || execution.sourceAction:"";
-    form.appendChild(node("p",execution.kind==="attack-damage"
+    form.appendChild(factsLine(execution.kind==="attack-damage"
       ? `${sourceAttack} ${execution.attack.bonus>=0?"+":""}${execution.attack.bonus} · gittata ${execution.attack.range.normal} ft. · ogni creatura cosciente entro ${execution.target.area.size} ft.`
       : execution.onFailed?.mark
       ? `TS ${bossAbilityLabel(execution.save.ability)} CD ${execution.save.dc} · 1 creatura entro ${execution.target.range} ft. · marchio sul fallimento fino alla detonazione`
       : execution.kind==="save-effect"
       ? `TS ${bossAbilityLabel(execution.save.ability)} CD ${execution.save.dc} · fino a ${execution.target.maxTargets} creature entro ${execution.target.range} ft. · ${action.name} sui falliti fino alla fine del loro turno successivo`
-      : [`TS ${bossAbilityLabel(execution.save.ability)} CD ${execution.save.dc}`,"metà danni su successo",...(conditions?[conditions]:[])].join(" · ")+immunity,"stat-line"));
+      : [`TS ${bossAbilityLabel(execution.save.ability)} CD ${execution.save.dc}`,"metà danni su successo",...(conditions?[conditions]:[])].join(" · ")+immunity));
     sequenceStep(form);
     if(execution.trigger) {
       const hp=presentation?.item?.metadata?.[META_KEY]?.hp,met=bossTriggerMet(action,presentation?.item);
@@ -1763,9 +1841,11 @@ export function bootBossActions(documentRef=document, overrides={}) {
       restrictionsText.id="boss-group-restrictions-text";restrictionsText.dataset.full=restrictionsText.textContent;
       label.append(input,restrictionsText);
       step.appendChild(label);form.appendChild(step);
-    } else if(bossGroupRestrictions(action).length) {
-      // Nothing to confirm beforehand: the manual remainder is a reminder, not a gate.
-      const note=node("p","A mano: "+bossGroupRestrictions(action).join(" · "),"note clamp");note.id="boss-group-restrictions";note.title=note.textContent;form.appendChild(note);
+    }
+    // Nothing to confirm beforehand: the manual remainder is a reminder, not a gate; under the creatures, as in the attack panel.
+    let reminder=null;
+    if(!confirmNeeded() && bossGroupRestrictions(action).length) {
+      reminder=node("p","A mano: "+bossGroupRestrictions(action).join(" · "),"note clamp");reminder.id="boss-group-restrictions";reminder.title=reminder.textContent;
     }
     if(areaAction()) {
       const areaStep=node("div","","area-step");areaStep.id="boss-area-step";
@@ -1782,17 +1862,17 @@ export function bootBossActions(documentRef=document, overrides={}) {
       cancel.addEventListener("click",()=>{if(draft?.drawing)void cancelArea(draft.drawing).catch(()=>{});});
       form.appendChild(areaStep);
     }
-    const head=node("div","","group-head");
+    // One roll for all: the damage first, then the creatures, as in the attack panel's areas.
+    const head=node("div","","section-head group-head");
     const count=node("span","","caption");count.id="boss-group-count";head.appendChild(count);
+    const tools=node("span","","area-tools");
     for(const [value,text] of execution.kind==="attack-damage"?[["hit","Tutti colpiti"],["miss","Tutti mancati"]]:[["failed","Tutti falliti"],["passed","Tutti superati"]]) {
-      const all=button(text,"small");all.dataset.groupAll=value;
-      all.addEventListener("click",()=>{if(!busy && draft.targetIds.length)setGroupOutcome(draft.targetIds,value);});head.appendChild(all);
+      const all=button(text,"area-tool");all.dataset.groupAll=value;
+      all.addEventListener("click",()=>{if(!busy && draft.targetIds.length)setGroupOutcome(draft.targetIds,value);});tools.appendChild(all);
     }
-    form.appendChild(head);
-    const offer=node("div","","target-line");offer.id="boss-group-offer";offer.hidden=true;form.appendChild(offer);
-    const list=node("div","","group-list");list.id="boss-group-targets";list.setAttribute("role","list");form.appendChild(list);
-    const tags=execution.onFailed?.conditions?.length || execution.onFailed?.effect || execution.onFailed?.mark || execution.onPassed?.immunity;
-    if(!tags)list.classList?.add?.("no-tag");
+    head.appendChild(tools);
+    const offer=node("div","","target-line");offer.id="boss-group-offer";offer.hidden=true;
+    const list=node("div","","group-list");list.id="boss-group-targets";list.setAttribute("role","list");
     const damage=node("div","","damage-inline");damage.id="boss-damage";
     if(execution.kind==="attack-damage") {
       // No shared roll: each hit types its own damage on its row (prefilled with the averages).
@@ -1802,21 +1882,18 @@ export function bootBossActions(documentRef=document, overrides={}) {
     }
     for(const component of execution.kind==="attack-damage"?[]:groupComponents()) {
       const row=node("label","","damage-cell");
-      row.append(node("span",`${capitalize(bossDamageTypeLabel(component.type))} ${component.formula}`,"damage-type"));
-      const amount=node("input");amount.type="number";amount.min="0";amount.max="1000000";amount.step="1";amount.inputMode="numeric";
+      row.append(node("span",capitalize(bossDamageTypeLabel(component.type)),"damage-type"),node("span",component.formula,"damage-formula"));
+      const amount=node("input","","amount");amount.type="number";amount.min="0";amount.max="1000000";amount.step="1";amount.inputMode="numeric";
       amount.value=draft.amounts[component.id] ?? "";amount.dataset.componentId=component.id;
       amount.title=component.printedAverage!==undefined?`Media stampata ${component.printedAverage}`:"";
       amount.setAttribute("aria-label",`Danni base ${bossDamageTypeLabel(component.type)}`);
       amount.addEventListener("input",()=>{draft.amounts[component.id]=amount.value;lockDraft();renderGroupTargets();renderGroupState();persistDraft();});
       row.appendChild(amount);damage.appendChild(row);
     }
-    form.appendChild(damage);
+    form.append(damage,head,offer,list);
+    if(reminder)form.appendChild(reminder);
     form.appendChild(detailsBlock(action));
-    const row=node("div","","apply-row");
-    const totals=node("div","","total");const total=node("div");total.id="boss-total";const hint=node("div","","");hint.id="boss-apply-hint";
-    totals.append(total,hint);row.appendChild(totals);
-    const apply=button("Applica","apply");apply.type="submit";apply.id="boss-apply";apply.dataset.resourceCommit="true";row.appendChild(apply);
-    form.appendChild(row);
+    placeApplyRow(form,fixedRow("Registra"));
     form.addEventListener("submit",event=>{event.preventDefault?.();return submitGroupDraft();});
     resolution.appendChild(form);
     renderGroupTargets();renderGroupState();
@@ -1824,7 +1901,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
   function submitGroupDraft() {
     if(!draft || busy) return;
     // Freeze the whole group: later map selections cannot add, remove or move a decision.
-    if(draft.drawing){setStatus("Completa o annulla il disegno prima di applicare.");return;}
+    if(draft.drawing){setStatus("Completa o annulla il disegno prima di registrare.");return;}
     if(!available(draft.action)){setStatus(availabilityFor(draft.action)?.reason || "Non disponibile.");return;}
     if(sequenceBlocker()){setStatus(sequenceBlocker());return;}
     const frozen=structuredClone({targetIds:draft.targetIds,outcomes:draft.outcomes,amounts:draft.amounts,targetAmounts:draft.targetAmounts || {},manualConfirmed:draft.manualConfirmed,area:draft.area,
@@ -1847,7 +1924,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
         expectedMarkedIds:frozen.expectedMarkedIds,...(evasionAppliesTo(active.action.execution)?{expectedEvasionIds:frozen.expectedEvasionIds}:{}),
         ...(sequenceWarning(active.action)?{sequenceConfirmed:active.sequenceConfirmed===true}:{}),...active.binding});
       if(!lifecycle.isCurrent(operation))return;
-      setStatus(`${active.action.name}:\n${bossActionResultSummary(result) || "applicata"}${result.undoAvailable?"":result.historyPending?"\nCronologia in attesa di conferma: non ripetere l’azione.":"\nVerifica la Cronologia per annullare."}${result.warnings?.length?"\n"+result.warnings.join("\n"):""}`);
+      setStatus(`${active.action.name}:\n${bossActionResultSummary(result) || "applicata"}${result.undoAvailable?"":result.historyPending?"\nCronologia in attesa di conferma: non ripetere l’azione.":"\nVerifica la Cronologia per annullare."}${result.warnings?.length?"\n"+result.warnings.join("\n"):""}`,"ok");
       showUndo(result);
       if(draft===active)closeDraft({persist:false});
       await refresh(operation);
@@ -1871,7 +1948,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
         ...(evasionAppliesTo(active.action.execution)?{expectedEvasion:frozen.evasion}:{}),...active.binding});
       if(!lifecycle.isCurrent(operation))return;
       const summary=bossActionResultSummary(result);
-      setStatus(`${active.action.name}: ${summary || "applicata"}.${result.undoAvailable?"":result.historyPending?" Cronologia in attesa di conferma: non ripetere l’azione.":" Verifica la Cronologia per annullare."}${result.manualText?"\nManuale: "+result.manualText:""}${result.warnings?.length?"\n"+result.warnings.join("\n"):""}`);
+      setStatus(`${active.action.name}: ${summary || "applicata"}.${result.undoAvailable?"":result.historyPending?" Cronologia in attesa di conferma: non ripetere l’azione.":" Verifica la Cronologia per annullare."}${result.manualText?"\nManuale: "+result.manualText:""}${result.warnings?.length?"\n"+result.warnings.join("\n"):""}`,"ok");
       showUndo(result);
       if(draft===active)closeDraft({persist:false});
       await refresh(operation);
@@ -1974,7 +2051,21 @@ export function bootBossActions(documentRef=document, overrides={}) {
   function runRefresh() {return perform(async operation=>{await refresh(operation,{preserveResolution:true});if(lifecycle.isCurrent(operation))setStatus("Azioni e risorse aggiornate.");});}
 
   $("boss-refresh")?.addEventListener("click",runRefresh);
-  $("boss-manage-open")?.addEventListener("click",()=>{if(!busy){renderLibrary(presentation?.profile);setView("manage");}});
+  const moreButton=$("boss-more"),moreMenu=$("boss-more-menu");
+  const moreOpen=()=>!!moreMenu && !moreMenu.hidden;
+  function setMoreOpen(open,{focus=false}={}) {
+    if(!moreMenu) return;
+    moreMenu.hidden=!open;
+    moreButton?.setAttribute("aria-expanded",String(!!open));
+    if(open)moreMenu.querySelector("button")?.focus?.();
+    else if(focus)moreButton?.focus?.();
+  }
+  moreButton?.addEventListener("click",()=>setMoreOpen(!moreOpen()));
+  documentRef.addEventListener?.("click",event=>{
+    if(moreOpen() && !event.target?.closest?.("#boss-more-menu, #boss-more"))setMoreOpen(false);
+    if(draft?.picker && !event.target?.closest?.("#boss-target-dropdown"))closeTargetMenu();
+  });
+  $("boss-manage-open")?.addEventListener("click",()=>{setMoreOpen(false);if(!busy){renderLibrary(presentation?.profile);setView("manage");}});
   $("boss-manage-back")?.addEventListener("click",()=>setView(draft?"resolve":"list"));
   $("boss-import").addEventListener("click",()=>perform(async operation=>{
     const file=$("boss-file").files?.[0];
@@ -2044,7 +2135,14 @@ export function bootBossActions(documentRef=document, overrides={}) {
   });
   $("boss-minimize")?.addEventListener("click",()=>{void setMinimized(!minimized);});
   documentRef.addEventListener?.("keydown",event=>{
+    if(draft?.picker && ["ArrowDown","ArrowUp"].includes(event.key)) {
+      const rows=[...(resolution.querySelector?.("#boss-target-choices")?.querySelectorAll?.("button") || [])],at=rows.indexOf(documentRef.activeElement);
+      if(rows.length){event.preventDefault?.();rows[Math.max(0,Math.min(rows.length-1,at+(event.key==="ArrowDown"?1:-1)))]?.focus?.();}
+      return;
+    }
     if(event.key!=="Escape" || busy) return;
+    if(moreOpen()){event.preventDefault?.();setMoreOpen(false,{focus:true});return;}
+    if(draft?.picker){event.preventDefault?.();closeTargetMenu({focus:true});return;}
     if(view==="resolve"){event.preventDefault?.();closeDraft({persist:false});}
     else if(view==="manage"){event.preventDefault?.();setView("list");}
   });

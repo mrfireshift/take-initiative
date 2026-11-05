@@ -98,10 +98,20 @@ test("save confirmation preserves entered components and sends success outcome w
 });
 
 
+test("the console shows metres, as the attack panel: 1,5 m every 5 feet, a sentence keeps its full stop",()=>{
+  assert.equal(core.bossMetricText("portata 10 ft. · gittata 150/600 ft."),"portata 3 m · gittata 45/180 m.");
+  assert.equal(core.bossMetricText("entro 5 ft."),"entro 1,5 m.");
+  assert.equal(core.bossMetricText("Cono 60 ft disegnato: 3 creature colpite."),"Cono 18 m disegnato: 3 creature colpite.");
+  assert.equal(core.bossMetricText("≤10 ft"),"≤3 m");
+  assert.equal(core.bossMetricText("30 ft + 40 ft."),"9 m + 12 m.");
+  assert.equal(core.bossMetricText("draft 5 of the soft spot"),"draft 5 of the soft spot","only a number with its feet");
+  assert.equal(core.bossMetricText(undefined),"");
+});
+
 test("ranged attack summaries omit absent reach and long range",()=>{
   const action={execution:{attack:{bonus:11,modes:["ranged"],range:{normal:120}}}};
-  assert.equal(core.bossActionAttackSummary?.(action),"Attacco +11 · Distanza · gittata 120 ft. (verifica manuale)");
-  assert.equal(core.bossActionAttackSummary?.({execution:{attack:{bonus:10,modes:["ranged"],range:{normal:50,long:100}}}}),"Attacco +10 · Distanza · gittata 50/100 ft. (verifica manuale)");
+  assert.equal(core.bossActionAttackSummary?.(action),"Distanza · +11 al tiro · gittata 120 ft. (verifica manuale)");
+  assert.equal(core.bossActionAttackSummary?.({execution:{attack:{bonus:10,modes:["ranged"],range:{normal:50,long:100}}}}),"Distanza · +10 al tiro · gittata 50/100 ft. (verifica manuale)");
 });
 
 test("a partial attack prerequisite requires explicit manual confirmation",()=>{
@@ -159,7 +169,7 @@ test("draft target follows a single selection only while pristine", async () => 
 test("row meta, labels and damage total use shared halving", async () => {
   const { bossActionRowMeta, bossDamageTotal, bossAbilityLabel, bossPhaseLabel } = await import("../src/bossActionsViewCore.js");
   const blizzard = { automation: "PARTIAL", usage: { limit: 1, period: "round" }, execution: { kind: "save-damage", save: { ability: "str", dc: 15 } } };
-  assert.deepEqual(bossActionRowMeta(blizzard, { tracked: true, available: true, remaining: 1, limit: 1, period: "round" }), { kind: "save-damage", tag: "TS FOR 15", badge: "1/1 round", exhausted: false });
+  assert.deepEqual(bossActionRowMeta(blizzard, { tracked: true, available: true, remaining: 1, limit: 1, period: "round" }), { kind: "save-damage", tag: "TS FOR 15", badge: "1/1 round", exhausted: false, short: "TS FOR 15", mark: "1/1" });
   assert.equal(bossActionRowMeta(blizzard, { tracked: true, available: false, remaining: 0, limit: 1, period: "round" }).badge, "Esaurita");
   assert.equal(bossActionRowMeta({ automation: "UNSUPPORTED", usage: { note: "Special Recharge" } }).badge, "Ricarica");
   const parts = [{ id: "b" }, { id: "c" }];

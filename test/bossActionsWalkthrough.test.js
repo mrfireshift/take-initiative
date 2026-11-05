@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import test, { mock } from "node:test";
 import { readFile } from "node:fs/promises";
 import { createVersionedIndexedDB, versionedKeyRange } from "../test-support/fakeVersionedIndexedDb.js";
-import { createBossActionsDocument, textOf, createMemorySessionStorage } from "../test-support/fakeBossActionsDom.js";
+import { createBossActionsDocument, textOf as rawTextOf, createMemorySessionStorage } from "../test-support/fakeBossActionsDom.js";
+const textOf=(node)=>rawTextOf(node).replaceAll("\u00a0"," ");
 
 globalThis.indexedDB = createVersionedIndexedDB();
 globalThis.IDBKeyRange = versionedKeyRange;
@@ -95,7 +96,7 @@ async function popover() {
     row: (name) => $("boss-abilities").querySelectorAll("button").find((b) => b.dataset.actionId && controller.getPresentation().profile.abilities.find((a) => a.id === b.dataset.actionId)?.name === name),
     form: () => $("boss-resolution").querySelector("#boss-action-form"),
     apply: () => $("boss-resolution").querySelector("#boss-apply"),
-    target: () => $("boss-target-name")?.textContent,
+    target: () => $("boss-target-hint")?.textContent || $("boss-target-name")?.textContent,
     async open(name) { await ui.row(name).click(); await settle(); },
     async importFile(name) {
       const content = await readFile(new URL("./fixtures/boss-actions/" + name, import.meta.url), "utf8");
@@ -154,9 +155,9 @@ test("phase 3: Blizzard is three interactions, consumes 1/round with the damage 
   await ui.open("Blizzard Strike"); await ui.choose("failed"); await ui.submit();
   assert.equal(meta("dars").hp, 42);
   assert.match(ui.status(), /TS fallito · 18 danni \(contundenti 9 \+ freddo 9\).*uso 1\/1 nel round 1/s);
-  assert.match(textOf(ui.row("Blizzard Strike")), /Esaurita/);
+  assert.match(textOf(ui.row("Blizzard Strike")), /0\/1/);
   await sdk.scene.setMetadata({ [STATE]: { ...sceneMetadata[STATE], round: 2 } }); await settle();
-  assert.match(textOf(ui.row("Blizzard Strike")), /1\/1 round/, "round change refreshes availability locally");
+  assert.match(textOf(ui.row("Blizzard Strike")), /1\/1/, "round change refreshes availability locally");
   assert.match(ui.$("boss-phase").textContent, /Round 2/);
   ui.controller.destroy();
 });
@@ -188,7 +189,7 @@ test("phase 2: Rock requires the prerequisite, Slow opens the spell workflow wit
     assert.match(opened[0].url, /spell-unified-panel\.html\?.*monster-action/);
     await ui.$("boss-resolution").querySelector("#boss-cast-freezing-sphere").click(); await settle();
     assert.match(opened[1].url, /spellId=freezing-sphere/);
-    assert.match(textOf(ui.$("boss-resolution")), /1\/1 round/);
+    assert.match(textOf(ui.$("boss-resolution")), /1\/1/);
     assert.equal((await bossEntries()).length, 2, "Gather the Winter Sky and Rock");
     ui.controller.destroy();
   } finally { sdk.popover.open = open; }
@@ -214,7 +215,7 @@ test("back before commit and a removed target never mutate", async () => {
   await ui.open("Blizzard Strike"); await ui.choose("failed");
   await ui.$("boss-back").click(); await settle();
   assert.equal((await bossEntries()).length, 0);
-  assert.match(textOf(ui.row("Blizzard Strike")), /1\/1 round/);
+  assert.match(textOf(ui.row("Blizzard Strike")), /1\/1/);
   await ui.open("Polar Ray"); await ui.choose("hit");
   await sdk.scene.items.updateItems(["mira"], (items) => { items[0].metadata[META].inInitiative = false; }); await settle();
   assert.equal(ui.apply().disabled, true, "a target removed from the tracker blocks Applica");

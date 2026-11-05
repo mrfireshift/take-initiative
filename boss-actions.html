@@ -7,132 +7,115 @@
   <link rel="stylesheet" href="/ui-typography.css" />
   <link rel="stylesheet" href="/popover-glass.css" />
   <link rel="stylesheet" href="/console-shell.css" />
+  <link rel="stylesheet" href="/console-panel.css" />
   <style>
-    body[data-minimized="true"] .panel, body[data-minimized="true"] .status-bar { display: none; }
-    .view p, .target-box p { margin: 0; }
-    .muted { color: var(--muted); font-size: var(--obrt-type-secondary); }
-    .search { width: 100%; min-height: var(--obrt-h-control-sm); padding: 4px var(--obrt-space-md); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); font-size: var(--obrt-type-secondary); outline: none; }
-    .search:focus { border-color: rgba(96, 165, 250, .7); }
-    .action-list { display: grid; gap: 5px; }
-    .spell-choices { display: grid; gap: 6px; margin: var(--obrt-space-sm) 0; }
-    .spell-choices .apply { width: 100%; justify-content: flex-start; }
-    .list-tabs { margin-bottom: 2px; }
-    .action-groups { display: grid; gap: var(--obrt-space-sm); }
-    .action-group { display: grid; gap: 5px; }
-    .action-group-title { margin: 2px 2px 0; color: var(--muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); letter-spacing: .06em; text-transform: uppercase; }
-    .passive-list { display: grid; gap: 6px; }
-    .passive { padding: 7px 10px; border: 1px solid rgba(148, 163, 184, .14); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
-    .passive-name { margin: 0 0 3px; font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-semibold); }
-    .aura-tag { margin-left: 6px; padding: 0 6px; border: 1px solid rgba(125, 211, 252, .45); border-radius: 999px; color: #bae6fd; font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); }
-    .aura-tag.is-off { border-color: rgba(148, 163, 184, .4); color: var(--muted); }
-    .passive-text { margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); line-height: 1.4; }
-    .action-row { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--obrt-space-sm); min-height: 40px; padding: 6px 8px 6px 10px; border: 1px solid rgba(148, 163, 184, .14); border-radius: var(--obrt-radius-md); background: var(--surface-row); text-align: left; cursor: pointer; transition: border-color .12s ease, background-color .12s ease; }
-    .action-row:hover { border-color: var(--obrt-line-strong); background: rgba(30, 64, 175, .18); }
+    /* What only the Boss console has: its language is console-shell.css's, the same as the attack panel's. */
+    /* Riduci: only the header stays, with what is in progress. */
+    body[data-minimized="true"] .panel, body[data-minimized="true"] .more-menu, body[data-minimized="true"] .apply-host, body[data-minimized="true"] .status-bar { display: none !important; }
+    body:not([data-minimized="true"]) #boss-phase { display: none; }
+    .view p { margin: 0; }
+    /* The header's ⋯: what is not about the fight. */
+    .more-action { width: 100%; min-height: var(--obrt-hit-min); padding: 0 6px; border: 0; border-radius: var(--obrt-radius-md); background: transparent; text-align: left; cursor: pointer; }
+    .more-action:hover { background: var(--obrt-hover); }
+    /* The actions, as the attack panel's lists: in a box of their own, by group, a row each on the list's columns. The panel scrolls. */
+    #boss-action-rows { flex: 0 0 auto; min-height: 0; overflow: visible; }
+    .action-group, .action-list { display: contents; }
+    .action-group > .picker-level, .action-list > .picker-row { grid-column: 1 / -1; }
+    .action-list > .picker-row { display: grid; grid-template-columns: subgrid; }
+    .action-group-title { margin: 0; }
+    .action-group:not(:first-child) > .picker-level { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--line); border-top-left-radius: 0; border-top-right-radius: 0; }
     .action-row.is-exhausted { opacity: .62; }
-    .action-name { display: block; overflow: hidden; font-weight: var(--obrt-weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
-    .action-tag { display: block; color: var(--muted); font-size: var(--obrt-type-secondary); }
-    .badge { padding: 2px 7px; border: 1px solid var(--line); border-radius: var(--obrt-radius-pill); background: var(--surface-soft); color: #bfdbfe; font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); white-space: nowrap; font-variant-numeric: tabular-nums; }
-    .badge.is-exhausted { border-color: rgba(239, 68, 68, .45); color: #fecaca; }
-    .manual-group { border: 1px solid var(--line); border-radius: var(--obrt-radius-lg); background: var(--surface-soft); }
-    .manual-group > summary { padding: 7px 10px; color: var(--muted); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-semibold); cursor: pointer; }
-    .manual-group > .action-list { padding: 0 6px 6px; }
-    .manual-group .action-row { min-height: 32px; }
-    .link-button { min-height: 27px; padding: 4px 9px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); cursor: pointer; }
-    .link-button { align-self: flex-start; border-color: transparent; background: transparent; color: #93c5fd; font-size: var(--obrt-type-secondary); padding-inline: 4px; }
-    .link-button:hover { background: var(--obrt-hover); }
+    /* The traits to read: one box, a line between them. */
+    .passive-list { display: grid; padding: 0 var(--obrt-space-xl); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
+    .passive { padding: var(--obrt-space-md) 0; }
+    .passive + .passive { border-top: 1px solid var(--line); }
+    .passive-name { margin: 0 0 3px; font-size: var(--obrt-type-body); font-weight: var(--obrt-weight-semibold); }
+    .aura-tag { margin-left: 8px; color: var(--muted); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-regular); }
+    .aura-tag.is-off { color: var(--warn-text); }
+    .passive-text { margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); line-height: 1.35; text-wrap: pretty; }
+    /* The action in progress: back to the list, its name, its uses. */
     .resolve-head { display: flex; align-items: center; gap: var(--obrt-space-sm); }
+    .resolve-head .icon-button { width: var(--obrt-hit-min); height: var(--obrt-hit-min); margin-left: -4px; font-size: 16px; }
     .resolve-head .title { flex: 1 1 auto; }
-    .target-box { display: grid; gap: 5px; padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--obrt-radius-lg); background: var(--surface-soft); }
-    .target-box > * { min-width: 0; }
-    .target-line { display: flex; align-items: center; gap: var(--obrt-space-sm); min-height: 24px; }
-    /* Mirror Image on the target: the d20 to aim at a duplicate, and the button that destroys one. */
-    .mirror-image { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid rgba(167, 139, 250, .5); border-radius: var(--obrt-radius-md); background: rgba(124, 58, 237, .16); }
-    .mirror-image-note { margin: 0; min-width: 0; font-size: var(--obrt-type-secondary); line-height: 1.35; }
-    /* CAP-REACTION: the target's Sanctuary, the retaliation of its shield and the reactions it can still cast. */
-    .attack-reactions { display: grid; gap: 4px; }
-    .attack-reactions[hidden] { display: none; }
-    .attack-reaction { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid rgba(251, 146, 60, .45); border-radius: var(--obrt-radius-md); background: rgba(194, 65, 12, .14); }
-    .attack-reaction-note { margin: 0; flex: 1 1 auto; min-width: 0; font-size: var(--obrt-type-secondary); line-height: 1.35; }
-    .attack-reactions > .attack-reaction-note { padding: 5px 8px; border: 1px solid rgba(96, 165, 250, .45); border-radius: var(--obrt-radius-md); background: rgba(37, 99, 235, .14); }
-    .attack-reaction-amount { flex: 0 0 52px; width: 52px; min-height: 24px; padding: 2px 4px; border: 1px solid var(--line, rgba(148,163,184,.35)); border-radius: var(--obrt-radius-md); background: var(--surface, rgba(0,0,0,.3)); color: inherit; }
-    .attack-reaction .small { flex: 0 0 auto; }
-    .target-name { flex: 1 1 auto; min-width: 0; overflow: hidden; font-weight: var(--obrt-weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
-    .target-name.is-empty { color: #fde68a; font-weight: var(--obrt-weight-regular); white-space: normal; overflow-wrap: anywhere; }
-    .target-hp { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    /* The target: a label and its menu, what it meets under them. */
+    #boss-target-box { display: grid; gap: var(--obrt-space-sm); }
+    .target-line { display: flex; align-items: center; justify-content: space-between; gap: var(--obrt-space-sm); min-width: 0; min-height: var(--obrt-hit-min); }
+    .target-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .target-name.is-empty { color: var(--warn-text); font-size: var(--obrt-type-secondary); white-space: normal; }
+    .target-hp { flex: 0 0 auto; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .target-choices { display: flex; flex-wrap: wrap; gap: 4px; max-height: 96px; overflow-y: auto; }
-    .target-choices .small { font-size: var(--obrt-type-secondary); }
-    .stat-line { color: var(--muted); font-size: var(--obrt-type-secondary); }
-    .segmented.mode button { min-height: var(--obrt-h-control-sm); font-size: var(--obrt-type-secondary); }
-    .damage-list { display: grid; gap: 4px; }
-    .damage-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 64px; align-items: center; gap: var(--obrt-space-sm); }
+    /* What gets filled in: in a box, with what it is made of on top and the rules at the bottom. */
+    .boss-card { display: flex; flex-direction: column; gap: var(--obrt-space-md); padding: var(--obrt-space-lg) var(--obrt-space-xl); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
+    .segmented.mode button { min-height: var(--obrt-hit-min); font-size: var(--obrt-type-secondary); }
+    .damage-list, .damage-inline { display: grid; gap: var(--obrt-space-xs); }
+    .damage-row, .damage-cell { display: grid; grid-template-columns: auto minmax(0, 1fr) 64px; align-items: center; column-gap: 6px; min-height: var(--obrt-hit-min); }
     .damage-type { font-weight: var(--obrt-weight-semibold); }
-    .damage-formula { color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; }
-    .damage-row input { width: 64px; min-height: var(--obrt-h-control-sm); padding: 2px 6px; border: 1px solid rgba(148, 163, 184, .28); border-radius: var(--obrt-radius-md); outline: none; background: var(--surface); font-weight: var(--obrt-weight-bold); text-align: center; font-variant-numeric: tabular-nums; }
-    .damage-row input:focus { border-color: rgba(96, 165, 250, .7); }
-    .damage-row input:disabled { opacity: .45; }
-    .note { color: var(--muted); font-size: var(--obrt-type-secondary); }
-    .manual-step { padding: 6px 8px; border-left: 3px solid #e7ba59; border-radius: 0 var(--obrt-radius-sm) var(--obrt-radius-sm) 0; background: rgba(161, 98, 7, .14); font-size: var(--obrt-type-secondary); }
+    .damage-formula { min-width: 0; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; line-height: 1.25; }
+    .note { color: var(--muted); font-size: var(--obrt-type-secondary); line-height: 1.35; text-wrap: pretty; }
+    .note.warning { color: var(--warn-text); }
+    .note.warning:has(> button) { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .note.clamp { display: block; overflow-wrap: anywhere; white-space: pre-line; }
+    .manual-step { font-size: var(--obrt-type-secondary); line-height: 1.35; }
     .manual-step label { display: flex; align-items: flex-start; gap: 6px; cursor: pointer; }
-    .manual-step input { margin: 1px 0 0; accent-color: #2563eb; }
-    .details { border: 1px solid var(--line); border-radius: var(--obrt-radius-md); }
-    .details > summary { padding: 5px 8px; color: var(--muted); font-size: var(--obrt-type-secondary); cursor: pointer; }
-    .details.manual-rules { border-left: 3px solid #e7ba59; background: rgba(161, 98, 7, .14); }
-    .details.manual-rules > summary { color: #fde68a; }
-    .details pre, .reference-text { margin: 0; padding: 0 8px 8px; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: var(--obrt-type-secondary); line-height: var(--obrt-leading-normal); }
-    .reference-text { padding: 8px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
-    .apply-row { display: flex; align-items: center; gap: var(--obrt-space-md); padding-top: 2px; }
-    .apply.secondary:not(:disabled) { background: #2563eb; }
-    .manage { display: grid; gap: var(--obrt-space-sm); }
+    .manual-step input { flex: 0 0 auto; width: 15px; height: 15px; margin: 1px 0 0; accent-color: var(--obrt-accent); cursor: pointer; }
+    .spell-details.manual-rules summary { color: var(--warn-text); }
+    .spell-details pre, .reference-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: var(--obrt-type-secondary); line-height: 1.4; }
+    .reference-text { padding: var(--obrt-space-lg) var(--obrt-space-xl); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
+    /* The fixed row, outside the scrolling panel as in the attack panel: the reason it is off, or the total. */
+    .apply-host { flex: 0 0 auto; }
+    .apply-host:empty { display: none; }
+    .total:has(#boss-apply-hint:not(:empty)) #boss-total { display: none; }
+    .apply.secondary:not(:disabled) { background: var(--obrt-btn-primary-bg); }
+    .apply.secondary:hover:not(:disabled) { background: var(--obrt-btn-primary-bg-hover); }
+    /* The profile's management. */
+    .manage { display: grid; gap: var(--obrt-space-md); }
     .manage label { display: grid; gap: 3px; }
     .manage select, .manage input[type=file] { width: 100%; min-height: var(--obrt-h-control-md); padding: 4px 7px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); }
     .button-row { display: flex; flex-wrap: wrap; gap: 5px; }
-    .note.warning { padding: 4px 7px; border-left: 3px solid #fbbf24; color: #fde68a; }
     .button-row button.is-confirming { border-color: #f87171; color: #fecaca; }
-    #boss-resolution.is-group { height: 100%; min-height: 0; }
-    .group-form { flex: 1 1 auto; min-height: 0; gap: 7px; }
-    .group-form .manual-step { line-height: var(--obrt-leading-snug); }
-    .group-title { display: flex; align-items: baseline; gap: 5px; min-width: 0; }
-    .group-title .group-label { min-width: 0; overflow: hidden; font-weight: var(--obrt-weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
-    .group-title small { flex: 0 0 auto; }
-    .note.clamp, .manual-step.clamp { display: block; flex-shrink: 0; max-height: 9em; overflow-y: auto; overflow-wrap: anywhere; white-space: pre-line; }
-    .defense-chips .immune-badge { padding: 0 5px; border: 1px solid #86efac; border-radius: 999px; color: #bbf7d0; background: rgba(21,128,61,.35); }
-    .defense-chips .mark-badge { padding: 0 5px; border: 1px solid #c4b5fd; border-radius: 999px; color: #ddd6fe; background: rgba(109,40,217,.35); }
-    .defense-chips .mark-badge.is-spent { border-color: var(--line); background: transparent; color: var(--dim); }
-    .area-step { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
-    .area-step .area-label { flex: 1 1 auto; min-width: 0; font-size: var(--obrt-type-secondary); line-height: var(--obrt-leading-snug); }
-    .area-step .small { flex: 0 0 auto; min-height: 26px; padding: 3px 9px; font-size: var(--obrt-type-secondary); }
-    .group-head { display: flex; align-items: center; gap: 5px; }
-    .group-head .caption { flex: 1 1 auto; }
-    .group-head .small { min-height: 24px; padding: 2px 8px; font-size: var(--obrt-type-secondary); }
-    .group-list { flex: 1 1 auto; min-height: 66px; overflow-y: auto; display: grid; grid-auto-rows: max-content; align-content: start; gap: 4px; padding: 5px; border: 1px solid var(--line); border-radius: var(--obrt-radius-lg); background: var(--surface-soft); }
-    .group-row { display: grid; grid-template-columns: minmax(0, 1fr) 118px 34px 52px 22px; align-items: center; gap: 5px; min-height: 30px; padding: 2px 4px 2px 7px; border: 1px solid rgba(148, 163, 184, .14); border-radius: var(--obrt-radius-md); background: var(--surface-row); }
-    .group-name { min-width: 0; display: grid; overflow: hidden; }
-    .group-details { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 5px; min-width: 0; }
-    .group-list.no-tag .group-row { grid-template-columns: minmax(0, 1fr) 118px 40px 22px; }
-    .group-list.no-tag .group-tag { display: none; }
-    .group-name small { color: var(--muted); font-size: var(--obrt-type-caption); font-variant-numeric: tabular-nums; }
-    .segmented.mini button { min-height: 24px; padding: 0 4px; font-size: var(--obrt-type-secondary); }
-    .segmented button[aria-pressed="true"][data-outcome=critical] { color: var(--warn-text); background: rgba(161, 98, 7, .45); }
-    .group-damage { text-align: right; color: #fca5a5; font-weight: var(--obrt-weight-bold); font-variant-numeric: tabular-nums; }
-    .group-tag { overflow: hidden; color: #fde68a; font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
-    .group-remove { width: 22px; height: 22px; font-size: 15px; }
-    /* A creature's defenses, with what they did to the damage: the second line, across the row (the name's column is narrow). */
-    .group-row > .defense-chips { grid-column: 1 / -1; grid-row: 2; }
-    .damage-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-    .damage-cell { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-    .damage-cell .damage-type { font-size: var(--obrt-type-secondary); }
-    .damage-cell input { width: 56px; min-height: var(--obrt-h-control-sm); padding: 2px 6px; border: 1px solid rgba(148, 163, 184, .28); border-radius: var(--obrt-radius-md); outline: none; background: var(--surface); font-weight: var(--obrt-weight-bold); text-align: center; font-variant-numeric: tabular-nums; }
-    .damage-cell input:focus { border-color: rgba(96, 165, 250, .7); }
-    .row-damage { display: inline-flex; align-items: center; gap: 3px; }
-    .row-amount { width: 38px; min-height: 20px; padding: 0 3px; border: 1px solid rgba(148, 163, 184, .28); border-radius: var(--obrt-radius-md); outline: none; background: var(--surface); color: inherit; font-weight: var(--obrt-weight-bold); text-align: center; font-variant-numeric: tabular-nums; }
-    .row-amount:focus { border-color: rgba(96, 165, 250, .7); }
+    /* A choice with its title on top: distance, landing, what it is thrown against. */
     .decision { display: grid; gap: 4px; }
     .segmented.choices { display: flex; flex-wrap: wrap; }
-    .effect-choices { display: grid; gap: 4px; max-height: 190px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-lg); background: var(--surface-soft); }
-    .effect-choice { display: grid; gap: 1px; justify-items: start; padding: 5px 8px; text-align: left; }
-    .effect-choice[aria-pressed="true"] { border-color: rgba(96, 165, 250, .8); background: rgba(37, 99, 235, .25); }
+    .segmented.choices button { flex: 1 1 auto; min-height: var(--obrt-h-control-sm); padding: 0 8px; font-size: var(--obrt-type-secondary); }
+    .effect-choices { display: grid; gap: var(--list-gap); max-height: 190px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
+    .effect-choice { display: grid; gap: 1px; justify-items: start; padding: 3px 8px; border-color: transparent; background: transparent; text-align: left; }
+    .effect-choice[aria-pressed="true"] { border-color: rgba(96, 165, 250, .55); background: rgba(37, 99, 235, .28); }
     .effect-name { font-weight: var(--obrt-weight-semibold); }
     .effect-detail { color: var(--muted); font-size: var(--obrt-type-caption); }
+    /* A step on the map: what it says, its buttons beside it. */
+    .area-step { display: flex; align-items: center; gap: 6px; min-height: var(--obrt-hit-min); }
+    .area-step .area-label { flex: 1 1 auto; min-width: 0; color: var(--muted); font-size: var(--obrt-type-secondary); line-height: 1.3; text-wrap: pretty; }
+    .area-step .small { flex: 0 0 auto; color: var(--info-text); font-size: var(--obrt-type-secondary); }
+    /* The creatures of a group: the attack panel's table in its box. Every row on the same columns: the name (the only thing that
+       gives way) with its hit points, the outcome, what it takes, its remove; its defenses and its condition on a second line. */
+    .group-list { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(26px, auto) auto; align-items: center; gap: var(--list-gap) 3px; padding: var(--obrt-space-md) var(--obrt-space-sm); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
+    .group-list > .muted { grid-column: 1 / -1; padding: 2px 4px; }
+    .group-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; row-gap: 1px; }
+    .group-row > .group-name { grid-column: 1; grid-row: 1; }
+    .group-row > .segmented { grid-column: 2; grid-row: 1; }
+    .group-row > .group-damage { grid-column: 3; grid-row: 1; }
+    .group-row > .group-remove { grid-column: 4; grid-row: 1; }
+    .group-row > .defense-chips { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
+    .group-row > .group-tag { grid-column: 1 / -1; grid-row: 2; justify-self: end; }
+    .group-name { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding-left: 4px; }
+    .group-title { min-width: 0; display: flex; overflow: hidden; }
+    .group-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .group-details { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 3px; }
+    .group-hp { color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .group-row .segmented.mini button { padding: 0 4px; }
+    .group-damage { color: #fca5a5; font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-bold); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+    .group-tag { min-width: 0; overflow: hidden; color: var(--warn-text); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
+    .group-tag:empty { display: none; }
+    .group-row[data-damageless="true"] > .group-tag { grid-column: 3; grid-row: 1; }
+    .group-damage:empty { display: none; }
+    .group-remove { width: 22px; height: 22px; color: var(--muted); font-size: 15px; }
+    .group-row .defense-chip { min-height: 18px; }
+    .row-damage { display: inline-flex; align-items: center; gap: 3px; }
+    .row-amount { width: 38px; height: 20px; padding: 0 3px; border: 1px solid rgba(148, 163, 184, .28); border-radius: var(--obrt-radius-md); outline: none; background: var(--surface); color: inherit; font-weight: var(--obrt-weight-bold); text-align: center; font-variant-numeric: tabular-nums; }
+    .row-amount:focus { border-color: rgba(96, 165, 250, .7); }
+    .defense-chips .immune-badge { padding: 0 5px; border: 1px solid #86efac; border-radius: 999px; color: #bbf7d0; background: rgba(21, 128, 61, .35); }
+    .defense-chips .mark-badge { padding: 0 5px; border: 1px solid #c4b5fd; border-radius: 999px; color: #ddd6fe; background: rgba(109, 40, 217, .35); }
+    .defense-chips .mark-badge.is-spent { border-color: var(--line); background: transparent; color: var(--dim); }
   </style>
 </head>
 <body>
@@ -143,14 +126,19 @@
   </script>
   <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/boss-actions">
     <header class="header" data-drag-handle draggable="true" title="Trascina per spostare">
-      <div class="header-text"><h1 class="title" id="boss-name">Console Boss</h1><div class="subtitle" id="boss-phase"></div></div>
+      <div class="header-text"><div class="title-row"><h1 class="title" id="boss-name">Console Boss</h1></div><div class="subtitle" id="boss-phase"></div></div>
+      <span class="drag-grip" aria-hidden="true"></span>
+      <button class="icon-button" id="boss-more" type="button" title="Altre opzioni" aria-label="Altre opzioni" aria-haspopup="true" aria-expanded="false">⋯</button>
       <button class="icon-button" id="boss-minimize" type="button" title="Riduci" aria-label="Riduci" aria-expanded="true">&minus;</button>
       <button class="icon-button" id="boss-close" type="button" title="Chiudi" aria-label="Chiudi">&times;</button>
     </header>
+    <div class="more-menu" id="boss-more-menu" role="group" aria-label="Altre opzioni" hidden>
+      <button class="more-action" id="boss-manage-open" type="button">Gestisci profilo</button>
+    </div>
     <main class="panel" id="boss-panel">
       <section class="view" id="boss-list-view" aria-label="Azioni">
+        <p class="action-facts" id="boss-round-line"></p>
         <div id="boss-abilities" class="view"></div>
-        <button class="link-button" id="boss-manage-open" type="button">Gestisci profilo</button>
       </section>
       <section class="view" id="boss-resolution" aria-label="Risoluzione" hidden></section>
       <section class="view" id="boss-manage-view" aria-label="Gestisci profilo" hidden>
@@ -174,6 +162,7 @@
         </div>
       </section>
     </main>
+    <div class="apply-host" id="boss-apply-host"></div>
     <footer class="status-bar"><p class="status" id="boss-status" role="status" aria-live="polite"></p><button class="small" id="boss-undo" type="button" hidden>Annulla</button></footer>
   </div>
   <script type="module" src="/src/boss-actions.js"></script>

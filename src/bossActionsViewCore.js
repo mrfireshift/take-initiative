@@ -8,7 +8,7 @@ import { bossAreaShapeLabel, bossGroupRequiresConfirmation, bossEffectSummaryPar
 const META_KEY = `${ID}/meta`;
 // Compact floating console size; the height fits the longest simple resolution (Blizzard / multi-target) without scrolling.
 export const BOSS_ACTIONS_WIDTH = 380;
-export const BOSS_ACTIONS_HEIGHT = 500;
+export const BOSS_ACTIONS_HEIGHT = 560;
 const CATEGORIES = ["trait", "action", "epic-action", "reaction", "other"];
 const CATEGORY_LABELS = { trait: "Tratti", action: "Azioni", "epic-action": "Azioni Epiche", reaction: "Reazioni", other: "Riferimenti" };
 
@@ -131,10 +131,19 @@ export function bossActionDamageComponents(action) {
   });
 }
 
+// The distances the table reads, in metres as in the attack panel: 1,5 m every 5 feet ("3 m", "45/180 m"). Applied to what the
+// console shows, whatever builds it; the stat block's original text keeps its feet.
+const bossMeters = (feet) => String(Math.round(Number(feet) * 3) / 10).replace(".", ",");
+export function bossMetricText(text) {
+  return String(text ?? "")
+    .replace(/(\d+)(?:\/(\d+))? ?ft\.?(?=\s*[·,;:)]|\s+[a-zà-ù])/gu, (match, feet, long) => `${bossMeters(feet)}${long ? `/${bossMeters(long)}` : ""} m`)
+    .replace(/(\d+)(?:\/(\d+))? ?ft\b/gu, (match, feet, long) => `${bossMeters(feet)}${long ? `/${bossMeters(long)}` : ""} m`);
+}
+
 export function bossActionAttackSummary(action) {
   const attack=action?.execution?.attack || {};
-  const parts=["Attacco "+(Number(attack.bonus)>=0?"+":"")+attack.bonus];
-  if(attack.modes?.length===1)parts.push(attack.modes[0]==="melee"?"Mischia":"Distanza");
+  const parts=[(Number(attack.bonus)>=0?"+":"")+attack.bonus+" al tiro"];
+  if(attack.modes?.length===1)parts.unshift(attack.modes[0]==="melee"?"Mischia":"Distanza");
   if(attack.reach!==undefined)parts.push("portata "+attack.reach+" ft.");
   const range=attack.range;
   const normal=Array.isArray(range)?range[0]:range?.normal;
@@ -445,7 +454,13 @@ export function bossActionRowMeta(action, availability = {}) {
   // v22: the hit point gate (the alternative seam combo below half HP).
   // The badge names the requirement, not the current state.
   if (availability?.hpGated) { exhausted = true; badge = action.hpGate === "bloodied" ? "Solo a ½ PF o meno" : "Solo sopra ½ PF"; }
-  return { kind, tag, badge, exhausted };
+  // On the list's row: the word that says what it is, the number of uses; the rest is in its tooltip and in its form.
+  const short = tag.split(" · ")[0].replace(/^(Lancio|Cucitura) .*/u, "$1").replace(/^\d+ punti$/u, "Cucitura").replace(/^Incantesimi \(\d+\)$/u, "Incantesimi");
+  let mark = badge;
+  if (availability?.tracked) mark = `${availability.remaining ?? 0}/${availability.limit}`;
+  if (availability?.sequenceBlocked) mark = "Bloccata";
+  if (availability?.hpGated) mark = action.hpGate === "bloodied" ? "≤ ½ PF" : "> ½ PF";
+  return { kind, tag, badge, exhausted, short, mark };
 }
 
 export function bossDamageTotal(components = [], amounts = {}, outcome = "") {

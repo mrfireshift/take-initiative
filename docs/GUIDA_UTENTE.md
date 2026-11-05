@@ -548,10 +548,9 @@ Al turno del mostro la console mostra:
 Le **difese** dello statblock valgono quando il mostro è il bersaglio, nella
 console attacchi e nella console boss: il danno di quel tipo si dimezza o si
 azzera. L'anteprima dice cosa ha fatto ogni difesa al danno digitato: sul
-pulsante della difesa, `Res. taglienti: 10 → 5`, nella console attacchi sotto il
+pulsante della difesa, `Res. taglienti: 10 → 5`, sotto il
 totale, accanto a **Registra** e sempre in vista; nelle aree il danno sta sulla
-riga della creatura (`−30`) e la difesa sotto (`Res. fuoco: 60 → 30`); nei gruppi
-della console boss il conto sta sotto la creatura. Anche le difese limitate alle armi
+riga della creatura (`−30`) e la difesa sotto (`Res. fuoco: 60 → 30`). Anche le difese limitate alle armi
 non magiche, come `Res. taglienti non magici: 10 → 5` nella console attacchi,
 con il materiale nel suggerimento del pulsante, si applicano da sole, perché il
 plugin non sa di che arma si tratta. Per un'arma magica, del materiale giusto o
@@ -804,9 +803,9 @@ un duplicato e lo colpisce, premi **Duplicato colpito**: il duplicato è
 distrutto e non registri l'attacco sul caster.
 
 Nello stesso punto le console mostrano le difese e le reazioni del bersaglio.
-Nella console attacchi ogni riga dice solo il dato che serve accanto al suo
-pulsante (`Immagine speculare · d20 ≥ 6`, `Reazione · +5 CA`), e il suggerimento
-la regola per intero; la console Boss scrive tutto nella riga.
+Ogni riga dice solo il dato che serve accanto al suo pulsante
+(`Immagine speculare · d20 ≥ 6`, `Reazione · +5 CA`), e il suggerimento la
+regola per intero.
 
 - **Difese ai danni**: il pulsante dice cosa ha fatto la difesa al danno digitato
   (`Res. taglienti: 10 → 5`, `Imm. fuoco: 7 → 0`), e un clic la ignora per
