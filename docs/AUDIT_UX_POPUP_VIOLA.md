@@ -4,7 +4,7 @@ Audit del 05/11/2026, chiesto dall'utente perché font, colori, pesi, gerarchia 
 
 Schermate e proposte disegnate, una accanto all'altra: https://claude.ai/artifact/QENFMdDi2KnatrRGG6Smuq
 
-Stato: D1-D7 decise dall'utente il 05/11/2026 (D1 e D6 diverse dal consiglio). Da V1 a V11 fatti: i lotti sono finiti. F1 è corretto dopo uno studio, con le decisioni D1-D4 dell'utente.
+Stato: D1-D7 decise dall'utente il 05/11/2026 (D1 e D6 diverse dal consiglio). Da V1 a V11 fatti: i lotti sono finiti. F1 è corretto dopo uno studio, con le decisioni D1-D4 dell'utente. Il 06/11, fuori dai lotti, la tela nera è corretta anche in Fazioni automatiche e Aspetto area.
 
 Le prove in stanza dei capitoli qui sotto sono raccolte, insieme a P5 del polishing degli incantesimi, in [PROVA_STANZA_INCANTESIMI.md](PROVA_STANZA_INCANTESIMI.md): un giro solo al tavolo.
 
@@ -77,7 +77,7 @@ Tre conseguenze:
 - Controincantesimo ha la finestra fissa a 500 px e non chiede mai altezza: circa 120 px di rettangolo nero sotto il popup, finché il verdetto non lo riempie in parte.
 - La trappola per il lotto: togliere la dichiarazione senza cambiare il guscio renderebbe i popup illeggibili. Il loro velo copre il 29-42%: su una mappa chiara, nella parte bassa del popup, il testo normale farebbe 3,2:1 e il testo secondario 2,2:1, contro 5,9:1 e 3,6:1 del vetro delle console. Le due cose vanno cambiate insieme.
 
-Hanno la stessa dichiarazione anche `faction-configurator.html:10` e `public/aoe-settings.css:2`: non sono viola e non li ho guardati.
+Avevano la stessa dichiarazione anche `faction-configurator.html` e `public/aoe-settings.css`, che non sono viola: corretti il 06/11, vedi [Fatto: la tela nera di Fazioni e Aspetto area](#fatto-la-tela-nera-di-fazioni-e-aspetto-area).
 
 ### Font e pesi
 
@@ -276,6 +276,17 @@ Solo il popup di attivazione: Scelta, Detonazione e Controincantesimo hanno i lo
 - **F6.** La fessura rifiutata dice che cosa cambiare. Lo stesso per un vortice fuori dalla zona. Ogni altro rifiuto tiene il suo codice, per chi deve capire che cosa è successo.
 - **Provato al banco:** Mano arcana, Stretta della Terra, Controllare Venti, Telecinesi, Sguardo, Frecce Infuocate, Sudario Spirituale e Marchio del cacciatore. Da Mano arcana all'azione e di nuovo alla Scelta, con l'altezza giusta. Marchio del cacciatore fino all'applicazione. F6 con una fessura sbagliata.
 - **Da guardare in stanza.** Sguardo applica la condizione, ma al banco il finto SDK dà `scene-item-reconcile-exhausted:add`: il popup resta aperto con il messaggio in rosso. Quel flusso non è cambiato, e il messaggio viene dalla riconciliazione degli effetti, che al banco fallisce sempre; nella stanza non dovrebbe comparire. Sortilegio non è stato aperto: è lo stesso caso di Marchio.
+
+## Fatto: la tela nera di Fazioni e Aspetto area
+
+Fuori dai lotti, chiesto dall'utente il 06/11.
+
+- **Al banco, prima.** Gli stessi difetti dei popup viola prima di V1: angoli neri attorno al vetro arrotondato, e vetro grigio pieno perché lavora sul nero. In Fazioni automatiche, in più, i due pulsanti in fondo (`Importa dalla scena`, `Azzera registro`) stavano sotto il bordo: 497 px di contenuto in una finestra di 420, e il vetro non scorre.
+- **Il tema.** Come in V1: `color-scheme: dark` passa dalla radice al vetro (`.shell`, `.aoe-style-shell`), con il filo chiaro in alto al posto dell'ombra esterna, che si vedrebbe solo negli angoli tagliati dall'iframe. Il velo resta quello comune di `public/popover-glass.css`, al 62% e sfocato: non serviva cambiarlo, come invece per i popup viola.
+- **L'altezza.** Fazioni si apre a 500 px (`src/options-modal.js`).
+- **Il test.** `test/popupThemeCanvas.test.js` legge tutte le pagine e tutti i fogli di `public/`: nessuno deve dichiarare il tema sulla radice. Con le due pagine di prima fallisce.
+- **Provato al banco:** angoli con la mappa dietro, il token viola si vede attraverso Aspetto area, Fazioni mostra i due pulsanti senza scorrere.
+- **Da guardare in stanza.** Gli angoli dei due popup: è nel gruppo 1 di [PROVA_STANZA_INCANTESIMI.md](PROVA_STANZA_INCANTESIMI.md).
 
 ## Fatto: F1
 

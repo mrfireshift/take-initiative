@@ -311,7 +311,8 @@ async function openFactionConfigurator() {
   const viewportHeight = Number(await OBR.viewport.getHeight().catch(() => 900)) || 900;
   if (!sceneLifecycle.isCurrent(operation)) return;
   const width = 420;
-  const height = 420;
+  // Its content whole, the two buttons at the bottom (Importa dalla scena, Azzera registro) included: 497 px at the bench.
+  const height = 500;
   try {
     await openTrackedPopover({
       id: FACTION_CONFIGURATOR_ID,

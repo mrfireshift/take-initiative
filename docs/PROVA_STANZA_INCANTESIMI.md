@@ -2,9 +2,9 @@
 
 Un giro solo al tavolo per due liste:
 - **P5** del [piano di polishing degli incantesimi](PIANO_POLISH_INCANTESIMI.md);
-- le prove in stanza dell'[audit dei popup viola](AUDIT_UX_POPUP_VIOLA.md): da V1 a V11, il trascinamento, F1.
+- le prove in stanza dell'[audit dei popup viola](AUDIT_UX_POPUP_VIOLA.md): da V1 a V11, il trascinamento, F1, la tela nera di Fazioni e Aspetto area.
 
-C'è anche ciò che il banco non ha potuto provare. Tutto è su `main` fino a `7fb4e3ce`, ma non su Render, che è più indietro: si prova con la build locale.
+C'è anche ciò che il banco non ha potuto provare. Render è più indietro di `main`: si prova con la build locale.
 
 Segna con una x ciò che va. Per ciò che non va, scrivi sotto, in una riga, che cosa hai visto.
 
@@ -26,7 +26,7 @@ Segna con una x ciò che va. Per ciò che non va, scrivi sotto, in una riga, che
 ## 1. Il vetro e la lettura
 
 - [ ] **Tinta:** una punizione, un'area e Mano arcana, anche su una mappa chiara. Il viola è giusto, e il testo si legge dallo schermo del tavolo.
-- [ ] **Angoli:** nessun quadrato nero agli angoli dei popup, nessuna fascia nera sotto Controincantesimo.
+- [ ] **Angoli:** nessun quadrato nero agli angoli dei popup, nessuna fascia nera sotto Controincantesimo. Anche fuori dai popup viola: **Opzioni → Fazioni automatiche → Gestisci**, che mostra i suoi due pulsanti in fondo senza scorrere, e **Aspetto area** nello strumento delle aree.
 - [ ] **Colori:**
   - gli esiti sono `Fallito` rosso, `Superato` verde, `Immune` blu;
   - i pulsanti sono rossi se registrano danni (`Risolvi`), blu se no (`Cura`, `Lancia`).
