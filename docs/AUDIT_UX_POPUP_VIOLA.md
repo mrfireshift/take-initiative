@@ -6,6 +6,8 @@ Schermate e proposte disegnate, una accanto all'altra: https://claude.ai/artifac
 
 Stato: D1-D7 decise dall'utente il 05/11/2026 (D1 e D6 diverse dal consiglio). Da V1 a V11 fatti: i lotti sono finiti. F1 è corretto dopo uno studio, con le decisioni D1-D4 dell'utente.
 
+Le prove in stanza dei capitoli qui sotto sono raccolte, insieme a P5 del polishing degli incantesimi, in [PROVA_STANZA_INCANTESIMI.md](PROVA_STANZA_INCANTESIMI.md): un giro solo al tavolo.
+
 ## In breve
 
 L'impressione è giusta: questi popup sono una generazione indietro. Il numero di stili di testo non è il problema, 9-12 contro i 12-14 delle console. Il problema è quali stili: nessun testo a 12 px, quasi tutto a 10-11 px e in grassetto, un altro font, un altro colore per ogni cosa, controlli più piccoli dello standard, fino a sette righe di testata prima del primo campo.

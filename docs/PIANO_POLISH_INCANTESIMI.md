@@ -670,7 +670,7 @@ Resta per P5 la prova in una stanza vera, con un mostro importato dall'archivio.
 
 ### P5, la prova in stanza
 
-Una lista breve e mirata, che raccoglie anche ciò che i lotti precedenti non hanno potuto provare al banco.
+Una lista breve e mirata, che raccoglie anche ciò che i lotti precedenti non hanno potuto provare al banco. È in [PROVA_STANZA_INCANTESIMI.md](PROVA_STANZA_INCANTESIMI.md), scritta il 6/11 insieme alle prove in stanza dell'[audit dei popup viola](AUDIT_UX_POPUP_VIOLA.md): un giro solo al tavolo.
 
 ## Come si lavora
 
