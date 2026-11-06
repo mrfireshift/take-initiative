@@ -1,5 +1,4 @@
 :root {
-  color-scheme: dark;
   color: #f8fafc;
 }
 
@@ -11,7 +10,12 @@ body {
   background: transparent;
 }
 
+/* The dark theme on the glass, never on the root: a page whose theme differs from its iframe's gets an opaque black canvas
+   behind it, black in the corners and under the glass. The glass fills its window: a shadow around it would only show in the
+   corners, cut square by the iframe. */
 .aoe-style-shell {
+  color-scheme: dark;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07);
   display: grid;
   gap: 12px;
   min-height: 100vh;
