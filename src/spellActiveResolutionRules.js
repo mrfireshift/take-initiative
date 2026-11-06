@@ -378,7 +378,7 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       range: { value: 36, unit: "m" },
       maxTargets: 1,
       attack: {
-        outcomes: ["hit", "miss"],
+        outcomes: ["hit", "critical", "miss"],
         damageRequiredOnHitOnly: true,
       },
       damage: damage({ formula: "4d12", type: "radiosi" }),
@@ -406,7 +406,7 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       rangeFromZoneArea: true,
       maxTargets: 1,
       attack: {
-        outcomes: ["hit", "miss"],
+        outcomes: ["hit", "critical", "miss"],
         damageRequiredOnHitOnly: true,
       },
       damage: damage({
@@ -543,7 +543,7 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       rangeOriginLabel: "dalla spada",
       range: { value: 1.5, unit: "m" },
       maxTargets: 1,
-      attack: { outcomes: ["hit", "miss"], damageRequiredOnHitOnly: true },
+      attack: { outcomes: ["hit", "critical", "miss"], damageRequiredOnHitOnly: true },
       damage: damage({ formula: "3d10", type: "forza", baseSlot: 7 }),
     },
   ],
@@ -563,7 +563,7 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       rangeOriginLabel: "dall'arma",
       range: { value: 1.5, unit: "m" },
       maxTargets: 1,
-      attack: { outcomes: ["hit", "miss"], damageRequiredOnHitOnly: true },
+      attack: { outcomes: ["hit", "critical", "miss"], damageRequiredOnHitOnly: true },
       damage: damage({
         formula: "1d8",
         type: "forza",
@@ -662,9 +662,9 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
   "phb2014-freccia-folgorante": [
     {
       id: "lightning-arrow-area",
-      label: "Esplosione · danno area fulmine",
-      buttonLabel: "Risolvi esplosione",
-      detail: "Centra l'esplosione sul bersaglio dell'attacco già effettuato. Il danno primario resta applicato manualmente dal GM; qui si risolvono solo TS, danno area e consumo della preparazione.",
+      label: "Colpo ed esplosione · fulmine",
+      buttonLabel: "Risolvi freccia",
+      detail: "Il colpo sul bersaglio dell'attacco, poi l'esplosione attorno a lui: esito e danno del colpo, TS e danno dell'esplosione, consumo della preparazione.",
       economy: "bonus-action",
       resolutionKind: "save-area",
       subjectMode: "none",
@@ -686,6 +686,14 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
         baseSlot: 3,
         additionalPerSlotAbove: 1,
       }),
+      // The arrow's own hit, on the creature the burst is anchored to (PHB 2014): instead of the weapon's damage, 4d8
+      // lightning on a hit and half as much on a miss, 1d8 more for each slot level above 3rd. A critical hit doubles
+      // these dice, as an attack's; not the burst's. The burst spares the target: it hits the creatures within 3 m of it.
+      directHit: {
+        outcomes: ["hit", "critical", "miss"],
+        damage: damage({ formula: "4d8", type: "fulmine", baseSlot: 3, additionalPerSlotAbove: 1 }),
+        onMiss: "half",
+      },
       concentrationAction: "dismiss",
     },
   ],
@@ -1052,7 +1060,7 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       range: { value: 18, unit: "m" },
       maxTargets: 1,
       attack: {
-        outcomes: ["hit", "miss"],
+        outcomes: ["hit", "critical", "miss"],
         damageRequiredOnHitOnly: true,
         advantageWhen: "inside-root",
       },

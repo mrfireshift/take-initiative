@@ -779,6 +779,15 @@ opportunità, o fuori combattimento, si passa dal pannello incantesimi: fra gli
 **Incantesimi attivi sul campo** si preme **Risolvi**, si seleziona il bersaglio sulla
 mappa e **Apri risoluzione** apre lo stesso popup.
 
+Freccia Folgorante si risolve nello stesso popup, al turno del caster: si seleziona
+sulla mappa la creatura colpita dalla freccia. Prima il colpo: **Colpito**,
+**Critico** o **Mancato**, poi il tiro dei 4d8 (con un critico i dadi raddoppiati,
+`critico 8d8`). Se la freccia manca, il popup dimezza il tiro; la difesa del
+bersaglio la conta il chip, come per le punizioni. Sotto, l'esplosione: le creature
+entro 3 metri dal bersaglio, il loro TS su Destrezza e i 2d8. **Risolvi freccia**
+scrive tutto insieme, e un solo Annulla toglie tutto. Il danno dell'arma non si
+registra nella console attacchi: la freccia lo sostituisce.
+
 ### Azioni dalla pill sulla card
 
 Sulla card del tracker, la pill di un incantesimo con azioni (Immagine
@@ -792,8 +801,10 @@ con il contatore quando c'è («2/3 duplicati»):
 - un'azione con un tiro o una scelta, come **Mangia una bacca**, apre subito
   il suo popup;
 - un attacco, come **Lancia una stella** o **Pugno serrato**, si risolve nel popup
-  come nella console attacchi: prima l'esito, poi il danno, che serve solo se
-  colpisce, poi il pulsante o Invio. Niente si registra prima;
+  come nella console attacchi: prima l'esito (**Colpito**, **Critico** o **Mancato**),
+  poi il danno, che serve solo se colpisce, poi il pulsante o Invio. Con un critico
+  scrivi i dadi raddoppiati: l'etichetta li dice (`4d12 · critico 8d12`). Niente si
+  registra prima;
 - un'azione che chiede una creatura (Sposta il marchio) la prende dalla
   selezione sulla mappa: seleziona il token, poi premi;
 - un'azione con una scelta o una zona da spostare (Cambia direzione) porta il

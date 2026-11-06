@@ -4,7 +4,7 @@ Audit del 05/11/2026, chiesto dall'utente perché font, colori, pesi, gerarchia 
 
 Schermate e proposte disegnate, una accanto all'altra: https://claude.ai/artifact/QENFMdDi2KnatrRGG6Smuq
 
-Stato: D1-D7 decise dall'utente il 05/11/2026 (D1 e D6 diverse dal consiglio). Da V1 a V11 fatti: i lotti sono finiti. F1 è corretto dopo uno studio, con le decisioni D1-D4 dell'utente. Il 06/11, fuori dai lotti, la tela nera è corretta anche in Fazioni automatiche e Aspetto area.
+Stato: D1-D7 decise dall'utente il 05/11/2026 (D1 e D6 diverse dal consiglio). Da V1 a V11 fatti: i lotti sono finiti. F1 è corretto dopo uno studio, con le decisioni D1-D4 dell'utente. Il 06/11, fuori dai lotti, la tela nera è corretta anche in Fazioni automatiche e Aspetto area, e dopo uno studio il colpo di Freccia Folgorante e il Critico degli attacchi sono nel popup (D1-D4 dell'utente).
 
 Le prove in stanza dei capitoli qui sotto sono raccolte, insieme a P5 del polishing degli incantesimi, in [PROVA_STANZA_INCANTESIMI.md](PROVA_STANZA_INCANTESIMI.md): un giro solo al tavolo.
 
@@ -276,6 +276,33 @@ Solo il popup di attivazione: Scelta, Detonazione e Controincantesimo hanno i lo
 - **F6.** La fessura rifiutata dice che cosa cambiare. Lo stesso per un vortice fuori dalla zona. Ogni altro rifiuto tiene il suo codice, per chi deve capire che cosa è successo.
 - **Provato al banco:** Mano arcana, Stretta della Terra, Controllare Venti, Telecinesi, Sguardo, Frecce Infuocate, Sudario Spirituale e Marchio del cacciatore. Da Mano arcana all'azione e di nuovo alla Scelta, con l'altezza giusta. Marchio del cacciatore fino all'applicazione. F6 con una fessura sbagliata.
 - **Da guardare in stanza.** Sguardo applica la condizione, ma al banco il finto SDK dà `scene-item-reconcile-exhausted:add`: il popup resta aperto con il messaggio in rosso. Quel flusso non è cambiato, e il messaggio viene dalla riconciliazione degli effetti, che al banco fallisce sempre; nella stanza non dovrebbe comparire. Sortilegio non è stato aperto: è lo stesso caso di Marchio.
+
+## Fatto: Freccia Folgorante e Critico
+
+I due punti rimasti fuori dai lotti, studiati il 06/11 su richiesta dell'utente, che ha approvato D1-D4 come consigliate.
+
+- **Lo studio.** Lo studio di F1 diceva che il colpo diretto di Freccia Folgorante si scriveva nel pannello come «totale finale». Non era vero: quel campo esiste nel codice, ma nessun pulsante ci porta più. Al turno del caster, e da **Risolvi** nel pannello, si apre questo popup, che risolveva solo l'esplosione. Il colpo lo scriveva il GM nell'editor dei PF, che non conosce i tipi di danno: la metà se manca e la resistenza al fulmine le faceva a mano. D4 di F1 era stata decisa su quella descrizione sbagliata.
+- **Le decisioni dell'utente, il 06/11.**
+  - D1: il colpo diretto nel popup, prima dell'esplosione.
+  - D2: obbligatorio, esito e tiro.
+  - D3: Critico ai cinque attacchi del popup che non l'avevano, con i dadi del critico come in console.
+  - D4: i quattro lanci con tiro per colpire del pannello (Freccia Acida, Tocco Gelido, Dardo Tracciante, Raggio di Gelo) restano come sono. Tre stanno anche nella console attacchi, con Critico.
+- **La regola, dal PHB 2014.** Invece del danno dell'arma, 4d8 fulmine se colpisce e metà se manca, 1d8 in più per livello di slot sopra il 3°. Un critico raddoppia quei dadi, non quelli dell'esplosione. L'esplosione prende le creature entro 3 metri dal bersaglio, non il bersaglio. In `spellActiveResolutionRules.js` l'azione ha `directHit`. Si chiama ora «Colpo ed esplosione · fulmine», e il pulsante dice **Risolvi freccia**.
+- **Il popup.** Sopra l'esplosione, «Colpo della freccia»: la riga del bersaglio, con nome, PF e i tre esiti, e il campo `Colpo 4d8`, che diventa `4d8 · critico 8d8` o `4d8 · metà se manca`. Dopo l'esito il cursore va nel danno. Il chip della difesa del bersaglio sta con gli altri accanto al pulsante. La riga fissa dice `Colpo 9 · Esplosione 7`, oppure che cosa manca: prima il bersaglio, poi l'esito e il danno del colpo. Il campo dell'area si chiama `Esplosione 2d8`, e il TS dei fatti `Esplosione: TS Destrezza`. Altezza 560 px.
+- **I PF.** Il colpo è una voce in più dello stesso ciclo dell'esplosione, nello stesso comando: un solo Annulla. Ha la sua difesa, il suo evento per i PF condivisi (`active-direct-hit`) e il critico per i TS contro la morte. Il registro nomina il bersaglio con il suo esito (`→ Goblin: colpito`), il danno e la difesa. La convalida vuole il colpo sul bersaglio dell'esplosione, con esito e tiro.
+- **Critico.** I sette attacchi singoli del popup hanno Colpito, Critico e Mancato. Il numero resta del GM, con i dadi raddoppiati. Su un PG a 0 PF il critico dà due fallimenti, e il registro dice «critico». L'etichetta dice i dadi del critico come la console: `Forza 1d8 · critico 2d8`. Per Lama del Disastro dice i suoi, `12d12`. Nessuna azione ha effetti al colpo, ma un critico ora conta come un colpo anche con un attacco solo.
+- **Provato al banco.**
+  - Freccia Folgorante su un goblin da 30 PF resistente al fulmine, con 18 e Colpito: `Colpo 9 · Esplosione 7`, 30 → 21. Mira ha superato il TS: 45 → 42. L'altro goblin l'ha fallito: 7 → 0. La freccia finisce.
+  - Critico e Mancato cambiano l'etichetta. Il chip passa a `9 → 4` e la riga a `Colpo 4`.
+  - Arma Spirituale con Critico e 9: 21 → 12.
+  - Il banco non ha uno strumento delle aree per l'esplosione ancorata: l'ho fatto con uno script che risponde come lui, senza toccare i file del banco.
+- **Solo nei test.** Immunità, vulnerabilità, il clic sul chip, la convalida, il critico su un PG a terra e l'Annulla unico.
+- **Da guardare in stanza.** È nei gruppi 3 e 4 di [PROVA_STANZA_INCANTESIMI.md](PROVA_STANZA_INCANTESIMI.md).
+- **Trovato lungo la strada, non toccato.**
+  - Il ramo del pannello col «totale finale» non si raggiunge, e fa subire al bersaglio anche l'esplosione.
+  - Coltello di Ghiaccio ha lo stesso buco: 1d10 perforanti «da applicare a parte».
+  - Un commento in `preparedSpellResolutionController.js` dice che Freccia e Raffica si risolvono nel pannello.
+  - La testata del popup dice `Azione bonus`, ma la freccia si risolve con l'attacco: l'azione bonus è servita a lanciarla.
 
 ## Fatto: la tela nera di Fazioni e Aspetto area
 

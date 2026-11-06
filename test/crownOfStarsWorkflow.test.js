@@ -90,7 +90,7 @@ test("SP-B06E.2 — espone Lancia una stella come attacco bonus a 36 m", () => {
   assert.equal(action.requiresZoneRoot, false);
   assert.equal(action.rangeOrigin, "caster");
   assert.deepEqual(action.range, { value: 36, unit: "m" });
-  assert.deepEqual(action.attack.outcomes, ["hit", "miss"]);
+  assert.deepEqual(action.attack.outcomes, ["hit", "critical", "miss"]);
   assert.equal(action.damage.formula, "4d12");
   assert.equal(action.damage.type, "radiosi");
   assert.deepEqual(action.resource, { key: "stars", consume: 1, endSpellAtZero: true });

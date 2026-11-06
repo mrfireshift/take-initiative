@@ -340,7 +340,7 @@ test("Muro di Luce espone il raggio radioso come active action dal muro", () => 
   assert.equal(action.turnStartPrompt, true);
   assert.equal(action.showInOverview, true);
   assert.deepEqual(action.attack, {
-    outcomes: ["hit", "miss"],
+    outcomes: ["hit", "critical", "miss"],
     damageRequiredOnHitOnly: true,
   });
   assert.deepEqual(action.damage, {

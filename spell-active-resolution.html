@@ -53,6 +53,9 @@
       .prismatic-wall-layer__detail { color: var(--muted); font-size: var(--obrt-type-secondary); line-height: var(--obrt-leading-normal); text-wrap: pretty; }
       .root-note { padding: var(--obrt-space-md) var(--obrt-space-lg); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); color: var(--muted); font-size: var(--obrt-type-secondary); line-height: var(--obrt-leading-normal); }
       #sharedHpControls { grid-column: 1 / -1; }
+      /* Lightning Arrow: the arrow's hit above its burst, its target in a row as the burst's creatures are. */
+      .direct-hit { display: grid; gap: var(--obrt-space-sm); }
+      .direct-hit .targets { flex: none; min-height: 0; overflow: visible; }
     </style>
   </head>
   <body>
@@ -77,6 +80,11 @@
         <div id="childCountField" class="field" hidden><label id="childCountLabel" for="childCount">Numero</label><input id="childCount" type="number" min="1" max="6" step="1" inputmode="numeric" /></div>
         <div id="placementToolbar" class="toolbar"><span id="placementStatus" class="hint"></span><button id="place" type="button">Posiziona area</button><button id="confirmPlacement" class="primary" type="button" hidden>Conferma sagoma</button><button id="cancelPlacement" type="button" hidden>Annulla</button></div>
         <div id="childDepths" class="child-depths" hidden></div>
+        <div id="directHit" class="direct-hit" hidden>
+          <div class="section-head"><span class="caption">Colpo della freccia</span></div>
+          <div class="targets"><div class="target"><span id="directHitName" class="target-name"></span><span id="directHitHp" class="target-hp"></span><div id="directHitOutcomes" class="segmented mini" role="group" aria-label="Esito del colpo"><button type="button" data-direct-hit-outcome="hit" data-outcome="hit">Colpito</button><button type="button" data-direct-hit-outcome="critical" data-outcome="critical">Critico</button><button type="button" data-direct-hit-outcome="miss" data-outcome="miss">Mancato</button></div></div></div>
+          <div class="field"><label id="directHitLabel" for="directHitDamage">Colpo</label><input id="directHitDamage" type="number" min="0" step="1" inputmode="numeric" placeholder="Totale" /></div>
+        </div>
         <div id="damageField" class="field" hidden><label id="damageLabel" for="damage">Danno pieno</label><input id="damage" type="number" min="0" step="1" inputmode="numeric" placeholder="Totale" /></div>
         <div id="bulkOutcomes" class="section-head" role="group" aria-label="Imposta tutti" hidden>
           <span class="caption">Creature colpite</span>

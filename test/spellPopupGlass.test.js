@@ -179,7 +179,7 @@ test("D2: one height for each kind of popup, whatever the content", () => {
 
 test("the fixed row has the total and the defenses beside the main button, for every kind", () => {
   assert.match(pages.active, /id="footer" class="apply-row"><button id="apply"[^>]*>Applica<\/button><span id="summary" class="total" hidden><\/span><div id="damageDefenses" class="defense-chips" hidden><\/div><\/div>/);
-  assert.match(activeController, /function renderSummary\(missing = "", label = "", amount = null\)/);
+  assert.match(activeController, /function renderSummary\(missing = "", label = "", amount = null, extra = \[\]\)/);
   assert.match(activeController, /Manca l'esito di \$\{missingOutcomes\}/);
   assert.match(activeController, /subjects\.length > 1 \? `\$\{displayName\(item\)\} · \$\{said\}` : said/, "the creature's name only when there are several");
   assert.match(activeController, /\$\("footer"\)\.hidden = false/);

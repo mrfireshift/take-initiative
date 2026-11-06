@@ -26,6 +26,7 @@ import {
   buildSpellActiveResolutionResourceOperations,
   normalizeActiveResolutionTargetIds,
   resolveSpellActiveResolutionDamage,
+  resolveSpellActiveResolutionDirectHitDamage,
   resolveSpellActiveResolutionHealing,
   isPrismaticWallActiveResolutionKind,
   validateSpellActiveResolutionPayload,
@@ -537,9 +538,11 @@ function scopeBanishmentOperations(operations, eligibleTargetIds) {
 // The outcome of an attack in an activation's label, as the PC attack console names it: "Goblin: mancato".
 const ACTIVE_ATTACK_OUTCOME_WORDS = Object.freeze({ hit: "colpito", critical: "critico", miss: "mancato" });
 
-function activeAttackSummary(action, attackOutcome, attackEntries, ids, byId) {
+function activeAttackSummary(action, attackOutcome, attackEntries, ids, byId, directHit = null) {
   const name = (id) => String(byId.get(id)?.name || "bersaglio").trim();
   const word = (outcome) => ACTIVE_ATTACK_OUTCOME_WORDS[String(outcome || "").trim()] || "";
+  // Lightning Arrow: the arrow's target and its outcome; the burst's creatures follow in the log.
+  if (directHit && word(directHit.attackOutcome)) return `${name(directHit.targetId)}: ${word(directHit.attackOutcome)}`;
   if (attackEntries.length) {
     const parts = attackEntries.filter((entry) => word(entry.attackOutcome))
       .map((entry) => `${name(entry.targetId)}: ${word(entry.attackOutcome)}`);
@@ -1118,6 +1121,8 @@ export async function executeSpellActiveResolution({
   attackOutcome = "",
   saveAbility = "",
   attacks = [],
+  // Lightning Arrow's own hit: { targetId, attackOutcome, damageRoll }, on the creature its burst is anchored to.
+  directHit = null,
   sharedHp = {},
   shorteningFrom = "",
   naturalStormBonus = false,
@@ -1146,6 +1151,13 @@ export async function executeSpellActiveResolution({
       damageRoll: entry?.damageRoll ?? entry?.damage ?? 0,
     }))
     .filter((entry) => entry.targetId);
+  const directHitEntry = payload?.action?.directHit && directHit && typeof directHit === "object"
+    ? {
+      targetId: String(directHit.targetId || "").trim(),
+      attackOutcome: String(directHit.attackOutcome || "").trim(),
+      damageRoll: directHit.damageRoll ?? "",
+    }
+    : null;
   const ids = normalizeActiveResolutionTargetIds([
     ...targetIds,
     ...attackEntries.map((entry) => entry.targetId),
@@ -1173,6 +1185,7 @@ export async function executeSpellActiveResolution({
     saveAbility,
     attacks: attackEntries,
     shorteningFrom,
+    ...(directHitEntry ? { directHit: directHitEntry } : {}),
   };
   const preflight = await validateSpellActiveResolutionCommit(commitInput);
   if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
@@ -1208,7 +1221,9 @@ export async function executeSpellActiveResolution({
 
   const itemIds = prismaticWallResolution
     ? normalizeActiveResolutionTargetIds([payload.casterId, ...ids])
-    : ids;
+    : directHitEntry
+      ? normalizeActiveResolutionTargetIds([...ids, directHitEntry.targetId])
+      : ids;
   const sharedHpSceneItems = await OBR.scene.items.getItems();
   const items = sharedHpSceneItems.filter(item => itemIds.includes(item.id));
   if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
@@ -1681,40 +1696,56 @@ export async function executeSpellActiveResolution({
         instanceId,
       })));
     } else {
-      const resolutionEntries = attackEntries.length
-        ? attackEntries
-        : ids.map((targetId) => ({ targetId, attackOutcome, damageRoll }));
+      const resolutionEntries = [
+        ...(attackEntries.length
+          ? attackEntries
+          : ids.map((targetId) => ({ targetId, attackOutcome, damageRoll }))),
+        // Lightning Arrow's own hit, on the target the burst spares: its own outcome, sum and event.
+        ...(directHitEntry ? [{ ...directHitEntry, directHit: true }] : []),
+      ];
       const currentHpById = new Map();
       for (const entry of resolutionEntries) {
         const targetId = entry.targetId;
         const item = byId.get(targetId);
         const meta = item?.metadata?.[`${ID}/meta`] || {};
-        const outcome = action?.resolutionKind === "single-attack"
+        const direct = entry.directHit === true;
+        const attack = direct || action?.resolutionKind === "single-attack";
+        const outcome = attack
           ? entry.attackOutcome
           : activeResolutionOutcome(normalizedPayload, targetId, attackOutcome);
-        if (!action?.damage) {
+        const damageAction = direct ? action.directHit : action;
+        if (!damageAction?.damage) {
           resolutionDamageByTarget.set(targetId, { damage: null, outcome });
           continue;
         }
         // The creature's defense against this damage, the same as the popup's preview.
         const defenses = spellDamageDefenseRows({
-          types: spellActionDamageTypes(action),
+          types: spellActionDamageTypes(damageAction),
           defenses: magicalDamageDefensesForItem(item, `${ID}/meta`),
           ignoredTypes: ignoredDefenses?.[targetId],
         });
-        const damage = resolveSpellActiveResolutionDamage({
-          action,
-          slotLevel: payload.slotLevel,
-          outcome,
-          roll: action?.resolutionKind === "single-attack" ? entry.damageRoll : damageRoll,
-          defense: spellDamageDefenseApplied(defenses),
-        });
-        if (!damage.valid) throw new Error("active-resolution-damage-invalid");
+        const damage = direct
+          ? resolveSpellActiveResolutionDirectHitDamage({
+            action,
+            slotLevel: payload.slotLevel,
+            outcome,
+            roll: entry.damageRoll,
+            defense: spellDamageDefenseApplied(defenses),
+          })
+          : resolveSpellActiveResolutionDamage({
+            action,
+            slotLevel: payload.slotLevel,
+            outcome,
+            roll: action?.resolutionKind === "single-attack" ? entry.damageRoll : damageRoll,
+            defense: spellDamageDefenseApplied(defenses),
+          });
+        if (!damage.valid) throw new Error(direct ? "active-resolution-direct-hit-invalid" : "active-resolution-damage-invalid");
         resolutionDamageByTarget.set(targetId, { damage, outcome, defenses });
         sharedHpIntents.push({ targetId, mode: "damage", amount: damage.amount,
-          eventId: action?.resolutionKind === "single-attack" ? `active-attack:${sharedHpIntents.length}` : "active-save",
+          eventId: direct ? "active-direct-hit"
+            : action?.resolutionKind === "single-attack" ? `active-attack:${sharedHpIntents.length}` : "active-save",
           // A critical hit on a PC at 0 HP: two death save failures.
-          ...(action?.resolutionKind === "single-attack" && outcome === "critical" ? { critical: true } : {}) });
+          ...(attack && outcome === "critical" ? { critical: true } : {}) });
         if (damage.amount <= 0) continue;
         if (!item
           || !Object.prototype.hasOwnProperty.call(meta, "hp")
@@ -1838,7 +1869,7 @@ export async function executeSpellActiveResolution({
           .filter((entry) => ["hit", "critical"].includes(entry.attackOutcome))
           .map((entry) => entry.targetId),
       )
-      : attackOutcome === "hit" && action?.resolutionKind === "single-attack"
+      : ["hit", "critical"].includes(attackOutcome) && action?.resolutionKind === "single-attack"
         ? ids
         : [];
     if (hitEffectTargetIds.length && action?.effectOn === "hit") {
@@ -1890,7 +1921,9 @@ export async function executeSpellActiveResolution({
       .map(({ mode, amount, eventId, critical }) => ({ mode, amount, eventId, ...(critical === true ? { critical: true } : {}) }));
   }
   const actionLabel = String(action.buttonLabel || action.label || "Attivazione").trim();
-  const causalTargets = ids.map((targetId) => {
+  // The log names every creature written: the burst's and, for Lightning Arrow, the arrow's target with its outcome.
+  const causalTargetIds = directHitEntry ? normalizeActiveResolutionTargetIds([...ids, directHitEntry.targetId]) : ids;
+  const causalTargets = causalTargetIds.map((targetId) => {
     const item = byId.get(targetId);
     const resolution = resolutionDamageByTarget.get(targetId);
     const damage = resolution?.damage;
@@ -1933,7 +1966,7 @@ export async function executeSpellActiveResolution({
       : { damageRoll }),
   };
   // An attack names its target and outcome, hit or miss, as the PC attack console does (Mano arcana's Pugno serrato).
-  const attackSummary = activeAttackSummary(action, attackOutcome, attackEntries, ids, byId);
+  const attackSummary = activeAttackSummary(action, attackOutcome, attackEntries, ids, byId, directHitEntry);
   const activationLabel = `Attivazione: ${spellName} · ${actionLabel}${attackSummary ? ` → ${attackSummary}` : ""}`;
   const historyPayload = {
     type: payload.type,
@@ -1952,6 +1985,9 @@ export async function executeSpellActiveResolution({
       ? { healingRoll: Math.max(0, Math.floor(Number(damageRoll) || 0)) }
       : { damageRoll: Math.max(0, Math.floor(Number(damageRoll) || 0)) }),
     attacks: attackEntries,
+    ...(directHitEntry
+      ? { directHit: { ...directHitEntry, damageRoll: Math.max(0, Math.floor(Number(directHitEntry.damageRoll) || 0)) } }
+      : {}),
     ...(prismaticWallHistory ? { prismaticWall: prismaticWallHistory } : {}),
     ...(action?.shortenStaticZone ? { shorteningFrom: String(shorteningFrom || action.shortenStaticZone.from || "end") } : {}),
     naturalStormBonus: naturalStormBonus === true,
@@ -1965,7 +2001,7 @@ export async function executeSpellActiveResolution({
       casterId: payload.casterId,
       casterName: payload.casterName,
       targets: causalTargets,
-      targetIds: ids,
+      targetIds: causalTargetIds,
       outcomes,
       attacks: attackEntries,
       actionId: payload.actionId,
@@ -1985,7 +2021,7 @@ export async function executeSpellActiveResolution({
     kind: "spell-active-resolution",
     sharedHp,
     label: activationLabel,
-    targetIds: [payload.casterId, ...ids],
+    targetIds: [payload.casterId, ...causalTargetIds],
     metadataPatches,
     sideEffects,
     ...(sceneIdentity ? { sceneIdentity } : {}),

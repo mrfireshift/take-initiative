@@ -2,7 +2,7 @@
 
 Un giro solo al tavolo per due liste:
 - **P5** del [piano di polishing degli incantesimi](PIANO_POLISH_INCANTESIMI.md);
-- le prove in stanza dell'[audit dei popup viola](AUDIT_UX_POPUP_VIOLA.md): da V1 a V11, il trascinamento, F1, la tela nera di Fazioni e Aspetto area.
+- le prove in stanza dell'[audit dei popup viola](AUDIT_UX_POPUP_VIOLA.md): da V1 a V11, il trascinamento, F1, la tela nera di Fazioni e Aspetto area, Freccia Folgorante e Critico.
 
 C'è anche ciò che il banco non ha potuto provare. Render è più indietro di `main`: si prova con la build locale.
 
@@ -55,6 +55,7 @@ Segna con una x ciò che va. Per ciò che non va, scrivi sotto, in una riga, che
 - [ ] **Mancato:** si applica senza numero, la riga dice `Danni 0` e la stella si consuma.
 - [ ] **Annulla:** dalla Cronologia, dopo un colpo di Corona di Stelle, tornano i PF e la stella.
 - [ ] **Armi evocate:** Spada arcana o Arma spirituale dalla scheda del token. Il pulsante dice `Attacco`.
+- [ ] **Critico:** su Arma spirituale o Corona di Stelle c'è `Critico`, e accanto al danno compaiono i dadi raddoppiati (`1d8 · critico 2d8`). Su un PG a 0 PF segna due fallimenti.
 - [ ] **Lama del Disastro:** due attacchi, uno mancato e uno con un danno di due cifre. Le cifre restano tutte e due, e `Danni` in fondo fa il totale.
 - [ ] **Fuori gittata:** sposta il bersaglio lontano prima di premere il pulsante. Il messaggio rosso resta e dice che il bersaglio è fuori gittata.
 
@@ -71,6 +72,10 @@ Segna con una x ciò che va. Per ciò che non va, scrivi sotto, in una riga, che
 - [ ] **Terremoto fino in fondo:** `Numero di fessure`, la fessura, `Profondità`, gli esiti. Al banco non si riesce a disegnare una fessura valida.
 - [ ] **Una fessura messa male:** il messaggio dice di riposizionarla, in parole.
 - [ ] **Raffica di Spine o Freccia Folgorante:** l'esplosione si ancora al bersaglio, e l'elenco compare.
+- [ ] **Il colpo di Freccia Folgorante:**
+  - selezionato il bersaglio, sopra l'esplosione compare il suo colpo: `Colpito`, `Critico`, `Mancato` e `Colpo 4d8`;
+  - su un bersaglio resistente al fulmine il chip dice `18 → 9`, e con `Mancato` `9 → 4`;
+  - **Risolvi freccia** scrive colpo ed esplosione, e un solo Annulla dalla Cronologia li toglie tutti e due.
 - [ ] **Palla di fuoco ritardata con quattro creature:**
   - la riga in fondo guida fino a `Danni N`;
   - su una creatura resistente al fuoco c'è il chip, e un clic la ignora;

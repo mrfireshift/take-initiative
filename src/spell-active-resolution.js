@@ -4,6 +4,9 @@ import {
   SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES,
   SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES,
   spellActiveResolutionDamageFormula,
+  spellActiveResolutionCriticalFormula,
+  spellActiveResolutionDirectHitFormula,
+  resolveSpellActiveResolutionDirectHitDamage,
   resolveSpellActiveResolutionDamage,
   spellActiveResolutionHealingFormula,
   spellActiveResolutionAttackDamageRequired,
@@ -104,6 +107,9 @@ let selectedChoice = "";
 let attackEntries = [];
 // Where the cursor goes when the attack's controls are drawn: the damage, after the outcome that asks for it.
 let attackDamageFocus = false;
+// Lightning Arrow's own hit: its outcome, and the cursor to its damage once the outcome is chosen.
+let directHitOutcome = "";
+let directHitFocus = false;
 let attackRowFocus = -1;
 let prismaticLayerOutcomes = new Map();
 let prismaticLayerDamage = new Map();
@@ -190,6 +196,15 @@ function renderAmountLabel(node, type, dice) {
     meta.textContent = dice;
     node.append(meta);
   }
+}
+
+// An attack's dice beside its damage, as in the console: on a critical the doubled dice follow.
+function attackDiceText(outcome) {
+  const action = payload?.action;
+  const dice = spellActiveResolutionDamageFormula({ action, slotLevel: payload?.slotLevel, outcome: "hit" }).scaledFormula
+    || String(action?.damage?.formula || "").trim();
+  if (outcome !== "critical" || !dice) return dice;
+  return `${dice} · critico ${spellActiveResolutionCriticalFormula({ action, slotLevel: payload?.slotLevel })}`;
 }
 
 // The save's DC: the action's own, the one fixed at the cast, or the caster's sheet.
@@ -790,7 +805,10 @@ function renderContext() {
     ? activeActionLabel.replace(/\d+d\d+/iu, activeDamageFormula)
     : activeActionLabel;
   const attackDamageLabel = $("attackDamageLabel");
-  if (attackDamageLabel) renderAmountLabel(attackDamageLabel, damage.type, damageDice);
+  if (attackDamageLabel) {
+    renderAmountLabel(attackDamageLabel, damage.type,
+      payload?.action?.resolutionKind === "single-attack" ? attackDiceText(attackOutcome) : damageDice);
+  }
   if (wallOfLight) {
     $("attackDamage").setAttribute("aria-label", "Danno del Raggio radioso");
   } else {
@@ -821,7 +839,7 @@ function renderContext() {
       : ability ? `TS ${ability}` : "Tiro salvezza";
     renderAmountLabel($("singleSaveDamageLabel"), damage.type, damageDice);
   }
-  renderAmountLabel($("damageLabel"), damage.type, damageDice);
+  renderAmountLabel($("damageLabel"), payload?.action?.directHit ? "esplosione" : damage.type, damageDice);
   if (child) {
     const minimum = Math.max(1, Math.floor(Number(child.placementCount?.min) || 1));
     const maximum = Math.max(minimum, Math.floor(Number(child.placementCount?.max) || minimum));
@@ -1061,7 +1079,7 @@ function clearRefusal() {
 }
 
 // Beside the main button: what is still missing, or what it will register.
-function renderSummary(missing = "", label = "", amount = null) {
+function renderSummary(missing = "", label = "", amount = null, extra = []) {
   const node = $("summary");
   node.replaceChildren();
   if (missing) {
@@ -1070,6 +1088,13 @@ function renderSummary(missing = "", label = "", amount = null) {
     const number = document.createElement("strong");
     number.textContent = String(amount);
     node.append(`${label} `, number);
+    // A second number after the first: Lightning Arrow's burst after its hit.
+    for (const [extraLabel, extraAmount] of extra) {
+      if (!Number.isFinite(extraAmount)) continue;
+      const more = document.createElement("strong");
+      more.textContent = String(extraAmount);
+      node.append(` · ${extraLabel} `, more);
+    }
   }
   node.hidden = !node.childNodes.length;
 }
@@ -1078,12 +1103,16 @@ function renderSummary(missing = "", label = "", amount = null) {
 function subjectDamage(subject) {
   const written = String(subject?.roll ?? "").trim() !== "" && Number.isFinite(Number(subject?.roll));
   if (!subject?.outcome || !written) return null;
-  const resolved = resolvedDamage(subject.outcome, subject.roll, spellDamageDefenseApplied(targetDefenseRows(subject.item)));
+  const rows = targetDefenseRows(subject.item, subject.direct ? directHitTypes() : undefined);
+  const resolved = resolvedDamage(subject.outcome, subject.roll, spellDamageDefenseApplied(rows), subject.direct === true);
   return resolved?.valid ? resolved.amount : null;
 }
 
 // The damage this popup writes, after a defense. A smite's has no save to halve it: only the defense changes it.
-function resolvedDamage(outcome, roll, defense) {
+function resolvedDamage(outcome, roll, defense, direct = false) {
+  if (direct) {
+    return resolveSpellActiveResolutionDirectHitDamage({ action: payload.action, slotLevel: payload.slotLevel, outcome, roll, defense });
+  }
   if (isPreparedResolution()) return { valid: true, amount: spellDamageAfterDefense(Number(roll), "full", defense) };
   return resolveSpellActiveResolutionDamage({ action: payload.action, slotLevel: payload.slotLevel, outcome, roll: Number(roll), defense });
 }
@@ -1095,7 +1124,74 @@ function popupDamageTypes() {
     : spellActionDamageTypes(payload?.action);
 }
 
+// Lightning Arrow's own hit (the directHit of its action), on the creature the burst is anchored to.
+function directHitAction() {
+  return payload?.action?.directHit || null;
+}
+
+function directHitTypes() {
+  return spellActionDamageTypes(directHitAction());
+}
+
+function directHitTarget() {
+  const id = directHitAction() ? currentAnchoredTargetId() : "";
+  return id ? sceneItems.find((item) => item?.id === id) || null : null;
+}
+
+function directHitRoll() {
+  return String($("directHitDamage")?.value || "").trim();
+}
+
+// Who takes the hit, with what the popup knows so far. Before the outcome its defense is said as for a hit.
+function directHitSubject() {
+  const item = directHitTarget();
+  return item ? { item, outcome: directHitOutcome || "hit", roll: directHitRoll(), direct: true } : null;
+}
+
+// What is still missing for the hit, from the target to its damage: the burst says its own after it.
+function directHitMissing() {
+  if (!directHitAction()) return "";
+  if (!directHitTarget()) return "Manca il bersaglio.";
+  if (!directHitOutcome) return "Manca l'esito del colpo.";
+  return directHitRoll() ? "" : "Manca il danno del colpo.";
+}
+
+// The hit's dice beside its damage, as an attack's in the console: the doubled ones on a critical, the half on a miss.
+function directHitDiceText(outcome) {
+  const { scaledFormula, criticalFormula } = spellActiveResolutionDirectHitFormula({
+    action: payload?.action,
+    slotLevel: payload?.slotLevel,
+  });
+  if (!scaledFormula) return "";
+  return outcome === "critical" ? `${scaledFormula} · critico ${criticalFormula}`
+    : outcome === "miss" ? `${scaledFormula} · metà se manca`
+    : scaledFormula;
+}
+
+// Its row, as the burst's creatures: name, hit points, outcome; under it, its damage.
+function renderDirectHit() {
+  const box = $("directHit");
+  if (!box) return;
+  const item = directHitTarget();
+  box.hidden = !item;
+  if (!item) return;
+  $("directHitName").textContent = displayName(item);
+  $("directHitName").title = displayName(item);
+  $("directHitHp").textContent = targetHpNumbers(item);
+  const declared = Array.isArray(directHitAction()?.outcomes) ? directHitAction().outcomes : [];
+  for (const button of box.querySelectorAll("[data-direct-hit-outcome]")) {
+    const outcome = button.dataset.directHitOutcome;
+    markOutcome(button, outcome, outcome === directHitOutcome);
+    button.hidden = !declared.includes(outcome);
+    button.disabled = busy || !sceneLifecycle.isReady();
+  }
+  renderAmountLabel($("directHitLabel"), "colpo", directHitDiceText(directHitOutcome));
+  if (directHitFocus) $("directHitDamage").focus?.();
+  directHitFocus = false;
+}
+
 function renderSave() {
+  renderDirectHit();
   const targetWrap = $("targets");
   targetWrap.replaceChildren();
   const targets = currentTargetItems();
@@ -1611,7 +1707,7 @@ async function renderStorm() {
       damageField.className = "field";
       damageField.hidden = !spellActiveResolutionAttackDamageRequired(payload?.action, entry.attackOutcome);
       const damageLabel = document.createElement("label");
-      renderAmountLabel(damageLabel, payload?.action?.damage?.type, payload?.action?.damage?.formula);
+      renderAmountLabel(damageLabel, payload?.action?.damage?.type, attackDiceText(entry.attackOutcome));
       const damageInput = document.createElement("input");
       damageInput.type = "number";
       damageInput.min = "0";
@@ -2096,7 +2192,8 @@ function renderActiveMicropills() {
     if (singleSave && typeof checkLabel === "string") {
       if (checkLabel.trim()) pills.push(checkLabel.trim());
     } else if (saveArea || singleSave) {
-      pills.push(saveWithDC(payload?.action?.save?.ability || childZone()?.save?.ability || saveAbility));
+      const save = saveWithDC(payload?.action?.save?.ability || childZone()?.save?.ability || saveAbility);
+      pills.push(payload?.action?.directHit ? `Esplosione: ${save}` : save);
     } else if (payload?.action?.attack || isMultiAttack()) {
       pills.push("Attacco");
     } else if (isPrismaticWallTraversal()) {
@@ -2174,9 +2271,9 @@ function renderTargetLine(targetName = "", emptyText = "", item = null) {
   line.hidden = !shown;
 }
 
-function targetDefenseRows(item) {
+function targetDefenseRows(item, types = popupDamageTypes()) {
   return spellDamageDefenseRows({
-    types: popupDamageTypes(),
+    types,
     defenses: magicalDamageDefensesForItem(item, META_KEY),
     ignoredTypes: [...(ignoredDefenses.get(item?.id) || [])],
   });
@@ -2195,7 +2292,11 @@ function damageDefenseSubjects() {
   }
   if (kind === "save-area") {
     if (childZone()) return [];
-    return currentTargetItems().map((item) => ({ item, outcome: outcomes.get(item.id), roll: $("damage").value }));
+    const hit = directHitSubject();
+    return [
+      ...(hit ? [hit] : []),
+      ...currentTargetItems().map((item) => ({ item, outcome: outcomes.get(item.id), roll: $("damage").value })),
+    ];
   }
   if (kind === "single-save") return byId(selectedSaveTarget, saveOutcome, $("saveDamage").value);
   if (kind !== "single-attack") return [];
@@ -2237,10 +2338,10 @@ function renderDamageDefenseChips() {
   const box = $("damageDefenses");
   if (!box) return;
   const subjects = popupDamageTypes().length ? damageDefenseSubjects() : [];
-  const chips = subjects.flatMap(({ item, outcome, roll }) => {
-    const rows = targetDefenseRows(item);
+  const chips = subjects.flatMap(({ item, outcome, roll, direct = false }) => {
+    const rows = targetDefenseRows(item, direct ? directHitTypes() : undefined);
     const written = String(roll ?? "").trim() !== "" && Number.isFinite(Number(roll));
-    const resolve = (defense) => (outcome && written ? resolvedDamage(outcome, roll, defense) : null);
+    const resolve = (defense) => (outcome && written ? resolvedDamage(outcome, roll, defense, direct) : null);
     return rows.map((row) => {
       const before = resolve(null);
       const after = resolve(row.ignored ? null : row.defense);
@@ -2384,7 +2485,9 @@ function render() {
       const maximum = Number(child.depth.max ?? 10);
       return Number.isInteger(value) && value >= minimum && value <= maximum;
     });
+    const hitMissing = child ? "" : directHitMissing();
     $("apply").disabled = !sceneReady || busy
+      || !!hitMissing
       || !placement
       || (child
         ? selectedCount !== requiredCount
@@ -2399,18 +2502,23 @@ function render() {
     const missingOutcomes = requiresSave
       ? currentTargetItems().filter((item) => !SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES.includes(outcomes.get(item.id))).length
       : 0;
-    renderSummary(
-      child
-        ? selectedCount !== requiredCount ? "Manca la posizione."
-          : missingOutcomes ? `Manca l'esito di ${missingOutcomes} ${missingOutcomes === 1 ? "creatura" : "creature"}.`
-          : !depthValid ? `La profondità va da ${child.depth.min} a ${child.depth.max}.` : ""
-        : !placement ? "Manca l'area."
-        : !placement.targetIds?.length && payload?.action?.allowEmptyTargets !== true ? "Nessuna creatura nell'area."
+    const areaMissing = child
+      ? selectedCount !== requiredCount ? "Manca la posizione."
         : missingOutcomes ? `Manca l'esito di ${missingOutcomes} ${missingOutcomes === 1 ? "creatura" : "creature"}.`
-        : damageInputMissing && areaDamageRequired ? "Manca il danno." : "",
-      "Danni",
-      !child && payload?.action?.damage && !damageInputMissing ? Number($("damage").value) : null,
-    );
+        : !depthValid ? `La profondità va da ${child.depth.min} a ${child.depth.max}.` : ""
+      : !placement ? "Manca l'area."
+      : !placement.targetIds?.length && payload?.action?.allowEmptyTargets !== true ? "Nessuna creatura nell'area."
+      : missingOutcomes ? `Manca l'esito di ${missingOutcomes} ${missingOutcomes === 1 ? "creatura" : "creature"}.`
+      : damageInputMissing && areaDamageRequired ? "Manca il danno." : "";
+    if (directHitAction() && !child) {
+      // Lightning Arrow: what its target takes, then the burst's roll when it hits someone.
+      const burstRoll = areaTargets.length && !damageInputMissing ? Number($("damage").value) : null;
+      renderSummary(hitMissing || areaMissing, "Colpo", subjectDamage(directHitSubject()),
+        Number.isFinite(burstRoll) ? [["Esplosione", burstRoll]] : []);
+    } else {
+      renderSummary(areaMissing, "Danni",
+        !child && payload?.action?.damage && !damageInputMissing ? Number($("damage").value) : null);
+    }
     renderHeadingSubtitle();
   } else if (singleSave) {
     void renderSingleSave();
@@ -2904,6 +3012,9 @@ async function apply() {
           damageRoll: attackEntryRoll(entry),
         }))
         : [],
+      directHit: directHitAction()
+        ? { targetId: currentAnchoredTargetId(), attackOutcome: directHitOutcome, damageRoll: directHitRoll() }
+        : null,
       ignoredDefenses: Object.fromEntries([...ignoredDefenses].map(([targetId, types]) => [targetId, [...types]])),
       sceneEpoch: operation.epoch,
       sceneIdentity: ownerSceneContext?.sceneIdentity || null,
@@ -3087,6 +3198,20 @@ if (!payload) {
       render();
     });
   }
+  for (const button of document.querySelectorAll("[data-direct-hit-outcome]")) {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (busy) return;
+      directHitOutcome = button.dataset.directHitOutcome;
+      directHitFocus = true;
+      clearRefusal();
+      render();
+    });
+  }
+  $("directHitDamage")?.addEventListener("input", () => {
+    clearRefusal();
+    render();
+  });
   for (const button of document.querySelectorAll("[data-attack-outcome]")) {
     button.addEventListener("click", (event) => {
       event.stopPropagation();

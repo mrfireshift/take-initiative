@@ -389,7 +389,7 @@ function validateOutcomes({ targetIds, outcomes, allowed }) {
   return [];
 }
 
-async function validateSaveArea({ payload, placement, targetIds, outcomes, damageRoll }) {
+async function validateSaveArea({ payload, placement, targetIds, outcomes, damageRoll, directHit = null }) {
   const fixedRadius = fixedCasterRadiusConfig(payload);
   const action = payload?.action || {};
   const anchoredToPrimary = action.areaAnchor === "primary-target";
@@ -428,6 +428,18 @@ async function validateSaveArea({ payload, placement, targetIds, outcomes, damag
   const damageRequired = !!action.damage
     && (!action.damageRequiredWithTargetsOnly || ids.length > 0);
   if (damageRequired && numericRoll(damageRoll) === null) errors.push("damage-required");
+  // Lightning Arrow's own hit: on the creature the burst is anchored to, with its outcome and its roll.
+  if (action.directHit) {
+    const hitTargetId = String(directHit?.targetId || "").trim();
+    if (!anchoredToPrimary || !hitTargetId || hitTargetId !== anchorTargetId) errors.push("direct-hit-target-invalid");
+    const hitOutcomes = Array.isArray(action.directHit.outcomes) ? action.directHit.outcomes : [];
+    if (!hitOutcomes.includes(String(directHit?.attackOutcome || "").trim())) errors.push("direct-hit-outcome-required");
+    if (String(directHit?.damageRoll ?? "").trim() === "" || numericRoll(directHit?.damageRoll) === null) {
+      errors.push("direct-hit-damage-required");
+    }
+  } else if (directHit) {
+    errors.push("direct-hit-unexpected");
+  }
 
   const [caster] = await OBR.scene.items.getItems([payload.casterId]);
   const [anchorTarget] = anchorTargetId
@@ -1091,6 +1103,7 @@ export async function validateSpellActiveResolutionCommit({
   layerDamage = {},
   layerId = "",
   traversalId = "",
+  directHit = null,
 } = {}) {
   const payloadValidation = validateSpellActiveResolutionPayload(payload);
   const errors = [...payloadValidation.errors];
@@ -1148,7 +1161,7 @@ export async function validateSpellActiveResolutionCommit({
       })
     : payload.action.resolutionKind === "child-zone"
       ? await validateChildZone({ payload, placement, targetIds: ids, outcomes, allItems })
-      : await validateSaveArea({ payload, placement, targetIds: ids, outcomes, damageRoll });
+      : await validateSaveArea({ payload, placement, targetIds: ids, outcomes, damageRoll, directHit });
   if (payload.action.resolutionKind === "single-attack" && attackEntries.length) {
     for (const entry of attackEntries) {
       const attackResult = await validateStorm({

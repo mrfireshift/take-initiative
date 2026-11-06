@@ -84,6 +84,8 @@ export function spellActiveResolutionPopoverHeight(payload) {
     if (action.type === "manual") return 200;
     return Array.isArray(payload.choiceOptions) && payload.choiceOptions.length > 1 ? 344 : 300;
   }
+  // Lightning Arrow: the arrow's hit above its burst (directHit).
+  if (action.directHit) return 560;
   switch (String(action.resolutionKind || "")) {
     case "single-attack":
       if (Number(action.maxAttacks) > 1) return 480;
@@ -681,6 +683,59 @@ export function spellActiveResolutionDamageFormula({
     }
   }
   return { formula, scaledFormula };
+}
+
+// A critical hit's dice, as the PC attack console says them (pcAttackCriticalDice): every die of the damage twice, the
+// modifier once. An action with its own critical says its own: Blade of Disaster's 4d12 and 8d12 more, 12d12.
+export function spellActiveResolutionCriticalFormula({ action = null, slotLevel = 0 } = {}) {
+  if (String(action?.critical?.additionalDice || "").trim()) {
+    return spellActiveResolutionDamageFormula({ action, slotLevel, outcome: "critical" }).scaledFormula;
+  }
+  const { scaledFormula } = spellActiveResolutionDamageFormula({ action, slotLevel, outcome: "hit" });
+  return String(scaledFormula || "").replace(/(\d+)d(\d+)/gu, (match, count, sides) => `${Number(count) * 2}d${sides}`);
+}
+
+// Lightning Arrow's own hit (the directHit of its action): its dice with the slot's, and doubled on a critical.
+export function spellActiveResolutionDirectHitFormula({ action = null, slotLevel = 0 } = {}) {
+  const damage = action?.directHit?.damage;
+  if (!damage) return { formula: "", scaledFormula: "", criticalFormula: "" };
+  const hit = { damage };
+  return {
+    ...spellActiveResolutionDamageFormula({ action: hit, slotLevel, outcome: "hit" }),
+    criticalFormula: spellActiveResolutionCriticalFormula({ action: hit, slotLevel }),
+  };
+}
+
+// What that hit deals: all of the roll on a hit or a critical (the GM writes the doubled dice), half on a miss; then the
+// target's defense, as everywhere: the half first, the defense after it. An empty roll is no roll.
+export function resolveSpellActiveResolutionDirectHitDamage({
+  action = null,
+  slotLevel = 0,
+  outcome = "",
+  roll = "",
+  defense = null,
+} = {}) {
+  const directHit = action?.directHit;
+  const normalizedOutcome = String(outcome || "").trim();
+  const numericRoll = Number(roll);
+  const valid = !!directHit?.damage
+    && (Array.isArray(directHit.outcomes) ? directHit.outcomes : []).includes(normalizedOutcome)
+    && String(roll ?? "").trim() !== ""
+    && Number.isFinite(numericRoll)
+    && numericRoll >= 0;
+  if (!valid) return { valid: false, errors: Object.freeze(["direct-hit-input-invalid"]) };
+  const factor = normalizedOutcome === "miss" ? (directHit.onMiss === "half" ? 0.5 : 0) : 1;
+  return {
+    valid: true,
+    outcome: normalizedOutcome,
+    roll: Math.floor(numericRoll),
+    factor,
+    amount: defense && factor > 0
+      ? spellDamageAfterDefense(numericRoll, factor === 1 ? "full" : "half", defense)
+      : Math.floor(numericRoll * factor),
+    ...spellActiveResolutionDirectHitFormula({ action, slotLevel }),
+    type: String(directHit.damage.type || "").trim(),
+  };
 }
 
 export function resolveSpellActiveResolutionDamage({
