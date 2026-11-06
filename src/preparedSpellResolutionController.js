@@ -132,8 +132,9 @@ async function reconcilePreparedSpellPopovers() {
     observeInitiativeState(await OBR.scene.getMetadata().catch(() => ({})), { seed: true });
   }
   const groups = preparedSpellResolutionGroups(await preparedSpellItems())
-    // Raffica di Spine e Freccia Folgorante completano la risoluzione nel
-    // pannello unificato, che possiede già placement e transazione area.
+    // Simbolo si risolve nel pannello unificato, che ne possiede la sagoma e
+    // la transazione: niente popup al turno. Raffica di Spine e Freccia
+    // Folgorante invece hanno il popup, con la loro azione.
     .filter((group) => !SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS.includes(
       String(group?.spellId || "").trim(),
     ))

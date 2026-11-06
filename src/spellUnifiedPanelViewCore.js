@@ -799,6 +799,16 @@ function normalizeEffectFields(
   return fields;
 }
 
+// An action's cost in the panel's words. A GM command costs the caster nothing (Mirror Image's duplicate, Lightning Arrow
+// resolved with its attack), and an action that declares no cost says none: Risolvi of a smite is part of the attack.
+const ACTION_ECONOMY_LABELS = Object.freeze({ action: "Azione", "bonus-action": "Azione bonus", reaction: "Reazione" });
+
+export function actionEconomyLabel(economy) {
+  const value = asText(economy);
+  if (!value || value === "gm" || value.toLocaleLowerCase("it") === "comando gm") return "";
+  return ACTION_ECONOMY_LABELS[value] || value;
+}
+
 function normalizeActiveAction(action, overview, session) {
   const selected = asText(session?.activeInstanceId) === asText(overview?.instanceId)
     && asText(session?.activeActionId) === asText(action?.id);
@@ -818,7 +828,7 @@ function normalizeActiveAction(action, overview, session) {
     disabled: unavailable || (selected && presentation.disabled),
     disabledReason: presentation.reason || "",
     presentation,
-    economyLabel: asText(action?.economy) || "Azione",
+    economyLabel: actionEconomyLabel(action?.economy),
   };
 }
 
@@ -1368,7 +1378,7 @@ export function buildUnifiedPanelViewModel({
         : null,
       actions: activeActions.map((action) => ({
         ...action,
-        economyLabel: action.economy || "Azione",
+        economyLabel: actionEconomyLabel(action.economy),
       })),
       overview: normalizedActiveOverview,
       statusLabel: selectedActiveAction

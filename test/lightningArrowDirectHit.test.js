@@ -57,6 +57,13 @@ test("the hit's sum: all of it on a hit or a critical, half on a miss, then the 
   assert.equal(amount("passed", 18).valid, false);
 });
 
+test("the arrow and the thorns are resolved with the attack they ride: no action of their own, no Azione bonus on the popup", () => {
+  assert.equal(action.economy, "gm");
+  assert.equal(getSpellResolutionAction("phb2014-raffica-di-spine", "hail-of-thorns-area").economy, "gm");
+  const source = readFileSync(new URL("../src/spell-active-resolution.js", import.meta.url), "utf8");
+  assert.match(source, /value === "gm";/, "a GM command shows no cost on the popup");
+});
+
 test("the popup is taller than an area's, for the hit above the burst", () => {
   assert.equal(spellActiveResolutionPopoverHeight({ action }), 560);
   assert.equal(spellActiveResolutionPopoverHeight({ action: getSpellResolutionAction("phb2014-raffica-di-spine", "hail-of-thorns-area") }), 450);

@@ -36,6 +36,7 @@ Segna con una x ciò che va. Per ciò che non va, scrivi sotto, in una riga, che
   - un comando del GM, come Muro prismatico, non ha tag.
 - [ ] **CD:** un TS dice `TS Forza CD N` con la CD del PG; un PG senza CD sulla scheda dice solo `TS Forza`.
 - [ ] **Altezze:** sulle tue mappe e sul tuo schermo, qualche popup ti sembra troppo vuoto o troppo stretto? Si cambiano tutte in un punto solo.
+- [ ] **Le azioni nel pannello:** fra gli **Incantesimi attivi sul campo**, sotto ogni azione il costo è in italiano e una volta sola, e il testo non si ripete. Freccia Folgorante e Raffica di Spine non dicono `Azione bonus`, né nel pannello né nel popup.
 
 ## 2. Le punizioni
 

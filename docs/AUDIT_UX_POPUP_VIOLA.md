@@ -298,11 +298,11 @@ I due punti rimasti fuori dai lotti, studiati il 06/11 su richiesta dell'utente,
   - Il banco non ha uno strumento delle aree per l'esplosione ancorata: l'ho fatto con uno script che risponde come lui, senza toccare i file del banco.
 - **Solo nei test.** Immunità, vulnerabilità, il clic sul chip, la convalida, il critico su un PG a terra e l'Annulla unico.
 - **Da guardare in stanza.** È nei gruppi 3 e 4 di [PROVA_STANZA_INCANTESIMI.md](PROVA_STANZA_INCANTESIMI.md).
-- **Trovato lungo la strada, non toccato.**
-  - Il ramo del pannello col «totale finale» non si raggiunge, e fa subire al bersaglio anche l'esplosione.
-  - Coltello di Ghiaccio ha lo stesso buco: 1d10 perforanti «da applicare a parte».
-  - Un commento in `preparedSpellResolutionController.js` dice che Freccia e Raffica si risolvono nel pannello.
-  - La testata del popup dice `Azione bonus`, ma la freccia si risolve con l'attacco: l'azione bonus è servita a lanciarla.
+- **Trovato lungo la strada.**
+  - Corretto il 06/11: la testata diceva `Azione bonus`, ma la freccia si risolve con l'attacco, e così Raffica di Spine. Le due azioni hanno ora `economy: "gm"`, come i comandi del GM, e il popup non mostra un costo.
+  - Corretto il 06/11: il commento in `preparedSpellResolutionController.js`.
+  - Corretto il 06/11, trovato al banco: nel pannello, fra gli incantesimi attivi, sotto ogni azione il costo era scritto come nel codice (`bonus-action`, `gm`) e il testo si ripeteva. Ora il costo è in italiano, una volta sola: 35 testi cominciano già con il costo. Niente costo per i comandi del GM, e la nota solo quando dice qualcosa di più.
+  - In studio: Coltello di Ghiaccio, che ha lo stesso buco (1d10 perforanti «da applicare a parte»), e il ramo del pannello col «totale finale». Quel ramo non si raggiunge, e fa subire al bersaglio anche l'esplosione.
 
 ## Fatto: la tela nera di Fazioni e Aspetto area
 

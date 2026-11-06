@@ -172,10 +172,16 @@ export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
           instanceId: overview.instanceId,
           actionId,
         }));
+        // The cost in words, the action's text, and a note only when it says something more: why the action is off, what
+        // to select. An available action's note is its own text or its label, which the line and the button say already.
+        const note = action.disabledReason || action.presentation?.title || "";
+        // The cost once: many texts start with it ("Azione bonus: muovi l'Arma spirituale…").
+        const costSaid = String(action.detail || "").toLocaleLowerCase("it")
+          .startsWith(String(action.economyLabel || "").toLocaleLowerCase("it"));
         const detail = [
-          action.economyLabel || action.economy,
+          costSaid ? "" : action.economyLabel,
           action.detail,
-          action.disabledReason || action.presentation?.title,
+          note && note !== action.detail && note !== (action.buttonLabel || action.label) ? note : "",
         ].filter(Boolean).join(" · ");
         actionList.append(createNode(documentRef, "div", {
           className: "unified-action-item",

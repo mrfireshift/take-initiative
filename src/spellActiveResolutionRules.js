@@ -665,7 +665,8 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       label: "Colpo ed esplosione · fulmine",
       buttonLabel: "Risolvi freccia",
       detail: "Il colpo sul bersaglio dell'attacco, poi l'esplosione attorno a lui: esito e danno del colpo, TS e danno dell'esplosione, consumo della preparazione.",
-      economy: "bonus-action",
+      // No action of its own: the arrow is resolved with the attack it rides. The bonus action was the cast's (PHB 2014).
+      economy: "gm",
       resolutionKind: "save-area",
       subjectMode: "none",
       requiresTargets: false,
@@ -703,7 +704,8 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       label: "Raffica di Spine · area perforante",
       buttonLabel: "Risolvi area",
       detail: "Centra l'area sul bersaglio dell'attacco già effettuato. Il bersaglio e le creature vicine effettuano un TS Destrezza: danno pieno se falliscono, metà se superano.",
-      economy: "bonus-action",
+      // No action of its own: the arrow is resolved with the attack it rides. The bonus action was the cast's (PHB 2014).
+      economy: "gm",
       resolutionKind: "save-area",
       subjectMode: "none",
       requiresTargets: false,
