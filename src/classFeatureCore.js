@@ -136,13 +136,15 @@ export function classFeatureChoiceOptions(feature) {
     .filter(Boolean);
 }
 
-export function classFeatureRequiresActivationChoice(feature, enabledFeatureIds = []) {
+// featureById: the catalog's features (CLASS_FEATURE_BY_ID), from the caller, since classFeatureCatalog.js imports
+// this module. Without it the parent of a duration is unknown, and its variants decide nothing.
+export function classFeatureRequiresActivationChoice(feature, enabledFeatureIds = [], featureById = null) {
   const choices = classFeatureChoiceOptions(feature);
   if (!choices.length) return false;
   if (feature?.choiceMode === "configuration") return false;
   const parentId = classFeatureDurationParentFeatureId(feature);
   if (parentId) {
-    const parent = CLASS_FEATURE_BY_ID.get(parentId);
+    const parent = featureById?.get?.(parentId);
     if (parent && classFeatureChoiceOptions(parent).length > 0) return false;
   }
   const enabledChoiceId = (Array.isArray(enabledFeatureIds) ? enabledFeatureIds : [])

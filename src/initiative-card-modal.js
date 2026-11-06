@@ -421,7 +421,7 @@ function quickActionSummary(action) {
 }
 
 function classFeatureChoiceControl(feature, { compact = false, label = "", defaultValue = "", enabledFeatureIds = [] } = {}) {
-  if (!classFeatureRequiresActivationChoice(feature, enabledFeatureIds)) return null;
+  if (!classFeatureRequiresActivationChoice(feature, enabledFeatureIds, CLASS_FEATURE_BY_ID)) return null;
   const options = classFeatureChoiceOptions(feature);
   if (!options.length) return null;
   const select = document.createElement("select");
@@ -453,7 +453,7 @@ function classFeatureAutoChoiceControls(feature, { compact = false, enabledFeatu
     : []) {
     if (!enabledIds.has(childId)) continue;
     const child = CLASS_FEATURE_BY_ID.get(childId);
-    if (!child || !classFeatureRequiresActivationChoice(child, enabledList)) continue;
+    if (!child || !classFeatureRequiresActivationChoice(child, enabledList, CLASS_FEATURE_BY_ID)) continue;
     const control = classFeatureChoiceControl(child, {
       compact,
       label: `Esito automatico: ${child.name}`,
