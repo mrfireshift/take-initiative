@@ -14,6 +14,8 @@ const { buildUnifiedPanelViewModel } = await import("../src/spellUnifiedPanelVie
 const { buildSpellAreaResolutionCommand } = await import("../src/spellAreaResolutionCommandCore.js");
 const {
   spellCantripDamageHint,
+  spellCastPrimaryHit,
+  spellCastPrimaryHitDice,
   spellCastSparesEveryTarget,
   spellSaveDamageFactor,
   spellSaveDamageFormula,
@@ -127,9 +129,11 @@ test("a cast where nobody takes the damage does not ask for it", () => {
   assert.equal(invalidField({ outcomes: { target: "failed" } }), "damage");
 });
 
-test("Ice Knife says that its damage field is the explosion, and where the hit goes", () => {
+test("Ice Knife says that its damage field is the explosion, and its hit has a field of its own", () => {
   assert.equal(spellSaveDamageFormula("xanathar-coltello-di-ghiaccio", "failed", 2), "3d6");
-  assert.match(spellCantripDamageHint("xanathar-coltello-di-ghiaccio"), /1d10 perforanti/u);
+  assert.match(spellCantripDamageHint("xanathar-coltello-di-ghiaccio"), /1,5 m/u);
+  assert.doesNotMatch(spellCantripDamageHint("xanathar-coltello-di-ghiaccio"), /a parte/u, "the hit is no longer applied elsewhere");
+  assert.deepEqual(spellCastPrimaryHitDice(spellCastPrimaryHit("xanathar-coltello-di-ghiaccio")), { dice: "1d10", critical: "2d10" });
 });
 
 test("an automatic repeat says no save: Witch Bolt, Enervation, the Mental Prison's break", () => {

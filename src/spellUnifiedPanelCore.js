@@ -55,6 +55,7 @@ import {
 } from "./chainLightningTargetingCore.js";
 import {
   getSpellCastResolutionRule,
+  spellCastPrimaryHit,
   spellCastSaveAbility,
   spellCastSaveOnlyIfUnwilling,
   spellCastSparesEveryTarget,
@@ -1167,8 +1168,9 @@ function inputDescriptor({
   const choiceRequired = choices.length > 0;
   // Magic Missile: each dart's damage is written on its target, never one damage for the cast.
   const damageRequired = hpInputVisible && !healing && text(spell?.id) !== MAGIC_MISSILE_SPELL_ID;
-  const primaryDamageRequired = phasePlan?.phase === "resolve"
-    && phasePlan?.attack?.primaryDamageMode === "final-applied";
+  // A cast's own hit on its primary target (Ice Knife's shard): its damage, asked when the attack hits.
+  const primaryHit = phasePlan?.phase === "prepare" ? null : spellCastPrimaryHit(spell);
+  const primaryDamageRequired = !!primaryHit && damageRequired;
   const healingRequired = hpInputVisible && healing;
   // CAP-TEMP, lotto T3b: the die of the temporary hit points the cast gives (False Life's 1d4, the 2d6 of a variant of
   // Enhance Ability), rolled at the table.
@@ -1229,6 +1231,8 @@ function inputDescriptor({
       required: primaryDamageRequired,
       visible: primaryDamageRequired,
       mode: "damage",
+      // Nothing on a miss: the damage is asked only on a hit or a critical, as in the PC attack console.
+      ...(primaryHit && primaryHit.onMiss !== "half" ? { onHitOnly: true } : {}),
     },
     healing: { required: healingRequired || !!castHealingDice, visible: healingRequired || !!castHealingDice,
       ...(castHealingDice ? { dice: castHealingDice } : {}) },
@@ -1601,8 +1605,15 @@ export function buildSpellUnifiedPanelContract({
     choiceValue,
     workflowSaveAbility || (saveOutcomes || phases.length <= 1 ? spellCastSaveAbility(spell) : ""),
   );
-  const combinedAttackAndSave = spellPhaseAttackOutcomeRequired(phasePlan)
+  // Ice Knife: the outcome of its attack beside the burst's saves, as a prepared spell's attack in its resolution.
+  const castPrimaryHit = phasePlan?.phase === "prepare" ? null : spellCastPrimaryHit(spell);
+  const combinedAttackAndSave = (spellPhaseAttackOutcomeRequired(phasePlan) || !!castPrimaryHit)
     && saveOutcomes;
+  const attackOptionsValue = castPrimaryHit
+    ? ["hit", "critical", "miss"]
+      .filter((value) => castPrimaryHit.outcomes.includes(value))
+      .map((value) => ({ value, label: { hit: "Colpito", critical: "Critico", miss: "Mancato" }[value] }))
+    : outcomeOptionsValue;
   const automation = automationDescriptor({ spell, phasePlan });
   const controls = controlList({
     spell,
@@ -1744,7 +1755,7 @@ export function buildSpellUnifiedPanelContract({
           ? "attack"
           : "save",
         options: combinedAttackAndSave ? saveOutcomeOptionsValue : outcomeOptionsValue,
-        ...(combinedAttackAndSave ? { attackOptions: outcomeOptionsValue } : {}),
+        ...(combinedAttackAndSave ? { attackOptions: attackOptionsValue } : {}),
         ...(initialSave
           ? { save: { ...initialSave, ...(spellCastSaveOnlyIfUnwilling(spell) ? { onlyIfUnwilling: true } : {}) } }
           : {}),
@@ -2491,6 +2502,7 @@ function validationFor(contract, session, placement) {
     add("damage", "damage-required");
   }
   if (inputs.primaryDamage?.required
+    && (inputs.primaryDamage.onHitOnly !== true || ["hit", "critical"].includes(text(session.attackOutcome)))
     && !hasSessionValue(session.hpValues.primaryDamage)) {
     add("primaryDamage", "primary-damage-required");
   }

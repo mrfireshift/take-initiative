@@ -165,7 +165,7 @@ function completeSession(contract, overrides = {}) {
     targetIds,
     primaryTargetId: inputs.primaryTarget?.required ? targetIds[0] : "",
     outcomes: attack ? {} : Object.fromEntries(targetIds.map((id) => [id, "failed"])),
-    attackOutcome: attack ? "hit" : "",
+    attackOutcome: attack || contract.presentation.outcomes?.mode === "attack-and-save" ? "hit" : "",
     targetContext,
     castContext,
     placement: syntheticPlacement(contract, targetIds, castContext),

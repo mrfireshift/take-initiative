@@ -166,40 +166,72 @@ test("Freccia acida lascia l'esito soltanto nel controllo del bersaglio", () => 
   assert.equal(view.targets.candidates[0].outcome.value, "miss");
 });
 
-test("Freccia Folgorante richiede i valori finali e non espone l'esito dell'attacco", () => {
-  const view = modelFor("phb2014-freccia-folgorante", {
-    targetIds: ["target-a"],
+test("Coltello di Ghiaccio: l'esito dell'attacco accanto ai TS, e il campo del colpo quando colpisce", () => {
+  const base = {
+    slotLevel: 1,
+    targetIds: ["target-a", "target-b"],
     primaryTargetId: "target-a",
-    outcomes: { "target-a": "failed" },
-    hpValues: { primaryDamage: 13, damage: 7 },
+    outcomes: { "target-a": "failed", "target-b": "passed" },
+    hpValues: { damage: 8 },
     placement: {
       state: "confirmed",
       status: "confirmed",
       confirmed: true,
       targetLocked: true,
-      anchorTargetId: "target-a",
-      targetIds: ["target-a"],
-      preview: { anchorTargetId: "target-a", targetIds: ["target-a"] },
+      ruleId: "xanathar-coltello-di-ghiaccio:cast",
+      spellId: "xanathar-coltello-di-ghiaccio",
+      targetIds: ["target-a", "target-b"],
+      preview: { type: "circle", targetIds: ["target-a", "target-b"] },
     },
-  }, { contractOptions: { phase: "resolve" } });
+  };
+  const fieldsOf = (view) => view.effects.fields.map((field) => field.id);
+  const before = modelFor("xanathar-coltello-di-ghiaccio", base);
+  assert.equal(before.targets.outcomes.mode, "attack-and-save");
+  assert.equal(before.targets.outcomes.attack.visible, true);
+  assert.deepEqual(before.targets.outcomes.attack.options.map((option) => option.label), ["Colpito", "Critico", "Mancato"]);
+  assert.deepEqual(fieldsOf(before), ["damage"]);
 
-  assert.equal(view.workflow.controls.includes("attack-outcomes"), false);
-  assert.equal(view.targets.primary.required, true);
-  assert.equal(view.targets.outcomes.mode, "save");
-  assert.equal(view.targets.outcomes.attack.visible, false);
-  assert.deepEqual(view.targets.outcomes.options.map((option) => option.value), [
-    "passed",
-    "failed",
-    "immune",
-  ]);
-  assert.deepEqual(view.effects.fields.map((field) => field.id), [
-    "damage",
-    "primaryDamage",
-  ]);
-  assert.equal(view.effects.fields.find((field) => field.id === "damage").label, "Danno area · 2d8 fulmine");
-  assert.equal(view.effects.fields.find((field) => field.id === "primaryDamage").label, "Danno primario · 4d8 fulmine");
-  assert.equal(view.effects.fields.find((field) => field.id === "primaryDamage").value, 13);
-  assert.equal(view.workflow.validation.valid, true);
+  const hit = modelFor("xanathar-coltello-di-ghiaccio", { ...base, attackOutcome: "hit" });
+  assert.deepEqual(fieldsOf(hit), ["damage", "primaryDamage"]);
+  assert.equal(hit.effects.fields.find((field) => field.id === "primaryDamage").label, "Colpo · 1d10 perforanti");
+
+  const critical = modelFor("xanathar-coltello-di-ghiaccio", {
+    ...base,
+    attackOutcome: "critical",
+    hpValues: { damage: 8, primaryDamage: 14 },
+  });
+  const criticalField = critical.effects.fields.find((field) => field.id === "primaryDamage");
+  assert.equal(criticalField.label, "Colpo · 1d10 perforanti · critico 2d10");
+  assert.equal(criticalField.value, 14);
+  assert.equal(critical.workflow.validation.valid, true, JSON.stringify(critical.workflow.validation));
+
+  const miss = modelFor("xanathar-coltello-di-ghiaccio", { ...base, attackOutcome: "miss" });
+  assert.deepEqual(fieldsOf(miss), ["damage"], "a miss asks no damage");
+  assert.equal(miss.workflow.validation.valid, true, JSON.stringify(miss.workflow.validation));
+});
+
+test("Coltello di Ghiaccio: l'anteprima e il chip del bersaglio contano la sua difesa contro il colpo", () => {
+  const knife = contract("xanathar-coltello-di-ghiaccio");
+  const session = createSpellPanelSession({
+    contract: knife,
+    casterId: "caster-a",
+    slotLevel: 1,
+    targetIds: ["target-a"],
+    primaryTargetId: "target-a",
+    outcomes: { "target-a": "failed" },
+    attackOutcome: "hit",
+    hpValues: { damage: 8, primaryDamage: 7 },
+  });
+  const view = buildUnifiedPanelViewModel({
+    contract: knife,
+    session,
+    targetCandidates: [{ key: "target-a", label: "Target A", hp: 30, hpMax: 30, damageDefenses: { resistances: ["piercing"] } }],
+  });
+  const target = view.effects.preview.targets.find((entry) => entry.key === "target-a");
+  // 7 piercing halved to 3, then the burst's 8 cold: 30 - 3 - 8 = 19.
+  assert.equal(target.afterHP, 19);
+  const candidate = view.targets.candidates.find((entry) => entry.key === "target-a");
+  assert.deepEqual(candidate.defenseChips.map((chip) => chip.text), ["Res. perforanti: 7 → 3"]);
 });
 
 test("Catena di fulmini proietta gli step di selezione primaria e secondaria", () => {

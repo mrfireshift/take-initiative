@@ -120,7 +120,9 @@ test("the sweep finds no spell effect left without a place on the card", () => {
 for (const spellId of ["xanathar-coltello-di-ghiaccio", "xanathar-creare-falo"]) {
   test(`${spellId}: a passed save takes no damage, as its text says`, () => {
     const { failed, passed } = runsOf(spellId);
-    assert.equal(START_HP - failed.hp.one, SWEEP_DAMAGE);
+    // Ice Knife's target also takes the shard's hit: the failed run hits with it, the passed run misses.
+    const hit = spellId === "xanathar-coltello-di-ghiaccio" ? SWEEP_DAMAGE : 0;
+    assert.equal(START_HP - failed.hp.one, SWEEP_DAMAGE + hit);
     assert.equal(START_HP - passed.hp.one, 0);
   });
 }

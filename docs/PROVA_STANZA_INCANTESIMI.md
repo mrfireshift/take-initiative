@@ -73,6 +73,7 @@ Segna con una x ciò che va. Per ciò che non va, scrivi sotto, in una riga, che
 - [ ] **Terremoto fino in fondo:** `Numero di fessure`, la fessura, `Profondità`, gli esiti. Al banco non si riesce a disegnare una fessura valida.
 - [ ] **Una fessura messa male:** il messaggio dice di riposizionarla, in parole.
 - [ ] **Raffica di Spine o Freccia Folgorante:** l'esplosione si ancora al bersaglio, e l'elenco compare.
+- [ ] **Coltello di Ghiaccio:** **Esito dell'attacco** sopra l'elenco. Con `Colpito` compare `Colpo · 1d10 perforanti`, con `Mancato` no. Il bersaglio prende colpo ed esplosione, gli altri solo l'esplosione, e chi supera il TS niente. Un solo Annulla.
 - [ ] **Il colpo di Freccia Folgorante:**
   - selezionato il bersaglio, sopra l'esplosione compare il suo colpo: `Colpito`, `Critico`, `Mancato` e `Colpo 4d8`;
   - su un bersaglio resistente al fulmine il chip dice `18 → 9`, e con `Mancato` `9 → 4`;

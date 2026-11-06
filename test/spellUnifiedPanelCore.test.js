@@ -583,7 +583,7 @@ test("Raffica di Spine separa preparazione e risoluzione", () => {
   has(resolve.presentation.controls, "save-outcomes");
 });
 
-test("Freccia Folgorante risolve primary finale e TS senza attack outcome", () => {
+test("Freccia Folgorante nel pannello: TS senza esito d'attacco, e nessun totale finale per il bersaglio", () => {
   const resolve = buildSpellUnifiedPanelContract({
     spellId: "phb2014-freccia-folgorante",
     phase: "resolve",
@@ -602,9 +602,43 @@ test("Freccia Folgorante risolve primary finale e TS senza attack outcome", () =
     ["passed", "failed", "immune"],
   );
   assert.equal(resolve.presentation.outcomes.attackOptions, undefined);
-  assert.equal(resolve.presentation.inputs.primaryDamage.required, true);
+  // Its hit is resolved in the popup of its action (directHit), not as a final total here.
+  assert.equal(resolve.presentation.inputs.primaryDamage.required, false);
   assert.equal(resolve.presentation.inputs.damage.required, true);
   assert.equal(resolve.presentation.controls.includes("attack-outcomes"), false);
+});
+
+test("Coltello di Ghiaccio: l'esito dell'attacco accanto ai TS, e il colpo chiesto solo se colpisce", () => {
+  const knife = buildSpellUnifiedPanelContract({ spellId: "xanathar-coltello-di-ghiaccio" });
+  assert.equal(knife.presentation.outcomes.mode, "attack-and-save");
+  assert.deepEqual(knife.presentation.outcomes.attackOptions.map((option) => option.label), ["Colpito", "Critico", "Mancato"]);
+  assert.deepEqual(knife.presentation.outcomes.options.map((option) => option.value), ["passed", "failed", "immune"]);
+  assert.equal(knife.presentation.inputs.primaryDamage.required, true);
+  assert.equal(knife.presentation.inputs.primaryDamage.onHitOnly, true);
+  const errorsFor = (attackOutcome, primaryDamage = null) => buildSpellPanelViewModel(knife, createSpellPanelSession({
+    contract: knife,
+    casterId: "caster-a",
+    slotLevel: 1,
+    targetIds: ["target-a"],
+    primaryTargetId: "target-a",
+    outcomes: { "target-a": "failed" },
+    attackOutcome,
+    hpValues: { damage: 8, primaryDamage },
+    placement: {
+      status: "confirmed",
+      confirmed: true,
+      targetLocked: true,
+      spellId: "xanathar-coltello-di-ghiaccio",
+      ruleId: "xanathar-coltello-di-ghiaccio:cast",
+      casterId: "caster-a",
+      preview: { type: "circle", targetIds: ["target-a"] },
+      targetIds: ["target-a"],
+    },
+  })).validation.errors;
+  assert.equal(errorsFor("").includes("outcomes-required"), true, "the attack's outcome first");
+  assert.equal(errorsFor("hit").includes("primary-damage-required"), true);
+  assert.equal(errorsFor("hit", 7).includes("primary-damage-required"), false);
+  assert.equal(errorsFor("miss").includes("primary-damage-required"), false, "a miss asks no damage");
 });
 
 test("Investitura della Fiamma distingue aura e linea attiva", () => {

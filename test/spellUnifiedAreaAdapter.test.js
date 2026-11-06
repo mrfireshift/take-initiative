@@ -279,18 +279,14 @@ test("Dimension Door mantiene il cast se la lettura spaziale solleva un errore S
   assert.equal(result.command.targeting.spatialValidation.unavailable, true);
 });
 
-test("Freccia Folgorante trasporta zero e non richiede attack outcome", async () => {
-  const { contract, session } = setup("phb2014-freccia-folgorante", {
-    phase: "resolve",
-    slotLevel: 3,
-    activeConcentration: {
-      instanceId: "prepared-lightning",
-      spellId: "phb2014-freccia-folgorante",
-    },
+test("Coltello di Ghiaccio porta al comando l'esito dell'attacco e il colpo del bersaglio", async () => {
+  const { contract, session } = setup("xanathar-coltello-di-ghiaccio", {
+    slotLevel: 1,
     targetIds: ["target-a"],
     primaryTargetId: "target-a",
     outcomes: { "target-a": "failed" },
-    hpValues: { damage: 8, primaryDamage: 0 },
+    attackOutcome: "critical",
+    hpValues: { damage: 8, primaryDamage: 14 },
   });
   const placement = confirmedPlacement(contract, ["target-a"]);
   let observed = null;
@@ -308,9 +304,11 @@ test("Freccia Folgorante trasporta zero e non richiede attack outcome", async ()
   });
 
   assert.equal(result.status, SPELL_UNIFIED_AREA_STATUS.APPLIED);
-  assert.equal(observed.hp.primaryAmount, 0);
-  assert.equal(observed.hp.primaryDamageMode, "final-applied");
-  assert.equal(observed.outcomes.attack, undefined);
+  assert.equal(observed.outcomes.attack, "critical");
+  assert.equal(observed.hp.primaryAmount, 14);
+  assert.equal(observed.hp.primaryCritical, true);
+  assert.deepEqual(observed.hp.primaryDamageTypes, ["piercing"]);
+  assert.equal("primaryDamageMode" in observed.hp, false);
 });
 
 test("Anatema usa targeting discreto e conserva gli esiti TS", async () => {

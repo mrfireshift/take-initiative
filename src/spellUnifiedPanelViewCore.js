@@ -61,6 +61,10 @@ import {
   spellCantripDamageHint,
   spellCastHealingFormula,
   spellCastHpPoolFormula,
+  spellCastPrimaryHit,
+  spellCastPrimaryHitAmount,
+  spellCastPrimaryHitDice,
+  spellCastPrimaryHitTypes,
   spellSaveDamageFormula,
 } from "./spellCastResolutionRules.js";
 import {
@@ -517,9 +521,18 @@ function hpPreviewFor(
       const defenseCount = isHealing || immune || attackMiss || noDamage
         ? null
         : { before: spellDamageBeforeDefense(value, factor), after: change.requested };
-      if (isDamage && inputs.primaryDamage?.visible && session?.phase === "resolve"
-        && asText(session?.primaryTargetId) === candidate.key) {
-        const primary = calculateQuickHPChange({ mode, value: Number(session?.hpValues?.primaryDamage) || 0,
+      // Ice Knife's target: the shard's hit before the burst, after its outcome and its defense, as the commit does it.
+      const primaryHit = isDamage && inputs.primaryDamage?.visible ? spellCastPrimaryHit(spellId) : null;
+      const primaryValue = primaryHit && asText(session?.primaryTargetId) === candidate.key
+        ? spellCastPrimaryHitAmount({
+          primaryHit,
+          outcome: session?.attackOutcome,
+          roll: session?.hpValues?.primaryDamage,
+          defense: spellDamageDefenseApplied(primaryHitDefenseRows(candidate, session, primaryHit)),
+        })
+        : 0;
+      if (primaryValue > 0) {
+        const primary = calculateQuickHPChange({ mode, value: primaryValue,
           factor: QUICK_HP_FACTORS.FULL, hp: beforeHP, hpMax, tempHp: candidate.tempHp });
         const area = calculateQuickHPChange({ mode, value: change.requested,
           factor: QUICK_HP_FACTORS.FULL, hp: primary.afterHP, hpMax, tempHp: primary.afterTempHp });
@@ -551,6 +564,37 @@ function hpPreviewFor(
   return preview;
 }
 
+// The defense of Ice Knife's target against the shard's hit, with what the GM ignored in this cast.
+function primaryHitDefenseRows(candidate, session, primaryHit) {
+  return spellDamageDefenseRows({
+    types: spellCastPrimaryHitTypes(primaryHit),
+    defenses: candidate.damageDefenses,
+    ignoredTypes: session?.ignoredDefenses?.[candidate.key],
+  });
+}
+
+// Its chips on the target's row, beside the burst's: what the defense does to the hit, unless the attack missed.
+function primaryHitDefenseChips(candidate, session, spellId) {
+  const primaryHit = spellCastPrimaryHit(spellId);
+  const outcome = asText(session?.attackOutcome);
+  if (!primaryHit || asText(session?.primaryTargetId) !== candidate.key || outcome === "miss") return [];
+  const written = asText(session?.hpValues?.primaryDamage);
+  const roll = written !== "" && Number.isFinite(Number(written)) ? Math.max(0, Number(written)) : null;
+  return primaryHitDefenseRows(candidate, session, primaryHit).map((row) => {
+    const numbers = roll === null
+      ? { before: 0, after: 0 }
+      : {
+        before: Math.floor(roll),
+        after: spellCastPrimaryHitAmount({ primaryHit, outcome: outcome || "hit", roll, defense: row.ignored ? null : row.defense }),
+      };
+    return {
+      ...row,
+      text: spellDamageDefenseText(row, numbers),
+      title: spellDamageDefenseTitle(row, { name: candidate.label, ...numbers }),
+    };
+  });
+}
+
 // Prismatic Spray writes its damage ray by ray: a chip for each ray the creature resists, as soon as the ray is chosen.
 function prismaticSprayDefenseChips(candidate, session) {
   const outcome = asText(candidate.outcome?.value).toLocaleLowerCase("it");
@@ -578,7 +622,7 @@ function candidateDefenseChips({ candidate, presentation, session, spellId, dama
   if (!candidate?.selected) return [];
   if (spellId === PRISMATIC_SPRAY_SPELL_ID) return prismaticSprayDefenseChips(candidate, session);
   if (presentation?.inputs?.damage?.visible !== true || !damageInputVisible) return [];
-  return spellDamageDefenseRows({
+  const areaChips = spellDamageDefenseRows({
     types: spellPanelDamageTypes(spellId, session?.triggerRuntime),
     defenses: candidate.damageDefenses,
     ignoredTypes: session?.ignoredDefenses?.[candidate.key],
@@ -590,6 +634,9 @@ function candidateDefenseChips({ candidate, presentation, session, spellId, dama
       title: spellDamageDefenseTitle(row, { name: candidate.label, ...numbers }),
     };
   });
+  const hitChips = primaryHitDefenseChips(candidate, session, spellId)
+    .filter((chip) => !areaChips.some((areaChip) => areaChip.type === chip.type));
+  return [...areaChips, ...hitChips];
 }
 
 // Magic Missile's darts (magicMissileCore.js): a column per target, a box per dart with its roll, the darts to add
@@ -714,9 +761,6 @@ function normalizeEffectFields(
   const areaDamage = mechanics.areaDamage && typeof mechanics.areaDamage === "object"
     ? mechanics.areaDamage
     : null;
-  const primaryDamage = mechanics.damageReplacement && typeof mechanics.damageReplacement === "object"
-    ? mechanics.damageReplacement
-    : null;
   const damageFormula = areaDamage?.dice
     ? `Danno area · ${areaDamage.dice}${areaDamage.type ? ` ${areaDamage.type}` : ""}`
     : "Danno";
@@ -753,16 +797,19 @@ function normalizeEffectFields(
       value: hpValues.damage ?? "",
       invalid: validation.firstInvalidField === "damage",
     });
-    if (inputs.primaryDamage?.visible && session?.phase === "resolve") {
+    // A cast's own hit on its primary target (Ice Knife's shard): its field once the attack hits, with the doubled dice of
+    // a critical as the console says them. A miss deals nothing and asks nothing.
+    const primaryHit = spellCastPrimaryHit(spellId);
+    const hitOutcome = asText(session?.attackOutcome);
+    const hitShown = inputs.primaryDamage?.onHitOnly !== true || ["hit", "critical"].includes(hitOutcome);
+    if (inputs.primaryDamage?.visible && primaryHit && hitShown) {
+      const { dice, critical } = spellCastPrimaryHitDice(primaryHit);
+      const type = asText(primaryHit.damage?.type);
       fields.push({
         id: "primaryDamage",
         type: "number",
-        label: primaryDamage?.dice
-          ? `Danno primario · ${primaryDamage.dice}${primaryDamage.type ? ` ${primaryDamage.type}` : ""}`
-          : "Danno primario",
-        hint: primaryDamage
-          ? "Totale finale da applicare al bersaglio primario; non viene ricalcolato dal runtime."
-          : "Totale finale da applicare al bersaglio primario.",
+        label: `Colpo · ${dice}${type ? ` ${type}` : ""}${hitOutcome === "critical" ? ` · critico ${critical}` : ""}`,
+        hint: hitOutcome === "critical" ? "Con un critico scrivi i dadi raddoppiati." : "",
         min: 0,
         value: hpValues.primaryDamage ?? "",
         invalid: validation.firstInvalidField === "primaryDamage",

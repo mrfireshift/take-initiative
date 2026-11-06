@@ -244,7 +244,7 @@ Classificati, nessun difetto: Rintocco dei Morti, Frusta di Spine, Lenza Elettri
 dal pannello registrano il lancio perché tiro e danno stanno nella console attacchi (`pcAttackCantripCatalog.js`,
 `pcAttackSpellCatalog.js`). Lama Roboante dal pannello mette solo l'etichetta: il colpo è un attacco con arma in console.
 
-Limite rimasto: il colpo di Coltello di Ghiaccio non è registrato. Servirebbe un bersaglio primario in un lancio ad area.
+Limite rimasto: il colpo di Coltello di Ghiaccio non era registrato. Dal 6/11 lo è: l'esito dell'attacco del bersaglio primario, il campo del colpo quando colpisce, la difesa contro i perforanti e un solo Annulla con l'esplosione (vedi l'audit dei popup viola).
 
 Provato al banco, con il servizio di sfondo vero: la gittata su ogni percorso, l'eccezione dal pannello fino all'applicazione su
 entrambe le corsie e in Catena di fulmini, e sullo strumento vero della mappa con Palla di fuoco; gli esiti di Dardo Stregato, dei due raggi e di Morsa

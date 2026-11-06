@@ -26,7 +26,9 @@ export function sharedHpIntents(entry, eventId = "shared-hp-preview") {
   if (entry.change.primaryRequested === undefined) return [intent];
   // A primary hit and its area are independent applications, even when the
   // primary and secondary targets use the same pool.
-  return [{ ...intent, amount: entry.change.primaryRequested, eventId: `${intent.eventId}:primary` },
+  return [{ ...intent, amount: entry.change.primaryRequested, eventId: `${intent.eventId}:primary`,
+    // Ice Knife's critical hit: two death save failures for a PC at 0 HP.
+    ...(entry.change.primaryCritical === true ? { critical: true } : {}) },
     { ...intent, amount: entry.change.areaRequested }];
 }
 

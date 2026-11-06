@@ -190,11 +190,10 @@ const PHASED_SPELLS = Object.freeze({
     resolveAction: "dismiss",
     attack: Object.freeze({
       ...rangedWeaponAttack,
-      // Il tiro per colpire viene risolto al tavolo. La risoluzione preparata
-      // riceve soltanto il danno primario finale già determinato dal GM.
+      // Il colpo e l'esplosione si risolvono nel popup della sua azione
+      // (lightning-arrow-area, con directHit): qui nessun esito d'attacco.
       outcomes: Object.freeze([]),
       outcomeRequired: false,
-      primaryDamageMode: "final-applied",
       consumeOnMiss: true,
       missResolves: true,
       areaAnchor: "primary-target",

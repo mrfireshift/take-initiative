@@ -143,13 +143,10 @@ const { currentSceneEpoch, markSceneEpochReady } = await import("../src/sceneEpo
 const { buildSpellUnifiedPanelContract, createSpellPanelSession } = await import(
   "../src/spellUnifiedPanelCore.js?lightning-arrow-panel",
 );
-const { buildSpellAreaResolutionCommand } = await import(
-  "../src/spellAreaResolutionCommandCore.js?lightning-arrow-command",
+const { buildSpellActiveResolutionPayload, getSpellResolutionAction } = await import(
+  "../src/spellActiveResolutionCore.js",
 );
-const { executeSpellAreaResolution } = await import(
-  "../src/spellAreaResolutionExecutor.js?lightning-arrow-executor",
-);
-const { executeSpellApplication } = await import(
+const { executeSpellActiveResolution, executeSpellApplication } = await import(
   "../src/spellApplicationExecutor.js?lightning-arrow-application",
 );
 const { executeSpellUnifiedLifecycle } = await import(
@@ -223,34 +220,6 @@ async function resetScene() {
   await backgroundEffects.mountEffectsMutationCoordinatorService();
 }
 
-function runtimeFor(epoch) {
-  return {
-    sceneEpoch: epoch,
-    isCurrent: () => true,
-    readItems: sdkStub.scene.items.getItems,
-    readAllItems: () => sdkStub.scene.items.getItems(),
-    readSceneMetadata: sdkStub.scene.getMetadata,
-    getInitiativeActorId: async () => CASTER_ID,
-    updateItems: sdkStub.scene.items.updateItems,
-    addItems: sdkStub.scene.items.addItems,
-    deleteItems: sdkStub.scene.items.deleteItems,
-    validateSpatial: async () => ({ valid: true, errors: [] }),
-    createSpellInstanceId: async () => "lightning-runtime-instance",
-    runEffectsMutation: clientEffects.runEffectsMutation,
-    requireAppliedEffectsMutation: clientEffects.requireAppliedEffectsMutation,
-    withItemMetaHistory: history.withItemMetaHistory,
-    getHistoryEntries: history.getHistoryEntries,
-    syncHPVisuals: async () => {},
-    readAuthoritativeHPVisualUpdates: async () => [],
-    syncHPBatchToMemory: async () => {},
-    getZeroHPConditionHistoryIds: async () => [],
-    onConcentrationWarnings: async () => {},
-    onEffectSaveWarnings: async () => {},
-    emitFireballVisual: async () => {},
-    emitMatchedSpellVisual: async () => {},
-  };
-}
-
 test.after(() => {
   backgroundEffects.unmountEffectsMutationCoordinatorService();
   historyOwner.unmountHistoryOwner();
@@ -260,10 +229,9 @@ test.after(() => {
   else globalThis.location = previousLocation;
 });
 
-test("Lightning Arrow: prepare → resolve composito → Undo ripristina HP, parent e concentrazione", async () => {
+test("Lightning Arrow: prepared in the panel, resolved in the popup of its action, one Undo puts back HP, parent and concentration", async () => {
   await resetScene();
   const epoch = currentSceneEpoch();
-  const runtime = runtimeFor(epoch);
 
   const prepareContract = buildSpellUnifiedPanelContract({
     spellId: SPELL_ID,
@@ -296,115 +264,65 @@ test("Lightning Arrow: prepare → resolve composito → Undo ripristina HP, par
   const preparedSpellSnapshot = clone(casterAfterPrepare.metadata[META_KEY][SPELLS_KEY]);
   const preparedConcentrationSnapshot = clone(casterAfterPrepare.metadata[META_KEY][CONCENTRATION_KEY]);
 
-  const resolveContract = buildSpellUnifiedPanelContract({
-    spellId: SPELL_ID,
-    phase: "resolve",
-    castContext: { slotLevel: 3 },
+  // The popup of its action, as the caster's turn opens it: the arrow's hit on its target, then the burst around it.
+  const payload = buildSpellActiveResolutionPayload({
+    spell: { id: SPELL_ID, name: "Freccia Folgorante", level: 3 },
+    action: getSpellResolutionAction(SPELL_ID, "lightning-arrow-area"),
+    group: { instanceId: parent.instanceId, casterId: CASTER_ID, castContext: { slotLevel: 3 } },
+    sceneEpoch: epoch,
   });
-  const placement = {
-    status: "confirmed",
-    confirmed: true,
-    ruleId: `${SPELL_ID}:cast`,
-    spellId: SPELL_ID,
-    casterId: CASTER_ID,
-    targetLocked: true,
-    targetIds: [PRIMARY_ID, SECONDARY_ID],
-    anchorTargetId: PRIMARY_ID,
-    preview: {
+  const resolution = {
+    payload,
+    // 3 m around the target's centre, its cells counted from its own, as the area tool does.
+    placement: {
       type: "circle",
       start: { x: 375, y: 375 },
       end: { x: 675, y: 375 },
-      radius: 450,
-      gridOrigin: { x: 0, y: 0 },
+      gridOrigin: { x: 300, y: 300 },
       dpi: 150,
       anchorTargetId: PRIMARY_ID,
       anchorOrigin: { x: 375, y: 375 },
-      targetIds: [PRIMARY_ID, SECONDARY_ID],
-      targetLocked: true,
+      targetIds: [SECONDARY_ID],
     },
+    targetIds: [SECONDARY_ID],
+    outcomes: { [SECONDARY_ID]: "passed" },
+    damageRoll: 7,
+    directHit: { targetId: PRIMARY_ID, attackOutcome: "hit", damageRoll: 13 },
   };
-  const resolveSession = createSpellPanelSession({
-    contract: resolveContract,
-    phase: "resolve",
-    casterId: CASTER_ID,
-    slotLevel: 3,
-    activeConcentration: {
-      instanceId: parent.instanceId,
-      spellId: SPELL_ID,
-      name: "Freccia Folgorante",
-    },
-    targetIds: [PRIMARY_ID, SECONDARY_ID],
-    primaryTargetId: PRIMARY_ID,
-    outcomes: { [PRIMARY_ID]: "failed", [SECONDARY_ID]: "passed" },
-    hpValues: { primaryDamage: 13, damage: 7 },
-    placement,
-  });
-  const command = buildSpellAreaResolutionCommand({
-    contract: resolveContract,
-    session: resolveSession,
-    source: { kind: "prepared-resolution", sceneEpoch: epoch, parentInstanceId: parent.instanceId },
-    casterId: CASTER_ID,
-    parentInstanceId: parent.instanceId,
-    targetIds: [PRIMARY_ID, SECONDARY_ID],
-    candidateTargetIds: [PRIMARY_ID, SECONDARY_ID],
-    primaryTargetId: PRIMARY_ID,
-    outcomes: { [PRIMARY_ID]: "failed", [SECONDARY_ID]: "passed" },
-    hp: { mode: "damage", amount: 7, primaryAmount: 13 },
-    placement,
-    targetLocked: true,
-    sceneEpoch: epoch,
-    currentSceneEpoch: epoch,
-    validateSpatial: false,
-  });
-  assert.equal(command.valid, true, command.errors?.join(", "));
-  assert.equal(command.outcomes.attack, undefined);
-  assert.equal(command.hp.primaryDamageMode, "final-applied");
-
-  const resolved = await executeSpellAreaResolution(command, runtime);
-  assert.equal(resolved.status, "applied", JSON.stringify(resolved));
+  await executeSpellActiveResolution(resolution);
   await settleEffectsHistory();
+  const byId = (items, id) => items.find((item) => item.id === id);
   const afterResolve = await sdkStub.scene.items.getItems();
-  const primaryAfterResolve = afterResolve.find((item) => item.id === PRIMARY_ID);
-  const secondaryAfterResolve = afterResolve.find((item) => item.id === SECONDARY_ID);
-  const casterAfterResolve = afterResolve.find((item) => item.id === CASTER_ID);
-  assert.equal(primaryAfterResolve.metadata[META_KEY].hp, 30);
-  assert.equal(secondaryAfterResolve.metadata[META_KEY].hp, 27);
+  assert.equal(byId(afterResolve, PRIMARY_ID).metadata[META_KEY].hp, 37, "the hit, 13");
+  assert.equal(byId(afterResolve, SECONDARY_ID).metadata[META_KEY].hp, 27, "the burst, 7 halved by the save");
+  const casterAfterResolve = byId(afterResolve, CASTER_ID);
   assert.equal(casterAfterResolve.metadata[META_KEY][SPELLS_KEY].some((entry) => entry.instanceId === parent.instanceId), false);
   assert.equal(Object.keys(casterAfterResolve.metadata[META_KEY][CONCENTRATION_KEY]).length, 0);
 
-  const staleSecondResolve = await executeSpellAreaResolution(command, runtime);
-  assert.equal(staleSecondResolve.status, "rejected");
-  assert.equal(staleSecondResolve.errors[0].code, "prepared-instance-missing");
+  // The same popup pressed again: the arrow is spent.
+  await assert.rejects(executeSpellActiveResolution(resolution), /spell-instance-missing/);
 
   const entries = await history.getHistoryEntries();
-  const resolutionEntry = entries.find((entry) => entry.id === resolved.historyEntryId);
+  const resolutionEntry = entries.at(-1);
   assert.ok(resolutionEntry, "la risoluzione deve produrre una History entry");
   assert.deepEqual(
-    resolutionEntry.changes.map((change) => change.id).sort(),
+    [...new Set(resolutionEntry.changes.map((change) => change.id))].sort(),
     [CASTER_ID, PRIMARY_ID, SECONDARY_ID].sort(),
   );
-  const effectChanges = resolutionEntry.effectsMutation?.changes || [];
-  assert.ok(resolutionEntry.changes.some((change) => change.after?.hp?.value === 30));
-  assert.ok(resolutionEntry.changes.some((change) => change.after?.hp?.value === 27));
-  assert.ok(effectChanges.some((change) => change.fields?.spells));
-  assert.ok(effectChanges.some((change) => change.fields?.concentrations));
-  assert.ok(effectChanges.some((change) => change.metadataFields?.hp));
 
-  const undo = await history.undoHistoryThrough(resolved.historyEntryId, { sceneEpoch: epoch });
+  const undo = await history.undoHistoryThrough(resolutionEntry.id, { sceneEpoch: epoch });
   assert.equal(
     normalizeHistoryUndoResult(undo).outcome,
     HISTORY_UNDO_OUTCOME.COMMITTED,
     JSON.stringify(undo),
   );
   const afterUndo = await sdkStub.scene.items.getItems();
-  const primaryAfterUndo = afterUndo.find((item) => item.id === PRIMARY_ID);
-  const secondaryAfterUndo = afterUndo.find((item) => item.id === SECONDARY_ID);
-  const casterAfterUndo = afterUndo.find((item) => item.id === CASTER_ID);
-  assert.equal(primaryAfterUndo.metadata[META_KEY].hp, 50);
-  assert.equal(secondaryAfterUndo.metadata[META_KEY].hp, 30);
-  assert.deepEqual(casterAfterUndo.metadata[META_KEY][SPELLS_KEY], preparedSpellSnapshot);
-  assert.deepEqual(casterAfterUndo.metadata[META_KEY][CONCENTRATION_KEY], preparedConcentrationSnapshot);
+  assert.equal(byId(afterUndo, PRIMARY_ID).metadata[META_KEY].hp, 50);
+  assert.equal(byId(afterUndo, SECONDARY_ID).metadata[META_KEY].hp, 30);
+  assert.deepEqual(byId(afterUndo, CASTER_ID).metadata[META_KEY][SPELLS_KEY], preparedSpellSnapshot);
+  assert.deepEqual(byId(afterUndo, CASTER_ID).metadata[META_KEY][CONCENTRATION_KEY], preparedConcentrationSnapshot);
 
+  // An old popup against a new instance of the arrow: refused.
   await sdkStub.scene.items.updateItems([CASTER_ID], (drafts) => {
     const meta = drafts[0].metadata[META_KEY];
     meta[SPELLS_KEY] = meta[SPELLS_KEY].map((entry) => ({
@@ -418,7 +336,5 @@ test("Lightning Arrow: prepare → resolve composito → Undo ripristina HP, par
       ]),
     );
   });
-  const oldPopupAgainstNewInstance = await executeSpellAreaResolution(command, runtime);
-  assert.equal(oldPopupAgainstNewInstance.status, "rejected");
-  assert.equal(oldPopupAgainstNewInstance.errors[0].code, "prepared-instance-stale");
+  await assert.rejects(executeSpellActiveResolution(resolution), /spell-instance-missing/);
 });

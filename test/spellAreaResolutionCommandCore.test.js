@@ -577,21 +577,22 @@ test("Raffica di Spine lega l'area al primary target e il miss lascia pending", 
   assert.equal(miss.hp.mode, "none");
 });
 
-test("Freccia Folgorante usa il primary finale senza esito attack", () => {
+// Ice Knife (D1-D3 of 6/11): the shard's hit on its target, with its outcome, before the burst. It took the place of the
+// panel's final total of Lightning Arrow, whose hit is now in the popup of its action.
+test("Coltello di Ghiaccio: il colpo del coltello sul bersaglio, con il suo esito, prima dell'esplosione", () => {
   const command = buildSpellAreaResolutionCommand({
-    contract: contract("phb2014-freccia-folgorante", "resolve"),
-    spellId: "phb2014-freccia-folgorante",
-    phase: "resolve",
-    source: { kind: "prepared-resolution", parentInstanceId: "prepared-lightning" },
+    contract: contract("xanathar-coltello-di-ghiaccio"),
+    spellId: "xanathar-coltello-di-ghiaccio",
     casterId,
-    slotLevel: 3,
+    slotLevel: 1,
     primaryTargetId: "target-a",
-    primaryDamageAmount: 16,
+    attackOutcome: "hit",
+    primaryDamageAmount: 7,
     targetIds: ["target-a", "target-b"],
     outcomes: { "target-a": "failed", "target-b": "passed" },
     placement: placement({
-      spellId: "phb2014-freccia-folgorante",
-      ruleId: "phb2014-freccia-folgorante:cast",
+      spellId: "xanathar-coltello-di-ghiaccio",
+      ruleId: "xanathar-coltello-di-ghiaccio:cast",
       targetIds: ["target-a", "target-b"],
     }),
     hpAmount: 8,
@@ -599,79 +600,53 @@ test("Freccia Folgorante usa il primary finale senza esito attack", () => {
 
   assert.equal(command.valid, true, command.errors?.join(", "));
   assert.equal(command.targeting.primaryTargetId, "target-a");
-  assert.equal(command.outcomes.attack, undefined);
-  assert.equal(command.hp.primaryAmount, 16);
+  assert.equal(command.outcomes.attack, "hit");
+  assert.equal(command.hp.primaryAmount, 7);
   assert.equal(command.hp.primaryOutcomeFactor, "full");
-  assert.equal(command.hp.primaryDamageMode, "final-applied");
+  assert.deepEqual(command.hp.primaryDamageTypes, ["piercing"]);
+  assert.equal(command.hp.primaryAttackOutcome, "hit");
+  assert.equal(command.hp.primaryCritical, undefined);
+  assert.equal("primaryDamageMode" in command.hp, false, "no final total any more");
   assert.equal(command.hp.amount, 8);
+  // The burst on the target and beside it: who passes takes nothing.
   assert.equal(command.hp.outcomeFactors["target-a"], "full");
-  assert.equal(command.hp.outcomeFactors["target-b"], "half");
+  assert.equal(command.hp.outcomeFactors["target-b"], "zero");
 });
 
-test("Freccia Folgorante richiede primario, danno finale e anchor coerente", () => {
+test("Coltello di Ghiaccio vuole l'esito dell'attacco, e il danno del colpo solo se colpisce", () => {
   const base = {
-    contract: contract("phb2014-freccia-folgorante", "resolve"),
-    source: { kind: "prepared-resolution", parentInstanceId: "prepared-lightning" },
+    contract: contract("xanathar-coltello-di-ghiaccio"),
+    spellId: "xanathar-coltello-di-ghiaccio",
     casterId,
-    slotLevel: 3,
+    slotLevel: 1,
+    primaryTargetId: "target-a",
     targetIds: ["target-a", "target-b"],
-    outcomes: { "target-a": "failed", "target-b": "passed" },
-    hpAmount: 8,
+    outcomes: { "target-a": "failed", "target-b": "failed" },
     placement: placement({
-      spellId: "phb2014-freccia-folgorante",
-      ruleId: "phb2014-freccia-folgorante:cast",
+      spellId: "xanathar-coltello-di-ghiaccio",
+      ruleId: "xanathar-coltello-di-ghiaccio:cast",
       targetIds: ["target-a", "target-b"],
     }),
+    hpAmount: 8,
   };
-  const missingPrimary = buildSpellAreaResolutionCommand({
-    ...base,
-    primaryDamageAmount: 13,
-    primaryTargetId: "",
-  });
-  assert.equal(missingPrimary.valid, false);
-  hasError(missingPrimary, "primary-required");
+  const noOutcome = buildSpellAreaResolutionCommand({ ...base, primaryDamageAmount: 7 });
+  assert.equal(noOutcome.valid, false);
+  hasError(noOutcome, "attack-outcome-required");
 
-  const missingDamage = buildSpellAreaResolutionCommand({
-    ...base,
-    primaryTargetId: "target-a",
-  });
-  assert.equal(missingDamage.valid, false);
-  hasError(missingDamage, "primary-damage-required");
+  const hitWithoutDamage = buildSpellAreaResolutionCommand({ ...base, attackOutcome: "hit" });
+  assert.equal(hitWithoutDamage.valid, false);
+  hasError(hitWithoutDamage, "primary-damage-required");
 
-  const mismatch = buildSpellAreaResolutionCommand({
-    ...base,
-    primaryTargetId: "target-a",
-    primaryDamageAmount: 13,
-    placement: placement({
-      spellId: "phb2014-freccia-folgorante",
-      ruleId: "phb2014-freccia-folgorante:cast",
-      targetIds: ["target-a", "target-b"],
-      anchorTargetId: "target-b",
-    }),
-  });
-  assert.equal(mismatch.valid, false);
-  hasError(mismatch, "placement-anchor-mismatch");
-});
+  const miss = buildSpellAreaResolutionCommand({ ...base, attackOutcome: "miss" });
+  assert.equal(miss.valid, true, miss.errors?.join(", "));
+  assert.equal(miss.hp.primaryOutcomeFactor, "zero", "a miss deals nothing");
+  assert.equal(miss.hp.amount, 8, "the burst comes hit or miss");
 
-test("Freccia Folgorante trasporta primary damage numerico pari a zero", () => {
-  const command = buildSpellAreaResolutionCommand({
-    contract: contract("phb2014-freccia-folgorante", "resolve"),
-    source: { kind: "prepared-resolution", parentInstanceId: "prepared-lightning" },
-    casterId,
-    slotLevel: 3,
-    primaryTargetId: "target-a",
-    primaryDamageAmount: 0,
-    targetIds: ["target-a"],
-    outcomes: { "target-a": "failed" },
-    placement: placement({
-      spellId: "phb2014-freccia-folgorante",
-      ruleId: "phb2014-freccia-folgorante:cast",
-      targetIds: ["target-a"],
-    }),
-    hpAmount: 8,
-  });
-  assert.equal(command.valid, true, command.errors?.join(", "));
-  assert.equal(command.hp.primaryAmount, 0);
+  const critical = buildSpellAreaResolutionCommand({ ...base, attackOutcome: "critical", primaryDamageAmount: 14 });
+  assert.equal(critical.valid, true, critical.errors?.join(", "));
+  assert.equal(critical.hp.primaryCritical, true);
+  assert.equal(critical.hp.primaryOutcomeFactor, "full");
+  assert.equal(critical.hp.primaryAmount, 14);
 });
 
 test("zone trigger valido è precompilato ma non consumato", () => {

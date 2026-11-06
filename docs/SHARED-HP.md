@@ -49,8 +49,10 @@ condivisi quando sono coinvolti più membri della stessa riserva:
 La scelta vale per quell'applicazione. Una nuova applicazione usa di nuovo
 il default. Attacchi distinti, compresi i singoli raggi di un multiattacco,
 restano eventi distinti e sottraggono ciascuno i propri danni.
-Anche il danno primario di Freccia Folgorante resta distinto dall'esplosione:
-la policy del gruppo si applica ai contributi dell'area.
+Anche il colpo di Coltello di Ghiaccio sul suo bersaglio resta distinto
+dall'esplosione: la policy del gruppo si applica ai contributi dell'area. Il
+colpo di Freccia Folgorante si scrive nel popup della sua azione, anch'esso
+come evento a sé.
 
 Undo usa la Cronologia del plugin e ripristina i membri modificati al momento
 dell'evento. Aggiungere o scollegare token successivamente non cambia lo

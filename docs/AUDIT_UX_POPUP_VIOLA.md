@@ -302,7 +302,12 @@ I due punti rimasti fuori dai lotti, studiati il 06/11 su richiesta dell'utente,
   - Corretto il 06/11: la testata diceva `Azione bonus`, ma la freccia si risolve con l'attacco, e così Raffica di Spine. Le due azioni hanno ora `economy: "gm"`, come i comandi del GM, e il popup non mostra un costo.
   - Corretto il 06/11: il commento in `preparedSpellResolutionController.js`.
   - Corretto il 06/11, trovato al banco: nel pannello, fra gli incantesimi attivi, sotto ogni azione il costo era scritto come nel codice (`bonus-action`, `gm`) e il testo si ripeteva. Ora il costo è in italiano, una volta sola: 35 testi cominciano già con il costo. Niente costo per i comandi del GM, e la nota solo quando dice qualcosa di più.
-  - In studio: Coltello di Ghiaccio, che ha lo stesso buco (1d10 perforanti «da applicare a parte»), e il ramo del pannello col «totale finale». Quel ramo non si raggiunge, e fa subire al bersaglio anche l'esplosione.
+  - Fatto il 06/11, dopo uno studio con le decisioni D1-D3 dell'utente: Coltello di Ghiaccio, che aveva lo stesso buco (1d10 perforanti «da applicare a parte»).
+    - **Il pannello.** Accanto ai TS dell'esplosione c'è l'**Esito dell'attacco** del bersaglio primario: Colpito, Critico, Mancato. È il controllo del modo «attacco più TS», nato per le risoluzioni delle frecce nel pannello. Se colpisce compare `Colpo · 1d10 perforanti`, che diventa `· critico 2d10`; se manca, niente campo e niente danno. La difesa contro i perforanti ha il suo chip sulla riga del bersaglio, e l'anteprima la conta.
+    - **La regola.** `primaryHit` nella regola di lancio (`spellCastResolutionRules.js`, con `spellCastPrimaryHitAmount`), letta dal comando, dall'esecutore e dall'anteprima.
+    - **I PF.** Colpo ed esplosione nello stesso lancio, con un solo Annulla. Il colpo resta un evento a sé per i PF condivisi, il critico vale per i TS contro la morte, e il registro aggiunge la difesa del bersaglio contro il colpo.
+    - **D3.** Il ramo del «totale finale» di Freccia Folgorante è diventato questo colpo. Il modo `final-applied` non c'è più, e i test che lo usavano provano ora Coltello di Ghiaccio o il popup della freccia.
+    - **Provato al banco:** 7 perforanti su un goblin resistente, poi 8 di freddo con il TS fallito: 30 → 19, chip `7 → 3`. L'altro goblin ha superato il TS: resta a 7. Con Mancato prende solo il freddo, 30 → 22. Con Critico compare `critico 2d10`.
 
 ## Fatto: la tela nera di Fazioni e Aspetto area
 

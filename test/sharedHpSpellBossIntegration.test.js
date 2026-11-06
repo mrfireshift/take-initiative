@@ -97,25 +97,23 @@ test("active area zero HP conditions follow the selected shared outcome", async 
   }
 });
 
+// Ice Knife's shard hits one creature: its hit is an application of its own, the burst's cold another (D1-D3 of 6/11).
+// A passed save takes no cold: the last case takes the shard's 13 only.
 for (const [policy, headOutcome, chosenTargetIds, expectedHP] of [
   ["once", "failed", {}, 280], ["per-token", "failed", {}, 273],
-  ["once", "passed", { auril: "head" }, 284],
-]) test(`Lightning Arrow separates its primary hit from shared area damage (${policy}, ${headOutcome})`, async () => {
+  ["once", "passed", { auril: "head" }, 287],
+]) test(`Ice Knife separates its shard's hit from shared burst damage (${policy}, ${headOutcome})`, async () => {
   const { buildUnifiedPanelViewModel } = await import("../src/spellUnifiedPanelViewCore.js");
-  const { replaceItems } = await import("../test-support/sharedHpHarness.js");
-  const spellId = "phb2014-freccia-folgorante";
-  const parent = { instanceId: "arrow-1", spellId, casterId: "caster", name: "Freccia Folgorante" };
-  replaceItems([...group(), token("caster", { ["com.thebigpicture.initiative/spells"]: [parent],
-    ["com.thebigpicture.initiative/concentration"]: { [parent.instanceId]: parent } })]);
-  const contract = buildSpellUnifiedPanelContract({ spellId, phase: "resolve" });
+  const spellId = "xanathar-coltello-di-ghiaccio";
+  const contract = buildSpellUnifiedPanelContract({ spellId, phase: "cast" });
   const placement = { status: "confirmed", confirmed: true, targetLocked: true, ruleId: `${spellId}:cast`, spellId,
-    casterId: "caster", targetIds: ["hand", "head"], anchorTargetId: "hand",
-    preview: { type: "circle", start: { x: 75, y: 75 }, end: { x: 375, y: 75 }, dpi: 150,
-      gridOrigin: { x: 0, y: 0 }, targetIds: ["hand", "head"], targetLocked: true, anchorTargetId: "hand", anchorOrigin: { x: 75, y: 75 } } };
+    casterId: "caster", targetIds: ["hand", "head"],
+    preview: { type: "circle", start: { x: 75, y: 75 }, end: { x: 225, y: 75 }, dpi: 150,
+      gridOrigin: { x: 0, y: 0 }, targetIds: ["hand", "head"], targetLocked: true } };
   const sharedHp = { policy, chosenTargetIds };
   const outcomes = { hand: "failed", head: headOutcome };
-  const session = createSpellPanelSession({ contract, phase: "resolve", casterId: "caster", slotLevel: 3,
-    activeConcentration: parent, targetIds: ["hand", "head"], primaryTargetId: "hand", outcomes,
+  const session = createSpellPanelSession({ contract, casterId: "caster", slotLevel: 1,
+    targetIds: ["hand", "head"], primaryTargetId: "hand", outcomes, attackOutcome: "hit",
     hpValues: { primaryDamage: 13, damage: 7 }, placement, sharedHp });
   const view = buildUnifiedPanelViewModel({ contract, session, targetCandidates: items.filter(item => item.id !== "caster")
     .map(item => ({ key: item.id, label: item.name, hp: meta(item.id).hp, hpMax: meta(item.id).hpMax,
@@ -124,9 +122,9 @@ for (const [policy, headOutcome, chosenTargetIds, expectedHP] of [
   assert.deepEqual(preview.conflicts, []);
   assert.ok(preview.updates.every(update => update.hp === expectedHP), JSON.stringify(preview));
   assert.equal(preview.choiceGroups.length, headOutcome === "passed" && policy === "once" ? 1 : 0);
-  const input = buildSpellAreaResolutionCommand({ contract, session, source: { kind: "prepared-resolution", parentInstanceId: parent.instanceId },
-    casterId: "caster", parentInstanceId: parent.instanceId, targetIds: ["hand", "head"], candidateTargetIds: ["hand", "head"],
-    primaryTargetId: "hand", outcomes, hp: { mode: "damage", amount: 7, primaryAmount: 13 }, placement,
+  const input = buildSpellAreaResolutionCommand({ contract, session, spellId, casterId: "caster", slotLevel: 1,
+    targetIds: ["hand", "head"], candidateTargetIds: ["hand", "head"], primaryTargetId: "hand", outcomes,
+    attackOutcome: "hit", hp: { mode: "damage", amount: 7, primaryAmount: 13 }, placement,
     sharedHp, targetLocked: true, validateSpatial: false });
   assert.equal(input.valid, true, JSON.stringify(input.errors));
   const result = await executeSpellAreaResolution(input, runtime());

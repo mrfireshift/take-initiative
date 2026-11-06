@@ -161,7 +161,7 @@ test("il contratto prepared distingue weapon, anchor e outcome fisico opzionale"
   assert.equal(lightning.attack.restriction, "weapon-ranged");
   assert.deepEqual(lightning.attack.outcomes, []);
   assert.equal(lightning.attack.outcomeRequired, false);
-  assert.equal(lightning.attack.primaryDamageMode, "final-applied");
+  assert.equal(lightning.attack.primaryDamageMode, undefined, "the hit and the burst are in the popup of its action");
   assert.equal(lightning.attack.areaAnchor, "primary-target");
   assert.equal(lightning.attack.consumeOnMiss, true);
   assert.equal(hail.attack.areaAnchor, "primary-target");

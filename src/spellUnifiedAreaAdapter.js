@@ -344,9 +344,7 @@ export function buildSpellUnifiedAreaCommand({
     outcomes: session?.outcomes || {},
     ignoreTargetLimit: session?.ignoreTargetLimit === true,
     rangeOverrideIds: session?.rangeOverrideIds || [],
-    ...(contract?.presentation?.phase?.plan?.attack?.primaryDamageMode === "final-applied"
-      ? {}
-      : { attackOutcome: session?.attackOutcome || "" }),
+    attackOutcome: session?.attackOutcome || "",
     targetLocked: locked,
     placement,
     hp: hpInput(contract, session),

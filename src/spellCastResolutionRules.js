@@ -1,4 +1,5 @@
 import { HEAT_METAL_DROP_CHOICE_EFFECT } from "./spellActiveResolutionRules.js";
+import { spellActionDamageTypes, spellDamageAfterDefense } from "./spellDamageDefenseCore.js";
 
 const clone = (value) => {
   if (value === undefined) return undefined;
@@ -295,6 +296,13 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
   "xanathar-coltello-di-ghiaccio": Object.freeze({
     initialHP: true,
     successfulSaveDamage: "none",
+    // The shard's own hit on its target (Xanathar): 1d10 piercing on a hit, nothing on a miss, the die doubled on a
+    // critical. Hit or miss it explodes: the target and the creatures within 1.5 m save against the 2d6 cold.
+    primaryHit: Object.freeze({
+      outcomes: Object.freeze(["hit", "critical", "miss"]),
+      damage: Object.freeze({ formula: "1d10", type: "perforanti" }),
+      onMiss: "none",
+    }),
   }),
   "phb2014-braccia-di-hadar": Object.freeze({
     initialHP: true,
@@ -394,6 +402,34 @@ export function spellSaveDamageFactor(spellOrId, outcome) {
   return null;
 }
 
+// A cast's own hit on its primary target, before its area: Ice Knife's shard (the primaryHit of its rule).
+export function spellCastPrimaryHit(spellOrId) {
+  return getSpellCastResolutionRule(spellOrId)?.primaryHit || null;
+}
+
+// The types of that hit's damage, for the defenses.
+export function spellCastPrimaryHitTypes(primaryHit) {
+  return primaryHit ? spellActionDamageTypes(primaryHit) : [];
+}
+
+// Its dice, and the doubled ones of a critical, as the PC attack console says them.
+export function spellCastPrimaryHitDice(primaryHit) {
+  const dice = String(primaryHit?.damage?.formula || "").trim();
+  return { dice, critical: dice.replace(/(\d+)d(\d+)/gu, (match, count, sides) => `${Number(count) * 2}d${sides}`) };
+}
+
+// What it deals: the roll on a hit or a critical (the GM writes the doubled dice), on a miss half or nothing as the spell
+// says; then the target's defense, after the half. No roll or no outcome: nothing.
+export function spellCastPrimaryHitAmount({ primaryHit = null, outcome = "", roll = "", defense = null } = {}) {
+  const value = Number(roll);
+  const normalized = String(outcome || "").trim();
+  if (!primaryHit || String(roll ?? "").trim() === "" || !Number.isFinite(value) || value < 0) return 0;
+  if (!(Array.isArray(primaryHit.outcomes) ? primaryHit.outcomes : []).includes(normalized)) return 0;
+  const factor = normalized !== "miss" ? "full" : primaryHit.onMiss === "half" ? "half" : "";
+  if (!factor) return 0;
+  return defense ? spellDamageAfterDefense(value, factor, defense) : Math.floor(value * (factor === "half" ? 0.5 : 1));
+}
+
 // Nobody takes the damage: a miss, an immune creature, a passed save that spares it. There is nothing to roll.
 export function spellCastSparesEveryTarget(spellOrId, targetIds = [], outcomes = {}) {
   const ids = Array.isArray(targetIds) ? targetIds : [];
@@ -443,7 +479,7 @@ const SPELL_CAST_DAMAGE_DICE = Object.freeze({
   "xanathar-aculeo-mentale": castDice("3d8", 2, 1),
   "xanathar-alba": castDice("4d10"),
   "xanathar-coltello-di-ghiaccio": castDice("2d6", 1, 1, {
-    hint: "L'esplosione. Prima il tiro per colpire: 1d10 perforanti al bersaglio se colpisce, da applicare a parte.",
+    hint: "L'esplosione, sul bersaglio e su chi gli sta entro 1,5 m: niente a chi supera il TS.",
   }),
   "xanathar-morsa-del-gelo": cantripDice("1d6"),
   "phb2014-dardo-stregato": castDice("1d12", 1, 1),

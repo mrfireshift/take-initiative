@@ -735,6 +735,14 @@ sullo stesso punto della mappa: un doppio clic non basta.
 Se l'incantesimo richiede un tiro per colpire, l'esito è **Colpito** o **Mancato**.
 Un colpo mancato spende lo slot e non lascia effetti, e il danno non viene chiesto.
 
+Coltello di Ghiaccio chiede tutte e due le cose. Sopra l'elenco c'è l'**Esito
+dell'attacco** del bersaglio primario (**Colpito**, **Critico** o **Mancato**), e
+ogni creatura dell'esplosione, lui compreso, ha il suo TS su Destrezza. Se colpisce
+compare il campo **Colpo · 1d10 perforanti** (con un critico `critico 2d10`: scrivi i
+dadi raddoppiati), e la difesa del bersaglio la conta il chip sulla sua riga. Se
+manca, nessun danno dal coltello: l'esplosione c'è comunque. Colpo ed esplosione si
+scrivono insieme, con un solo Annulla.
+
 **Lancio rapido o pannello.** Dalla console 🗡️, dal menu ⚡ e dal libro nella
 scheda il lancio è rapido: con il bersaglio selezionato sulla mappa, il tiro
 salvezza si considera fallito. Se non serve altro, l'incantesimo si applica subito

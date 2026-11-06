@@ -80,7 +80,12 @@ import { spellEffectConditionOptions } from "./spellEffectCore.js";
 import {
   getSpellSaveWorkflowRule,
 } from "./spellSaveWorkflowRules.js";
-import { getSpellCastResolutionRule } from "./spellCastResolutionRules.js";
+import {
+  getSpellCastResolutionRule,
+  spellCastPrimaryHit,
+  spellCastPrimaryHitAmount,
+  spellCastPrimaryHitTypes,
+} from "./spellCastResolutionRules.js";
 import {
   resolveTurbineTargetChains,
   turbineRestrainedOperations,
@@ -436,6 +441,15 @@ function spellHpDefenseRows(hp, spell, item) {
   });
 }
 
+// The defense of the primary target against a cast's own hit (Ice Knife's shard), with what the GM ignored in this cast.
+function spellPrimaryHitDefenseRows(hp, primaryHit, item) {
+  return spellDamageDefenseRows({
+    types: Array.isArray(hp?.primaryDamageTypes) ? hp.primaryDamageTypes : spellCastPrimaryHitTypes(primaryHit),
+    defenses: magicalDamageDefensesForItem(item, META_KEY),
+    ignoredTypes: hp?.ignoredDefenses?.[text(item?.id)],
+  });
+}
+
 function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan = null }) {
   if (spell?.id === PRISMATIC_SPRAY_SPELL_ID && prismaticSprayPlan) {
     return prismaticSprayHPEntries(items, prismaticSprayPlan, command?.hp?.ignoredDefenses);
@@ -483,17 +497,26 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
       });
       // The factor stays the outcome's: the log says "half" for a passed save, and the defense on its own line.
       const areaChange = defense ? { ...scaledChange, factor: factorName } : scaledChange;
-      if (mode !== QUICK_HP_MODES.DAMAGE
-        || targetId !== primaryTargetId
-        || primaryAmount <= 0) {
+      // A cast's own hit on its primary target (Ice Knife's shard): its outcome, then its defense, as the panel's preview.
+      const primaryHit = spellCastPrimaryHit(spell?.id);
+      const primaryTarget = mode === QUICK_HP_MODES.DAMAGE && targetId === primaryTargetId;
+      const primaryValue = !primaryTarget
+        ? 0
+        : primaryHit
+          ? spellCastPrimaryHitAmount({
+            primaryHit,
+            outcome: hp.primaryAttackOutcome,
+            roll: primaryAmount,
+            defense: spellDamageDefenseApplied(spellPrimaryHitDefenseRows(hp, primaryHit, item)),
+          })
+          : primaryAmount;
+      if (!primaryTarget || primaryValue <= 0) {
         return { item, change: areaChange, outcome };
       }
       const primaryChange = calculateQuickHPChange({
         mode,
-        value: primaryAmount,
-        factor: hp.primaryDamageMode === "final-applied"
-          ? QUICK_HP_FACTORS.FULL
-          : normalizeFactor(hp.primaryOutcomeFactor),
+        value: primaryValue,
+        factor: primaryHit ? QUICK_HP_FACTORS.FULL : normalizeFactor(hp.primaryOutcomeFactor),
         hp: itemMeta(item).hp,
         hpMax: itemMeta(item).hpMax,
         tempHp: itemMeta(item).tempHp,
@@ -527,6 +550,8 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
             || primaryChange.deathSaveDamage === true || combinedChange.deathSaveDamage === true,
           primaryRequested: primaryChange.requested,
           primaryFactor: primaryChange.factor,
+          // A critical hit on a PC at 0 HP: two death save failures (sharedHpIntents).
+          ...(primaryHit && hp.primaryCritical === true ? { primaryCritical: true } : {}),
           areaRequested: combinedChange.requested,
           areaFactor: areaChange.factor,
         },
@@ -2375,6 +2400,10 @@ async function buildPlan(command, runtime) {
   };
 }
 
+function primaryTargetIdOf(command) {
+  return text(command?.targeting?.primaryTargetId || command?.hp?.primaryTargetId);
+}
+
 function causalDamageFactor(value) {
   const number = Number(value);
   if (Number.isFinite(number)) return number;
@@ -2434,12 +2463,21 @@ export function spellAreaCausality(plan) {
         ? 0
         : undefined;
     // The defenses that changed the number or that the GM ignored, for the combat log. Two types in one number stay with the GM.
-    const defenses = Array.isArray(change?.prismaticContributions)
+    const areaDefenses = Array.isArray(change?.prismaticContributions)
       ? spellDamagePartsDefenses(change.prismaticContributions)
       : hasRawDamage && factor !== 0
         ? spellHpDefenseRows(command?.hp, plan?.spell, item).filter((row) => !row.manual)
           .map(({ type, defense, ignored }) => ({ type, defense, ...(ignored ? { ignored: true } : {}) }))
         : [];
+    // Ice Knife's target: its defense against the shard too, when the shard hit it.
+    const primaryHit = spellCastPrimaryHit(plan?.spell?.id);
+    const hitDefenses = primaryHit && id === primaryTargetIdOf(command) && Number(change?.primaryRequested) >= 0
+      && change?.primaryRequested !== undefined
+      ? spellPrimaryHitDefenseRows(command?.hp, primaryHit, item)
+        .filter((row) => !row.manual && !areaDefenses.some((entry) => entry.type === row.type))
+        .map(({ type, defense, ignored }) => ({ type, defense, ...(ignored ? { ignored: true } : {}) }))
+      : [];
+    const defenses = [...areaDefenses, ...hitDefenses];
     return {
       id,
       ...(item?.name ? { name: item.name } : {}),
@@ -2507,8 +2545,12 @@ export function spellAreaCausality(plan) {
       ? {
         primaryDamage: {
           targetId: primaryTargetId || undefined,
-          requestedDamage: Math.max(0, Math.floor(primaryAmount)),
+          // What the hit dealt, after its outcome and the target's defense (Ice Knife), or the number as written.
+          requestedDamage: Math.max(0, Math.floor(
+            changesById.get(primaryTargetId)?.change?.primaryRequested ?? primaryAmount,
+          )),
           ...(primaryFactor !== undefined ? { damageFactor: primaryFactor } : {}),
+          ...(text(command?.hp?.primaryAttackOutcome) ? { attackOutcome: text(command.hp.primaryAttackOutcome) } : {}),
         },
       }
       : {}),

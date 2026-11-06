@@ -45,6 +45,8 @@ import { QUICK_HP_FACTORS } from "./quickHpCore.js";
 import { normalizeMonsterActionContext } from "./monsterActionContextCore.js";
 import {
   getSpellCastResolutionRule,
+  spellCastPrimaryHit,
+  spellCastPrimaryHitTypes,
   spellCastSparesEveryTarget,
   spellSaveDamageFactor,
 } from "./spellCastResolutionRules.js";
@@ -952,10 +954,11 @@ function normalizeHp(
     || text(primaryDamageValue) === ""
     ? null
     : finiteOrNull(primaryDamageValue);
-  const primaryDamageMode = text(
-    contract?.presentation?.phase?.plan?.attack?.primaryDamageMode,
-  );
-  const primaryDamageRequired = contract?.presentation?.inputs?.primaryDamage?.required === true;
+  // A cast's own hit on its primary target (Ice Knife's shard): its damage is asked only when the attack hits.
+  const primaryHit = spell ? spellCastPrimaryHit(spell) : null;
+  const primaryHitLands = ["hit", "critical"].includes(text(attackOutcome));
+  const primaryDamageRequired = contract?.presentation?.inputs?.primaryDamage?.required === true
+    && (contract?.presentation?.inputs?.primaryDamage?.onHitOnly !== true || primaryHitLands);
   if (primaryDamageRequired && !primaryDamageProvided && !legacyPreparedArea) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PRIMARY_DAMAGE_REQUIRED);
   }
@@ -1000,13 +1003,18 @@ function normalizeHp(
     ...(Array.isArray(rawHp.damageTypes) ? { damageTypes: uniqueIds(rawHp.damageTypes) } : {}),
     primaryAmount: primaryAmount === null ? null : Math.floor(primaryAmount),
     primaryRequired: primaryDamageRequired,
-    ...(primaryDamageMode ? { primaryDamageMode } : {}),
     primaryTargetId: text(primaryTargetId),
-    primaryOutcomeFactor: primaryDamageMode === "final-applied"
-      ? QUICK_HP_FACTORS.FULL
-      : attackOutcome === "miss"
-      ? QUICK_HP_FACTORS.HALF
+    primaryOutcomeFactor: attackOutcome === "miss"
+      ? primaryHit && primaryHit.onMiss !== "half" ? "zero" : QUICK_HP_FACTORS.HALF
       : QUICK_HP_FACTORS.FULL,
+    // Its type for the defenses, and its outcome: a miss deals nothing, a critical counts for the death saves.
+    ...(primaryHit
+      ? {
+        primaryDamageTypes: spellCastPrimaryHitTypes(primaryHit),
+        primaryAttackOutcome: text(attackOutcome),
+        ...(text(attackOutcome) === "critical" ? { primaryCritical: true } : {}),
+      }
+      : {}),
     outcomeFactors,
     targetIds: uniqueIds(targetIds),
   };
@@ -1369,7 +1377,6 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   const phasePlan = contract?.presentation?.phase?.plan || null;
   const phaseAttack = phasePlan?.attack || null;
   const areaAnchor = text(targetingContract.areaAnchor || phaseAttack?.areaAnchor);
-  const primaryDamageMode = text(phaseAttack?.primaryDamageMode);
   const preparedAttackOutcomeRequired = sourceKind === "prepared-resolution"
     && phase === "resolve"
     && spellPhaseAttackOutcomeRequired(phasePlan);
@@ -1377,8 +1384,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   const optionalPreparedAttackOutcome = sourceKind === "prepared-resolution"
     && phase === "resolve"
     && primaryTargetArea
-    && phaseAttack?.outcomeRequired === false
-    && primaryDamageMode !== "final-applied";
+    && phaseAttack?.outcomeRequired === false;
   const rawTargetIds = normalizeTargetIds(sourceInput, session);
   const rawTargetContexts = firstDefined(
     sourceInput.targetContexts,
@@ -1578,9 +1584,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   const directDamageCast = sourceKind === "cast"
     && phase === "cast"
     && castResolutionRule?.resolution === "manual-damage";
-  const requestedAttackOutcome = primaryDamageMode === "final-applied"
-    ? null
-    : normalizeAttackOutcome(sourceInput, session, outcomesInput);
+  const requestedAttackOutcome = normalizeAttackOutcome(sourceInput, session, outcomesInput);
   const attackResolution = spell
     ? getSpellAttackResolution(
       spell,
@@ -1642,9 +1646,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   validateTargetContexts(contract, workflowRule, targetIds, targetContexts, outcomes.byTarget, errors);
 
   const attackChoice = text(choiceValue).toLocaleLowerCase("it");
-  let attackOutcome = primaryDamageMode === "final-applied"
-    ? null
-    : attackResolution
+  let attackOutcome = attackResolution
     ? requestedAttackOutcome
       || (ATTACK_OUTCOME_SET.has(attackChoice) ? attackChoice : null)
     : requestedAttackOutcome;
@@ -1653,7 +1655,9 @@ export function buildSpellAreaResolutionCommand(input = {}) {
     && legacyPreparedArea) attackOutcome = "hit";
   const attackRequired = activeAction?.capabilities?.attack === true
     || !!attackResolution
-    || preparedAttackOutcomeRequired;
+    || preparedAttackOutcomeRequired
+    // Ice Knife: the outcome of its attack, hit or miss, before the burst.
+    || (phase === "cast" && !!spell && !!spellCastPrimaryHit(spell));
   if (attackRequired && !attackOutcome && !legacyPreparedArea) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.ATTACK_OUTCOME_REQUIRED);
   }
