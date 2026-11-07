@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { CLASS_FEATURE_BY_ID, getAvailableClassFeatures, getEnabledClassFeatures } from "../src/classFeatureCatalog.js";
-import { classFeatureChoiceOptions, classFeatureRequiresActivationChoice } from "../src/classFeatureCore.js";
+import { CLASS_FEATURE_BY_ID, CLASS_FEATURE_RESOURCE_POOL_BY_ID, getAvailableClassFeatures, getEnabledClassFeatures } from "../src/classFeatureCatalog.js";
+import {
+  classFeatureChoiceOptions, classFeatureParentFeatureId, classFeatureRequiresActivationChoice, planClassFeatureActivation,
+} from "../src/classFeatureCore.js";
 import { pcAttackFeatureForm, pcAttackFeatureState } from "../src/pcAttackFeatureFormCore.js";
 
 // classFeatureRequiresActivationChoice looked a variant feature's parent up in CLASS_FEATURE_BY_ID, a name
@@ -77,5 +79,121 @@ test("no feature of the catalog throws, with the map or without it", () => {
   for (const entry of CLASS_FEATURE_BY_ID.values()) {
     assert.doesNotThrow(() => classFeatureRequiresActivationChoice(entry, [], CLASS_FEATURE_BY_ID), entry.id);
     assert.doesNotThrow(() => classFeatureRequiresActivationChoice(entry, []), entry.id);
+  }
+});
+
+// Which enabled id fixes the variant: a sub-feature of the same feature, enabled alone. The rule took any id ending with
+// "-<choice>", and the species traits, always enabled, matched it: a Leonin's claws fixed Beast Form's Claws, a
+// tiefling's bloodline trait (-3) Wild Surge's outcome 3. The dropdown vanished from the sheet and the console, and the
+// activation imposed that variant over the GM's (planClassFeatureActivation reads the same rule). Starry Form and Spirit
+// Totem, whose three variants are reference cards enabled by default, always took the first one.
+
+const BEAST = "barbaro-cammino-della-bestia";
+const WILD = "barbaro-cammino-della-magia-selvaggia";
+const STARRY_FORM = "druido-circolo-delle-stelle-forma-siderale";
+const SPIRIT_TOTEM = "druido-circolo-del-pastore-totem-spirituale";
+const THIRD_EYE = "mago-scuola-di-divinazione-terzo-occhio";
+
+const enabledIds = (profile) => getEnabledClassFeatures(profile).map((entry) => entry.id);
+// The variant the activation applies when the GM asks choiceId, with Rage active (Beast Form and Wild Surge end with it).
+const applied = (profile, id, choiceId) => {
+  const result = planClassFeatureActivation({
+    state: { version: 1, resources: {}, instances: [{ instanceId: "rage-1", featureId: RAGE, sourceId: "pc", startedRound: 1, expiresRound: 10 }] },
+    feature: feature(id),
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: profile.characterBuild,
+    sourceId: "pc",
+    instanceId: "prova-1",
+    currentRound: 1,
+    choiceId,
+    enabledFeatureIds: enabledIds(profile),
+  });
+  return result.ok ? result.instance.choiceId : result.reason;
+};
+
+test("a species trait that ends like a variant leaves Beast Form's to the GM: in the sheet, the console and the activation", () => {
+  for (const [speciesId, traitId, asked] of [
+    ["leonin", "specie-leonin-artigli", "morso"],
+    ["tortle", "specie-tortle-artigli", "morso"],
+    ["aarakocra", "specie-aarakocra-artigli", "morso"],
+    ["lucertoloide", "specie-lucertoloide-morso", "artigli"],
+  ]) {
+    const profile = { ...barbarian(BEAST, [BEAST_FORM]), species: { id: speciesId } };
+    assert.ok(enabledIds(profile).includes(traitId), traitId);
+    assert.equal(sheetAsks(profile, BEAST_FORM), true, speciesId);
+    assert.equal(consoleAsks(profile, BEAST_FORM), true, speciesId);
+    assert.equal(applied(profile, BEAST_FORM, asked), asked, `${speciesId}: the GM's variant, not the trait's`);
+  }
+});
+
+test("a tiefling's bloodline traits leave Wild Surge's outcome to the GM, on its card and as Rage's automatic outcome", () => {
+  for (const level of [3, 5]) {
+    const profile = { characterBuild: [{ classId: "barbaro", level, subclassId: WILD }], species: { id: "tiefling-stirpe", ancestryId: "asmodeus" } };
+    assert.ok(enabledIds(profile).includes("specie-tiefling-stirpe-eredita-asmodeus-3"), `level ${level}`);
+    assert.equal(sheetAsks(profile, WILD_SURGE), true, `level ${level}`);
+    assert.equal(consoleAsks(profile, WILD_SURGE), true, `level ${level}`);
+    assert.equal(consoleAsks(profile, RAGE, `auto:${WILD_SURGE}`), true, `level ${level}: Rage's automatic outcome`);
+    assert.equal(applied(profile, WILD_SURGE, "7"), "7", `level ${level}`);
+  }
+});
+
+test("another trait, or another class's feature, that ends like a variant fixes nothing", () => {
+  const diviner = (species) => ({ characterBuild: [{ classId: "mago", level: 10, subclassId: "mago-scuola-di-divinazione" }], species });
+  for (const species of [{ id: "duergar" }, { id: "elfo-pallido" }, { id: "marchio-del-drago", ancestryId: "ombra" }]) {
+    assert.equal(sheetAsks(diviner(species), THIRD_EYE), true, `${species.id}: its Invisibility is not the Third Eye's`);
+    assert.equal(applied(diviner(species), THIRD_EYE, "scurovisione"), "scurovisione", species.id);
+  }
+  const simic = { characterBuild: [{ classId: "barbaro", level: 5, subclassId: WILD }], species: { id: "ibrido-simic", ancestryId: "scalatore-planata" } };
+  assert.equal(sheetAsks(simic, WILD_SURGE), true, "the manta glide (-5) is not outcome 5");
+  // A druid and sorcerer with the Chalice configured: the dragon wings (-drago) are not a second variant.
+  const starsSorcerer = {
+    characterBuild: [{ classId: "druido", level: 2, subclassId: "druido-circolo-delle-stelle" },
+      { classId: "stregone", level: 14, subclassId: "stregone-discendenza-draconica" }],
+    classFeaturesConfigured: true,
+    enabledClassFeatureIds: [STARRY_FORM, `${STARRY_FORM}-calice`, "stregone-discendenza-draconica-ali-di-drago"],
+  };
+  assert.ok(enabledIds(starsSorcerer).includes("stregone-discendenza-draconica-ali-di-drago"));
+  assert.equal(sheetAsks(starsSorcerer, STARRY_FORM), false);
+  assert.equal(applied(starsSorcerer, STARRY_FORM, "arciere"), "calice");
+  // A druid and Totem Warrior with the Unicorn configured: the barbarian's bear does not take its place.
+  const shepherdTotem = {
+    characterBuild: [{ classId: "druido", level: 2, subclassId: "druido-circolo-del-pastore" },
+      { classId: "barbaro", level: 3, subclassId: "barbaro-cammino-del-combattente-totemico" }],
+    classFeaturesConfigured: true,
+    enabledClassFeatureIds: [SPIRIT_TOTEM, `${SPIRIT_TOTEM}-spirito-unicorno`, RAGE,
+      "barbaro-cammino-del-combattente-totemico-spirito-totemico", "barbaro-cammino-del-combattente-totemico-spirito-totemico-orso"],
+  };
+  assert.ok(enabledIds(shepherdTotem).includes("barbaro-cammino-del-combattente-totemico-spirito-totemico-orso"));
+  assert.equal(sheetAsks(shepherdTotem, SPIRIT_TOTEM), false);
+  assert.equal(applied(shepherdTotem, SPIRIT_TOTEM, "falco"), "unicorno");
+});
+
+test("the variants enabled together fix nothing: Starry Form and Spirit Totem ask by default, one variant alone is fixed", () => {
+  const stars = { characterBuild: [{ classId: "druido", level: 2, subclassId: "druido-circolo-delle-stelle" }] };
+  const shepherd = { characterBuild: [{ classId: "druido", level: 2, subclassId: "druido-circolo-del-pastore" }] };
+  for (const [profile, id, asked] of [[stars, STARRY_FORM, "calice"], [shepherd, SPIRIT_TOTEM, "unicorno"]]) {
+    assert.equal(enabledIds(profile).filter((entryId) => entryId.startsWith(`${id}-`)).length, 3, `${id}: three reference cards`);
+    assert.equal(sheetAsks(profile, id), true, id);
+    assert.equal(consoleAsks(profile, id), true, id);
+    assert.equal(applied(profile, id, asked), asked, `${id}: the GM's variant, not the first card's`);
+  }
+  const bear = { ...shepherd, classFeaturesConfigured: true, enabledClassFeatureIds: [SPIRIT_TOTEM, `${SPIRIT_TOTEM}-spirito-orso`] };
+  assert.equal(sheetAsks(bear, SPIRIT_TOTEM), false);
+  assert.equal(consoleAsks(bear, SPIRIT_TOTEM), false);
+  assert.equal(applied(bear, SPIRIT_TOTEM, "falco"), "orso");
+  const clawsAndTail = barbarian(BEAST, [BEAST_FORM, `${BEAST_FORM}-artigli`, `${BEAST_FORM}-coda`]);
+  assert.equal(sheetAsks(clawsAndTail, BEAST_FORM), true, "Claws and Tail enabled: the GM chooses");
+  assert.equal(applied(clawsAndTail, BEAST_FORM, "morso"), "morso");
+  const tail = { ...barbarian(BEAST, [BEAST_FORM, `${BEAST_FORM}-coda`]), species: { id: "leonin" } };
+  assert.equal(sheetAsks(tail, BEAST_FORM), false, "the Tail alone, whatever the Leonin's claws");
+  assert.equal(applied(tail, BEAST_FORM, "morso"), "coda");
+});
+
+test("the catalog names each sub-feature of a feature with variants after it, and nothing else: the rule reads the id", () => {
+  const all = [...CLASS_FEATURE_BY_ID.values()];
+  for (const entry of all.filter((candidate) => classFeatureChoiceOptions(candidate).length)) {
+    const named = all.filter((other) => other.id.startsWith(`${entry.id}-`)).map((other) => other.id).sort();
+    const children = all.filter((other) => classFeatureParentFeatureId(other) === entry.id).map((other) => other.id).sort();
+    assert.deepEqual(named, children, entry.id);
   }
 });

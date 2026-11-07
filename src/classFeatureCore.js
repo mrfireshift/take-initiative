@@ -136,6 +136,28 @@ export function classFeatureChoiceOptions(feature) {
     .filter(Boolean);
 }
 
+// The variant the profile fixes: the one sub-feature enabled among the feature's own variants, whose id is the
+// feature's followed by the choice (Beast Form's -artigli) or ending with it (Wild Surge's -risultato-2, Spirit
+// Totem's -spirito-orso). An id that only ends like a choice fixes nothing (a Leonin's -artigli, a tiefling's -3, the
+// Totem Warrior's -orso), nor do several variants enabled together (Starry Form's three constellations, reference
+// cards enabled by default): then the GM chooses. The catalog names each sub-feature of a feature with variants
+// after it (test/classFeatureActivationChoice.test.js checks it).
+function classFeatureEnabledVariantChoiceId(feature, enabledFeatureIds = []) {
+  if (!feature?.id) return "";
+  const prefix = `${feature.id}-`;
+  const choices = classFeatureChoiceOptions(feature);
+  const variantOf = (id) => {
+    const rest = id.slice(prefix.length);
+    return choices.find((choice) => rest === choice.id)
+      || choices.find((choice) => rest.endsWith(`-${choice.id}`));
+  };
+  const fixed = new Set((Array.isArray(enabledFeatureIds) ? enabledFeatureIds : [])
+    .filter((id) => typeof id === "string" && id.startsWith(prefix))
+    .map((id) => variantOf(id)?.id)
+    .filter(Boolean));
+  return fixed.size === 1 ? [...fixed][0] : "";
+}
+
 // featureById: the catalog's features (CLASS_FEATURE_BY_ID), from the caller, since classFeatureCatalog.js imports
 // this module. Without it the parent of a duration is unknown, and its variants decide nothing.
 export function classFeatureRequiresActivationChoice(feature, enabledFeatureIds = [], featureById = null) {
@@ -147,14 +169,7 @@ export function classFeatureRequiresActivationChoice(feature, enabledFeatureIds 
     const parent = featureById?.get?.(parentId);
     if (parent && classFeatureChoiceOptions(parent).length > 0) return false;
   }
-  const enabledChoiceId = (Array.isArray(enabledFeatureIds) ? enabledFeatureIds : [])
-    .map((id) => {
-      const match = choices.find((c) => id === `${feature.id}-${c.id}` || id.endsWith(`-${c.id}`));
-      return match ? match.id : "";
-    })
-    .find(Boolean) || "";
-  if (enabledChoiceId) return false;
-  return true;
+  return !classFeatureEnabledVariantChoiceId(feature, enabledFeatureIds);
 }
 
 export function classFeatureChoiceOption(feature, choiceId = "") {
@@ -1190,12 +1205,8 @@ export function planClassFeatureActivation({
   }
 
   const choices = classFeatureChoiceOptions(feature);
-  const enabledChoiceId = (Array.isArray(enabledFeatureIds) ? enabledFeatureIds : [])
-    .map((id) => {
-      const match = choices.find((c) => id === `${feature.id}-${c.id}` || id.endsWith(`-${c.id}`));
-      return match ? match.id : "";
-    })
-    .find(Boolean) || "";
+  // The variant the sheet fixes, read as classFeatureRequiresActivationChoice reads it: then no choice was asked.
+  const enabledChoiceId = classFeatureEnabledVariantChoiceId(feature, enabledFeatureIds);
   const canonicalConfigChoiceId = parentInstance?.choiceId
     || requiredActiveInstance?.choiceId
     || enabledChoiceId

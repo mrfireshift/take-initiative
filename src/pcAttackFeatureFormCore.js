@@ -8,6 +8,7 @@ import {
   classFeatureIsReferenceOnly,
   classFeatureRemainingRounds,
   classFeatureRequiredActiveFeatureId,
+  classFeatureRequiresActivationChoice,
   classFeatureResourceEntries,
   classFeatureRuntimeSupport,
   classFeatureSpellSlotCreationCost,
@@ -110,14 +111,10 @@ export function pcAttackFeatureState(profile, stateValue, features, currentRound
   };
 }
 
-// classFeatureRequiresActivationChoice's rule, with the catalog's features: classFeatureCore.js has no feature map
-// there (CLASS_FEATURE_BY_ID is not defined in it) and throws for a variant feature that ends with a parent.
+// The sheet's rule itself (classFeatureRequiresActivationChoice), with the catalog's features for the parent of a
+// duration: classFeatureCore.js cannot import them, since the catalog imports it.
 function requiresChoice(feature, enabledIds) {
-  const choices = classFeatureChoiceOptions(feature);
-  if (!choices.length || feature?.choiceMode === "configuration") return false;
-  const parent = CLASS_FEATURE_BY_ID.get(classFeatureDurationParentFeatureId(feature));
-  if (parent && classFeatureChoiceOptions(parent).length) return false;
-  return !enabledIds.some((id) => choices.some((choice) => id === `${feature.id}-${choice.id}` || id.endsWith(`-${choice.id}`)));
+  return classFeatureRequiresActivationChoice(feature, enabledIds, CLASS_FEATURE_BY_ID);
 }
 
 const choiceField = (feature, enabledIds, { id = "choice", label = "" } = {}) => {
