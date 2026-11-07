@@ -316,6 +316,9 @@ export function validateChildZoneContainment({
   childKind = "",
 } = {}) {
   if (!parentArea || !childArea) return false;
+  // Arcane Gate's second portal (CAP-TELEPORT, lotto T4) stands away from the first, where the GM opens it: the
+  // action's range from the caster is its only bound.
+  if (text(childKind) === "portal") return true;
   if (text(childKind) === "fissure") {
     const clipped = clipChildZoneAreaToParent({ parentArea, childArea });
     const cellsInside = Array.isArray(clipped?.cells)

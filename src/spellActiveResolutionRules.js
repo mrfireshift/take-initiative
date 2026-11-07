@@ -1389,6 +1389,71 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       viewMeters: 18,
     },
   ],
+  // Arcane Gate (CAP-TELEPORT, lotto T4): the second portal, part of the cast (D7), and the crossing the GM records when
+  // a creature enters by the active side, which only the GM knows (D6).
+  "phb2014-portale-arcano": [
+    {
+      id: "arcane-gate-far-portal",
+      label: "Apri il secondo portale",
+      buttonLabel: "Secondo portale",
+      detail: "Fa parte del lancio: posiziona il secondo portale entro 150 m dal caster.",
+      economy: "gm",
+      showInOverview: true,
+      resolutionKind: "child-zone",
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresZoneRoot: true,
+      rangeOrigin: "caster",
+      range: { value: 150, unit: "m" },
+      requiresParentInstance: true,
+      placementRuleId: "phb2014-portale-arcano:far",
+      childZone: {
+        childKind: "portal",
+        placementRuleId: "phb2014-portale-arcano:far",
+        placementCount: { min: 1, max: 1 },
+        replaceChildKind: "portal",
+        resolution: "none",
+      },
+    },
+    {
+      id: "arcane-gate-traverse",
+      label: "Attraversa il portale",
+      buttonLabel: "Attraversa",
+      detail: "Seleziona sulla mappa la creatura che entra dal lato attivo, poi scegli l'uscita accanto all'altro portale.",
+      economy: "gm",
+      showInOverview: true,
+      resolutionKind: "teleport",
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: false,
+      rangeOrigin: "caster",
+      placementRuleId: "phb2014-portale-arcano:exit",
+      teleport: { subject: "target" },
+    },
+  ],
+  // Far Step (CAP-TELEPORT, lotto T1): the bonus action of the next turns, from the pill or the turn popup.
+  "xanathar-passo-remoto": [
+    {
+      id: "far-step-teleport",
+      label: "Teletrasportati di nuovo",
+      buttonLabel: "Teletrasportati",
+      detail: "Azione bonus: scegli sulla mappa la casella d'arrivo entro 18 m. Lo spazio libero e visibile lo valuta il GM.",
+      economy: "bonus-action",
+      showInOverview: true,
+      availableAfterCast: true,
+      turnStartPrompt: true,
+      resolutionKind: "teleport",
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: false,
+      rangeOrigin: "caster",
+      placementRuleId: "xanathar-passo-remoto:teleport",
+      // In the mist of the cast, like Misty Step.
+      teleport: { subject: "caster", animated: true },
+    },
+  ],
 });
 
 export function getSpellActiveResolutionActions(spellId) {

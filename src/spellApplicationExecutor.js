@@ -89,6 +89,7 @@ import {
   buildBlinkReturnOperations,
   blinkStateFromCastContext,
 } from "./blinkRules.js";
+import { spellTeleportActionSubject } from "./spellTeleportCore.js";
 import {
   TELEKINESIS_CONTEST_RESOLUTION_KIND,
   TELEKINESIS_SPELL_ID,
@@ -899,6 +900,99 @@ async function executeBlinkReturnResolution({
   return attachSpellExecutionHistory(changedIds, mutation);
 }
 
+function teleportPoint(value) {
+  const x = Number(value?.x);
+  const y = Number(value?.y);
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+// CAP-TELEPORT: the teleport of a spell already active (Far Step's next turns, Arcane Gate's traversal). A move only,
+// in one History entry: Undo puts the token back, and the speed check does not count it as walked. With
+// teleport.animated the token vanishes in the spell's mist like the cast (the visual starts before the commit, on the
+// clock of the token's timers); otherwise it moves at once, like Blink's return.
+async function executeTeleportResolution({
+  payload = null,
+  placement = null,
+  targetIds = [],
+  sceneEpoch = null,
+  sceneIdentity = null,
+  commandId = "",
+  isCurrent = null,
+} = {}) {
+  const subject = spellTeleportActionSubject(payload?.action);
+  const casterId = String(payload?.casterId || "").trim();
+  const subjectId = subject === "caster" ? casterId : String(targetIds?.[0] || "").trim();
+  const [item] = subjectId ? await OBR.scene.items.getItems([subjectId]) : [];
+  const position = teleportPoint(placement?.position || placement);
+  if (!item || !position) throw new Error("teleport-resolution-invalid");
+  const spellName = String(payload?.spellName || "Incantesimo").trim();
+  const label = subject === "caster"
+    ? `${spellName} · teletrasporto`
+    : `${spellName} · ${String(item.name || "creatura").trim()} attraversa`;
+  const animated = payload?.action?.teleport?.animated === true;
+  const operationId = String(commandId || "").trim() || createSpellInstanceId();
+  if (animated) {
+    void emitMatchedSpellVisual({
+      spellId: payload.spellId,
+      casterId: subjectId,
+      targetIds: [subjectId],
+      eventId: operationId,
+      lifecycleId: operationId,
+      preview: {
+        destination: position,
+        origin: teleportPoint(item.position) || position,
+        start: position,
+        end: position,
+        type: "circle",
+      },
+      sceneEpoch: Number.isInteger(sceneEpoch) ? sceneEpoch : currentSceneEpoch(),
+    }).catch((error) => {
+      console.warn("[spell] teleport visual:", error?.message || error);
+    });
+  }
+  const mutation = await runEffectsMutation([], {
+    kind: "spell",
+    label,
+    targetIds: [subjectId],
+    sideEffects: [{
+      type: "token:teleport",
+      spellId: payload.spellId,
+      targetId: subjectId,
+      position,
+      ...(animated ? { operationId } : { skipAnimation: true }),
+    }],
+    history: {
+      kind: "spell",
+      label,
+      payload: {
+        causality: buildSpellCausality({
+          eventType: "active-resolution",
+          spellId: payload.spellId,
+          spellName: payload.spellName,
+          instanceId: payload.instanceId,
+          casterId,
+          casterName: payload.casterName,
+          action: payload.action,
+          targets: [item],
+          targetIds: [subjectId],
+        }),
+      },
+    },
+    ...(sceneIdentity ? { sceneIdentity } : {}),
+    ...(commandId ? { commandId } : {}),
+  });
+  requireAppliedEffectsMutation(mutation);
+  const changedIds = mutation.changedIds || [];
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    return attachSpellExecutionHistory(changedIds, {
+      ...mutation,
+      stale: true,
+      postCommitPending: true,
+    });
+  }
+  return attachSpellExecutionHistory(changedIds, mutation);
+}
+
 async function executeTelekinesisContestResolution({
   payload = null,
   targetIds = [],
@@ -1164,11 +1258,13 @@ export async function executeSpellActiveResolution({
   ]);
   const prismaticWallResolution = isPrismaticWallActiveResolutionKind(payload?.action);
   const blinkReturnResolution = payload?.action?.resolutionKind === "blink-return";
+  const teleportResolution = payload?.action?.resolutionKind === "teleport";
   if (!ids.length
     && payload?.action?.resolutionKind !== "child-zone"
     && payload?.action?.allowEmptyTargets !== true
     && payload?.action?.resolutionKind !== "prismatic-wall-layers"
-    && !blinkReturnResolution) {
+    && !blinkReturnResolution
+    && !teleportResolution) {
     throw new Error("active-resolution-targets-required");
   }
   const commitInput = {
@@ -1212,6 +1308,18 @@ export async function executeSpellActiveResolution({
     return executeBlinkReturnResolution({
       payload,
       placement,
+      sceneEpoch,
+      sceneIdentity,
+      commandId,
+      isCurrent,
+    });
+  }
+
+  if (teleportResolution) {
+    return executeTeleportResolution({
+      payload,
+      placement,
+      targetIds: ids,
       sceneEpoch,
       sceneIdentity,
       commandId,

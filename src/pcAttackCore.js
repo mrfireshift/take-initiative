@@ -442,7 +442,9 @@ export function pcAttackOpenSpellCast({ sourceItem, spellId = "", turnState = nu
   const live = sourceItem?.metadata?.[META_KEY]?.[PC_ATTACK_STATE_FIELD]?.spellCast || null;
   if (!live || live.spellId !== spellId) return null;
   if ((live.turnKey || "") !== (attackTurn(turnState)?.turnKey || "")) return null;
-  return live.index < live.total || live.leapPending === true ? { ...live, targetIds: [...(live.targetIds || [])] } : null;
+  // Steel Wind Strike: after its last attack the cast stays open for the teleport (teleportPending).
+  return live.index < live.total || live.leapPending === true || live.teleportPending === true
+    ? { ...live, targetIds: [...(live.targetIds || [])] } : null;
 }
 
 // A leveled spell's registration (lotto L4): its slot level and dice, the ray or dart it is, and whether it opens the
@@ -474,20 +476,57 @@ export function pcAttackSpellCastPlan({ attack, sourceItem, targetItem = null, s
   const requested = Math.floor(Number(spellCast?.slotLevel));
   const slotLevel = continuing ? live.slotLevel : (Number.isInteger(requested) && requested >= spell.level && requested <= 9 ? requested : null);
   if (!slotLevel) return blocked("Scegli il livello dello slot.");
+  // Steel Wind Strike: its five attacks are registered; what is left is the teleport, or a new cast.
+  if (!continuing && live && live.castId === castId && live.spellId === spell.spellId && live.teleportPending === true
+    && (live.turnKey || "") === turnKey) {
+    return blocked(`${spell.name}: gli attacchi del lancio sono registrati. Teletrasportati o inizia un nuovo lancio.`);
+  }
   const targetIds = continuing && Array.isArray(live.targetIds) ? live.targetIds : [];
   // Chaos Bolt: each creature only once per cast, the leap included.
   if (spell.leap && targetItem && targetIds.includes(targetItem.id)) return blocked("Il dardo balza solo su una creatura non ancora bersagliata da questo lancio.");
+  // Steel Wind Strike: five different creatures.
+  if (spell.distinctTargets && targetItem && targetIds.includes(targetItem.id)) {
+    return blocked(`${spell.name}: ogni creatura una volta sola in questo lancio.`);
+  }
   const index = continuing ? live.index + 1 : 1;
   const total = continuing ? (live.index < live.total ? live.total : live.total + 1) : pcAttackSpellCount(spell, slotLevel);
   const leapPending = !!spell.leap && spellCast?.doubles === true && ATTACK_HITS.has(outcome);
   // Pact Magic chosen in the console: the slot spent is the pact's (spellSlotSpendCore.js).
   const pact = continuing ? live.pact === true : spellCast?.pact === true;
-  const next = index < total || leapPending
+  // Steel Wind Strike: the cast stays open after any of its attacks, for the teleport the caster may take.
+  const teleportPending = !!spell.teleportAfter;
+  const next = index < total || leapPending || teleportPending
     ? { castId, spellId: spell.spellId, slotLevel, index, total, targetIds: [...targetIds, ...(targetItem ? [targetItem.id] : [])], turnKey, leapPending,
-      ...(pact ? { pact: true } : {}) }
+      ...(pact ? { pact: true } : {}), ...(teleportPending ? { teleportPending: true } : {}) }
     : null;
   return { ok: true, spell, slotLevel, dice: pcAttackSpellDice(spell, slotLevel), firstOfCast: !continuing, index, total,
     ...(continuing && live.leapPending ? { leap: true } : {}), ...(pact ? { pact: true } : {}), leapPending, next };
+}
+
+// Steel Wind Strike (CAP-TELEPORT, lotto T3): the teleport after its attacks, from the cast still open, and the attack
+// state once it is spent (the cast closed). The cell is the GM's: the console only warns when it is not within 5 feet
+// of a creature the cast attacked (decision D3).
+export function pcAttackSpellTeleportPlan({ sourceItem, castId = "", position = null, turnState = null } = {}) {
+  const sourceMeta = sourceItem?.metadata?.[META_KEY] || {};
+  const live = sourceMeta[PC_ATTACK_STATE_FIELD]?.spellCast || null;
+  const spell = getPcAttackSpell(live?.spellId);
+  const turnKey = attackTurn(turnState)?.turnKey || "";
+  if (!spell?.teleportAfter || !live || live.teleportPending !== true || live.castId !== String(castId || "").trim()
+    || (live.turnKey || "") !== turnKey || !(live.targetIds || []).length) {
+    return { ok: false, reason: "Nessun lancio da cui teletrasportarsi: registra prima un attacco." };
+  }
+  const x = Number(position?.x);
+  const y = Number(position?.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return { ok: false, reason: "Scegli la casella d'arrivo." };
+  const { spellCast: _spent, ...rest } = sourceMeta[PC_ATTACK_STATE_FIELD] || {};
+  return {
+    ok: true,
+    spell,
+    position: { x, y },
+    attackedIds: [...live.targetIds],
+    statePatch: { value: { ...rest, version: PC_ATTACK_STATE_VERSION },
+      expected: bossMetadataSnapshot(sourceMeta, PC_ATTACK_STATE_FIELD) },
+  };
 }
 
 // "TS Destrezza (CD 14)": the save of a saving throw cantrip, with the actor's spell save DC when the card has it; an

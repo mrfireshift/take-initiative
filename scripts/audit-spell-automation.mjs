@@ -747,6 +747,8 @@ function syntheticSession(contract) {
     targetContext,
     castContext,
     placement: syntheticPlacement(contract, targetIds, castContext),
+    // Thunder Step (CAP-TELEPORT): the cell the caster reaches, chosen after the thunder's area.
+    ...(inputs.teleportDestination?.required ? { teleportDestination: { x: 900, y: 900 } } : {}),
     hpValues: {
       damage: inputs.damage?.required ? 12 : null,
       primaryDamage: inputs.primaryDamage?.required ? 13 : null,

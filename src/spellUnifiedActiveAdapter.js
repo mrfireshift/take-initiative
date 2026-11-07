@@ -81,6 +81,7 @@ const ACTIVE_POPUP_RESOLUTION_KINDS = new Set([
   "child-zone",
   "telekinesis-contest",
   "blink-return",
+  "teleport",
   "prismatic-wall-traversal",
   "prismatic-wall-layers",
 ]);

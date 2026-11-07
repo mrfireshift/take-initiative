@@ -26,7 +26,51 @@ export const SPELL_TELEPORT_RULES = Object.freeze({
       }),
     }),
   }),
+  // Far Step (CAP-TELEPORT, lotto T1): the cast teleports like Misty Step; on the next turns the spell's pill repeats it
+  // (active action "far-step-teleport", resolution kind "teleport").
+  "xanathar-passo-remoto": Object.freeze({
+    spellId: "xanathar-passo-remoto",
+    rangeMeters: 18,
+    allowPassenger: false,
+  }),
 });
+
+// CAP-TELEPORT, lotto T2: a teleport that is a step of an area cast, never a teleport spell of its own (isTeleportSpell
+// stays false). Thunder Step: the thunder is the area save around the space the caster leaves (its own cast rule); the
+// destination is a second point on the map, and a willing creature next to the caster may travel along, out of the
+// thunder (decision D1). Danger and HP follow the area's own path; the move joins its History entry (D2).
+export const SPELL_TELEPORT_STEP_RULES = Object.freeze({
+  "xanathar-passo-del-tuono": Object.freeze({
+    spellId: "xanathar-passo-del-tuono",
+    rangeMeters: 27,
+    destinationRuleId: "xanathar-passo-del-tuono:destination",
+    allowPassenger: true,
+    passengerMaxDistanceMeters: 1.5,
+    passenger: Object.freeze({
+      optional: true,
+      maximum: 1,
+      requireCreature: true,
+      maxSizeRelation: "caster-or-smaller",
+      adjacency: "grid-adjacent",
+      destinationPlacement: "preserve-relative-offset",
+    }),
+    excludePassengerFromArea: true,
+  }),
+});
+
+export function getSpellTeleportStepRule(value) {
+  const id = typeof value === "object" ? value?.id : value;
+  return SPELL_TELEPORT_STEP_RULES[String(id || "").trim()] || null;
+}
+
+// The active actions that teleport a creature from a spell already active (resolution kind "teleport"): the caster
+// (Far Step) or the one creature selected (Arcane Gate's traversal). The space chosen stays the GM's to judge.
+export const SPELL_TELEPORT_ACTION_SUBJECTS = Object.freeze(["caster", "target"]);
+
+export function spellTeleportActionSubject(action) {
+  const subject = String(action?.teleport?.subject || "").trim();
+  return SPELL_TELEPORT_ACTION_SUBJECTS.includes(subject) ? subject : "";
+}
 
 export function isTeleportSpell(value) {
   const id = typeof value === "object" ? value?.id : value;

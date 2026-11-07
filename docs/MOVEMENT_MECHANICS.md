@@ -130,7 +130,8 @@ zona, direzione e moltiplicatore viene applicata una sola volta. Prono e
 scalata aggiungono ciascuno 1,5 metri per casella al costo, anche nel terreno
 difficile: Prono nella Cucitura costa il triplo, come scalare nella Ragnatela.
 
-Un teletrasporto (Passo velato, Porta dimensionale, Passo del tuono) e il suo
+Un teletrasporto (Passo velato, Porta dimensionale, Passo del tuono, Passo remoto,
+l'attraversamento di Portale arcano, il salto finale di Colpo del Vento d'Acciaio) e il suo
 Annulla non consumano e non restituiscono movimento: il passo successivo si
 misura dalla casella d'arrivo.
 

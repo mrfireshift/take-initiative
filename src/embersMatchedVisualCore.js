@@ -488,6 +488,7 @@ const sourceAwareSpellIds = [
   "xanathar-coltello-di-ghiaccio",
   "phb2014-nube-di-pugnali",
   "xanathar-passo-del-tuono",
+  "xanathar-passo-remoto",
   "xanathar-turbine",
   // Attack console cantrips (and Create Bonfire, cast from the spell panel).
   "chill-touch",
@@ -656,6 +657,11 @@ const VISUALS = freeze({
   darkness: [circle("darkness", "area", persistent())],
   "flaming-sphere": [circle("flamingSphere", "area", persistent({ attachedTo: "zone" }))],
   "misty-step": [
+    circle("mistyStepOut", "caster", { oneShot: true }),
+    circle("mistyStepIn", "area", { delay: 1500, oneShot: true }),
+  ],
+  // Far Step (CAP-TELEPORT): the mist of Misty Step, at the cast and at each teleport of the next turns.
+  "xanathar-passo-remoto": [
     circle("mistyStepOut", "caster", { oneShot: true }),
     circle("mistyStepIn", "area", { delay: 1500, oneShot: true }),
   ],
@@ -1151,7 +1157,8 @@ export function buildMatchedVisualEvent({
   const casterTarget = normalizedTargets.find((targetValue) => (
     normalizedCasterId && targetValue.id === normalizedCasterId
   ));
-  const teleportOrigin = ["misty-step", "dimension-door", "xanathar-passo-del-tuono"].includes(normalizedSpellId)
+  const teleportOrigin = ["misty-step", "dimension-door", "xanathar-passo-del-tuono", "xanathar-passo-remoto"]
+    .includes(normalizedSpellId)
     ? previewData?.origin
     : null;
   const source = teleportOrigin

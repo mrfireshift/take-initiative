@@ -60,6 +60,8 @@ const PERSISTENT_ZONE_SPELL_IDS = new Set([
   "storm-of-vengeance",
   "symbol",
   "teleportation-circle",
+  // CAP-TELEPORT, lotto T4: Arcane Gate's first portal; the second is a child zone of its pill.
+  "phb2014-portale-arcano",
   "tiny-hut",
   "wall-of-fire",
   "wall-of-force",
@@ -395,6 +397,14 @@ const AREA_OVERRIDES = Object.freeze({
     centered: true,
     note: "Seleziona il punto di arrivo entro 150 metri; visibilità, visualizzazione, descrizione e spazio libero restano assistiti dal GM.",
   },
+  // CAP-TELEPORT, lotto T1: the cast's teleport, like Misty Step's.
+  "xanathar-passo-remoto": {
+    shape: "square",
+    sizeMeters: 1.5,
+    origin: "point",
+    rangeMeters: 18,
+    note: "Seleziona la casella libera di destinazione entro 18 metri",
+  },
   "move-earth": {
     shape: "square",
     sizeMeters: 12,
@@ -631,6 +641,15 @@ const AREA_OVERRIDES = Object.freeze({
     origin: "point",
     rangeMeters: 3,
     note: "La misura rappresenta il raggio del cerchio",
+  },
+  // CAP-TELEPORT, lotto T4: the first portal, a ring 3 m across within 3 m of the caster. Its active side and its
+  // rotation stay the GM's.
+  "phb2014-portale-arcano": {
+    shape: "circle",
+    sizeMeters: 1.5,
+    origin: "point",
+    rangeMeters: 3,
+    note: "Il primo portale entro 3 metri; il secondo, entro 150 metri, si apre dall'azione ⚡ della pill. Il lato attivo e la rotazione restano al GM.",
   },
   "phb2014-freccia-folgorante": {
     shape: "circle",

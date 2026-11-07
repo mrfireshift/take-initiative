@@ -643,10 +643,10 @@ da questo audit.
 - Catalogo totale: **477** definizioni su 477 record.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **477**; disconnessi: **0**; fragili: **0**.
-- Opzioni trackable del runtime: **360**; definizioni con tracking persistente verificate dall'audit: **360**; definizioni con regole d'area: **139** (144 regole).
-- Workflow che richiedono smoke test runtime: **416**.
+- Opzioni trackable del runtime: **360**; definizioni con tracking persistente verificate dall'audit: **360**; definizioni con regole d'area: **142** (151 regole).
+- Workflow che richiedono smoke test runtime: **417**.
 - Lacune RAW confermate P1: **7**; discrepanze ad alta confidenza P2: **2**.
-- Impronta deterministica: `c49bae197b3a0c62`.
+- Impronta deterministica: `dd436a4dbc7badf1`.
 
 ## Decisioni di prodotto chiuse
 
@@ -660,8 +660,8 @@ da questo audit.
 | --- | ---: |
 | FULL | 66 |
 | MANUAL | 57 |
-| PARTIAL | 243 |
-| TRACK_ONLY | 111 |
+| PARTIAL | 244 |
+| TRACK_ONLY | 110 |
 
 ### Stato di copertura (coverageStatus)
 
@@ -700,10 +700,10 @@ da questo audit.
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION | 52 |
-| AREA_GEOMETRY | 139 |
+| ACTIVE_ACTION | 54 |
+| AREA_GEOMETRY | 142 |
 | CAST | 277 |
-| CLEANUP | 128 |
+| CLEANUP | 129 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 360 |
 | TURN_TRIGGER | 110 |
@@ -1073,7 +1073,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Passapareti | `passwall` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Passare senza tracce | `pass-without-trace` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Passo del Tuono | `xanathar-passo-del-tuono` | Xanathar / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Passo Remoto | `xanathar-passo-remoto` | Xanathar / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Passo Remoto | `xanathar-passo-remoto` | Xanathar / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Passo velato | `misty-step` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Passo veloce | `longstrider` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Paura | `fear` | SRD 5.1 / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |

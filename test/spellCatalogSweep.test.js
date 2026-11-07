@@ -18,9 +18,17 @@ const KNOWN = Object.freeze({
   "termina-leaves": {
     "delayed-blast-fireball": "Termina apre la detonazione finale: la pill resta fino alla sua risoluzione.",
   },
+  // Far Step and Thunder Step: the Undo that fails in memory (the token) leaves their pill and their thunder's HP there
+  // too; on the bench it puts everything back.
+  "undo-differs": {
+    "xanathar-passo-del-tuono": IN_MEMORY_TELEPORT,
+    "xanathar-passo-remoto": IN_MEMORY_TELEPORT,
+  },
   "undo-failed": {
     "dimension-door": IN_MEMORY_TELEPORT,
     "misty-step": IN_MEMORY_TELEPORT,
+    "xanathar-passo-del-tuono": IN_MEMORY_TELEPORT,
+    "xanathar-passo-remoto": IN_MEMORY_TELEPORT,
   },
   "no-effect": {
     "dimension-door": IN_MEMORY_TELEPORT,

@@ -337,6 +337,13 @@ export function buildSpellUnifiedAreaCommand({
     casterId: text(session?.casterId),
     ...(session?.monsterActionContext != null ? { monsterActionContext: session.monsterActionContext } : {}),
     passengerId: text(session?.passengerId),
+    // Thunder Step (CAP-TELEPORT, lotto T2): the cell reached and who travels along, beside the thunder's targets.
+    ...(contract?.presentation?.teleportStep ? {
+      teleportStep: {
+        destination: session?.teleportDestination || null,
+        passengerId: text(session?.stepPassengerId),
+      },
+    } : {}),
     slotLevel: session?.slotLevel,
     choiceValue: text(session?.variant),
     castContext: session?.castContext || {},

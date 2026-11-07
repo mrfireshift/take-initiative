@@ -42,6 +42,7 @@ import {
   blinkStateFromCastContext,
   validateBlinkReturnPlacement,
 } from "./blinkRules.js";
+import { spellTeleportActionSubject } from "./spellTeleportCore.js";
 import {
   TELEKINESIS_CONTEST_RESOLUTION_KIND,
   TELEKINESIS_OUTCOMES,
@@ -1090,6 +1091,34 @@ async function validateBlinkReturn({
   };
 }
 
+// CAP-TELEPORT: the creature moved and the cell chosen. The tool keeps the click within the rule's range; free space
+// and sight stay the GM's, as for Blink's return.
+function validateTeleportAction({
+  payload,
+  placement,
+  targetIds,
+  allItems,
+} = {}) {
+  const errors = [];
+  const subject = spellTeleportActionSubject(payload?.action);
+  const casterId = String(payload?.casterId || "").trim();
+  const ids = uniqueIds(targetIds);
+  if (subject === "caster" && ids.some((id) => id !== casterId)) errors.push("teleport-target-invalid");
+  if (subject === "target" && ids.length !== 1) errors.push("teleport-target-required");
+  const subjectId = subject === "caster" ? casterId : ids[0] || "";
+  const item = subjectId ? allItems.find((entry) => entry?.id === subjectId) : null;
+  if (!item) errors.push(subject === "caster" ? "caster-missing" : "target-missing");
+  else if (item.layer !== "CHARACTER") errors.push("teleport-target-not-creature");
+  const position = point(placement?.position || placement);
+  if (!position) errors.push("teleport-position-required");
+  return {
+    valid: errors.length === 0,
+    errors: [...new Set(errors)],
+    subjectId,
+    position,
+  };
+}
+
 export async function validateSpellActiveResolutionCommit({
   payload = null,
   placement = null,
@@ -1129,6 +1158,8 @@ export async function validateSpellActiveResolutionCommit({
     })
     : payload.action.resolutionKind === "blink-return"
     ? await validateBlinkReturn({ payload, placement, targetIds: ids, allItems })
+    : payload.action.resolutionKind === "teleport"
+    ? validateTeleportAction({ payload, placement, targetIds: ids, allItems })
     : ["prismatic-wall-traversal", "prismatic-wall-layers"]
     .includes(String(payload.action.resolutionKind || "").trim())
     ? await validatePrismaticWall({

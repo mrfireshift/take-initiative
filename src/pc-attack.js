@@ -15,6 +15,7 @@ import { PC_ATTACK_MONSTER_GROUP_TITLES, pcAttackMonsterTraitEntries } from "./p
 import { monsterStatblockTextRef } from "./monsterStatblockTextCore.js";
 import { createMonsterStatblockTextLoader } from "./monsterStatblockTextLoader.js";
 import { getPcAttackSpell, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
+import { spellTeleportDestinationPosition } from "./spellTeleportCore.js";
 import { spellSlotChoices } from "./spellSlotSpendCore.js";
 import { pcAttackHasPotentCantrip } from "./pcAttackRiderCatalog.js";
 import { getPcAttackCantrip, pcAttackCantripBeams, PC_ATTACK_SAVE_LABELS } from "./pcAttackCantripCatalog.js";
@@ -484,11 +485,18 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       box.addEventListener("change",()=>{draft.spell.doubles=box.checked;renderState();});
       label.append(box,node("span","d8 uguali: balza"));controls.push(label);
     }
+    // Steel Wind Strike (CAP-TELEPORT, lotto T3): after its attacks, the teleport next to a creature attacked.
+    if(spell?.teleportAfter && open?.teleportPending && (open.targetIds || []).length) {
+      const jump=node("button","Teletrasportati","temp-hp-add");jump.type="button";jump.disabled=busy || !!drawing;
+      jump.addEventListener("click",()=>void teleportAfterSpell(open));
+      controls.push(jump);
+    }
     if(spellControls){spellControls.replaceChildren(...controls);spellControls.hidden=!controls.length;}
     const pills=spell && !spell.fromActiveSpell?pcAttackCantripPillLabels(spell.spellId):[];
     const slotLevel=draft.spell.slotLevel ?? spell?.level;
-    const progress=open?`${open.leapPending?"Balzo del dardo":`Lancio in corso: ${open.index}/${open.total} registrati`} · slot di ${open.slotLevel}° già speso. ${open.leapPending?"Scegli un'altra creatura entro 9 metri.":""}`
-      :spell?.count?`${spell.spellId==="magic-missile"?"Dardi":"Raggi"}: ${spell.count.base+spell.count.perSlot*Math.max(0,(slotLevel || spell.level)-spell.level)} con questo slot; il primo spende lo slot.`:"";
+    const progress=open?`${open.leapPending?"Balzo del dardo":open.index>=open.total?`Attacchi registrati: ${open.index}/${open.total}`
+      :`Lancio in corso: ${open.index}/${open.total} registrati`} · slot di ${open.slotLevel}° già speso. ${open.leapPending?"Scegli un'altra creatura entro 9 metri.":""}`
+      :spell?.count?`${spell.count.noun || (spell.spellId==="magic-missile"?"Dardi":"Raggi")}: ${spell.count.base+spell.count.perSlot*Math.max(0,(slotLevel || spell.level)-spell.level)} con questo slot; il primo spende lo slot.`:"";
     const notes=[...(progress?[progress.trim()]:[]),...(spell?.ruleNote?[spell.ruleNote]:[]),
       ...(pills.length?[`Al colpo: etichetta ${pills.map(label=>`«${label}»`).join(", ")}.`]:[]),
       ...(spell?.casterHealRatio?["Il caster recupera metà dei danni necrotici inflitti."]:[])];
@@ -2423,6 +2431,38 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       if(restore) await api.popover?.setHeight?.(PC_ATTACK_POPOVER_ID,restore);
     } catch {}
     return 0;
+  }
+  // Steel Wind Strike (CAP-TELEPORT, lotto T3): one click on the cell the caster reaches, then the move. Never refused:
+  // a cell not within 5 feet of a creature attacked gets a warning (decision D3).
+  async function teleportAfterSpell(open) {
+    if(!open?.teleportPending || drawing || busy) return;
+    const spellName=getPcAttackSpell(open.spellId)?.name || "Incantesimo";
+    const requestId=createSpellAreaPlacementRequestId();
+    drawing=requestId;renderMinimized();
+    setStatus("Clicca sulla mappa la casella d'arrivo, entro 1,5 m da una delle creature attaccate. Esc annulla.");
+    const height=await foldConsole(true);
+    let picked;
+    try {picked=await placeArea({ruleId:"xanathar-colpo-del-vento-dacciaio:teleport",casterId:sourceId,requestId,
+      context:{phase:"pc-attack",pointSelection:true,autoConfirmPoint:true,directPointSelection:true,snapToItemCenter:true}});}
+    catch(error) {picked={status:"error",error:String(error?.message || error)};}
+    await foldConsole(false,height);
+    if(drawing!==requestId) return;
+    drawing="";renderMinimized();
+    const position=picked?.status==="confirmed"?spellTeleportDestinationPosition(picked.preview):null;
+    if(!position) {
+      setStatus(picked?.status==="cancelled"?"Teletrasporto annullato.":`Destinazione non scelta${picked?.error?`: ${picked.error}`:""}.`,"warn");
+      renderState();return;
+    }
+    await perform(async operation=>{
+      const result=await runtime.executePcAttackSpellTeleport({sourceId,castId:open.castId,position,sceneIdentity:presentation.sceneIdentity});
+      if(!lifecycle.isCurrent(operation)) return;
+      showUndo(result);
+      setStatus([`${spellName}: teletrasporto registrato.`,
+        ...(result.teleport?.nextToTarget===false?["La casella non è entro 1,5 m da una creatura attaccata: verifica sulla mappa."]:[])].join("\n"),
+        result.teleport?.nextToTarget===false?"warn":"ok");
+      await refresh(operation);
+      render();
+    },{commit:true});
   }
   // The breath's cone or line on the map, from the attacker's token: the creatures inside are ticked (never the
   // attacker); the GM still marks each save and may tick or untick by hand. Esc in the tool cancels.

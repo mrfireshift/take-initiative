@@ -33,6 +33,7 @@ export const ENERVATION_TURN_PROMPT_ACTION_ID = "enervation-repeat";
 export const HEAT_METAL_TURN_PROMPT_ACTION_ID = "heat-metal-repeat";
 export const CROWN_OF_STARS_TURN_PROMPT_ACTION_ID = "crown-of-stars-launch";
 export const MELF_METEOR_TURN_PROMPT_ACTION_ID = "melf-meteor";
+export const FAR_STEP_TURN_PROMPT_ACTION_ID = "far-step-teleport";
 export const FLAME_ARROWS_TURN_PROMPT_ACTION_ID = "flame-arrows-consume";
 export const WALL_OF_LIGHT_TURN_PROMPT_ACTION_ID = "wall-of-light-beam";
 export const HOLY_WEAPON_TURN_PROMPT_ACTION_ID = "holy-weapon-dismiss";
@@ -132,6 +133,13 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     spellId: "xanathar-minuscole-meteore-di-melf",
     actionId: MELF_METEOR_TURN_PROMPT_ACTION_ID,
     ownerContext: "caster",
+  }),
+  // Far Step (CAP-TELEPORT, lotto T1): the bonus action of the turns after the cast.
+  Object.freeze({
+    spellId: "xanathar-passo-remoto",
+    actionId: FAR_STEP_TURN_PROMPT_ACTION_ID,
+    ownerContext: "caster",
+    availableAfterCast: true,
   }),
   Object.freeze({
     spellId: "xanathar-frecce-infuocate",

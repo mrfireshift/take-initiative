@@ -34,6 +34,12 @@ export const PC_ATTACK_SPELLS = Object.freeze([
   Object.freeze({ spellId: "vampiric-touch", name: "Tocco del vampiro", level: 3, range: "melee", type: "necrotic",
     dice: "3d6", perSlot: "1d6", casterHealRatio: 0.5, fromActiveSpell: true,
     ruleNote: "Registra il tocco del lancio e quelli dei turni seguenti, finché dura la concentrazione." }),
+  // CAP-TELEPORT, lotto T3 (Xanathar): up to five creatures within 30 feet, one melee spell attack each, never the same
+  // twice (distinctTargets); then the caster may teleport within 5 feet of one of them, hit or missed (teleportAfter).
+  Object.freeze({ spellId: "xanathar-colpo-del-vento-dacciaio", name: "Colpo del Vento d'Acciaio", level: 5, range: "melee",
+    type: "force", dice: "6d10", count: Object.freeze({ base: 5, perSlot: 0, noun: "Attacchi" }), distinctTargets: true,
+    teleportAfter: Object.freeze({ withinMeters: 1.5 }),
+    ruleNote: "Fino a cinque creature diverse entro 9 metri, un attacco in mischia con incantesimo ciascuna. Poi puoi teletrasportarti entro 1,5 metri da una di loro, colpita o mancata." }),
 ]);
 
 const SPELL_BY_ID = new Map(PC_ATTACK_SPELLS.map((spell) => [spell.spellId, spell]));

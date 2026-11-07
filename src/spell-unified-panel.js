@@ -13,6 +13,7 @@ import {
 } from "./spellUnifiedPanelCore.js";
 import {
   isTeleportSpell,
+  spellTeleportDestinationPosition,
 } from "./spellTeleportCore.js";
 import {
   executeSpellUnifiedArea,
@@ -1177,6 +1178,25 @@ export function bootSpellUnifiedPanel(
   };
 
   const refreshTeleportPassengerCandidates = async (operation = null) => {
+    // Thunder Step (CAP-TELEPORT, lotto T2): the creatures next to the caster may travel along; the one chosen stops
+    // being a passenger when it is no longer there.
+    const teleportStep = state.contract?.presentation?.teleportStep;
+    if (teleportStep?.passenger?.available === true
+      && typeof provider.getTeleportPassengerCandidateIds === "function") {
+      const stepCasterId = String(state.session?.casterId || "").trim();
+      const stepCandidateIds = stepCasterId
+        ? await provider.getTeleportPassengerCandidateIds(stepCasterId, state.targetCandidates)
+        : [];
+      if (operation && !sceneLifecycle.isCurrent(operation)) return false;
+      state.teleportPassengerCandidateIds = Array.isArray(stepCandidateIds)
+        ? stepCandidateIds.map((id) => String(id || "").trim()).filter(Boolean)
+        : [];
+      const stepPassengerId = String(state.session?.stepPassengerId || "").trim();
+      if (stepPassengerId && !state.teleportPassengerCandidateIds.includes(stepPassengerId)) {
+        state.session = updateSpellPanelSession(state.session, { stepPassengerId: "" });
+      }
+      return true;
+    }
     if (!isTeleportSpell(state.contract?.spell?.id)
       || typeof provider.getTeleportPassengerCandidateIds !== "function") {
       state.teleportPassengerCandidateIds = null;
@@ -1728,6 +1748,61 @@ export function bootSpellUnifiedPanel(
     state.revision += 1;
     render();
     return true;
+  };
+
+  // Thunder Step (CAP-TELEPORT, lotto T2): the cell the caster reaches, one click on the map as for Misty Step. The
+  // tool keeps it within the rule's range; free space and sight stay the GM's.
+  let teleportStepRequestId = "";
+  const pickTeleportStepDestination = async () => {
+    const step = state.contract?.presentation?.teleportStep;
+    const casterId = String(state.session?.casterId || "").trim();
+    if (!step?.destinationRuleId || !casterId || state.committing || teleportStepRequestId) return;
+    const operation = captureSceneOperation("spell-panel-teleport-step");
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    const requestId = createSpellAreaPlacementRequestId();
+    teleportStepRequestId = requestId;
+    patchSession({
+      feedback: {
+        state: "loading",
+        message: `Clicca sulla mappa la casella d'arrivo entro ${step.rangeMeters} m. Esc annulla.`,
+      },
+    }, { clearFeedback: false });
+    let result = null;
+    try {
+      result = await requestSpellAreaPlacement({
+        requestId,
+        ruleId: step.destinationRuleId,
+        casterId,
+        context: {
+          phase: state.session.phase,
+          spellId: state.contract?.spell?.id || "",
+          slotLevel: state.session.slotLevel,
+          pointSelection: true,
+          autoConfirmPoint: true,
+          directPointSelection: true,
+          snapToItemCenter: true,
+        },
+      }, {
+        broadcast: runtimeOverrides.broadcast || OBR.broadcast,
+        windowRef: runtimeOverrides.windowRef || globalThis.window,
+      });
+    } catch (error) {
+      result = { status: "error", error: String(error?.message || error) };
+    } finally {
+      if (teleportStepRequestId === requestId) teleportStepRequestId = "";
+    }
+    if (destroyed || !sceneLifecycle.isCurrent(operation)) return;
+    const destination = result?.status === "confirmed"
+      ? spellTeleportDestinationPosition(result.preview)
+      : null;
+    patchSession(destination
+      ? { teleportDestination: destination, feedback: { state: "success", message: "Destinazione scelta." } }
+      : {
+        feedback: {
+          state: "info",
+          message: result?.status === "cancelled" ? "Scelta della destinazione annullata." : "Destinazione non scelta.",
+        },
+      }, { clearFeedback: false });
   };
 
   const startPlacement = async () => {
@@ -3443,6 +3518,9 @@ export function bootSpellUnifiedPanel(
       },
     }),
     onPlacement: () => void startPlacement(),
+    // Thunder Step (CAP-TELEPORT, lotto T2): the passenger leaves the thunder's targets (the session sees to it).
+    onTeleportStepPassenger: (passengerId) => patchSession({ stepPassengerId: String(passengerId || "").trim() }),
+    onTeleportStepDestination: () => void pickTeleportStepDestination(),
     onPlacementConfirm: () => void sendPlacementControl("confirm"),
     onPlacementCancel: () => {
       const requestIds = pendingPlacementRequests.size
@@ -3671,6 +3749,7 @@ export function bootSpellUnifiedPanel(
     onUndo: () => void undo(),
     onPrimaryAction: (actionId) => {
       if (actionId === "place") void startPlacement();
+      else if (actionId === "teleport-destination") void pickTeleportStepDestination();
       else if (actionId === "apply" || actionId === "prepare") void commit();
       else if (actionId === "resolve-active-action") void executeActiveAction();
       else if (state.model) focusFirstInvalid(state.model);

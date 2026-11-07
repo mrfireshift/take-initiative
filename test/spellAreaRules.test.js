@@ -913,9 +913,10 @@ test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () =>
   // 93 since Dragon's Breath has no cone at the cast (polish, lot 7): the creature touched breathes later.
   assert.equal(AREA_SAVE_SPELL_IDS.length, 93);
   // 37 with Pass without Trace's aura (lotto L1); 40 with Wall of Sand, Wall of Force and Forbiddance (lotto L3); 42 with
-  // Plant Growth and Wall of Water (CAP-TERRAIN).
-  assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 41);
-  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 135);
+  // Plant Growth and Wall of Water (CAP-TERRAIN); 42 and 136 with Far Step's destination (CAP-TELEPORT, lotto T1); 43 and
+  // 137 with Arcane Gate's first portal (lotto T4).
+  assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 43);
+  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 137);
   // 17 with the saves with damage of lotto L2; 152 in the popover with the zones of lotto L3; 21 and 156 with
   // Disintegrate, Finger of Death, Power Word Kill and Feeblemind (CAP-HP-BRANCH); 25 and 160 with Heal, Power
   // Word Heal, Lesser Restoration and Dispel Magic (CAP-CLEANSE); 26 and 161 with Magic Missile; 27 and 162 with
@@ -923,7 +924,8 @@ test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () =>
   // 54 and 191 with the 21 spells of decision D6 of the polish; 58 and 195 with Frostbite, Earthen Grasp, Witch Bolt and
   // Ray of Enfeeblement (lot 3).
   assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 59);
-  assert.equal(AREA_POPOVER_SPELL_IDS.length, 194);
+  // 195 with Far Step (CAP-TELEPORT, lotto T1), 196 with Arcane Gate (lotto T4).
+  assert.equal(AREA_POPOVER_SPELL_IDS.length, 196);
   assert.equal(AREA_SAVE_SPELL_IDS.includes("phb2014-fame-di-hadar"), false);
   assert.equal(
     AREA_PLACEMENT_ONLY_SPELL_IDS.includes("phb2014-fame-di-hadar"),

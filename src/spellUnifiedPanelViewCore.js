@@ -46,6 +46,7 @@ import {
 import {
   renderPlacementStage,
   renderTargetMatrix,
+  renderTeleportStep,
 } from "./spellUnifiedPanelTargetView.js";
 import {
   renderActiveSpellSection,
@@ -1238,6 +1239,31 @@ export function buildUnifiedPanelViewModel({
         detail: overview.name,
       }))
     ));
+  // Thunder Step (CAP-TELEPORT, lotto T2): who travels with the caster and where the caster goes, after the thunder's
+  // area. The passenger is out of the thunder (D1); range, sight and free space stay the GM's beyond the tool's range.
+  const teleportStep = presentation.teleportStep || null;
+  const teleportDestinationChosen = !!session?.teleportDestination;
+  const teleportStepView = teleportStep?.available === true && inputs.teleportDestination?.visible === true
+    ? {
+      visible: true,
+      rangeMeters: teleportStep.rangeMeters,
+      passenger: {
+        visible: teleportStep.passenger?.available === true,
+        label: "Passeggero (opzionale)",
+        hint: `Una creatura consenziente adiacente al caster, di taglia pari o inferiore: arriva accanto a lui e non subisce il tuono. Consenso e carico restano al GM.`,
+        value: asText(session?.stepPassengerId),
+        options: optionList(passengerCandidates, "Nessun passeggero"),
+      },
+      destination: {
+        chosen: teleportDestinationChosen,
+        label: teleportDestinationChosen
+          ? "Destinazione scelta: il caster si teletrasporta quando applichi."
+          : `Scegli sulla mappa la casella d'arrivo entro ${teleportStep.rangeMeters} m.`,
+        buttonLabel: teleportDestinationChosen ? "Cambia destinazione" : "Scegli destinazione",
+        invalid: workflow.validation?.firstInvalidField === "teleportDestination",
+      },
+    }
+    : null;
   const model = {
     spell: {
       label: workflow.spell?.label || "Seleziona un incantesimo",
@@ -1245,6 +1271,7 @@ export function buildUnifiedPanelViewModel({
       concentration: workflow.spell?.concentration === true,
     },
     workflow,
+    teleportStep: teleportStepView,
     catalog: {
       ...buildCatalogViewModel({
         entries: catalogEntries,
@@ -1367,7 +1394,10 @@ export function buildUnifiedPanelViewModel({
       countLabel: selectionPolarity === "exclude"
         ? `${selectedTargetIds.length} escluse`
         : teleport?.available === true
-          ? (asText(session?.passengerId) ? "1 passeggero selezionato" : "Solo caster · passeggero opzionale")
+          // Misty Step and Far Step take nobody along: no passenger to offer.
+          ? teleport.passenger?.available !== true
+            ? "Solo caster"
+            : (asText(session?.passengerId) ? "1 passeggero selezionato" : "Solo caster · passeggero opzionale")
         : `${selectedTargetIds.length}${targetCapacity.maximum === null
           ? ""
           : `/${targetCapacity.maximum}`} bersagli`,
@@ -1386,7 +1416,8 @@ export function buildUnifiedPanelViewModel({
       ruleLabel: selectionPolarity === "exclude"
         ? "Creature escluse dall'effetto"
         : teleport?.available === true
-          ? "Porta Dimensionale"
+          // The teleport's own name: Misty Step and Far Step said "Porta Dimensionale" too.
+          ? asText(contract?.spell?.label) || "Teletrasporto"
         : targeting.filter ? `Filtro: ${targeting.filter}` : "Bersagli compatibili",
       spatialRules: clone(targeting.spatialRules),
       spatialLabel: targetingSpatialLabel(targeting, session),
@@ -1589,6 +1620,7 @@ export function renderSpellUnifiedPanel(documentRef, root, model, callbacks = {}
     renderCompositionPanel(documentRef, model, callbacks),
     renderManualSpellEffectPanel(documentRef, model, callbacks),
     renderPlacementStage(documentRef, model, callbacks),
+    renderTeleportStep(documentRef, model, callbacks),
   ].filter(Boolean));
   const components = [
     setup,

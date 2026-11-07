@@ -169,6 +169,8 @@ function completeSession(contract, overrides = {}) {
     targetContext,
     castContext,
     placement: syntheticPlacement(contract, targetIds, castContext),
+    // Thunder Step (CAP-TELEPORT, lotto T2): the cell the caster reaches, after the thunder's area.
+    ...(inputs.teleportDestination?.required ? { teleportDestination: { x: 900, y: 900 } } : {}),
     hpValues: {
       damage: inputs.damage?.required ? 12 : null,
       primaryDamage: inputs.primaryDamage?.required ? 13 : null,

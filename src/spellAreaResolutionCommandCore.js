@@ -23,6 +23,7 @@ import {
 } from "./spellAreaRules.js";
 import {
   getSpellTeleportRule,
+  getSpellTeleportStepRule,
   isTeleportSpell,
   spellTeleportDestinationPosition,
 } from "./spellTeleportCore.js";
@@ -1293,6 +1294,8 @@ export function buildSpellAreaResolutionCommand(input = {}) {
       : null
   );
   const teleportRule = getSpellTeleportRule(spell || spellId);
+  // Thunder Step (CAP-TELEPORT, lotto T2): a teleport that is a step of the cast; the area keeps its own targets.
+  const teleportStepRule = teleportRule ? null : getSpellTeleportStepRule(spell || spellId);
   const passengerId = teleportPassengerId(sourceInput, session);
   const commandId = text(firstDefined(
     sourceInput.commandId,
@@ -1489,6 +1492,28 @@ export function buildSpellAreaResolutionCommand(input = {}) {
         ? placement.targetIds
         : rawTargetIds;
   targetIds = uniqueIds(targetIds);
+
+  // Thunder Step (CAP-TELEPORT, lotto T2): the passenger travels with the caster and is out of the thunder (D1); the
+  // destination is the second point chosen on the map, never the area's.
+  const stepPassengerId = teleportStepRule
+    ? text(firstDefined(sourceInput.teleportStep?.passengerId, session?.stepPassengerId, ""))
+    : "";
+  if (stepPassengerId) targetIds = targetIds.filter((id) => id !== stepPassengerId);
+  const rawStepDestination = teleportStepRule
+    ? firstDefined(sourceInput.teleportStep?.destination, session?.teleportDestination, null)
+    : null;
+  const stepDestination = rawStepDestination
+    && Number.isFinite(Number(rawStepDestination.x)) && Number.isFinite(Number(rawStepDestination.y))
+    ? { x: Number(rawStepDestination.x), y: Number(rawStepDestination.y) }
+    : null;
+  if (teleportStepRule) {
+    if (contract?.presentation?.inputs?.teleportDestination?.required === true && !stepDestination) {
+      addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.TELEPORT_DESTINATION_REQUIRED);
+    }
+    if (stepPassengerId && stepPassengerId === casterId) {
+      addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PASSENGER_IS_CASTER);
+    }
+  }
 
   // Teleport subjects are explicit command data, not a consequence of the
   // placement preview. A legacy caller that still supplies one target can be
@@ -1736,15 +1761,18 @@ export function buildSpellAreaResolutionCommand(input = {}) {
 
   let resolutionResult = null;
   if (spell && teleportRule) {
+    // Far Step (CAP-TELEPORT): a teleport that lasts keeps its pill, with the concentration, on the caster.
+    const lastingTeleport = spell.concentration === true && !!casterId;
     resolutionResult = {
       valid: true,
       errors: [],
       spellId: spell.id,
       spellName: spell.displayName || spell.name,
-      concentration: false,
+      concentration: lastingTeleport,
       casterId,
       targetIds,
-      spellTargetIds: [],
+      spellTargetIds: lastingTeleport ? [casterId] : [],
+      ...(lastingTeleport ? { persistence: { owner: "caster" } } : {}),
       conditionApplications: [],
     };
   } else if (spell && !attackRequired && directDamageCast) {
@@ -1914,6 +1942,13 @@ export function buildSpellAreaResolutionCommand(input = {}) {
         ...(hasPassengerRelativeOffset
           ? { passengerRelativeOffset }
           : {}),
+      },
+    } : {}),
+    ...(teleportStepRule && stepDestination ? {
+      teleportStep: {
+        spellId: spellId || null,
+        destination: stepDestination,
+        passengerId: stepPassengerId || null,
       },
     } : {}),
     targeting: {

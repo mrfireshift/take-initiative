@@ -172,9 +172,10 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
     children: [
       createNode(documentRef, "h2", {
         id: "unified-targets-heading",
+        // A teleport's own name (its ruleLabel): Misty Step and Far Step said "Porta Dimensionale" too.
         text: negativeSelection
           ? "Creature esenti"
-          : targets.teleport?.available ? "Porta Dimensionale" : "Bersagli",
+          : targets.teleport?.available ? targets.ruleLabel || "Teletrasporto" : "Bersagli",
       }),
       createNode(documentRef, "span", {
         className: "unified-section__eyebrow unified-target-count",
@@ -227,6 +228,8 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
       }));
     }
     const passenger = targets.teleport.passenger || {};
+    // Misty Step and Far Step take nobody along.
+    if (passenger.visible !== true) return section;
     const passengerSelect = createSelect(documentRef, {
       id: "spell-unified-teleport-passenger",
       options: passenger.options || [{ value: "", label: "Nessun passeggero" }],
@@ -707,6 +710,46 @@ function renderMagicMissileDarts(documentRef, view, callbacks = {}) {
   }
   block.append(grid);
   return block;
+}
+
+// Thunder Step (CAP-TELEPORT, lotto T2): the teleport after the thunder's area, the passenger and the destination.
+export function renderTeleportStep(documentRef, model, callbacks = {}) {
+  const step = model.teleportStep;
+  if (!step?.visible) return null;
+  const section = createNode(documentRef, "section", {
+    className: "unified-section unified-placement unified-teleport-step",
+    attributes: { "aria-label": "Teletrasporto" },
+  });
+  const details = createNode(documentRef, "div", { className: "unified-placement-card" });
+  if (step.passenger?.visible) {
+    const passengerSelect = createSelect(documentRef, {
+      id: "spell-unified-step-passenger",
+      options: step.passenger.options || [{ value: "", label: "Nessun passeggero" }],
+      value: step.passenger.value || "",
+      attributes: { "data-field": "step-passenger" },
+    });
+    passengerSelect.addEventListener("change", (event) => callbacks.onTeleportStepPassenger?.(event.target.value));
+    details.append(createField(documentRef, {
+      id: passengerSelect.id,
+      label: step.passenger.label,
+      control: passengerSelect,
+      hint: step.passenger.hint,
+    }));
+  }
+  // Not a placement action: the area's own button goes first in its card, this one after the passenger.
+  const button = createButton(documentRef, {
+    label: step.destination.buttonLabel,
+    className: "unified-secondary-button",
+    attributes: { "data-teleport-destination": step.destination.chosen ? "chosen" : "missing" },
+  });
+  button.addEventListener("click", () => callbacks.onTeleportStepDestination?.());
+  details.append(button, createNode(documentRef, "div", {
+    className: "unified-placement-note",
+    text: `Teletrasporto · ${step.destination.label}`,
+    attributes: { "aria-live": "polite" },
+  }));
+  section.append(details);
+  return section;
 }
 
 export function renderPlacementStage(documentRef, model, callbacks = {}) {

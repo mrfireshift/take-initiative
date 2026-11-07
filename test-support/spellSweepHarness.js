@@ -361,6 +361,8 @@ async function castOnce({ id, phase, variant, outcome }) {
     targetContext: targetContextFor(id, targetIds, outcome),
     placement,
     castContext: { slotLevel },
+    // Thunder Step (CAP-TELEPORT): the cell the caster reaches, chosen after the thunder's area.
+    ...(presentation.inputs?.teleportDestination?.required ? { teleportDestination: { x: 900, y: 900 } } : {}),
     hpValues: {
       damage: SWEEP_DAMAGE,
       healing: SWEEP_HEALING,

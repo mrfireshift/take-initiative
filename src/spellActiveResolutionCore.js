@@ -5,6 +5,7 @@ import {
 } from "./spellEffectCore.js";
 import { getSpellActiveResolutionActions } from "./spellActiveResolutionRules.js";
 import { spellDamageAfterDefense } from "./spellDamageDefenseCore.js";
+import { spellTeleportActionSubject } from "./spellTeleportCore.js";
 import {
   TELEKINESIS_CONTEST_RESOLUTION_KIND,
   telekinesisActivationId,
@@ -19,6 +20,8 @@ export const SPELL_ACTIVE_RESOLUTION_KINDS = Object.freeze([
   "child-zone",
   TELEKINESIS_CONTEST_RESOLUTION_KIND,
   "blink-return",
+  // CAP-TELEPORT: a creature teleported from a spell already active (Far Step, Arcane Gate).
+  "teleport",
   "prismatic-wall-traversal",
   "prismatic-wall-layers",
 ]);
@@ -101,6 +104,7 @@ export function spellActiveResolutionPopoverHeight(payload) {
     case TELEKINESIS_CONTEST_RESOLUTION_KIND:
       return 300;
     case "blink-return":
+    case "teleport":
       return 190;
     case "child-zone":
       return 500;
@@ -227,6 +231,11 @@ export function validateSpellActiveResolutionAction(action) {
   if (kind === "blink-return") {
     if (action?.blinkReturn !== true) errors.push("action-blink-return-required");
     if (action?.requiresZoneRoot !== false) errors.push("action-zone-root-forbidden");
+    return { valid: errors.length === 0, errors: Object.freeze(errors) };
+  }
+  if (kind === "teleport") {
+    if (!spellTeleportActionSubject(action)) errors.push("action-teleport-subject-invalid");
+    if (!String(action?.placementRuleId || "").trim()) errors.push("action-placement-rule-required");
     return { valid: errors.length === 0, errors: Object.freeze(errors) };
   }
   if (kind === TELEKINESIS_CONTEST_RESOLUTION_KIND) {

@@ -129,6 +129,7 @@ import {
 } from "./spellBoardTokenCore.js";
 import {
   getSpellTeleportRule,
+  getSpellTeleportStepRule,
   isTeleportSpell,
   spellTeleportDestinationPosition,
   spellTeleportDestinationForSubject,
@@ -1262,9 +1263,28 @@ async function buildPlan(command, runtime) {
   );
   if (!spell) return { valid: false, errors: [{ code: "spell-not-found", message: "Incantesimo non trovato." }] };
   const teleportRule = getSpellTeleportRule(spell.id);
-  const commandTargetIds = uniqueIds(command?.targeting?.targetIds);
+  // Thunder Step (CAP-TELEPORT, lotto T2): a teleport that is a step of the area cast. The thunder keeps its targets and
+  // its own HP path; the passenger travels with the caster, out of the thunder (D1); the move joins the same entry (D2).
+  const teleportStepRule = teleportRule ? null : getSpellTeleportStepRule(spell.id);
+  const stepCommand = teleportStepRule && command?.teleportStep && typeof command.teleportStep === "object"
+    ? command.teleportStep
+    : null;
+  if (teleportStepRule && !stepCommand) {
+    return {
+      valid: false,
+      errors: [{
+        code: "teleport-destination-required",
+        message: "Scegli la destinazione del teletrasporto.",
+      }],
+    };
+  }
+  const movingRule = teleportRule || teleportStepRule;
+  const stepPassengerId = text(stepCommand?.passengerId);
+  const commandTargetIds = uniqueIds(command?.targeting?.targetIds)
+    .filter((id) => !stepPassengerId || id !== stepPassengerId);
   const passengerId = text(
     command?.teleport?.passengerId
+      || stepPassengerId
       || (teleportRule && commandTargetIds.length === 1 ? commandTargetIds[0] : ""),
   );
   const targetIds = uniqueIds([
@@ -1325,7 +1345,7 @@ async function buildPlan(command, runtime) {
   const passenger = passengerId
     ? allById.get(passengerId) || liveById.get(passengerId) || null
     : null;
-  if (teleportRule) {
+  if (movingRule) {
     if (passengerId && !passenger) {
       return {
         valid: false,
@@ -1336,7 +1356,7 @@ async function buildPlan(command, runtime) {
       };
     }
     const passengerValidation = validateSpellTeleportPassenger({
-      rule: teleportRule,
+      rule: movingRule,
       caster,
       passenger,
     });
@@ -1356,7 +1376,7 @@ async function buildPlan(command, runtime) {
       };
     }
   }
-  const teleportSubjectIds = teleportRule
+  const teleportSubjectIds = movingRule
     ? uniqueIds([casterId, passengerId])
     : [];
   const placement = command?.placement || null;
@@ -1386,7 +1406,9 @@ async function buildPlan(command, runtime) {
     || mobileAura
     || boardToken
     || cloudPending
-    || isTeleportSpell(spell.id);
+    || isTeleportSpell(spell.id)
+    // Thunder Step: the thunder may roll over nobody, the caster goes all the same.
+    || !!stepCommand;
   const targetContexts = command?.targeting?.targetContexts || {};
   const outcomeEntries = Object.entries(command?.outcomes?.byTarget || {});
   const outcomes = new Map(outcomeEntries);
@@ -1445,16 +1467,20 @@ async function buildPlan(command, runtime) {
       errors: errorList(validation.errors, "spatial-validation-failed"),
     };
   }
+  // Far Step (CAP-TELEPORT): a teleport that lasts keeps its pill, with the concentration, on the caster who moves.
+  // Misty Step and Dimension Door have none.
+  const lastingTeleport = !!teleportRule && spell.concentration === true && !!casterId;
   const resolution = teleportRule
     ? {
       valid: true,
       errors: [],
       spellId: spell.id,
       spellName: spell.displayName || spell.name,
-      concentration: false,
+      concentration: lastingTeleport,
       casterId,
       targetIds,
-      spellTargetIds: [],
+      spellTargetIds: lastingTeleport ? [casterId] : [],
+      ...(lastingTeleport ? { persistence: { owner: "caster" } } : {}),
       conditionApplications: [],
     }
     : terminalResolutionRequest
@@ -1835,9 +1861,21 @@ async function buildPlan(command, runtime) {
     effectSubjectIds.push(casterId);
   }
 
+  // Thunder Step's destination is its own point, never the thunder's area.
   const teleportDestination = teleportRule
     ? teleportDestinationFromCommand(command, placement)
-    : null;
+    : stepCommand
+      ? teleportDestinationFromCommand({ teleport: { destination: stepCommand.destination } }, null)
+      : null;
+  if (stepCommand && !teleportDestination) {
+    return {
+      valid: false,
+      errors: [{
+        code: "teleport-destination-required",
+        message: "Scegli la destinazione del teletrasporto.",
+      }],
+    };
+  }
   const teleportOperationId = text(
     command?.commandId
       || command?.correlationId
@@ -1874,7 +1912,7 @@ async function buildPlan(command, runtime) {
         y: teleportDestination.y + passengerRelativeOffset.y,
       } : null)
     : null;
-  if (teleportRule && passengerId && !passengerDestination) {
+  if (movingRule && passengerId && !passengerDestination) {
     return {
       valid: false,
       errors: [{
@@ -1883,7 +1921,7 @@ async function buildPlan(command, runtime) {
       }],
     };
   }
-  const teleportSideEffects = teleportRule && teleportDestination && casterId
+  const teleportSideEffects = movingRule && teleportDestination && casterId
     ? teleportSubjectIds.map((targetId) => ({
       type: "token:teleport",
       spellId: spell.id,
@@ -1912,7 +1950,7 @@ async function buildPlan(command, runtime) {
   const matchedVisualPlacementChoice = text(
     command?.spell?.choiceValue || placement?.ruleChoice,
   );
-  if (teleportRule && teleportDestination) {
+  if (movingRule && teleportDestination) {
     matchedVisualContext = {
       spellId: spell.id,
       casterId,
@@ -2379,7 +2417,7 @@ async function buildPlan(command, runtime) {
     // Concentration lives on the caster: when every target saves, it is all the cast changes, and it needs its Undo.
     // Only the History's snapshot: the caster is no target of the spell, in the combat log either.
     ...(casterId && effectOperations.some((operation) => ["concentration:register", "concentration:break"].includes(operation?.type)) ? [casterId] : []),
-    ...(cloudPlacement || teleportRule ? teleportSubjectIds : []),
+    ...(cloudPlacement || movingRule ? teleportSubjectIds : []),
     ...await runtime.getZeroHPConditionHistoryIds(ids),
   ]);
   const staticZoneSceneItemIds = uniqueIds([
@@ -2389,7 +2427,7 @@ async function buildPlan(command, runtime) {
     ...boardTokenEntityIds,
     ...zeroHPBoardTokenIds,
     ...triggerRootItems.map((item) => item.id),
-    ...(teleportRule ? teleportSubjectIds : []),
+    ...(movingRule ? teleportSubjectIds : []),
   ]);
   return {
     valid: true,
@@ -2397,6 +2435,9 @@ async function buildPlan(command, runtime) {
     runtime,
     spell,
     caster,
+    // Thunder Step (CAP-TELEPORT, lotto T2): the step's rule and the cell reached, for the commit and the combat log.
+    teleportStepRule: stepCommand ? teleportStepRule : null,
+    teleportDestination,
     bossActionUse,
     allItems,
     liveItems,
@@ -2471,7 +2512,8 @@ export function spellAreaCausality(plan) {
   const itemsById = new Map(allItems.map((item) => [String(item?.id || ""), item]));
   const changesById = new Map((Array.isArray(plan?.entries) ? plan.entries : [])
     .map((entry) => [String(entry?.item?.id || ""), entry]));
-  const teleportRule = getSpellTeleportRule(plan?.spell?.id);
+  // Thunder Step (CAP-TELEPORT, lotto T2): its step teleports the caster too.
+  const teleportRule = getSpellTeleportRule(plan?.spell?.id) || plan?.teleportStepRule || null;
   const targetIds = uniqueIds([
     ...(command?.targeting?.targetIds || []),
     ...(plan?.effectSubjectIds || []),
@@ -2577,9 +2619,9 @@ export function spellAreaCausality(plan) {
     ...(teleportRule
       ? {
         teleport: true,
-        destination: teleportDestinationFromCommand(command, placement),
-        ...(command?.teleport?.passengerId
-          ? { passengerId: text(command.teleport.passengerId) }
+        destination: plan?.teleportDestination || teleportDestinationFromCommand(command, placement),
+        ...(text(command?.teleport?.passengerId || command?.teleportStep?.passengerId)
+          ? { passengerId: text(command?.teleport?.passengerId || command?.teleportStep?.passengerId) }
           : {}),
         ...(command?.teleport?.passengerRelativeOffset
           ? { passengerRelativeOffset: clone(command.teleport.passengerRelativeOffset) }
@@ -2943,6 +2985,15 @@ export async function executeSpellAreaResolution(
         changes: mutation.changes || mutation.commitResult?.changes || [],
       };
     } else {
+      // Thunder Step (CAP-TELEPORT, lotto T2): the token's timers start in the coordinated mutation below, so the mist
+      // starts now, as for Misty Step; the thunder's HP keep the area's own path.
+      if (plan.teleportStepRule && plan.matchedVisualContext) {
+        teleportVisualSent = true;
+        visualEvents.push({ type: "matched-spell", phase: "pre-commit", spellId: plan.spell.id });
+        void runtime.emitMatchedSpellVisual(plan.matchedVisualContext).catch((error) => {
+          warnings.push(normalizedError(error, "matched-spell-visual"));
+        });
+      }
       // A cast that asks the GM for no save (a heal, Power Word Kill, Dispel Magic): a spell, not a saving throw.
       const castWithoutSave = plan.command?.outcomes?.required !== true;
       historyResult = await runtime.withItemMetaHistory({

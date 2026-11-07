@@ -2359,7 +2359,7 @@
       "id": "fire-storm",
       "name": "Tempesta di fuoco",
       "level": 7,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "corretto",
         "lot": "P3-8",
@@ -4059,7 +4059,7 @@
       "id": "meteor-swarm",
       "name": "Sciame di meteore",
       "level": 9,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "corretto",
         "lot": "P3-8",
@@ -6674,7 +6674,7 @@
       "id": "xanathar-colpo-del-vento-dacciaio",
       "name": "Colpo del Vento d'Acciaio",
       "level": 5,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "letto",
         "lot": "P3-7",
@@ -7434,7 +7434,7 @@
       "id": "xanathar-minuscole-meteore-di-melf",
       "name": "Minuscole Meteore di Melf",
       "level": 3,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "corretto",
         "lot": "P3-7",
@@ -7734,7 +7734,7 @@
       "id": "xanathar-passo-del-tuono",
       "name": "Passo del Tuono",
       "level": 3,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "corretto",
         "lot": "P3-7",
@@ -7743,7 +7743,10 @@
       },
       "sweep": {
         "runs": 2,
-        "findings": []
+        "findings": [
+          "undo-differs",
+          "undo-failed"
+        ]
       },
       "bench": {
         "date": "2026-11-04",
@@ -7754,7 +7757,7 @@
       "id": "xanathar-passo-remoto",
       "name": "Passo Remoto",
       "level": 5,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "letto",
         "lot": "P3-7",
@@ -7763,7 +7766,10 @@
       },
       "sweep": {
         "runs": 2,
-        "findings": []
+        "findings": [
+          "undo-differs",
+          "undo-failed"
+        ]
       },
       "bench": {
         "date": null,
@@ -9462,7 +9468,7 @@
         "note": "Nessun difetto: la parte avversa spuntata per prima, 5d6, Prono se fallisce."
       },
       "sweep": {
-        "runs": 2,
+        "runs": 4,
         "findings": []
       },
       "bench": {
@@ -9494,7 +9500,7 @@
       "id": "phb2014-portale-arcano",
       "name": "Portale Arcano",
       "level": 6,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "letto",
         "lot": "P3-8",

@@ -98,14 +98,17 @@ resta nel codice, ma non è più usato.
 
 ### Teletrasporti
 
-Passo Velato, Porta Dimensionale e Passo del Tuono animano il token come Embers:
+Passo Velato, Porta Dimensionale, Passo del Tuono e Passo Remoto (al lancio e con il ⚡ dei
+turni dopo) animano il token come Embers:
 lo nascondono a 1 s, lo spostano a 1,5 s e lo mostrano a 3 s, con i timer che
 partono dentro la mutation. Per questo la visuale matched parte prima del commit
 (fase `pre-commit` in `spellAreaResolutionExecutor`), sullo stesso orologio dei
 timer del token. Il side effect `token:teleport` degli incantesimi è quindi animato (senza
 `skipAnimation`): con lo spostamento immediato il token arrivava a destinazione
 prima della nebbia. Passo del Tuono fa esplodere il tuono sull'origine, nel raggio
-di 3 m.
+di 3 m: i suoi PF passano dal commit delle aree, e la nebbia parte prima anche lì.
+L'attraversamento di Portale Arcano e il teletrasporto di Colpo del Vento d'Acciaio non
+hanno una visuale: il token si sposta subito (`skipAnimation`).
 
 ### Tempi e durate
 

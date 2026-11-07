@@ -32,6 +32,7 @@ import {
 import { spellTargetRangeMeters } from "./spellAreaCatalog.js";
 import {
   getSpellTeleportRule,
+  getSpellTeleportStepRule,
   isTeleportSpell,
 } from "./spellTeleportCore.js";
 import {
@@ -133,6 +134,7 @@ export const SPELL_PANEL_VALIDATION_LABELS = Object.freeze({
   "target-context": "contesto dei bersagli",
   darts: "dardi",
   placement: "posizione dell'area",
+  teleportDestination: "destinazione del teletrasporto",
   outcomes: "esiti dei bersagli",
   damage: "danno",
   healing: "cura",
@@ -153,6 +155,7 @@ const SPELL_PANEL_VALIDATION_MESSAGES = Object.freeze({
   "target-context": "Completa il contesto dei bersagli",
   darts: "Assegna ogni dardo e inseriscine il danno",
   placement: "Posiziona e conferma l'area",
+  teleportDestination: "Scegli la destinazione del teletrasporto",
   outcomes: "Registra l'esito di ogni bersaglio",
   damage: "Inserisci il valore del danno",
   secondDamage: "Inserisci il danno di tutte e due le parti",
@@ -181,6 +184,7 @@ const CONTROL_ORDER = Object.freeze([
   "targets",
   "primary-target",
   "placement",
+  "teleport-destination",
   "rule-choice",
   "variant",
   "composition",
@@ -1126,6 +1130,7 @@ function inputDescriptor({
   spell,
   choiceValue = "",
   teleport,
+  teleportStep = null,
   phasePlan,
   duration,
   slot,
@@ -1205,6 +1210,11 @@ function inputDescriptor({
       required: false,
       visible: teleport?.available === true && teleport?.passenger?.available === true,
       maximum: teleport?.passenger?.maximum ?? null,
+    },
+    // Thunder Step (CAP-TELEPORT, lotto T2): the cell the caster reaches, a second point after the thunder's area.
+    teleportDestination: {
+      required: teleportStep?.available === true && !selectedAction,
+      visible: teleportStep?.available === true && !selectedAction,
     },
     // A recorded cast names its targets in the combat log, when the GM picks them; it needs none.
     targets: {
@@ -1533,6 +1543,26 @@ export function buildSpellUnifiedPanelContract({
         : { available: false, optional: true, maximum: 0 },
     }
     : null;
+  // Thunder Step (CAP-TELEPORT, lotto T2): a teleport that is a step of the cast, after its area. Not a teleport spell:
+  // its targets stay the thunder's, the passenger is a role of its own (D1).
+  const teleportStepRule = teleportRule ? null : getSpellTeleportStepRule(spell);
+  const teleportStep = teleportStepRule
+    ? {
+      available: true,
+      spellId: teleportStepRule.spellId,
+      rangeMeters: teleportStepRule.rangeMeters,
+      destinationRuleId: teleportStepRule.destinationRuleId,
+      excludePassengerFromArea: teleportStepRule.excludePassengerFromArea === true,
+      passenger: {
+        available: teleportStepRule.allowPassenger === true,
+        optional: true,
+        maximum: Number(teleportStepRule.passenger?.maximum) || 1,
+        maxDistanceMeters: teleportStepRule.passengerMaxDistanceMeters ?? null,
+        adjacency: teleportStepRule.passenger?.adjacency || null,
+        maxSizeRelation: teleportStepRule.passenger?.maxSizeRelation || null,
+      },
+    }
+    : null;
 
   const phases = phaseOptions(spell, phase);
   const selected = selectedPhase(phases, phase);
@@ -1688,6 +1718,7 @@ export function buildSpellUnifiedPanelContract({
     choiceValue,
     spell,
     teleport,
+    teleportStep: phasePlan.phase === "prepare" ? null : teleportStep,
     phasePlan,
     duration,
     slot,
@@ -1730,6 +1761,7 @@ export function buildSpellUnifiedPanelContract({
       },
       subjectMode: targeting.subjectMode,
       ...(teleport ? { teleport } : {}),
+      ...(teleportStep && phasePlan.phase !== "prepare" ? { teleportStep } : {}),
       choice: text(choiceValue) || null,
       variant: {
         selected: variantPresentation.options.some((option) => (
@@ -1998,6 +2030,8 @@ export function createSpellPanelSession({
   durationTurns,
   targetIds = [],
   passengerId = "",
+  stepPassengerId = "",
+  teleportDestination = null,
   ignoreTargetLimit = false,
   rangeRefusedIds = [],
   rangeOverrideIds = [],
@@ -2030,6 +2064,14 @@ export function createSpellPanelSession({
     : optionalInteger(durationTurns);
   const resolvedVariant = text(variant || choiceValue)
     || text(contract?.presentation?.variant?.options?.[0]?.value);
+  // Thunder Step (CAP-TELEPORT, lotto T2): the creature that travels with the caster is never one of the thunder's
+  // targets (D1), whoever selected it there.
+  const stepPassenger = text(stepPassengerId);
+  const stepDestination = Number.isFinite(Number(teleportDestination?.x)) && Number.isFinite(Number(teleportDestination?.y))
+    ? { x: Number(teleportDestination.x), y: Number(teleportDestination.y) }
+    : null;
+  const sessionOutcomes = recordValue(outcomes);
+  if (stepPassenger) delete sessionOutcomes[stepPassenger];
   return immutable({
     spellId: resolvedSpellId,
     ...(actionContext ? { monsterActionContext: actionContext, monsterActionCompleted: monsterActionCompleted === true } : {}),
@@ -2045,8 +2087,10 @@ export function createSpellPanelSession({
     applyAutomatedConditions: applyAutomatedConditions !== false,
     requestedConcentration: requestedConcentration === true,
     activeConcentration: normalizedActiveConcentration(activeConcentration),
-    targetIds: unique(targetIds),
+    targetIds: unique(targetIds).filter((id) => !stepPassenger || id !== stepPassenger),
     passengerId: text(passengerId),
+    stepPassengerId: stepPassenger,
+    teleportDestination: stepDestination,
     ignoreTargetLimit: ignoreTargetLimit === true,
     // The exception to the range: a target refused once, then chosen again (spell-unified-panel.js).
     rangeRefusedIds: unique(rangeRefusedIds),
@@ -2054,7 +2098,7 @@ export function createSpellPanelSession({
     // The damage defenses the GM ignores in this cast: { targetId: [type] } (spellDamageDefenseCore.js).
     ignoredDefenses: recordValue(ignoredDefenses),
     primaryTargetId: text(primaryTargetId),
-    outcomes: recordValue(outcomes),
+    outcomes: sessionOutcomes,
     attackOutcome: text(attackOutcome).toLocaleLowerCase("it"),
     targetContext: recordValue(targetContext),
     placement: placement && typeof placement === "object" ? cloneValue(placement) : null,
@@ -2133,6 +2177,8 @@ function resetRuntimeState(current) {
     activeActionState: normalizedActiveActionState(null),
     targetIds: [],
     passengerId: "",
+    stepPassengerId: "",
+    teleportDestination: null,
     ignoreTargetLimit: false,
     rangeRefusedIds: [],
     rangeOverrideIds: [],
@@ -2190,6 +2236,8 @@ function transitionSession(currentSession, contract, {
     variant: text(variant),
     targetIds: preserveTargets ? current.targetIds : next.targetIds,
     passengerId: preserveTargets ? current.passengerId : next.passengerId,
+    stepPassengerId: preserveTargets ? current.stepPassengerId : next.stepPassengerId,
+    teleportDestination: preserveTargets ? current.teleportDestination : next.teleportDestination,
     primaryTargetId: preserveTargets ? current.primaryTargetId : next.primaryTargetId,
     castContext: {
       ...(resetCastContext ? {} : recordValue(current.castContext)),
@@ -2499,6 +2547,10 @@ function validationFor(contract, session, placement) {
   if (!postPlacementTargeting && inputs.placement?.required && !placement.confirmed) {
     add("placement", "placement-required");
   }
+  // Thunder Step (CAP-TELEPORT, lotto T2): after the thunder's area, the cell the caster reaches.
+  if (inputs.teleportDestination?.required && !session.teleportDestination) {
+    add("teleportDestination", "teleport-destination-required");
+  }
   const preparedHailMiss = contract?.spell?.id === "phb2014-raffica-di-spine"
     && contract?.presentation?.phase?.selected === "resolve"
     && session.attackOutcome === "miss";
@@ -2560,6 +2612,7 @@ function visibleControlsFor(contract, session, placement) {
   addInputControl("duration");
   if (contract.presentation.concentration?.required) controls.add("concentration");
   addInputControl("passenger");
+  addInputControl("teleportDestination", "teleport-destination");
   addInputControl("targets");
   addInputControl("primaryTarget", "primary-target");
   addInputControl("variant");
@@ -2656,6 +2709,9 @@ function primaryActionFor(contract, session, validation, placement, activeAction
           : "Posiziona area",
       disabled: false,
     };
+  }
+  if (validation.firstInvalidField === "teleportDestination") {
+    return { id: "teleport-destination", label: "Scegli destinazione", disabled: false };
   }
   if (!validation.valid) {
     return {

@@ -281,6 +281,31 @@ function isBlinkReturn() {
     && payload?.action?.resolutionKind === "blink-return";
 }
 
+// CAP-TELEPORT: a teleport from a spell already active (Far Step, Arcane Gate). It reuses Blink's section: one click
+// on the destination cell, then the move.
+function isTeleportAction() {
+  return payload?.action?.resolutionKind === "teleport";
+}
+
+function teleportsSelectedCreature() {
+  return isTeleportAction() && payload?.action?.teleport?.subject === "target";
+}
+
+function pointTeleport() {
+  return isBlinkReturn() || isTeleportAction();
+}
+
+// Who teleports: the caster (Far Step) or the one creature selected on the map (Arcane Gate's traversal).
+function teleportSubjectIds() {
+  if (!isTeleportAction()) return [];
+  if (!teleportsSelectedCreature()) return [String(payload?.casterId || "").trim()].filter(Boolean);
+  const byId = new Map(sceneItems.map((item) => [item.id, item]));
+  const ids = (Array.isArray(currentPlayerSelection) ? currentPlayerSelection : [])
+    .map((id) => String(id || "").trim())
+    .filter((id) => byId.get(id)?.layer === "CHARACTER");
+  return ids.length === 1 ? ids : [];
+}
+
 function isTelekinesisContest() {
   return payload?.spellId === "telekinesis"
     && payload?.action?.resolutionKind === "telekinesis-contest";
@@ -627,7 +652,9 @@ function childZone() {
 }
 
 function childKindLabel(value) {
-  return String(value || "").trim() === "fissure" ? "Fessura" : "Vortice";
+  const kind = String(value || "").trim();
+  // Arcane Gate's second portal (CAP-TELEPORT, lotto T4).
+  return kind === "fissure" ? "Fessura" : kind === "portal" ? "Portale" : "Vortice";
 }
 
 function childPlacementCount() {
@@ -685,7 +712,7 @@ function renderContext() {
     $("blinkReturnSection").hidden = true;
     return;
   }
-  if (isBlinkReturn()) {
+  if (pointTeleport()) {
     $("blinkReturnHint").textContent = "";
     $("blinkReturnHint").hidden = true;
     $("saveTitle").hidden = true;
@@ -2386,7 +2413,7 @@ function render() {
   $("apply").classList.toggle("primary", !applyRegistersDamage());
   const prepared = isPreparedResolution();
   const child = childZone();
-  const blinkReturn = isBlinkReturn();
+  const blinkReturn = pointTeleport();
   const telekinesis = isTelekinesisContest();
   const save = payload.action.resolutionKind === "save-area" || !!child;
   const singleSave = isSingleSave();
@@ -2440,17 +2467,29 @@ function render() {
     return;
   }
   if (blinkReturn) {
+    const teleport = isTeleportAction();
+    // Arcane Gate: the creature that crosses is the one selected on the map.
+    const subjectMissing = teleportsSelectedCreature() && !teleportSubjectIds().length;
     $("saveSection").hidden = true;
     $("singleSaveSection").hidden = true;
     $("singleHealSection").hidden = true;
     $("attackSection").hidden = true;
     $("prismaticWallSection").hidden = true;
     $("footer").hidden = false;
-    $("title").textContent = payload.spellName || "Intermittenza";
+    $("title").textContent = payload.spellName || (teleport ? "Teletrasporto" : "Intermittenza");
+    $("blinkReturnTitle").textContent = teleport
+      ? String(payload.action?.label || "Teletrasporto").trim()
+      : "Piano Etereo · ritorno";
     $("apply").hidden = true;
-    $("apply").textContent = "Ritorna";
+    $("apply").textContent = teleport ? "Teletrasportati" : "Ritorna";
     renderSummary();
-    $("blinkPlace").disabled = !sceneReady || busy;
+    $("blinkReturnHint").hidden = !teleport;
+    $("blinkReturnHint").textContent = teleport
+      ? subjectMissing
+        ? "Seleziona sulla mappa la creatura che attraversa, poi scegli l'uscita."
+        : String(payload.action?.detail || "").trim()
+      : "";
+    $("blinkPlace").disabled = !sceneReady || busy || subjectMissing;
     $("blinkPlace").textContent = "Scegli destinazione";
     $("blinkPlacementStatus").textContent = "";
     $("apply").disabled = true;
@@ -2575,7 +2614,8 @@ async function placeBlinkReturn() {
   render();
   try {
     const request = requestSpellAreaPlacement({
-      ruleId: "blink:return",
+      // A teleport's own rule keeps the click within its range (Far Step: 18 m from the caster).
+      ruleId: isTeleportAction() ? String(payload.action.placementRuleId || "").trim() : "blink:return",
       casterId: payload.casterId,
       context: {
         pointSelection: true,
@@ -2595,7 +2635,9 @@ async function placeBlinkReturn() {
     if (result?.status !== "confirmed" || !result.preview) {
       setStatus(result?.status === "cancelled"
         ? "Scelta dello spazio annullata."
-        : "Spazio di ritorno non confermato.", false, "warn");
+        : isTeleportAction()
+          ? "Destinazione non confermata."
+          : "Spazio di ritorno non confermato.", false, "warn");
       return;
     }
     const position = point(result.preview.position || result.preview.start);
@@ -2625,7 +2667,7 @@ async function placeBlinkReturn() {
 }
 
 async function placeArea(anchorTargetOverride = "") {
-  if (isBlinkReturn()) {
+  if (pointTeleport()) {
     await placeBlinkReturn();
     return;
   }
@@ -2958,6 +3000,8 @@ async function apply() {
         ? [selectedTelekinesisTarget]
         : isBlinkReturn()
         ? [payload.casterId]
+        : isTeleportAction()
+        ? teleportSubjectIds()
         : isPrismaticWallAction()
         ? isPrismaticWallTraversal()
           ? [selectedPrismaticTarget]
@@ -2990,7 +3034,7 @@ async function apply() {
         ? prismaticWallLayerId
         : "",
       traversalId: isPrismaticWallTraversal() ? prismaticTraversalId : "",
-      damageRoll: isBlinkReturn()
+      damageRoll: pointTeleport()
         ? 0
         : isTelekinesisContest()
         ? 0
@@ -3240,6 +3284,7 @@ if (!payload) {
         || isPrimaryTargetAnchoredArea()
         || isPrismaticWallTraversal()
         || isTelekinesisContest()
+        || teleportsSelectedCreature()
         || (payload?.action?.resolutionKind === "single-attack" && !isMultiAttack())) {
         render();
       }

@@ -28,6 +28,8 @@ export const SPELL_AREA_SHAPES = Object.freeze([
 export const SPELL_AREA_TRIGGER_TYPES = Object.freeze([
   "cast",
   "active-action",
+  // CAP-TELEPORT, lotto T2: the destination of a teleport that is a step of the cast (Thunder Step), never its area.
+  "teleport-step",
 ]);
 
 const SPELL_AREA_ORIGINS = Object.freeze(["caster", "caster-adjacent", "point"]);
@@ -3058,6 +3060,85 @@ export const SPELL_AREA_RULES = Object.freeze([
     },
     effectPolicy: ON_CONFIRM,
   }),
+  // Thunder Step (CAP-TELEPORT, lotto T2): the cell the caster reaches, within 27 m. The thunder keeps its own cast rule.
+  defineRule({
+    id: "xanathar-passo-del-tuono:destination",
+    spellId: "xanathar-passo-del-tuono",
+    trigger: { type: "teleport-step" },
+    kind: "instant",
+    geometry: {
+      shape: "square",
+      size: meters(1.5, "side"),
+    },
+    placement: {
+      origin: "point",
+      direction: "none",
+      anchor: "world",
+      range: meters(27, "range"),
+      mode: "point",
+    },
+    lifecycle: PREVIEW_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: false,
+      confirmTargets: false,
+      selectionMode: "manual",
+    },
+    effectPolicy: ON_CONFIRM,
+  }),
+  // Steel Wind Strike (CAP-TELEPORT, lotto T3): the cell the caster reaches after the attacks, picked from the attack
+  // console. No range: the cell must be within 5 feet of a creature attacked, which the console warns about.
+  defineRule({
+    id: "xanathar-colpo-del-vento-dacciaio:teleport",
+    spellId: "xanathar-colpo-del-vento-dacciaio",
+    trigger: { type: "teleport-step" },
+    kind: "instant",
+    geometry: {
+      shape: "square",
+      size: meters(1.5, "side"),
+    },
+    placement: {
+      origin: "point",
+      direction: "none",
+      anchor: "world",
+      range: null,
+      mode: "point",
+    },
+    lifecycle: PREVIEW_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: false,
+      confirmTargets: false,
+      selectionMode: "manual",
+    },
+    effectPolicy: ON_CONFIRM,
+  }),
+  // Far Step (CAP-TELEPORT, lotto T1): the teleport of the next turns, one cell within 18 m of the caster, like the cast.
+  defineRule({
+    id: "xanathar-passo-remoto:teleport",
+    spellId: "xanathar-passo-remoto",
+    trigger: { type: "active-action", actionId: "far-step-teleport" },
+    kind: "instant",
+    geometry: {
+      shape: "square",
+      size: meters(1.5, "side"),
+    },
+    placement: {
+      origin: "point",
+      direction: "none",
+      anchor: "world",
+      range: meters(18, "range"),
+      mode: "point",
+    },
+    lifecycle: PREVIEW_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: true,
+      confirmTargets: false,
+      selectionMode: "manual",
+    },
+    effectPolicy: ON_CONFIRM,
+  }),
   defineRule({
     id: "phb2014-allucinazione-di-forza:cast",
     spellId: "phb2014-allucinazione-di-forza",
@@ -3925,6 +4006,41 @@ export const SPELL_AREA_RULES = Object.freeze([
     shape: "rectangle",
     size: 60,
     width: 3,
+  }),
+  // Arcane Gate (CAP-TELEPORT, lotto T4): the second portal, like the first, within 150 m of the caster (the action's range).
+  childZoneRule({
+    id: "phb2014-portale-arcano:far",
+    spellId: "phb2014-portale-arcano",
+    actionId: "arcane-gate-far-portal",
+    shape: "circle",
+    size: 1.5,
+  }),
+  // Arcane Gate: the cell where the creature comes out, beside the other portal. No range: the portals are where the GM
+  // drew them.
+  defineRule({
+    id: "phb2014-portale-arcano:exit",
+    spellId: "phb2014-portale-arcano",
+    trigger: { type: "active-action", actionId: "arcane-gate-traverse" },
+    kind: "instant",
+    geometry: {
+      shape: "square",
+      size: meters(1.5, "side"),
+    },
+    placement: {
+      origin: "point",
+      direction: "none",
+      anchor: "world",
+      range: null,
+      mode: "point",
+    },
+    lifecycle: PREVIEW_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: true,
+      confirmTargets: false,
+      selectionMode: "manual",
+    },
+    effectPolicy: ON_CONFIRM,
   }),
   ...CATALOG_SPELL_AREA_SPECS.map(catalogAreaRule),
 ]);

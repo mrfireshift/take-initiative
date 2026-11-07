@@ -194,6 +194,19 @@ contatore che parte dalla meteora del lancio già spesa (`spentAtCast`). Il ⚡
 `melf-meteor` è un'azione `save-area` con `resource`, ripetibile, con
 `allowEmptyTargets`, e a zero rompe la concentrazione (`endConcentrationAtZero`).
 
+CAP-TELEPORT (6 novembre). Portale arcano è una zona entro 3 m al lancio, con la
+concentrazione; il secondo portale è una zona figlia del ⚡ `arcane-gate-far-portal`
+(`childKind: "portal"`), entro 150 m dal caster e mai costretta dentro la prima:
+`validateChildZoneContainment` la lascia libera, mentre vortici e fessure restano dentro la
+loro zona. L'attraversamento (`arcane-gate-traverse`) e il ⚡ di Passo remoto
+(`far-step-teleport`) sono azioni attive `resolutionKind: "teleport"`: chi si sposta
+(`teleport.subject`, il caster o la creatura selezionata), una casella con un clic e il side
+effect `token:teleport`, in una voce della Cronologia senza altre operazioni. Passo del tuono
+resta un'area attorno al caster: il teletrasporto è un passo del lancio
+(`SPELL_TELEPORT_STEP_RULES`), con la destinazione `xanathar-passo-del-tuono:destination`
+(regola con trigger `teleport-step`) e lo spostamento del caster e del passeggero nella
+stessa mutazione coordinata del tuono.
+
 CAP-MULTIAREA è la regola generale delle aree multiple di un lancio: la regola
 d'area dichiara `placement.multiArea` (`count`, `minCount`, `adjacency: "side"`,
 `noun`), che `validateSpellAreaRule` accetta solo per cerchi e quadrati su punti

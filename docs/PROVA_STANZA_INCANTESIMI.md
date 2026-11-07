@@ -3,7 +3,7 @@
 Un giro solo al tavolo per tre liste:
 - **P5** del [piano di polishing degli incantesimi](PIANO_POLISH_INCANTESIMI.md);
 - le prove in stanza dell'[audit dei popup viola](AUDIT_UX_POPUP_VIOLA.md): da V1 a V11, il trascinamento, F1, la tela nera di Fazioni e Aspetto area, Freccia Folgorante e Critico;
-- CAP-MULTIAREA e Minuscole meteore del [piano di automazione](PIANO_AUTOMAZIONE_INCANTESIMI.md), e le due caselle dei danni a due tipi (sezioni 9 e 10 qui sotto).
+- CAP-MULTIAREA, Minuscole meteore e CAP-TELEPORT del [piano di automazione](PIANO_AUTOMAZIONE_INCANTESIMI.md), e le due caselle dei danni a due tipi (sezioni 9, 10 e 11 qui sotto).
 
 C'è anche ciò che il banco non ha potuto provare. Render è più indietro di `main`: si prova con la build locale.
 
@@ -142,3 +142,19 @@ Al banco ha girato lo strumento delle aree vero, ma senza la mappa di Owlbear: q
 - [ ] **Due caselle, Colpo infuocato:** su un goblin resistente al fuoco, `Fuoco · 4d6` e `Radiosi · 4d6`. Il chip dice `Res. fuoco: N → N/2` e conta solo il fuoco; al 6° livello, sotto le caselle, `+1d6 al fuoco o ai radiosi`.
 - [ ] **Due caselle, Onda distruttiva:** il selettore dice **Radiosi** o **Necrotici**, e la seconda casella ne prende il nome. La prima è `Tuono · 5d6`: controlla sul tuo manuale che i 5d6 da tuono ci siano.
 - [ ] **Una casella vuota:** con una sola delle due scritta, il pulsante chiede `Inserisci il danno di tutte e due le parti`.
+
+## 11. Teletrasporti (CAP-TELEPORT)
+
+Al banco hanno girato tutti e quattro con lo strumento finto delle aree, che non misura la gittata: qui si guardano la mappa vera, la gittata e il movimento.
+
+- [ ] **Passo remoto:** al lancio **Posiziona destinazione**, un clic e la conferma: il token sparisce nella nebbia e ricompare sulla casella. La pill **Passo Remoto** ha la `C`. Il titolo dei bersagli dice `Passo Remoto · Solo caster`, senza passeggero; Passo velato lo stesso.
+- [ ] **Gittata:** con lo strumento vero una casella oltre 18 metri non si sceglie, come per Passo velato a 9 metri.
+- [ ] **Teletrasportati:** al turno successivo del caster il popup si apre da solo con **Teletrasportati di nuovo** e **Azione bonus**. **Scegli destinazione**, un clic: il token si sposta con la nebbia. Annulla lo rimette dov'era.
+- [ ] **Passo del tuono:** **Posiziona area** attorno al caster, poi il blocco **Teletrasporto**. Un alleato adiacente scelto come passeggero sparisce dai bersagli del tuono. **Scegli destinazione** entro 27 metri, esiti e danno sui goblin, **Applica**: caster e passeggero spariscono e ricompaiono insieme, con il passeggero allo stesso fianco; il tuono esplode sullo spazio lasciato.
+- [ ] **Annulla di Passo del tuono:** un solo Annulla rimette PF e posizioni.
+- [ ] **Colpo del Vento d'Acciaio:** nella console, attacchi su creature diverse; il secondo sulla stessa creatura è rifiutato con `ogni creatura una volta sola in questo lancio`. Il primo attacco spende lo slot, gli altri no.
+- [ ] **Teletrasportati nella console:** dopo un attacco, **Teletrasportati** e un clic accanto a una creatura attaccata: `teletrasporto registrato`. Su una casella lontana lo stesso, con l'avviso. Annulla rimette il token e il pulsante.
+- [ ] **Portale arcano:** al lancio il primo portale entro 3 metri; il ⚡ **Secondo portale** della pill apre l'altro lontano, e il popup dice `Portale`, non `Vortice`.
+- [ ] **Attraversa:** seleziona una creatura sulla mappa, ⚡ **Attraversa**, **Scegli destinazione**, un clic accanto al secondo portale: la creatura si sposta subito. Senza nessuno selezionato il pulsante è spento e il popup dice di selezionare la creatura.
+- [ ] **Termina Portale arcano:** spariscono tutti e due i portali e la concentrazione.
+- [ ] **Movimento:** dopo un teletrasporto il controllo della velocità misura dalla casella d'arrivo, senza contare il salto, e Annulla non restituisce movimento.

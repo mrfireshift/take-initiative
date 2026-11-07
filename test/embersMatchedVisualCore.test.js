@@ -26,8 +26,9 @@ const sampleGeometry = {
 };
 
 test("il mapping copre le 54 spell riconciliate dall'audit, l'alias Blocca mostri e i 18 trucchetti della console", () => {
-  assert.equal(EMBERS_MATCHED_SPELL_IDS.length, 73);
-  assert.equal(new Set(EMBERS_MATCHED_SPELL_IDS).size, 73);
+  // 74 with Far Step's mist (CAP-TELEPORT, lotto T1).
+  assert.equal(EMBERS_MATCHED_SPELL_IDS.length, 74);
+  assert.equal(new Set(EMBERS_MATCHED_SPELL_IDS).size, 74);
   for (const spellId of EMBERS_MATCHED_SPELL_IDS) {
     assert.ok(getMatchedSpellVisualDefinition(spellId), spellId);
   }

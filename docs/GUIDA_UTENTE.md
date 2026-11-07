@@ -813,6 +813,29 @@ lanciata dove non c'è nessuno si spende. Il popup si apre da solo all'inizio de
 turni del caster dopo il lancio; quando finiscono le meteore, finiscono anche
 l'incantesimo e la concentrazione. Annulla rimette PF e meteora.
 
+I teletrasporti spostano il token da soli: sparisce nella nebbia e ricompare sulla
+casella scelta, Annulla lo rimette dov'era, e il controllo della velocità non conta lo
+spostamento come movimento. Lo spazio libero e visibile lo valuta sempre il GM.
+
+- **Passo remoto**: al lancio scegli la casella d'arrivo entro 18 metri, come per Passo
+  velato; la pill resta sul caster con la concentrazione. Dal turno dopo, all'inizio dei
+  turni del caster, il popup propone **Teletrasportati** (azione bonus): **Scegli
+  destinazione**, un clic sulla casella, e il caster si sposta.
+- **Passo del tuono**: prima l'area del tuono attorno al caster, come sempre. Poi il blocco
+  **Teletrasporto** del pannello: scegli l'eventuale passeggero, una creatura adiacente
+  che non subisce il tuono e arriva accanto al caster, e premi **Scegli destinazione** per
+  la casella entro 27 metri. Danno e teletrasporto stanno nella stessa voce della
+  Cronologia: un Annulla rimette PF e posizioni.
+- **Colpo del Vento d'Acciaio**, nella console attacchi: fino a cinque attacchi, uno per
+  creatura (la console rifiuta la seconda registrazione sulla stessa). Dopo il primo
+  attacco compare **Teletrasportati**: un clic sulla casella, e se non è entro 1,5 metri da
+  una creatura attaccata la console lo dice, senza bloccare.
+- **Portale arcano**: al lancio disegni il primo portale entro 3 metri; il ⚡ **Secondo
+  portale** della pill apre l'altro entro 150 metri, subito. Quando una creatura entra dal
+  lato attivo, selezionala sulla mappa e premi il ⚡ **Attraversa**: **Scegli
+  destinazione**, un clic sull'uscita accanto all'altro portale. Il lato attivo e la
+  rotazione restano al tavolo.
+
 ### Azioni dalla pill sulla card
 
 Sulla card del tracker, la pill di un incantesimo con azioni (Immagine

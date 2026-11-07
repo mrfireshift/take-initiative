@@ -7,7 +7,9 @@ import { findQuickAction } from "./quickActionsCore.js";
 import { isBossActionCreature } from "./bossActionExecutionCore.js";
 import { bossActionTargets } from "./bossActionsViewCore.js";
 import { postBossDamage, quietReads } from "./bossActionExecution.js";
-import { buildPcAttackAreaMutation, buildPcAttackMutation, buildPcAttackQuiveringPalmMutation, pcAttackAction, pcAttackNearbyIds } from "./pcAttackCore.js";
+import { buildPcAttackAreaMutation, buildPcAttackMutation, buildPcAttackQuiveringPalmMutation, pcAttackAction, pcAttackNearbyIds,
+  PC_ATTACK_STATE_FIELD, pcAttackSpellTeleportPlan } from "./pcAttackCore.js";
+import { buildSpellCausality } from "./combatLogCausalityCore.js";
 import { pcAttackPickerDefault, pcAttackPickerEntries } from "./pcAttackPickerCore.js";
 import { spellbookActiveSpellIds, spellbookAttackAction } from "./spellbookCatalog.js";
 import { isSpellbookAttackActionId } from "./spellbookCore.js";
@@ -316,6 +318,48 @@ export function createPcAttackRuntime({
       return structuredClone(draft.result);
     } finally {busy.delete(sourceId);}
   }
+  // Steel Wind Strike (CAP-TELEPORT, lotto T3): whether the cell reached is within 5 feet of a creature the cast
+  // attacked, edge to edge on the grid like the area tool. null when the scene cannot say.
+  async function nextToAttacked(item,position,attackedIds) {
+    try {
+      const dpi=Number(await api.scene.grid.getDpi());
+      const bounds=id=>api.scene.items.getItemBounds([id]).catch(()=>null);
+      const [own,...others]=await Promise.all([bounds(item.id),...attackedIds.map(bounds)]);
+      const dx=position.x-Number(item.position?.x),dy=position.y-Number(item.position?.y);
+      if(!own || !(dpi>0) || !Number.isFinite(dx) || !Number.isFinite(dy)) return null;
+      const arrived={min:{x:own.min.x+dx,y:own.min.y+dy},max:{x:own.max.x+dx,y:own.max.y+dy}};
+      const gaps=others.filter(Boolean).map(box=>Math.max(0,box.min.x-arrived.max.x,arrived.min.x-box.max.x,
+        box.min.y-arrived.max.y,arrived.min.y-box.max.y)/dpi);
+      return gaps.length?gaps.some(gap=>gap<0.5):null;
+    } catch {return null;}
+  }
+  // The teleport after the cast's attacks: a move only, closing the cast, in one History entry Undo puts back. The
+  // GM's cell is never refused (decision D3): the answer says when it is not next to a creature attacked.
+  async function executePcAttackSpellTeleport({sourceId,castId,position,sceneIdentity}={}) {
+    if(busy.has(sourceId)) throw new Error("Registrazione già in corso.");
+    busy.add(sourceId);
+    try {
+      const scope=await session(sourceId);
+      const plan=pcAttackSpellTeleportPlan({sourceItem:scope.item,castId,position,turnState:scope.turnState});
+      if(!plan.ok) throw new Error(plan.reason);
+      const nextToTarget=await nextToAttacked(scope.item,plan.position,plan.attackedIds);
+      if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri l'attacco.");
+      const commandId=newId();
+      const label=`${plan.spell.name} · teletrasporto`;
+      const result=await runMutation([],{
+        commandId,correlationId:commandId,sourceId:scope.item.id,targetIds:[scope.item.id],kind:"spell",label,
+        metadataPatches:[{id:scope.item.id,fields:{[PC_ATTACK_STATE_FIELD]:plan.statePatch}}],
+        sideEffects:[{type:"token:teleport",spellId:plan.spell.spellId,targetId:scope.item.id,position:plan.position,skipAnimation:true}],
+        history:{kind:"spell",label,payload:{causality:buildSpellCausality({eventType:"active-resolution",spellId:plan.spell.spellId,
+          spellName:plan.spell.name,casterId:scope.item.id,casterName:scope.item.name,action:{id:"steel-wind-teleport",label:"Teletrasporto"},
+          targets:[scope.item],targetIds:[scope.item.id]})}},
+        sceneIdentity:sceneIdentity || scope.scene.sceneIdentity,sceneEpoch:scope.epoch,
+      });
+      requireApplied(result);
+      return {...result,teleport:{position:plan.position,nextToTarget},historyEntryId:result.historyEntry?.id || null,
+        undoAvailable:!result.historyPending && !result.historySkipped && !!result.historyEntry?.id};
+    } finally {busy.delete(sourceId);}
+  }
   // 3C: the tracked creatures near a token (the caster for an area cantrip, the target for Bursting Arrow), by the
   // edge-to-edge grid distance of the area tool. A proposal: the GM ticks or unticks them.
   async function getPcAttackNearby({sourceId,centerId,radiusFeet}={}) {
@@ -516,7 +560,8 @@ export function createPcAttackRuntime({
           attackInstanceId,turnState:scope.turnState});
       });
   }
-  return {getPcAttackPresentation,executePcAttack,endQuiveringPalm,executePcAttackArea,getPcAttackNearby,executePcManeuver,endPcGrapple};
+  return {getPcAttackPresentation,executePcAttack,endQuiveringPalm,executePcAttackArea,getPcAttackNearby,executePcManeuver,endPcGrapple,
+    executePcAttackSpellTeleport};
 }
 const runtime=createPcAttackRuntime();
 export const getPcAttackPresentation=(...args)=>runtime.getPcAttackPresentation(...args);
