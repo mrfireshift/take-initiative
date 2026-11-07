@@ -5035,7 +5035,12 @@
       },
       "autoActivateFeatureIds": [
         "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio",
-        "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa"
+        "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa",
+        "barbaro-cammino-del-combattente-totemico-spirito-totemico-orso",
+        "barbaro-cammino-del-combattente-totemico-spirito-totemico-aquila",
+        "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo",
+        "barbaro-cammino-del-combattente-totemico-sintonia-totemica-aquila",
+        "barbaro-cammino-del-combattente-totemico-sintonia-totemica-orso"
       ],
       "trackedResourcePoolIds": [
         "barbaro-ira-usi"
@@ -5056,7 +5061,14 @@
       "effectPlan": {
         "kind": "condition",
         "conditionName": "Ira",
-        "detail": "Ira"
+        "detail": "Ira",
+        "damageDefenses": {
+          "resistances": [
+            "bludgeoning",
+            "piercing",
+            "slashing"
+          ]
+        }
       },
       "breaksConcentration": true,
       "duration": {
@@ -6656,7 +6668,23 @@
       "effectPlan": {
         "kind": "condition",
         "conditionName": "Spirito Totemico: Orso",
-        "detail": "Il barbaro ottiene resistenza a tutti i danni tranne psichici finché è in Ira."
+        "detail": "Il barbaro ottiene resistenza a tutti i danni tranne psichici finché è in Ira.",
+        "damageDefenses": {
+          "resistances": [
+            "acid",
+            "bludgeoning",
+            "cold",
+            "fire",
+            "force",
+            "lightning",
+            "necrotic",
+            "piercing",
+            "poison",
+            "radiant",
+            "slashing",
+            "thunder"
+          ]
+        }
       },
       "breaksConcentration": true,
       "duration": {
@@ -6932,6 +6960,25 @@
       },
       "activation": {
         "primary": "azione"
+      },
+      "passiveMechanics": {
+        "damageDefensesByOption": {
+          "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-deserto": {
+            "resistances": [
+              "fire"
+            ]
+          },
+          "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-mare": {
+            "resistances": [
+              "lightning"
+            ]
+          },
+          "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-tundra": {
+            "resistances": [
+              "cold"
+            ]
+          }
+        }
       },
       "targetMode": "self",
       "targeting": {
@@ -7789,6 +7836,11 @@
               "conditionName": "Resistenza: Fuoco",
               "effectKind": "buff",
               "detail": "Resistenza ai danni da fuoco finché il bersaglio resta nell'Aura Tempestosa.",
+              "damageDefenses": {
+                "resistances": [
+                  "fire"
+                ]
+              },
               "targeting": {
                 "membership": "selected",
                 "filter": "friendly",
@@ -7809,6 +7861,11 @@
               "conditionName": "Resistenza: Fulmine",
               "effectKind": "buff",
               "detail": "Resistenza ai danni da fulmine finché il bersaglio resta nell'Aura Tempestosa.",
+              "damageDefenses": {
+                "resistances": [
+                  "lightning"
+                ]
+              },
               "targeting": {
                 "membership": "selected",
                 "filter": "friendly",
@@ -7829,6 +7886,11 @@
               "conditionName": "Resistenza: Freddo",
               "effectKind": "buff",
               "detail": "Resistenza ai danni da freddo finché il bersaglio resta nell'Aura Tempestosa.",
+              "damageDefenses": {
+                "resistances": [
+                  "cold"
+                ]
+              },
               "targeting": {
                 "membership": "selected",
                 "filter": "friendly",
@@ -13202,6 +13264,13 @@
       "activation": {
         "primary": "passiva_o_non_specificata"
       },
+      "passiveMechanics": {
+        "damageDefenses": {
+          "resistances": [
+            "fire"
+          ]
+        }
+      },
       "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
@@ -14454,6 +14523,15 @@
       "activation": {
         "primary": "passiva"
       },
+      "passiveMechanics": {
+        "nonmagicalDamageDefenses": {
+          "resistances": [
+            "bludgeoning",
+            "piercing",
+            "slashing"
+          ]
+        }
+      },
       "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
@@ -14897,6 +14975,20 @@
       },
       "activation": {
         "primary": "passiva_o_non_specificata"
+      },
+      "passiveMechanics": {
+        "damageDefenses": {
+          "immunities": [
+            "fire"
+          ]
+        },
+        "nonmagicalDamageDefenses": {
+          "resistances": [
+            "bludgeoning",
+            "piercing",
+            "slashing"
+          ]
+        }
       },
       "quickActionEligible": false,
       "targetMode": "self",
@@ -15721,6 +15813,9 @@
       "activation": {
         "primary": "azione_bonus"
       },
+      "autoActivateFeatureIds": [
+        "druido-circolo-delle-stelle-manto-di-stelle"
+      ],
       "trackedResourcePoolIds": [
         "druido-forma-selvatica-usi"
       ],
@@ -17325,6 +17420,13 @@
       "activation": {
         "primary": "passiva"
       },
+      "passiveMechanics": {
+        "damageDefenses": {
+          "immunities": [
+            "poison"
+          ]
+        }
+      },
       "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
@@ -17560,16 +17662,16 @@
       "page": 41,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -17588,12 +17690,24 @@
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Manto di Stelle",
+        "detail": "In Forma Siderale il druido è in parte incorporeo: resistenza ai danni contundenti, perforanti e taglienti.",
+        "damageDefenses": {
+          "resistances": [
+            "bludgeoning",
+            "piercing",
+            "slashing"
+          ]
+        }
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "untilFeatureId": "druido-circolo-delle-stelle-forma-siderale"
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -21501,6 +21615,13 @@
       "activation": {
         "primary": "azione_bonus"
       },
+      "passiveMechanics": {
+        "damageDefenses": {
+          "resistances": [
+            "poison"
+          ]
+        }
+      },
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -21517,7 +21638,14 @@
       "effectPlan": {
         "kind": "condition",
         "conditionName": "Runa delle Colline",
-        "detail": "Per 1 minuto: resistenza ai danni contundenti, perforanti e taglienti. Uso per riposo breve da segnare al tavolo."
+        "detail": "Per 1 minuto: resistenza ai danni contundenti, perforanti e taglienti. Uso per riposo breve da segnare al tavolo.",
+        "damageDefenses": {
+          "resistances": [
+            "bludgeoning",
+            "piercing",
+            "slashing"
+          ]
+        }
       },
       "breaksConcentration": false,
       "duration": {
@@ -21860,6 +21988,13 @@
       },
       "activation": {
         "primary": "passiva_o_non_specificata"
+      },
+      "passiveMechanics": {
+        "damageDefenses": {
+          "resistances": [
+            "psychic"
+          ]
+        }
       },
       "quickActionEligible": false,
       "targetMode": "self",
@@ -27583,7 +27718,7 @@
       "page": 88,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "reference",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -27591,18 +27726,17 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "innesco"
       },
-      "quickActionEligible": false,
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
+        "mode": "single-target",
+        "rangeMeters": 1.5,
         "maxTargets": 1,
         "excludeSource": false
       },
@@ -27612,10 +27746,91 @@
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Pietra del Trasmutatore",
+        "detail": "Chi porta la pietra ha la resistenza scelta dal mago quando l'ha creata."
+      },
+      "choiceOptions": [
+        {
+          "id": "acid",
+          "label": "Acido",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Pietra del Trasmutatore",
+            "displayLabel": "Pietra del Trasmutatore · Acido",
+            "detail": "Chi porta la pietra ha resistenza ai danni da acido, finché il mago non ne crea un'altra.",
+            "damageDefenses": {
+              "resistances": [
+                "acid"
+              ]
+            }
+          }
+        },
+        {
+          "id": "cold",
+          "label": "Freddo",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Pietra del Trasmutatore",
+            "displayLabel": "Pietra del Trasmutatore · Freddo",
+            "detail": "Chi porta la pietra ha resistenza ai danni da freddo, finché il mago non ne crea un'altra.",
+            "damageDefenses": {
+              "resistances": [
+                "cold"
+              ]
+            }
+          }
+        },
+        {
+          "id": "fire",
+          "label": "Fuoco",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Pietra del Trasmutatore",
+            "displayLabel": "Pietra del Trasmutatore · Fuoco",
+            "detail": "Chi porta la pietra ha resistenza ai danni da fuoco, finché il mago non ne crea un'altra.",
+            "damageDefenses": {
+              "resistances": [
+                "fire"
+              ]
+            }
+          }
+        },
+        {
+          "id": "lightning",
+          "label": "Fulmine",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Pietra del Trasmutatore",
+            "displayLabel": "Pietra del Trasmutatore · Fulmine",
+            "detail": "Chi porta la pietra ha resistenza ai danni da fulmine, finché il mago non ne crea un'altra.",
+            "damageDefenses": {
+              "resistances": [
+                "lightning"
+              ]
+            }
+          }
+        },
+        {
+          "id": "thunder",
+          "label": "Tuono",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Pietra del Trasmutatore",
+            "displayLabel": "Pietra del Trasmutatore · Tuono",
+            "detail": "Chi porta la pietra ha resistenza ai danni da tuono, finché il mago non ne crea un'altra.",
+            "damageDefenses": {
+              "resistances": [
+                "thunder"
+              ]
+            }
+          }
+        }
+      ],
       "breaksConcentration": false,
       "duration": {
-        "rounds": 4800
+        "rounds": null
       },
       "trackingMode": "active",
       "resourceCosts": []
@@ -27986,6 +28201,13 @@
       },
       "activation": {
         "primary": "passiva"
+      },
+      "passiveMechanics": {
+        "damageDefenses": {
+          "resistances": [
+            "necrotic"
+          ]
+        }
       },
       "quickActionEligible": false,
       "targetMode": "self",
@@ -28777,6 +28999,9 @@
       },
       "activation": {
         "primary": "passiva"
+      },
+      "passiveMechanics": {
+        "spellDamageResistance": true
       },
       "quickActionEligible": false,
       "targetMode": "self",
@@ -31721,6 +31946,13 @@
       "activation": {
         "primary": "passiva"
       },
+      "passiveMechanics": {
+        "damageDefenses": {
+          "immunities": [
+            "poison"
+          ]
+        }
+      },
       "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
@@ -33057,7 +33289,23 @@
         "kind": "condition",
         "conditionName": "Invisibile",
         "displayLabel": "Invisibile · Corpo Vuoto",
-        "detail": "Per 1 minuto: invisibile e resistenza a tutti i danni tranne forza. Proiezione astrale (8 Ki) si spende a mano dal pool."
+        "detail": "Per 1 minuto: invisibile e resistenza a tutti i danni tranne forza. Proiezione astrale (8 Ki) si spende a mano dal pool.",
+        "damageDefenses": {
+          "resistances": [
+            "acid",
+            "bludgeoning",
+            "cold",
+            "fire",
+            "lightning",
+            "necrotic",
+            "piercing",
+            "poison",
+            "psychic",
+            "radiant",
+            "slashing",
+            "thunder"
+          ]
+        }
       },
       "breaksConcentration": false,
       "duration": {
@@ -35370,6 +35618,7 @@
           "conditionName": "Resistenza ai danni degli incantesimi",
           "effectKind": "buff",
           "detail": "Resistenza ai danni inflitti dagli incantesimi.",
+          "spellDamageResistance": true,
           "targeting": {
             "filter": "friendly",
             "includeCaster": true
@@ -36217,7 +36466,24 @@
       "effectPlan": {
         "kind": "condition",
         "conditionName": "Conquistatore Invincibile",
-        "detail": "Per 1 minuto: resistenza a tutti i danni, un attacco aggiuntivo con l'azione Attacco, critico con 19-20 negli attacchi in mischia con le armi."
+        "detail": "Per 1 minuto: resistenza a tutti i danni, un attacco aggiuntivo con l'azione Attacco, critico con 19-20 negli attacchi in mischia con le armi.",
+        "damageDefenses": {
+          "resistances": [
+            "acid",
+            "bludgeoning",
+            "cold",
+            "fire",
+            "force",
+            "lightning",
+            "necrotic",
+            "piercing",
+            "poison",
+            "psychic",
+            "radiant",
+            "slashing",
+            "thunder"
+          ]
+        }
       },
       "breaksConcentration": false,
       "duration": {
@@ -43661,7 +43927,7 @@
       "page": 111,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "reference",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -43669,14 +43935,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "innesco"
       },
-      "quickActionEligible": false,
+      "trackedResourcePoolIds": [
+        "stregone-punti-stregoneria"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -43690,13 +43958,99 @@
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Affinità Elementale",
+        "detail": "Per 1 ora: resistenza ai danni del tipo dell'antenato draconico, scelto all'attivazione."
+      },
+      "choiceOptions": [
+        {
+          "id": "acid",
+          "label": "Acido",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Affinità Elementale",
+            "displayLabel": "Affinità Elementale · Acido",
+            "detail": "Per 1 ora: resistenza ai danni da acido.",
+            "damageDefenses": {
+              "resistances": [
+                "acid"
+              ]
+            }
+          }
+        },
+        {
+          "id": "cold",
+          "label": "Freddo",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Affinità Elementale",
+            "displayLabel": "Affinità Elementale · Freddo",
+            "detail": "Per 1 ora: resistenza ai danni da freddo.",
+            "damageDefenses": {
+              "resistances": [
+                "cold"
+              ]
+            }
+          }
+        },
+        {
+          "id": "fire",
+          "label": "Fuoco",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Affinità Elementale",
+            "displayLabel": "Affinità Elementale · Fuoco",
+            "detail": "Per 1 ora: resistenza ai danni da fuoco.",
+            "damageDefenses": {
+              "resistances": [
+                "fire"
+              ]
+            }
+          }
+        },
+        {
+          "id": "lightning",
+          "label": "Fulmine",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Affinità Elementale",
+            "displayLabel": "Affinità Elementale · Fulmine",
+            "detail": "Per 1 ora: resistenza ai danni da fulmine.",
+            "damageDefenses": {
+              "resistances": [
+                "lightning"
+              ]
+            }
+          }
+        },
+        {
+          "id": "poison",
+          "label": "Veleno",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Affinità Elementale",
+            "displayLabel": "Affinità Elementale · Veleno",
+            "detail": "Per 1 ora: resistenza ai danni da veleno.",
+            "damageDefenses": {
+              "resistances": [
+                "poison"
+              ]
+            }
+          }
+        }
+      ],
       "breaksConcentration": false,
       "duration": {
         "rounds": 600
       },
       "trackingMode": "active",
-      "resourceCosts": []
+      "resourceCosts": [
+        {
+          "poolId": "stregone-punti-stregoneria",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "stregone-anima-meccanica-bastione-della-legge",
@@ -43779,6 +44133,14 @@
       "activation": {
         "primary": "innesco"
       },
+      "passiveMechanics": {
+        "damageDefenses": {
+          "resistances": [
+            "lightning",
+            "thunder"
+          ]
+        }
+      },
       "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
@@ -43825,6 +44187,13 @@
       },
       "activation": {
         "primary": "passiva_o_non_specificata"
+      },
+      "passiveMechanics": {
+        "damageDefenses": {
+          "resistances": [
+            "psychic"
+          ]
+        }
       },
       "quickActionEligible": false,
       "targetMode": "self",
@@ -44518,6 +44887,14 @@
       "activation": {
         "primary": "azione"
       },
+      "passiveMechanics": {
+        "damageDefenses": {
+          "immunities": [
+            "lightning",
+            "thunder"
+          ]
+        }
+      },
       "targetMode": "selection",
       "targeting": {
         "mode": "single-target",
@@ -44698,7 +45075,22 @@
       "effectPlan": {
         "kind": "condition",
         "conditionName": "Forma d'Ombra",
-        "detail": "Per 1 minuto: resistenza a tutti i danni tranne radiosi e da forza, attraversa creature e oggetti come terreno difficile (5 danni da forza se termina il turno in un oggetto)."
+        "detail": "Per 1 minuto: resistenza a tutti i danni tranne radiosi e da forza, attraversa creature e oggetti come terreno difficile (5 danni da forza se termina il turno in un oggetto).",
+        "damageDefenses": {
+          "resistances": [
+            "acid",
+            "bludgeoning",
+            "cold",
+            "fire",
+            "lightning",
+            "necrotic",
+            "piercing",
+            "poison",
+            "psychic",
+            "slashing",
+            "thunder"
+          ]
+        }
       },
       "breaksConcentration": false,
       "duration": {
@@ -47705,7 +48097,12 @@
         "kind": "condition",
         "conditionName": "Tomba di Levistus",
         "displayLabel": "Tomba di Levistus · Incapacitato",
-        "detail": "Fino alla fine del prossimo turno del warlock: 10 PF temporanei per livello da warlock (applicati all'attivazione: attivala prima del danno che la fa scattare, così lo assorbono), vulnerabilità al fuoco, velocità 0 e incapacitato. Al termine spariscono anche i PF temporanei rimasti.",
+        "detail": "Fino alla fine del prossimo turno: 10 PF temporanei per livello da warlock (attivala prima del danno che la fa scattare), vulnerabilità al fuoco, velocità 0 e incapacitato. Se quel danno è da fuoco, per quel colpo ignora la vulnerabilità.",
+        "damageDefenses": {
+          "vulnerabilities": [
+            "fire"
+          ]
+        },
         "temporaryHp": {
           "amount": {
             "perClassLevel": 10
@@ -47804,6 +48201,13 @@
       "activation": {
         "primary": "innesco"
       },
+      "passiveMechanics": {
+        "damageDefenses": {
+          "resistances": [
+            "cold"
+          ]
+        }
+      },
       "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
@@ -47851,6 +48255,13 @@
       "activation": {
         "primary": "innesco"
       },
+      "passiveMechanics": {
+        "damageDefenses": {
+          "resistances": [
+            "radiant"
+          ]
+        }
+      },
       "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
@@ -47897,6 +48308,30 @@
       },
       "activation": {
         "primary": "azione_bonus"
+      },
+      "passiveMechanics": {
+        "damageDefensesByOption": {
+          "warlock-il-genio-lista-degli-incantesimi-espansa-dao": {
+            "resistances": [
+              "bludgeoning"
+            ]
+          },
+          "warlock-il-genio-lista-degli-incantesimi-espansa-djinni": {
+            "resistances": [
+              "thunder"
+            ]
+          },
+          "warlock-il-genio-lista-degli-incantesimi-espansa-efreeti": {
+            "resistances": [
+              "fire"
+            ]
+          },
+          "warlock-il-genio-lista-degli-incantesimi-espansa-marid": {
+            "resistances": [
+              "cold"
+            ]
+          }
+        }
       },
       "trackedResourcePoolIds": [
         "warlock-il-genio-dono-elementale-usi"
@@ -48914,7 +49349,7 @@
       "page": 117,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "reference",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -48922,14 +49357,13 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "innesco"
       },
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -48943,12 +49377,213 @@
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Resilienza Immonda",
+        "detail": "Resistenza al tipo di danni scelto alla fine di un riposo, finché non ne sceglie un altro."
+      },
+      "choiceOptions": [
+        {
+          "id": "acid",
+          "label": "Acido",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Resilienza Immonda",
+            "displayLabel": "Resilienza Immonda · Acido",
+            "detail": "Resistenza ai danni da acido finché non sceglie un altro tipo. Le armi magiche o d'argento la superano: per quel colpo ignora la resistenza.",
+            "damageDefenses": {
+              "resistances": [
+                "acid"
+              ]
+            }
+          }
+        },
+        {
+          "id": "bludgeoning",
+          "label": "Contundenti",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Resilienza Immonda",
+            "displayLabel": "Resilienza Immonda · Contundenti",
+            "detail": "Resistenza ai danni contundenti finché non sceglie un altro tipo. Le armi magiche o d'argento la superano: per quel colpo ignora la resistenza.",
+            "damageDefenses": {
+              "resistances": [
+                "bludgeoning"
+              ]
+            }
+          }
+        },
+        {
+          "id": "cold",
+          "label": "Freddo",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Resilienza Immonda",
+            "displayLabel": "Resilienza Immonda · Freddo",
+            "detail": "Resistenza ai danni da freddo finché non sceglie un altro tipo. Le armi magiche o d'argento la superano: per quel colpo ignora la resistenza.",
+            "damageDefenses": {
+              "resistances": [
+                "cold"
+              ]
+            }
+          }
+        },
+        {
+          "id": "fire",
+          "label": "Fuoco",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Resilienza Immonda",
+            "displayLabel": "Resilienza Immonda · Fuoco",
+            "detail": "Resistenza ai danni da fuoco finché non sceglie un altro tipo. Le armi magiche o d'argento la superano: per quel colpo ignora la resistenza.",
+            "damageDefenses": {
+              "resistances": [
+                "fire"
+              ]
+            }
+          }
+        },
+        {
+          "id": "force",
+          "label": "Forza",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Resilienza Immonda",
+            "displayLabel": "Resilienza Immonda · Forza",
+            "detail": "Resistenza ai danni da forza finché non sceglie un altro tipo. Le armi magiche o d'argento la superano: per quel colpo ignora la resistenza.",
+            "damageDefenses": {
+              "resistances": [
+                "force"
+              ]
+            }
+          }
+        },
+        {
+          "id": "lightning",
+          "label": "Fulmine",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Resilienza Immonda",
+            "displayLabel": "Resilienza Immonda · Fulmine",
+            "detail": "Resistenza ai danni da fulmine finché non sceglie un altro tipo. Le armi magiche o d'argento la superano: per quel colpo ignora la resistenza.",
+            "damageDefenses": {
+              "resistances": [
+                "lightning"
+              ]
+            }
+          }
+        },
+        {
+          "id": "necrotic",
+          "label": "Necrotici",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Resilienza Immonda",
+            "displayLabel": "Resilienza Immonda · Necrotici",
+            "detail": "Resistenza ai danni necrotici finché non sceglie un altro tipo. Le armi magiche o d'argento la superano: per quel colpo ignora la resistenza.",
+            "damageDefenses": {
+              "resistances": [
+                "necrotic"
+              ]
+            }
+          }
+        },
+        {
+          "id": "piercing",
+          "label": "Perforanti",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Resilienza Immonda",
+            "displayLabel": "Resilienza Immonda · Perforanti",
+            "detail": "Resistenza ai danni perforanti finché non sceglie un altro tipo. Le armi magiche o d'argento la superano: per quel colpo ignora la resistenza.",
+            "damageDefenses": {
+              "resistances": [
+                "piercing"
+              ]
+            }
+          }
+        },
+        {
+          "id": "poison",
+          "label": "Veleno",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Resilienza Immonda",
+            "displayLabel": "Resilienza Immonda · Veleno",
+            "detail": "Resistenza ai danni da veleno finché non sceglie un altro tipo. Le armi magiche o d'argento la superano: per quel colpo ignora la resistenza.",
+            "damageDefenses": {
+              "resistances": [
+                "poison"
+              ]
+            }
+          }
+        },
+        {
+          "id": "psychic",
+          "label": "Psichici",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Resilienza Immonda",
+            "displayLabel": "Resilienza Immonda · Psichici",
+            "detail": "Resistenza ai danni psichici finché non sceglie un altro tipo. Le armi magiche o d'argento la superano: per quel colpo ignora la resistenza.",
+            "damageDefenses": {
+              "resistances": [
+                "psychic"
+              ]
+            }
+          }
+        },
+        {
+          "id": "radiant",
+          "label": "Radiosi",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Resilienza Immonda",
+            "displayLabel": "Resilienza Immonda · Radiosi",
+            "detail": "Resistenza ai danni radiosi finché non sceglie un altro tipo. Le armi magiche o d'argento la superano: per quel colpo ignora la resistenza.",
+            "damageDefenses": {
+              "resistances": [
+                "radiant"
+              ]
+            }
+          }
+        },
+        {
+          "id": "slashing",
+          "label": "Taglienti",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Resilienza Immonda",
+            "displayLabel": "Resilienza Immonda · Taglienti",
+            "detail": "Resistenza ai danni taglienti finché non sceglie un altro tipo. Le armi magiche o d'argento la superano: per quel colpo ignora la resistenza.",
+            "damageDefenses": {
+              "resistances": [
+                "slashing"
+              ]
+            }
+          }
+        },
+        {
+          "id": "thunder",
+          "label": "Tuono",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Resilienza Immonda",
+            "displayLabel": "Resilienza Immonda · Tuono",
+            "detail": "Resistenza ai danni da tuono finché non sceglie un altro tipo. Le armi magiche o d'argento la superano: per quel colpo ignora la resistenza.",
+            "damageDefenses": {
+              "resistances": [
+                "thunder"
+              ]
+            }
+          }
+        }
+      ],
       "breaksConcentration": false,
       "duration": {
         "rounds": null
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -49023,6 +49658,13 @@
       },
       "activation": {
         "primary": "passiva"
+      },
+      "passiveMechanics": {
+        "damageDefenses": {
+          "resistances": [
+            "psychic"
+          ]
+        }
       },
       "quickActionEligible": false,
       "targetMode": "self",
@@ -49844,7 +50486,7 @@
     "mechanicRecords": 860,
     "activeFeatures": 860,
     "resourcePools": 105,
-    "runtimeImplemented": 267,
-    "runtimeNotAutomated": 593
+    "runtimeImplemented": 271,
+    "runtimeNotAutomated": 589
   }
 }

@@ -6,7 +6,7 @@ import { bossActionUsageAvailability, consumeBossActionUsage, bossActionUsageSum
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem, profileDamageDefensesForItem, sanitizeDamageDefenses,
-  EVASION_DEFENSE, evasionAppliesTo, evasionFactor, evasionForItem } from "./damageDefensesCore.js";
+  EVASION_DEFENSE, evasionAppliesTo, evasionFactor, evasionForItem, withSpellDamageResistance } from "./damageDefensesCore.js";
 
 export const BOSS_ACTION_STATE_FIELD = "bossActionState";
 // The seam drawing kept on the map (Cucitura del Non-Luogo): { sourceId, actionInstanceId } of its boss and use.
@@ -207,13 +207,16 @@ export function damageAmount(value) {
 
 // Actor Profile defenses (resistance/immunity/vulnerability) apply per damage type after the save/attack factor.
 // The GM may ignore a defense for one resolution; the preview the GM saw must match the profile at commit.
-export function defendedComponents(components, inputs, factor, targetItem, ignoredTypes = [], expectedDefenses, marked = false) {
+// spell: the damage is a spell's (the attack console's spells and cantrips), so a resistance to spells counts on top.
+export function defendedComponents(components, inputs, factor, targetItem, ignoredTypes = [], expectedDefenses, marked = false,
+  { spell = false } = {}) {
   const profileDefenses = damageDefensesForItem(targetItem, META_KEY);
   const ownProfileDefenses = profileDamageDefensesForItem(targetItem, META_KEY);
   if (expectedDefenses !== undefined && JSON.stringify(sanitizeDamageDefenses(expectedDefenses)) !== JSON.stringify(profileDefenses))
     throw new Error(`Le difese ai danni di ${targetItem.name || targetItem.id} sono cambiate: riapri l’azione.`);
   // A boss mark changes only this resolution's cold defense; the Actor Profile is never rewritten.
-  const defenses = marked ? bossMarkedDefenses(profileDefenses) : profileDefenses;
+  const marks = marked ? bossMarkedDefenses(profileDefenses) : profileDefenses;
+  const defenses = spell ? withSpellDamageResistance(marks, targetItem, META_KEY) : marks;
   const ignored = new Set(Array.isArray(ignoredTypes) ? ignoredTypes : []);
   return components.map((component) => {
     const inputAmount = inputs[component.id];

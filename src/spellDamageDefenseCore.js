@@ -8,6 +8,8 @@ import {
   damageDefenseTag,
   damageDefensesForItem,
   damageTypeLabel,
+  nonmagicalDefenseMarkerForItem,
+  withSpellDamageResistance,
 } from "./damageDefensesCore.js";
 import { scaledQuickHPAmount } from "./quickHpCore.js";
 
@@ -76,13 +78,15 @@ export function spellPanelDamageTypes(spellId, trigger = null) {
   return trigger?.damage ? spellActionDamageTypes(trigger) : spellDamageTypes(spellId);
 }
 
-// A spell's damage is magical: a monster's defense limited to nonmagical weapons (monsterProfileCore.js) does not count.
-export function magicalDamageDefensesForItem(item, metaKey) {
-  const defenses = damageDefensesForItem(item, metaKey);
-  const nonmagical = item?.metadata?.[metaKey]?.initiativeCard?.monster?.nonmagicalDefenses?.types;
-  if (!Array.isArray(nonmagical) || !nonmagical.length) return defenses;
-  return Object.fromEntries(Object.entries(defenses)
+// A spell's damage is magical: a defense limited to nonmagical weapons does not count, a monster's (monsterProfileCore.js) or a
+// class feature's (Avatar of Battle). And a resistance to the damage of spells does (the Aura of Warding). spell: false for a
+// damage that is magical without being a spell's (a class feature's reminder).
+export function magicalDamageDefensesForItem(item, metaKey, { spell = true } = {}) {
+  const all = damageDefensesForItem(item, metaKey);
+  const nonmagical = nonmagicalDefenseMarkerForItem(item, metaKey)?.types;
+  const defenses = !Array.isArray(nonmagical) || !nonmagical.length ? all : Object.fromEntries(Object.entries(all)
     .map(([list, types]) => [list, types.filter((type) => !nonmagical.includes(type))]));
+  return spell ? withSpellDamageResistance(defenses, item, metaKey) : defenses;
 }
 
 // One row for each defense of the creature against this damage. manual: two types in one number, the GM does the sum.

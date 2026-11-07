@@ -66,7 +66,8 @@ test("Mago: il batch implementa 11 capacità senza adapter nuovi", () => {
   const implemented = CLASS_FEATURE_CATALOG.features.filter((entry) =>
     entry.classId === "mago" && entry.runtimeSupport.status === "implemented"
   );
-  assert.equal(implemented.length, 11);
+  // Più Pietra del Trasmutatore (difese delle capacità, L4).
+  assert.equal(implemented.length, 12);
   for (const [id, conditionName] of Object.entries(CONDITIONS)) {
     assert.equal(feature(id).runtimeSupport.adapter, "condition", id);
     assert.equal(feature(id).effectPlan.conditionName, conditionName, id);

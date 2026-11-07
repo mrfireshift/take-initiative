@@ -72,7 +72,8 @@ test("Stregone: il batch implementa 12 capacità delle origini non curate", () =
   const implemented = CLASS_FEATURE_CATALOG.features.filter((entry) =>
     entry.classId === "stregone" && entry.runtimeSupport.status === "implemented"
   );
-  assert.equal(implemented.length, 25);
+  // Più Affinità Elementale (difese delle capacità, L4).
+  assert.equal(implemented.length, 26);
   assert.equal(IMPLEMENTED.length, 12);
   for (const id of IMPLEMENTED) assert.ok(classFeatureRuntimeSupport(feature(id)).ready, id);
 });

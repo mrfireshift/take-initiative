@@ -21,7 +21,8 @@ import { bossDefendedDamage, bossDefenseCounts } from "./bossActionsViewCore.js"
 import { getSpellDefinition, getSpellEffects, getSpellSummaryParts } from "./spells-srd.js";
 import { catalogSpellApplicationOperations } from "./spellLifecycleOperationsCore.js";
 import { spellEffectThemeFor } from "./spellColorCore.js";
-import { actorHasEvasion, damageDefenseCount, damageDefensesForItem, damageTypeLabel, evasionFactor, markNonmagicalDefenses, relevantDamageDefenses } from "./damageDefensesCore.js";
+import { actorHasEvasion, damageDefenseCount, damageDefensesForItem, damageTypeLabel, evasionFactor, markNonmagicalDefenses, nonmagicalDefenseMarkerForItem,
+  relevantDamageDefenses, withSpellDamageResistance } from "./damageDefensesCore.js";
 import { MONSTER_PROFILE_FIELD } from "./monsterProfileCore.js";
 import { CLASS_FEATURE_RESOURCE_POOL_BY_ID, getClassFeatureDefinition, getClassFeatureResourcePool, getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import {
@@ -1059,9 +1060,18 @@ function extraLabel(value) {
 // A spell's damage is magical: a monster's defense against nonmagical weapons does not hold (Thorn Whip's piercing), as in the
 // spell panel. Its types count as ignored from the start, and the console does not offer them.
 function pcAttackMagicIgnoredDefenses(attack, targetItem) {
-  if (!attack?.cantrip && !attack?.spell) return [];
-  const types = targetItem?.metadata?.[META_KEY]?.initiativeCard?.monster?.nonmagicalDefenses?.types;
+  if (!pcAttackSpellDamage(attack)) return [];
+  const types = nonmagicalDefenseMarkerForItem(targetItem, META_KEY)?.types;
   return Array.isArray(types) ? types : [];
+}
+
+// A spell's or a cantrip's damage: a resistance to spells (the Aura of Warding) counts on top of the target's defenses. The
+// defenses the console expects at the commit stay the target's own (profileDefenses): defendedComponents adds it again.
+function pcAttackSpellDamage(attack) {
+  return !!(attack?.cantrip || attack?.spell);
+}
+function pcAttackDefensesAgainst(attack, defenses, targetItem) {
+  return targetItem && pcAttackSpellDamage(attack) ? withSpellDamageResistance(defenses, targetItem, META_KEY) : defenses;
 }
 
 // What the GM sees before committing: the defenses that apply, the damage after them and the HP it leaves.
@@ -1107,24 +1117,25 @@ export function pcAttackPreview({
     ...Object.fromEntries(chosenExtras.map((extra, index) => [`x${index + 1}`, extra.amount])),
   };
   const profileDefenses = targetItem ? damageDefensesForItem(targetItem, META_KEY) : {};
+  const attackDefenses = pcAttackDefensesAgainst(attack, profileDefenses, targetItem);
   // A spell with several types (Chromatic Orb): until one is picked no defense applies to its damage, whatever type it holds meanwhile.
   const typedComponents = attack.spell?.types && !attack.spell.types.includes(spellCast?.damageType)
     ? components.filter((component) => component.id !== attack.components[0]?.id) : components;
   const magicIgnored = pcAttackMagicIgnoredDefenses(attack, targetItem);
   const heldDefense = (row) => !magicIgnored.includes(row.type);
   const appliedIgnored = [...ignoredDefenses, ...magicIgnored];
-  const defenses = markNonmagicalDefenses(relevantDamageDefenses(profileDefenses, typedComponents.filter((component) => damageTypeSet.has(component.type)), ignoredDefenses),
+  const defenses = markNonmagicalDefenses(relevantDamageDefenses(attackDefenses, typedComponents.filter((component) => damageTypeSet.has(component.type)), ignoredDefenses),
     targetItem?.metadata?.[META_KEY]?.initiativeCard).filter(heldDefense);
   // Full damage on a hit, a critical or a failed save (the shared helper would halve a "passed" save).
   // A monster's hit effect (fase 5, lotto 4): its save's damage on top, with the target's defenses.
   const hitPlan = targetItem ? pcAttackHitEffectPlan({ attack, outcome, hitEffect, targetItem, sourceItem }) : null;
   const total = (targetItem && outcome && !miss
-    ? bossDefendedDamage(components, allAmounts, factor === "half" ? "passed" : "hit", profileDefenses, appliedIgnored) : 0)
+    ? bossDefendedDamage(components, allAmounts, factor === "half" ? "passed" : "hit", attackDefenses, appliedIgnored) : 0)
     + (hitPlan?.components || []).reduce((sum, component) => sum + component.amount, 0);
   // The count the console shows: what each defense did to the damage typed, and to a monster's save on the hit.
   const targetCard = targetItem?.metadata?.[META_KEY]?.initiativeCard;
   const defenseCounts = targetItem && outcome && !miss
-    ? markNonmagicalDefenses(bossDefenseCounts(typedComponents, allAmounts, factor === "half" ? "passed" : "hit", profileDefenses, appliedIgnored), targetCard).filter(heldDefense) : [];
+    ? markNonmagicalDefenses(bossDefenseCounts(typedComponents, allAmounts, factor === "half" ? "passed" : "hit", attackDefenses, appliedIgnored), targetCard).filter(heldDefense) : [];
   const hitEffectCounts = markNonmagicalDefenses((hitPlan?.components || []).filter((component) => component.defense)
     .map((component) => ({ type: component.type, defense: component.defense, before: Number(component.inputAmount), after: component.amount })), targetCard);
   const meta = targetItem?.metadata?.[META_KEY] || {};
@@ -1148,11 +1159,13 @@ export function pcAttackPreview({
     || (activationSecondary ? { targetId: activationSecondary.secondaryTargetId, amount: activationSecondary.amount, type: activationSecondary.type } : null);
   const secondaryWanted = !!secondarySource;
   const secondaryDefenses = secondaryWanted && secondaryItem ? damageDefensesForItem(secondaryItem, META_KEY) : {};
+  // Green-Flame Blade's fire is a cantrip's damage: a resistance to spells counts on it, not on an activation's die.
+  const secondaryAgainst = wovenSecondary && secondaryItem ? withSpellDamageResistance(secondaryDefenses, secondaryItem, META_KEY) : secondaryDefenses;
   const secondaryMeta = secondaryItem?.metadata?.[META_KEY] || {};
   const secondaryTotal = secondaryWanted && secondaryItem && validAmount(secondarySource.amount) && damageTypeSet.has(secondarySource.type)
-    ? bossDefendedDamage([{ id: "s1", type: secondarySource.type }], { s1: secondarySource.amount }, "hit", secondaryDefenses, []) : 0;
+    ? bossDefendedDamage([{ id: "s1", type: secondarySource.type }], { s1: secondarySource.amount }, "hit", secondaryAgainst, []) : 0;
   const secondaryCounts = secondaryWanted && secondaryItem && validAmount(secondarySource.amount) && damageTypeSet.has(secondarySource.type)
-    ? bossDefenseCounts([{ id: "s1", type: secondarySource.type }], { s1: secondarySource.amount }, "hit", secondaryDefenses, []) : [];
+    ? bossDefenseCounts([{ id: "s1", type: secondarySource.type }], { s1: secondarySource.amount }, "hit", secondaryAgainst, []) : [];
   const secondary = secondaryWanted && secondaryItem ? { id: secondaryItem.id, total: secondaryTotal, profileDefenses: secondaryDefenses,
     ...(secondaryCounts.length ? { defenseCounts: secondaryCounts } : {}),
     hp: Number.isFinite(secondaryMeta.hp) && Number.isFinite(secondaryMeta.hpMax)
@@ -1314,7 +1327,8 @@ export function buildPcAttackMutation({
   const hitPlan = pcAttackHitEffectPlan({ attack, outcome, hitEffect, targetItem, sourceItem, attackInstanceId, turnState });
   if (hitPlan.blocker) throw new Error(hitPlan.blocker);
   // A critical hit keeps the full factor: the totals the GM enters already include the doubled dice.
-  const damageComponents = [...defendedComponents(components, inputs, factor, targetItem, [...ignoredDefenses, ...pcAttackMagicIgnoredDefenses(attack, targetItem)], expectedDefenses), ...hitPlan.components];
+  const damageComponents = [...defendedComponents(components, inputs, factor, targetItem, [...ignoredDefenses, ...pcAttackMagicIgnoredDefenses(attack, targetItem)],
+    expectedDefenses, false, { spell: pcAttackSpellDamage(attack) }), ...hitPlan.components];
   const requestedDamage = damageComponents.reduce((sum, component) => sum + component.amount, 0);
   const targetMeta = targetItem.metadata?.[META_KEY] || {};
   let change = null;
@@ -1330,7 +1344,7 @@ export function buildPcAttackMutation({
   const secondaryItemUsed = woven?.secondary?.item || activationSecondary?.item || null;
   const secondaryComponents = woven?.secondary
     ? defendedComponents([{ id: "s1", type: woven.type, source: { kind: "cantrip", spellId: woven.spellId, name: woven.name } }],
-      { s1: woven.secondary.amount }, "full", secondaryItemUsed, [], expectedSecondaryDefenses)
+      { s1: woven.secondary.amount }, "full", secondaryItemUsed, [], expectedSecondaryDefenses, false, { spell: true })
     : activationSecondary
       ? defendedComponents([{ id: "s1", type: activationSecondary.type, source: { kind: "class-feature", featureId: activationSecondary.id,
         name: activationSecondary.option.label, activation: true } }], { s1: activationSecondary.amount }, "full", secondaryItemUsed, [], expectedSecondaryDefenses)
@@ -1933,14 +1947,15 @@ export function pcAttackAreaPreview({
     const factor = areaFactor(attack, member.outcome, card, evasion);
     const meta = member.item.metadata?.[META_KEY] || {};
     const profileDefenses = damageDefensesForItem(member.item, META_KEY);
+    const memberDefenses = pcAttackDefensesAgainst(attack, profileDefenses, member.item);
     const total = member.outcome && factor !== "zero" && amountsReady
-      ? bossDefendedDamage(components, inputs, factor === "half" ? "passed" : "hit", profileDefenses, []) : 0;
+      ? bossDefendedDamage(components, inputs, factor === "half" ? "passed" : "hit", memberDefenses, []) : 0;
     const hp = Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax)
       ? { before: meta.hp, after: calculateQuickHPChange({ value: total, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp }).afterHP, hpMax: meta.hpMax } : null;
     const conditionImmune = attack.monster?.onFail ? pcAttackTargetConditionImmune(member.item, attack.monster.onFail.condition) : false;
     // Its row says what it takes and why (pcAttackAreaRowDamage), once its outcome and the damage are known.
     const defenseCounts = member.outcome && factor !== "zero" && amountsReady
-      ? markNonmagicalDefenses(bossDefenseCounts(components, inputs, factor === "half" ? "passed" : "hit", profileDefenses, []), meta.initiativeCard) : [];
+      ? markNonmagicalDefenses(bossDefenseCounts(components, inputs, factor === "half" ? "passed" : "hit", memberDefenses, []), meta.initiativeCard) : [];
     return { id: member.item.id, name: member.item.name || member.item.id, outcome: member.outcome || "", factor, total, hp, profileDefenses,
       counted: components.length > 0 && !!member.outcome && (factor === "zero" || amountsReady), ...(defenseCounts.length ? { defenseCounts } : {}),
       ...(evasion ? { evasion: true } : {}), ...(conditionImmune ? { conditionImmune: true } : {}) };
@@ -2035,7 +2050,8 @@ export function buildPcAttackAreaMutation({
       throw new Error(`${member.item.name || member.item.id} non ha PF canonici validi.`);
     const evasion = pcAttackTargetEvasion(attack, member.item);
     const factor = areaFactor(attack, member.outcome, card, evasion);
-    const damageComponents = defendedComponents(components, inputs, factor, member.item, [], expectedDefenses?.[member.item.id]);
+    const damageComponents = defendedComponents(components, inputs, factor, member.item, [], expectedDefenses?.[member.item.id], false,
+      { spell: pcAttackSpellDamage(attack) });
     const requested = damageComponents.reduce((sum, component) => sum + component.amount, 0);
     return { item: member.item, meta, outcome: member.outcome, factor, damageComponents, evasion,
       conditionImmune: attack.monster?.onFail ? pcAttackTargetConditionImmune(member.item, attack.monster.onFail.condition) : false,

@@ -998,11 +998,13 @@ export function reminderResolutionDamage(resolution, outcome, roll, defense = nu
 }
 
 // The target's defenses against a reminder's damage: its type is on the damage ("taglienti"), and a type left to the caster
-// ("radiosi o necrotici") stays with the GM. The notice shows these rows, and the plan applies them.
+// ("radiosi o necrotici") stays with the GM. The notice shows these rows, and the plan applies them. A resistance to spells
+// (the Aura of Warding) counts when the zone or the effect says its spell; a class feature's damage has none.
 export function reminderDamageDefenseRows({ resolution = null, target = null, ignoredTypes = [] } = {}) {
+  const spell = Boolean(resolution?.activation?.spellId || resolution?.effect?.spellId || resolution?.spellId);
   return spellDamageDefenseRows({
     types: spellActionDamageTypes(resolution),
-    defenses: magicalDamageDefensesForItem(target, META_KEY),
+    defenses: magicalDamageDefensesForItem(target, META_KEY, { spell }),
     ignoredTypes,
   });
 }

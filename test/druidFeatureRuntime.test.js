@@ -73,8 +73,8 @@ test("Druido: il batch implementa 13 capacità senza adapter nuovi", () => {
   const implemented = CLASS_FEATURE_CATALOG.features.filter((entry) =>
     entry.classId === "druido" && entry.runtimeSupport.status === "implemented"
   );
-  // 13 dal batch, più Infestazione Fungina e Legame Migliorato (P2-dati).
-  assert.equal(implemented.length, 15);
+  // 13 dal batch, più Infestazione Fungina e Legame Migliorato (P2-dati) e Manto di Stelle (difese delle capacità, L2).
+  assert.equal(implemented.length, 16);
   assert.equal(CONDITIONS.length + RESOURCE_ONLY.length, 13);
   for (const id of CONDITIONS) assert.equal(feature(id).runtimeSupport.adapter, "condition", id);
   for (const id of RESOURCE_ONLY) {

@@ -1,7 +1,8 @@
 // Damage-type defenses stored in the Actor Profile (initiativeCard.damageDefenses).
 // Pure data + arithmetic: no SDK, no metadata writes.
 import { scaledQuickHPAmount } from "./quickHpCore.js";
-import { sanitizeCharacterBuild, sanitizeEnabledClassFeatureIds } from "./classFeatureCore.js";
+import { classFeatureEffectPlan, sanitizeCharacterBuild, sanitizeEnabledClassFeatureIds } from "./classFeatureCore.js";
+import { CLASS_FEATURE_BY_ID, CLASS_FEATURES, classFeatureAvailableForBuild, getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import { SPECIES_FIELD, speciesDamageDefenses } from "./speciesTraitCore.js";
 
 export const DAMAGE_DEFENSES_FIELD = "damageDefenses";
@@ -67,23 +68,106 @@ export function componentDamageAfterDefense(inputAmount, outcomeFactor, defense)
   return afterOutcome;
 }
 
-// The Actor Profile's own defenses plus the passive ones of its species (a dragonborn's ancestry resistance).
+// A passive class feature gives its defense while the card's class and level enable it, as a species' trait does (Purity
+// of Body, Soul of the Forge): passiveMechanics.damageDefenses in the catalog, never written on the card. One that depends
+// on an option the sheet saves (Storm Soul's environment, the genie's kind) is in passiveMechanics.damageDefensesByOption,
+// keyed by the option's feature id. Two more hold only against some damage: nonmagicalDamageDefenses against nonmagical
+// weapons or attacks (Avatar of Battle; Saint of Forge and Fire, its heavy armor taken as worn), and spellDamageResistance
+// against the damage of spells (the Abjurer's Spell Resistance). The catalog is read at call time only: the modules import
+// each other.
+const PASSIVE_DEFENSE_FIELDS = Object.freeze(["damageDefenses", "damageDefensesByOption", "nonmagicalDamageDefenses", "spellDamageResistance"]);
+let passiveDefenseFeatures = null;
+function classFeaturePassiveProfile(card) {
+  const build = sanitizeCharacterBuild(card?.characterBuild);
+  if (!build.length) return null;
+  passiveDefenseFeatures ??= CLASS_FEATURES.filter((feature) => PASSIVE_DEFENSE_FIELDS.some((field) => feature.passiveMechanics?.[field]));
+  if (!passiveDefenseFeatures.some((feature) => classFeatureAvailableForBuild(feature, build))) return null;
+  const enabled = new Set(getEnabledClassFeatures(card).map((feature) => feature.id));
+  const features = passiveDefenseFeatures.filter((feature) => enabled.has(feature.id));
+  return {
+    defenses: mergeDamageDefenses(...features.flatMap((feature) => [
+      feature.passiveMechanics.damageDefenses,
+      ...Object.entries(feature.passiveMechanics.damageDefensesByOption || {})
+        .filter(([optionId]) => enabled.has(optionId))
+        .map(([, defenses]) => defenses),
+    ])),
+    nonmagical: mergeDamageDefenses(...features.map((feature) => feature.passiveMechanics.nonmagicalDamageDefenses)),
+    spellResistance: features.some((feature) => feature.passiveMechanics.spellDamageResistance === true),
+  };
+}
+export function classFeaturePassiveDamageDefenses(card) {
+  return classFeaturePassiveProfile(card)?.defenses ?? null;
+}
+export function classFeatureNonmagicalDamageDefenses(card) {
+  return classFeaturePassiveProfile(card)?.nonmagical ?? null;
+}
+
+// The Actor Profile's own defenses plus the passive ones of its species (a dragonborn's ancestry resistance) and of its
+// class features. A defense against nonmagical damage only counts here like any other, as a monster's does: spells and the GM
+// get through it (nonmagicalDefenseMarker).
 export function profileDamageDefenses(card) {
-  return mergeDamageDefenses(card?.[DAMAGE_DEFENSES_FIELD], speciesDamageDefenses(card?.[SPECIES_FIELD]));
+  const passive = classFeaturePassiveProfile(card);
+  return mergeDamageDefenses(card?.[DAMAGE_DEFENSES_FIELD], speciesDamageDefenses(card?.[SPECIES_FIELD]),
+    passive?.defenses, passive?.nonmagical);
 }
 
 export function profileDamageDefensesForItem(item, metaKey) {
   return profileDamageDefenses(item?.metadata?.[metaKey]?.initiativeCard);
 }
 
-// Active effects (species traits, consumables, buffs) may grant defenses through
-// instance.mechanics.damageDefenses, the same shape as the Actor Profile field.
-export function effectDamageDefensesForItem(item, metaKey) {
+// A class feature's pill keeps no defense in the token (the user's choice, 06/11): while it is active, its defense is read
+// from the catalog, in effectPlan.damageDefenses of its feature (of the chosen option, if any). An aura's member reads the
+// damageDefenses of the targetEffect whose condition it bears, since its pill does not say the option. Neither field
+// reaches a pill: classFeatureEffectProjection copies only the plan's mechanics. The pill types and the aura's effect id
+// are those of classFeatureAuraCore.js (CLASS_FEATURE_AREA_EFFECT_TYPE, classFeatureAuraEffectId), not imported so that
+// this module does not load the areas. The catalog is read at call time only: the modules import each other.
+const CLASS_FEATURE_PILL_TYPE = "class-feature";
+const CLASS_FEATURE_AREA_PILL_TYPE = "class-feature-area";
+const CLASS_FEATURE_AREA_SUFFIX = ":area";
+// The catalog's effect behind a pill: the plan of its feature, or the aura's target effect (with damageDefenses or
+// spellDamageResistance, the Aura of Warding's) whose condition the member bears.
+function classFeaturePillCatalogEffect(instance) {
+  const effectId = String(instance?.effectId || "").trim();
+  if (instance?.type === CLASS_FEATURE_PILL_TYPE) {
+    const feature = CLASS_FEATURE_BY_ID.get(effectId);
+    return feature ? classFeatureEffectPlan(feature, instance.choiceId) : null;
+  }
+  if (instance?.type !== CLASS_FEATURE_AREA_PILL_TYPE || !effectId.endsWith(CLASS_FEATURE_AREA_SUFFIX)) return null;
+  const feature = CLASS_FEATURE_BY_ID.get(effectId.slice(0, -CLASS_FEATURE_AREA_SUFFIX.length));
+  const condition = String(instance.condition || "").trim();
+  const options = Array.isArray(feature?.choiceOptions) ? feature.choiceOptions : [];
+  return [feature?.effectPlan, ...options.map((option) => option?.effectPlan)]
+    .map((plan) => plan?.targetEffect)
+    .find((effect) => (effect?.damageDefenses || effect?.spellDamageResistance) && effect.conditionName === condition) ?? null;
+}
+export function classFeaturePillDamageDefenses(instance) {
+  return classFeaturePillCatalogEffect(instance)?.damageDefenses ?? null;
+}
+
+function activeConditionInstances(item, metaKey) {
   const value = item?.metadata?.[metaKey]?.conditions;
   const instances = Array.isArray(value) ? value : Array.isArray(value?.instances) ? value.instances : [];
-  return mergeDamageDefenses(...instances
-    .filter((instance) => instance && instance.active !== false)
-    .map((instance) => instance.mechanics?.[DAMAGE_DEFENSES_FIELD]));
+  return instances.filter((instance) => instance && instance.active !== false);
+}
+
+// Resistance to the damage of spells (the Abjurer's Spell Resistance, the Aura of Warding): every type, but only the damage
+// of a spell reads it (magicalDamageDefensesForItem, the attack console's spells). From the profile or from an active pill.
+export const SPELL_DAMAGE_RESISTANCE = Object.freeze({ resistances: Object.freeze(DAMAGE_TYPES.map((type) => type.id)) });
+export function spellDamageResistanceForItem(item, metaKey) {
+  if (classFeaturePassiveProfile(item?.metadata?.[metaKey]?.initiativeCard)?.spellResistance) return true;
+  return activeConditionInstances(item, metaKey)
+    .some((instance) => classFeaturePillCatalogEffect(instance)?.spellDamageResistance === true);
+}
+// The defenses against a spell's damage: a creature that resists spells resists every type, unless it is immune.
+export function withSpellDamageResistance(defenses, item, metaKey) {
+  return spellDamageResistanceForItem(item, metaKey) ? mergeDamageDefenses(defenses, SPELL_DAMAGE_RESISTANCE) : defenses;
+}
+
+// Active effects (species traits, consumables, buffs) may grant defenses through
+// instance.mechanics.damageDefenses, the same shape as the Actor Profile field; a class feature's pill, from the catalog.
+export function effectDamageDefensesForItem(item, metaKey) {
+  return mergeDamageDefenses(...activeConditionInstances(item, metaKey)
+    .flatMap((instance) => [instance.mechanics?.[DAMAGE_DEFENSES_FIELD], classFeaturePillDamageDefenses(instance)]));
 }
 
 // Union of several defense sets; sanitizing applies the usual precedence (immunity, resistance, vulnerability).
@@ -138,8 +222,25 @@ export function nonmagicalDefenseText(except = []) {
   const materials = (Array.isArray(except) ? except : []).map((material) => NONMAGICAL_MATERIAL_LABELS[material]).filter(Boolean);
   return ["non magici", ...materials].join(" né ");
 }
+// The types whose defense holds only against nonmagical damage ({ types, except }): a monster's, as its card says, or a
+// character's from a class feature (Avatar of Battle), unless another of its sources resists or ignores the type as well.
+// covering: the defenses of its active effects (Rage's resistance holds against magic too).
+export function nonmagicalDefenseMarker(card, covering = null) {
+  const monster = card?.monster?.nonmagicalDefenses;
+  if (Array.isArray(monster?.types) && monster.types.length) return monster;
+  const passive = classFeaturePassiveProfile(card);
+  if (!passive) return null;
+  const limited = passive.nonmagical;
+  const others = mergeDamageDefenses(card?.[DAMAGE_DEFENSES_FIELD], speciesDamageDefenses(card?.[SPECIES_FIELD]), passive.defenses, covering);
+  const types = DEFENSE_LISTS.flatMap(([list]) => limited[list])
+    .filter((type) => !["immunity", "resistance"].includes(damageDefenseFor(others, type)));
+  return types.length ? { types, except: [] } : null;
+}
+export function nonmagicalDefenseMarkerForItem(item, metaKey) {
+  return nonmagicalDefenseMarker(item?.metadata?.[metaKey]?.initiativeCard, effectDamageDefensesForItem(item, metaKey));
+}
 export function markNonmagicalDefenses(rows, card) {
-  const marker = card?.monster?.nonmagicalDefenses;
+  const marker = nonmagicalDefenseMarker(card);
   if (!Array.isArray(marker?.types) || !marker.types.length) return rows;
   return rows.map((row) => (marker.types.includes(row.type) ? { ...row, nonmagical: nonmagicalDefenseText(marker.except) } : row));
 }

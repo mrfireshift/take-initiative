@@ -1,5 +1,5 @@
 import { ID } from "./constants.js";
-import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem } from "./damageDefensesCore.js";
+import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem, withSpellDamageResistance } from "./damageDefensesCore.js";
 
 // Magic Missile (PHB 2014): three darts, one more per slot above 1st; each one hits a creature of the caster's
 // choice automatically for 1d4 + 1 force damage, several on the same creature if the caster wants. Each dart is its
@@ -93,10 +93,10 @@ export function magicMissileBlockedByShield(item) {
   ));
 }
 
-// What protects the target from the darts: its force defense and Shield.
+// What protects the target from the darts: its force defense, a resistance to spells (the Aura of Warding) and Shield.
 export function magicMissileTargetGuard(item) {
   return {
-    defense: damageDefenseFor(damageDefensesForItem(item, META_KEY), "force"),
+    defense: damageDefenseFor(withSpellDamageResistance(damageDefensesForItem(item, META_KEY), item, META_KEY), "force"),
     shielded: magicMissileBlockedByShield(item),
   };
 }
