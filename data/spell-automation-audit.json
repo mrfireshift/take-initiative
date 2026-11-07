@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "dd436a4dbc7badf1",
+  "fingerprint": "4305f11f60abdcb6",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -18,9 +18,9 @@
     },
     "currentAutomationLevel": {
       "FULL": 66,
-      "MANUAL": 57,
-      "PARTIAL": 244,
-      "TRACK_ONLY": 110
+      "MANUAL": 56,
+      "PARTIAL": 246,
+      "TRACK_ONLY": 109
     },
     "coverageStatus": {
       "ACCEPTED": 72,
@@ -41,10 +41,10 @@
     "targetUiExposure": {
       "UNIFIED": 477
     },
-    "trackableOptions": 360,
-    "trackable": 360,
-    "withAreaRules": 142,
-    "areaRuleEntries": 151,
+    "trackableOptions": 361,
+    "trackable": 361,
+    "withAreaRules": 144,
+    "areaRuleEntries": 162,
     "openRows": 10,
     "confirmed": 7,
     "highConfidence": 2,
@@ -73,9 +73,9 @@
     },
     "bySaveScope": {
       "—": 285,
-      "area": 102,
+      "area": 103,
       "multiplo": 15,
-      "singolo": 75
+      "singolo": 74
     },
     "byGap": {
       "AREA_GEOMETRY_MISSING": 1,
@@ -103,18 +103,18 @@
       "CAST_NO_MUTATIONS": 3
     },
     "smokeCategories": {
-      "ACTIVE_ACTION": 54,
-      "AREA_GEOMETRY": 142,
-      "CAST": 277,
-      "CLEANUP": 129,
+      "ACTIVE_ACTION": 57,
+      "AREA_GEOMETRY": 144,
+      "CAST": 279,
+      "CLEANUP": 131,
       "CONCENTRATION": 218,
-      "PERSISTENCE": 360,
+      "PERSISTENCE": 361,
       "TURN_TRIGGER": 110
     },
     "unifiedCatalogExposed": 477,
     "integrationDisconnected": 0,
     "integrationFragile": 0,
-    "runtimeSmokeRequired": 417,
+    "runtimeSmokeRequired": 418,
     "releaseReady": false
   },
   "rows": [
@@ -33062,6 +33062,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
         "AREA_GEOMETRY",
         "CAST",
         "CLEANUP",
@@ -33081,10 +33082,11 @@
       ],
       "coverage": [
         "tracking",
-        "aree:zone",
+        "aree:zone/zone/instant/zone",
         "lifecycle",
         "TS",
-        "movimento"
+        "movimento",
+        "fasi/azioni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -33096,23 +33098,28 @@
       "runtime": {
         "trackable": true,
         "areaRuleIds": [
+          "wall-of-ice:panel",
+          "wall-of-ice:frigid-air",
+          "wall-of-ice:pick-damage",
           "wall-of-ice:cast"
         ],
         "areaKinds": [
-          "zone"
+          "zone",
+          "instant"
         ],
         "triggerIds": [
-          "wall-of-ice-frigid-sheet-save-on-entry",
-          "wall-of-ice-frigid-sheet-save-on-move",
-          "wall-of-ice-frigid-sheet-save-on-leave"
+          "wall-of-ice-frigid-sheet-save-on-crossing"
         ],
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "wall-of-ice-damage"
+        ],
         "phaseOptions": [],
         "movementMechanics": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST",
           "CLEANUP",
@@ -33135,7 +33142,7 @@
         "contract": {
           "lane": "area-transaction",
           "targetingMode": "geometric",
-          "placementPolicy": "optional",
+          "placementPolicy": "required",
           "visibleInputs": [
             "caster",
             "slot",
@@ -33157,18 +33164,25 @@
           "required": true,
           "declared": true,
           "ruleIds": [
+            "wall-of-ice:panel",
+            "wall-of-ice:frigid-air",
             "wall-of-ice:cast"
           ]
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "wall-of-ice-damage"
+          ],
+          "panelActionIds": [
+            "wall-of-ice-damage"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST",
           "CLEANUP",
@@ -33364,12 +33378,16 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
+        "AREA_GEOMETRY",
+        "CAST",
+        "CLEANUP",
         "CONCENTRATION",
         "PERSISTENCE"
       ],
@@ -33382,7 +33400,13 @@
         "riferimento TS"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "aree:zone/instant/instant/zone",
+        "lifecycle",
+        "TS",
+        "movimento",
+        "fasi/azioni",
+        "varianti"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -33393,16 +33417,31 @@
       },
       "runtime": {
         "trackable": true,
-        "areaRuleIds": [],
-        "areaKinds": [],
+        "areaRuleIds": [
+          "wall-of-stone:panel",
+          "wall-of-stone:pick-damage",
+          "wall-of-stone:pick-collapse",
+          "wall-of-stone:cast"
+        ],
+        "areaKinds": [
+          "zone",
+          "instant"
+        ],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "wall-of-stone-damage",
+          "wall-of-stone-collapse"
+        ],
         "phaseOptions": [],
-        "movementMechanics": false,
+        "movementMechanics": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
+          "AREA_GEOMETRY",
+          "CAST",
+          "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -33414,43 +33453,55 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
-          "targetingMode": "none",
-          "placementPolicy": "unavailable",
+          "lane": "area-transaction",
+          "targetingMode": "geometric",
+          "placementPolicy": "required",
           "visibleInputs": [
             "caster",
-            "slot"
+            "slot",
+            "targets",
+            "placement"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "concentration:register"
-          ],
-          "mutationMode": "tracking",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
           "required": true,
           "declared": true,
-          "ruleIds": []
+          "ruleIds": [
+            "wall-of-stone:panel",
+            "wall-of-stone:cast"
+          ]
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "wall-of-stone-damage",
+            "wall-of-stone-collapse"
+          ],
+          "panelActionIds": [
+            "wall-of-stone-damage",
+            "wall-of-stone-collapse"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
+          "AREA_GEOMETRY",
+          "CAST",
+          "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -35909,25 +35960,39 @@
       "castingTime": "1 azione",
       "duration": "Istantanea",
       "textAvailable": true,
-      "saveScope": "singolo",
+      "saveScope": "area",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
-      "smokeCategories": [],
+      "smokeCategories": [
+        "ACTIVE_ACTION",
+        "AREA_GEOMETRY",
+        "CAST",
+        "CLEANUP",
+        "PERSISTENCE"
+      ],
       "verificationEvidence": [
         "STRUCTURAL"
       ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
-        "TS:singolo",
+        "TS:area",
         "movimento"
       ],
-      "coverage": [],
+      "coverage": [
+        "tracking",
+        "aree:zone/zone/instant/zone",
+        "lifecycle",
+        "TS",
+        "movimento",
+        "fasi/azioni",
+        "varianti"
+      ],
       "assessment": "istantaneo: gestione manuale",
       "priority": "—",
       "gaps": [],
@@ -35936,17 +36001,34 @@
         "implemented": []
       },
       "runtime": {
-        "trackable": false,
-        "areaRuleIds": [],
-        "areaKinds": [],
+        "trackable": true,
+        "areaRuleIds": [
+          "xanathar-ossa-della-terra:pillar",
+          "xanathar-ossa-della-terra:rubble",
+          "xanathar-ossa-della-terra:pick-damage",
+          "xanathar-ossa-della-terra:cast"
+        ],
+        "areaKinds": [
+          "zone",
+          "instant"
+        ],
         "triggerIds": [],
-        "saveAutomation": false,
-        "batchSaveWorkflowRequired": false,
+        "saveAutomation": true,
+        "batchSaveWorkflowRequired": true,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "bones-of-the-earth-damage",
+          "bones-of-the-earth-ceiling"
+        ],
         "phaseOptions": [],
-        "movementMechanics": false,
-        "smokeCategories": []
+        "movementMechanics": true,
+        "smokeCategories": [
+          "ACTIVE_ACTION",
+          "AREA_GEOMETRY",
+          "CAST",
+          "CLEANUP",
+          "PERSISTENCE"
+        ]
       },
       "integration": {
         "status": "reachable",
@@ -35955,42 +36037,60 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "cast-record"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
-          "placementPolicy": "unavailable",
+          "lane": "area-transaction",
+          "targetingMode": "geometric",
+          "placementPolicy": "required",
           "visibleInputs": [
             "caster",
             "slot",
-            "targets"
+            "targets",
+            "placement",
+            "outcomes",
+            "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "spell:upsert"
-          ],
-          "mutationMode": "tracking",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
-          "required": false,
+          "required": true,
           "declared": true,
-          "ruleIds": []
+          "ruleIds": [
+            "xanathar-ossa-della-terra:pillar",
+            "xanathar-ossa-della-terra:rubble",
+            "xanathar-ossa-della-terra:cast"
+          ]
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "bones-of-the-earth-damage",
+            "bones-of-the-earth-ceiling"
+          ],
+          "panelActionIds": [
+            "bones-of-the-earth-damage",
+            "bones-of-the-earth-ceiling"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
-        "smokeRequired": false,
-        "smokeCategories": []
+        "smokeRequired": true,
+        "smokeCategories": [
+          "ACTIVE_ACTION",
+          "AREA_GEOMETRY",
+          "CAST",
+          "CLEANUP",
+          "PERSISTENCE"
+        ]
       },
       "evidence": {
         "area": [],

@@ -76,6 +76,18 @@ import {
 import { buildSpellUnifiedActivePopoverRequest } from "./spellUnifiedActiveAdapter.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { getSpellDefinition } from "./spells-srd.js";
+import {
+  getSpellStructureRule,
+  SPELL_STRUCTURE_BAR_FILL_KIND,
+  SPELL_STRUCTURE_BAR_KIND,
+  spellStructureBarFill,
+  spellStructureBarFrame,
+  spellStructureSegmentHpMax,
+  spellStructureSegmentMiddle,
+  spellStructureSegments,
+  spellStructureSlab,
+  spellStructureSlabBounds,
+} from "./spellStructureCore.js";
 import { spellOverviewGroups } from "./spellsPanelViewCore.js";
 import {
   XANATHAR_TURBINE_MAX_ELEVATION_METERS,
@@ -1021,12 +1033,15 @@ export function buildStaticSpellZoneItems({
     ...(rule.geometry?.widthAnchor === "edge" ? { widthAnchor: "edge" } : {}),
 };
   const label = String(spellName || rule.spellId || "Incantesimo").trim();
+  // CAP-STRUCTURE (spellStructureCore.js): a wall's panels are its children; the root, invisible and out of reach, only
+  // holds them, so a destroyed panel leaves a gap on the map.
+  const structure = rule.zonePolicy?.structure === true ? getSpellStructureRule(rule.spellId) : null;
   const root = buildZonePath({
     name: `Zona: ${label}`,
     commands: boundaryCommands(area.cells),
     style: resolvedStyle,
-    fillOpacity: resolvedStyle.fillOpacity,
-    strokeOpacity: 0.95,
+    fillOpacity: structure ? 0 : resolvedStyle.fillOpacity,
+    strokeOpacity: structure ? 0 : 0.95,
     strokeWidth: outlineWidth,
     metadata: {
       [AOE_AREA_META_KEY]: rootAreaMetadata,
@@ -1036,7 +1051,7 @@ export function buildStaticSpellZoneItems({
     // policies remain available to the spell/rule audit, but they must not
     // turn the OBR root into an action-controlled item.
     locked: false,
-    disableHit: false,
+    disableHit: !!structure,
   });
   const geometry = buildZonePath({
     name: `Geometria zona: ${label}`,
@@ -1046,7 +1061,7 @@ export function buildStaticSpellZoneItems({
     ],
     style: resolvedStyle,
     fillOpacity: hotBand ? Math.min(0.18, resolvedStyle.fillOpacity) : 0,
-    strokeOpacity: 0.9,
+    strokeOpacity: structure ? 0 : 0.9,
     strokeWidth: Math.max(2, outlineWidth * 0.72),
     metadata: {
       [AOE_AREA_META_KEY]: {
@@ -1070,7 +1085,126 @@ export function buildStaticSpellZoneItems({
     disableHit: true,
   });
   geometry.attachedTo = root.id;
-  return [root, geometry];
+  if (!structure) return [root, geometry];
+  const segments = spellStructureSegments(structure, preview, ruleChoice).map((segment) => buildStaticSpellChildZoneItem({
+    ruleId: structure.segmentRuleId,
+    instanceId,
+    casterId,
+    parentId: root.id,
+    parentArea: area,
+    spellName,
+    preview: segment.preview,
+    childKind: structure.segmentKind,
+    childIndex: segment.index,
+    activationId: `${instanceId}:structure`,
+    style,
+  }));
+  // Every segment starts whole: its bar full and green.
+  const hpMax = spellStructureSegmentHpMax(structure, ruleChoice);
+  const bars = segments.flatMap((segmentItem) => buildStaticSpellStructureBarItems({
+    instanceId,
+    casterId,
+    parentId: root.id,
+    spellName,
+    segmentItem,
+    hp: hpMax,
+    hpMax,
+  }));
+  return [root, geometry, ...segments, ...bars];
+}
+
+function rectangleCommands(rect) {
+  return [
+    [Command.MOVE, rect.x, rect.y],
+    [Command.LINE, rect.x + rect.width, rect.y],
+    [Command.LINE, rect.x + rect.width, rect.y + rect.height],
+    [Command.LINE, rect.x, rect.y + rect.height],
+    [Command.CLOSE],
+  ];
+}
+
+// CAP-STRUCTURE (the owner's decision of 7/11/2026): the bar under a panel or a pillar, its track and its fill
+// (spellStructureCore.js). Two child zones of their own kinds and no rule, attached to the segment: whatever takes the
+// segment off the map takes them too. `parts` rebuilds only the fill after a hit.
+export function buildStaticSpellStructureBarItems({
+  instanceId = "",
+  casterId = "",
+  parentId = "",
+  spellName = "",
+  segmentItem = null,
+  hp = 0,
+  hpMax = 1,
+  sceneEpoch = 0,
+  parts = [SPELL_STRUCTURE_BAR_KIND, SPELL_STRUCTURE_BAR_FILL_KIND],
+} = {}) {
+  const segmentMetadata = segmentItem?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+  const geometry = segmentMetadata?.geometry;
+  const structure = getSpellStructureRule(segmentMetadata?.spellId);
+  const dpi = Number(geometry?.dpi);
+  if (!segmentItem?.id || !structure || !geometry?.start || !geometry?.end || !(dpi > 0)) return [];
+  // Under what the map shows: a thin wall's slab, or the segment's cells.
+  const slab = spellStructureSlab(geometry);
+  const shown = slab
+    ? [spellStructureSlabBounds(slab)]
+    : buildArea(geometry.type, geometry.start, geometry.end, dpi, geometry.gridOrigin || geometry.start, {
+      widthSquares: geometry.widthSquares,
+      widthAnchor: geometry.widthAnchor,
+    }).cells;
+  const frame = spellStructureBarFrame(shown, spellStructureSegmentMiddle(geometry), dpi);
+  if (!frame) return [];
+  const index = Math.floor(Number(segmentMetadata.childIndex)) || 0;
+  const label = String(spellName || structure.spellId).trim();
+  const base = Number.isFinite(Number(segmentItem.zIndex)) ? Number(segmentItem.zIndex) : Date.now();
+  const metadataFor = (childKind) => ({
+    [SPELL_STATIC_ZONE_META_KEY]: spellChildZoneMetadata({
+      parentZoneId: parentId,
+      parentInstanceId: instanceId,
+      casterId,
+      spellId: structure.spellId,
+      childKind,
+      childIndex: index,
+      activationId: `${instanceId}:structure`,
+      sceneEpoch,
+    }),
+  });
+  const items = [];
+  if (parts.includes(SPELL_STRUCTURE_BAR_KIND)) {
+    items.push(buildPath()
+      .commands(rectangleCommands(frame))
+      .fillColor("#0f172a")
+      .fillOpacity(0.82)
+      .strokeColor("#ffffff")
+      .strokeOpacity(0.34)
+      .strokeWidth(Math.max(1, dpi * 0.012))
+      .position({ x: 0, y: 0 })
+      .zIndex(base + 1)
+      .attachedTo(segmentItem.id)
+      .locked(true)
+      .disableHit(true)
+      .layer("DRAWING")
+      .metadata(metadataFor(SPELL_STRUCTURE_BAR_KIND))
+      .name(`${label} · barra ${structure.noun} ${index}`)
+      .build());
+  }
+  const fill = spellStructureBarFill(frame, hp, hpMax);
+  if (fill && parts.includes(SPELL_STRUCTURE_BAR_FILL_KIND)) {
+    items.push(buildPath()
+      .commands(rectangleCommands(fill))
+      .fillColor(fill.color)
+      .fillOpacity(0.96)
+      .strokeOpacity(0)
+      .strokeWidth(0)
+      .position({ x: 0, y: 0 })
+      .zIndex(base + 2)
+      .attachedTo(segmentItem.id)
+      .locked(true)
+      .disableHit(true)
+      .layer("DRAWING")
+      .metadata(metadataFor(SPELL_STRUCTURE_BAR_FILL_KIND))
+      .name(`${label} · PF ${structure.noun} ${index}`)
+      .build());
+  }
+  return items;
 }
 
 export function buildStaticSpellZoneReorientationItems({
@@ -1244,6 +1378,24 @@ export function buildStaticSpellZoneSubzoneItem({
   });
 }
 
+// A child zone's kind in the GM's words; a panel and a pillar keep their number, as the ⚡ that damages them says it.
+const CHILD_ZONE_NAMES = Object.freeze({
+  whirlpool: "vortice",
+  fissure: "fessura",
+  portal: "portale",
+  panel: "pannello",
+  pillar: "colonna",
+  "frigid-air": "cortina gelida",
+  rubble: "macerie",
+});
+
+function childZoneDisplayName(childKind = "", childIndex = 0) {
+  const kind = String(childKind || "").trim();
+  const name = CHILD_ZONE_NAMES[kind] || kind;
+  const index = Math.floor(Number(childIndex));
+  return ["panel", "pillar"].includes(kind) && index > 0 ? `${name} ${index}` : name;
+}
+
 export function buildStaticSpellChildZoneItem({
   ruleId = "",
   instanceId = "",
@@ -1281,14 +1433,20 @@ export function buildStaticSpellChildZoneItem({
   ) {
     throw new Error("static-zone-child-preview-invalid");
   }
+  // A thin wall's segment (CAP-STRUCTURE, D1 of 7/11/2026): its cells on one side of its line, its drawing a slab.
+  const thinWall = {
+    ...(preview?.widthAnchor === "edge" ? { widthAnchor: "edge" } : {}),
+    ...(Number(preview?.thicknessMeters) > 0 ? { thicknessMeters: Number(preview.thicknessMeters) } : {}),
+  };
   let area = buildArea(
     type,
     start,
     end,
     dpi,
     gridOrigin,
-    { widthSquares: preview?.widthSquares },
+    { widthSquares: preview?.widthSquares, widthAnchor: thinWall.widthAnchor },
   );
+  const slab = spellStructureSlab({ type, start, end, dpi, ...thinWall });
   if (String(childKind || "").trim() === "fissure") {
     area = clipChildZoneAreaToParent({
       parentArea: preview?.parentClip || parentArea,
@@ -1331,6 +1489,7 @@ export function buildStaticSpellChildZoneItem({
       ...(Number(preview?.widthSquares) > 0
         ? { widthSquares: Math.max(1, Math.round(Number(preview.widthSquares))) }
         : {}),
+      ...thinWall,
       ...(Number.isInteger(Number(depthRoll))
         ? {
           depthRoll: Math.max(1, Math.floor(Number(depthRoll))),
@@ -1341,13 +1500,16 @@ export function buildStaticSpellChildZoneItem({
     style: resolvedStyle,
     triggers: triggers || rule.zonePolicy?.triggers || [],
   });
+  // A wall's panel is solid ice or stone; the sheet of frigid air left in its place, a pale veil.
+  const slabOpacity = String(childKind || "").trim() === "frigid-air" ? 0.3 : 0.78;
   return buildZonePath({
-    name: `${label} · ${childKind}`,
-    commands: boundaryCommands(area.cells),
+    // The name the GM reads in the scene's list and in the zone's notices: "Muro di ghiaccio · cortina gelida".
+    name: `${label} · ${childZoneDisplayName(childKind, childIndex)}`,
+    commands: slab ? rectangleCommandsFromPoints(slab) : boundaryCommands(area.cells),
     style: resolvedStyle,
-    fillOpacity: Math.min(0.32, Math.max(0.08, resolvedStyle.fillOpacity * 1.2)),
+    fillOpacity: slab ? slabOpacity : Math.min(0.32, Math.max(0.08, resolvedStyle.fillOpacity * 1.2)),
     strokeOpacity: 0.9,
-    strokeWidth: outlineWidth,
+    strokeWidth: slab ? Math.max(1, outlineWidth * 0.5) : outlineWidth,
     metadata: {
       [AOE_AREA_META_KEY]: {
         version: 2,
@@ -1367,12 +1529,22 @@ export function buildStaticSpellChildZoneItem({
         ...(Number(preview?.widthSquares) > 0
           ? { widthSquares: Math.max(1, Math.round(Number(preview.widthSquares))) }
           : {}),
+        // The engine rebuilds the cells from here (translatedZoneArea): the same side of the line.
+        ...(thinWall.widthAnchor ? { widthAnchor: thinWall.widthAnchor } : {}),
       },
       [SPELL_STATIC_ZONE_META_KEY]: metadata,
     },
     locked: true,
     disableHit: true,
   });
+}
+
+function rectangleCommandsFromPoints(points) {
+  return [
+    [Command.MOVE, points[0].x, points[0].y],
+    ...points.slice(1).map((entry) => [Command.LINE, entry.x, entry.y]),
+    [Command.CLOSE],
+  ];
 }
 
 export async function getStaticSpellZoneItems({

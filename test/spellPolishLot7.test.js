@@ -67,10 +67,13 @@ test("Antipathy/Sympathy asks the save of whoever ends the turn far from the tar
 });
 
 test("A wall of stone and a faithful hound ask for no target: the pill stays with the caster", () => {
-  for (const [spellId, slotLevel] of [["wall-of-stone", 5], ["faithful-hound", 4]]) {
-    assert.equal(getSpellDefinition(spellId).targetMode, "self", spellId);
-    assert.equal(contractOf(spellId, slotLevel).presentation.inputs.targets.required, false, spellId);
-  }
+  assert.equal(getSpellDefinition("faithful-hound").targetMode, "self");
+  assert.equal(contractOf("faithful-hound", 4).presentation.inputs.targets.required, false);
+  // CAP-STRUCTURE, lotto S1: the wall is a zone drawn on the map, its panels under the pill of the caster; no save at
+  // the cast (only an enclosed creature saves, at the table).
+  const wall = contractOf("wall-of-stone", 5);
+  assert.equal(wall.presentation.placement.ruleId, "wall-of-stone:cast");
+  assert.equal(wall.presentation.inputs.outcomes.required, false);
 });
 
 test("Dragon's Breath touches a creature: no cone at the cast, the pill on who will breathe", () => {

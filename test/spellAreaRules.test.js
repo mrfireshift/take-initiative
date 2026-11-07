@@ -897,26 +897,34 @@ test("Sfera Acquea, Spirito Guaritore, Crescita di Spine e Muro di Ghiaccio trac
   const wallOfIce = getSpellAreaRuleById("wall-of-ice:cast");
   assert.equal(wallOfIce.geometry.shape, "line");
   assert.equal(wallOfIce.geometry.size.value, 30);
-  assert.equal(wallOfIce.geometry.width.value, 1.5);
-  assert.deepEqual(
-    wallOfIce.zonePolicy.triggers.map((trigger) => trigger.event),
-    ["enter", "move", "leave"],
-  );
-  assert.ok(wallOfIce.zonePolicy.triggers.every((trigger) =>
-    trigger.damage.dice === "5d6"
-    && trigger.damage.onSave === "half"
-    && trigger.persistsAfterExit === true
-  ));
+  // CAP-STRUCTURE (D1 of 7/11/2026): a foot thick, on the grid lines, its cells on one side of it as Wall of Fire's.
+  assert.equal(wallOfIce.geometry.width.value, 0.3);
+  assert.equal(wallOfIce.geometry.widthAnchor, "edge");
+  assert.equal(wallOfIce.placement.snapOrigin, "vertex");
+  // CAP-STRUCTURE (D6): the intact wall asks nothing; the frigid air of a destroyed panel asks the save, of whoever moves
+  // through it (D2 of 7/11/2026), as Wall of Fire's damage on crossing.
+  assert.deepEqual(wallOfIce.zonePolicy.triggers, []);
+  assert.equal(wallOfIce.zonePolicy.structure, true);
+  const frigidAir = getSpellAreaRuleById("wall-of-ice:frigid-air");
+  const [crossing] = frigidAir.zonePolicy.triggers;
+  assert.equal(frigidAir.zonePolicy.triggers.length, 1);
+  assert.deepEqual([crossing.event, crossing.requiresCrossing, crossing.frequency, crossing.ability],
+    ["enter", true, "once-per-turn", "con"]);
+  assert.equal(crossing.damage.dice, "5d6");
+  assert.equal(crossing.damage.onSave, "half");
+  assert.equal(crossing.persistsAfterExit, true);
 });
 
 test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () => {
-  // 93 since Dragon's Breath has no cone at the cast (polish, lot 7): the creature touched breathes later.
-  assert.equal(AREA_SAVE_SPELL_IDS.length, 93);
+  // 93 since Dragon's Breath has no cone at the cast (polish, lot 7): the creature touched breathes later. 94 with Bones
+  // of the Earth's pillars (CAP-STRUCTURE, lotto S3).
+  assert.equal(AREA_SAVE_SPELL_IDS.length, 94);
   // 37 with Pass without Trace's aura (lotto L1); 40 with Wall of Sand, Wall of Force and Forbiddance (lotto L3); 42 with
   // Plant Growth and Wall of Water (CAP-TERRAIN); 42 and 136 with Far Step's destination (CAP-TELEPORT, lotto T1); 43 and
-  // 137 with Arcane Gate's first portal (lotto T4).
-  assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 43);
-  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 137);
+  // 137 with Arcane Gate's first portal (lotto T4); 44 and 138 with Wall of Stone's panels (CAP-STRUCTURE, lotto S1); 139
+  // with Bones of the Earth (lotto S3).
+  assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 44);
+  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 139);
   // 17 with the saves with damage of lotto L2; 152 in the popover with the zones of lotto L3; 21 and 156 with
   // Disintegrate, Finger of Death, Power Word Kill and Feeblemind (CAP-HP-BRANCH); 25 and 160 with Heal, Power
   // Word Heal, Lesser Restoration and Dispel Magic (CAP-CLEANSE); 26 and 161 with Magic Missile; 27 and 162 with
@@ -924,8 +932,9 @@ test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () =>
   // 54 and 191 with the 21 spells of decision D6 of the polish; 58 and 195 with Frostbite, Earthen Grasp, Witch Bolt and
   // Ray of Enfeeblement (lot 3).
   assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 59);
-  // 195 with Far Step (CAP-TELEPORT, lotto T1), 196 with Arcane Gate (lotto T4).
-  assert.equal(AREA_POPOVER_SPELL_IDS.length, 196);
+  // 195 with Far Step (CAP-TELEPORT, lotto T1), 196 with Arcane Gate (lotto T4), 197 with Wall of Stone (CAP-STRUCTURE),
+  // 198 with Bones of the Earth (lotto S3).
+  assert.equal(AREA_POPOVER_SPELL_IDS.length, 198);
   assert.equal(AREA_SAVE_SPELL_IDS.includes("phb2014-fame-di-hadar"), false);
   assert.equal(
     AREA_PLACEMENT_ONLY_SPELL_IDS.includes("phb2014-fame-di-hadar"),

@@ -48,6 +48,7 @@ import {
   delayedBlastFireballSummaryParts,
 } from "./delayedBlastFireballRules.js";
 import { prismaticWallSummaryParts } from "./prismaticWallRules.js";
+import { getSpellStructureRule, spellStructureSummaryParts } from "./spellStructureCore.js";
 import { blinkSummaryParts } from "./blinkRules.js";
 import { telekinesisSummaryParts } from "./telekinesisRules.js";
 
@@ -547,8 +548,8 @@ const TARGET_MODE_OVERRIDES = Object.freeze({
   "phb2014-allucinazione-di-forza": "selected",
   "xanathar-immolazione": "selected",
   "etherealness": "selected",
-  // Nothing to choose: a wall and a phantom watchdog stand where the caster puts them, the pill stays with the caster.
-  "wall-of-stone": "self",
+  // Nothing to choose: a phantom watchdog stands where the caster puts it, the pill stays with the caster. Wall of Stone
+  // draws its panels since CAP-STRUCTURE (lotto S1).
   "faithful-hound": "self",
   // The owner's decision, 5/11: not a spell for a fight, only its pill and its 10 days. A mile's square would be 1.1 million cells.
   "mirage-arcane": "self",
@@ -2792,6 +2793,11 @@ export function getSpellSummaryParts(value, choiceValue = "", castContext = {}) 
   }
   if (spell?.id === "prismatic-wall") {
     return prismaticWallSummaryParts(castContext);
+  }
+  // CAP-STRUCTURE: how many panels or pillars still stand ("9/10 pannelli").
+  const structure = getSpellStructureRule(spell?.id);
+  if (structure && castContext?.structure) {
+    return spellStructureSummaryParts(structure, castContext.structure);
   }
   const definition = SPELL_SUMMARY_DEFINITIONS[spell?.id];
   if (!definition) return [];

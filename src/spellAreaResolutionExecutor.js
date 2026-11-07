@@ -135,6 +135,7 @@ import {
   spellTeleportDestinationForSubject,
   validateSpellTeleportPassenger,
 } from "./spellTeleportCore.js";
+import { getSpellStructureRule, spellStructureInitialState, spellStructureSegments } from "./spellStructureCore.js";
 import { expandAnimatedObjectComposition } from "./animatedObjectsCore.js";
 import { EMBERS_ZONE_VISUAL_KEY, zoneVisualMetadata } from "./embersVisualRehydrationCore.js";
 import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
@@ -850,7 +851,17 @@ function planAreaDeathSaves(entries) {
   return { operations, instantDeathIds };
 }
 
+// CAP-STRUCTURE: each panel's hit points on the caster's pill, counted from the line drawn as the zone's children are
+// (spellStructureCore.js, spellStaticZone.js).
+function structureCastState({ spell, command, placement }) {
+  const structure = getSpellStructureRule(spell?.id);
+  if (!structure || command?.source?.kind !== "cast" || !placement?.preview) return null;
+  const choice = text(placement?.ruleChoice || command?.spell?.choiceValue);
+  return spellStructureInitialState(structure, spellStructureSegments(structure, placement.preview, choice), choice);
+}
+
 function castContextFor({ spell, resolution, command, mobileAura, boardToken, placement, caster }) {
+  const structureState = structureCastState({ spell, command, placement });
   // CAP-RESOURCE: the counter its zone triggers consume, on the owner instance (zoneResourceCore.js).
   if (ZONE_RESOURCE_SPENDS[text(spell?.id)] && command?.source?.kind === "cast") {
     return initialSpellUses(spell, {
@@ -934,6 +945,7 @@ function castContextFor({ spell, resolution, command, mobileAura, boardToken, pl
         ? clone(command.spell.castContext)
         : {}),
       spellSaveDC: monsterActionSaveDC,
+      ...(structureState ? { structure: structureState } : {}),
     };
   }
   // A reminder that grows with the slot reads it from the pill (effectSaveReminderCore.js): Tasha's Caustic Brew.
@@ -956,6 +968,7 @@ function castContextFor({ spell, resolution, command, mobileAura, boardToken, pl
     ...(resolution?.targetContexts && Object.keys(resolution.targetContexts).length
       ? { targetContexts: resolution.targetContexts }
       : {}),
+    ...(structureState ? { structure: structureState } : {}),
   };
   // CAP-RESOURCE on an area spell that leaves no zone (Melf's Minute Meteors): the cast sets its counter, which the
   // caster's pill keeps (casterHoldsAreaCounter below).

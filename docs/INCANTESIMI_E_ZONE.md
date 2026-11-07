@@ -207,6 +207,29 @@ resta un'area attorno al caster: il teletrasporto è un passo del lancio
 (regola con trigger `teleport-step`) e lo spostamento del caster e del passeggero nella
 stessa mutazione coordinata del tuono.
 
+CAP-STRUCTURE (7 novembre). Muro di pietra, Muro di ghiaccio e Ossa della Terra sono zone la
+cui radice non si vede e non si tocca (`zonePolicy.structure`): i pezzi sulla mappa sono zone
+figlie (`childKind` `panel` o `pillar`, con `childIndex`) costruite al lancio da
+`buildStaticSpellZoneItems`. I loro PF stanno in `castContext.structure` della pill del
+caster (`src/spellStructureCore.js`), mai in `meta.hp`. Il ⚡ `resolutionKind:
+"structure-segment"` (operazione `damage` o `collapse`) aggiorna la pill con `spell:upsert`
+e, a 0 PF, toglie il pezzo e aggiunge il suo residuo (`removeChildItemIds` nel side effect
+`static-zone:child-zones`): la cortina gelida con i trigger del vecchio muro, o le macerie, un
+cerchio di 3 m senza trigger. Dal 7 novembre i muri sono sottili (D1–D6): `snapOrigin: "vertex"` e `widthAnchor: "edge"` sulla
+regola e sui pezzi, che portano anche `thicknessMeters` nella loro geometria. Un pezzo sottile si
+disegna con `spellStructureSlab`, non con le caselle; le caselle restano la fascia su un lato e
+servono a trigger e bersagli. La variante «uno per uno» dichiara `multiArea` (con `adjacency:
+"touch"`, solo per le linee di una struttura) nella sua `placement`; la cupola del ghiaccio è una
+variante con `zonePolicy.structure: false`, quindi una zona normale, visibile e senza pezzi. La
+cortina gelida ha un solo trigger, `wall-of-ice-frigid-sheet-save-on-crossing`, con
+`requiresCrossing`. Le macerie sono solo disegnate: la membership, e quindi il costo
+di movimento, si calcola sulla radice di una zona, non sulle figlie. Le zone figlie hanno ora un
+nome italiano (`childZoneDisplayName`), che leggono anche gli avvisi delle zone. Sotto ogni pezzo
+una barra PF: due figli `bar` e `bar-fill` con `attachedTo` sul pezzo e senza regola né area, quindi
+membership e trigger li saltano; `validateChildZoneContainment` li lascia passare prima di guardare
+l'area. Ogni pezzo e ogni residuo ha il suo `gridOrigin`, l'angolo di griglia più vicino al suo
+inizio: `buildArea` cerca le caselle solo attorno all'angolo.
+
 CAP-MULTIAREA è la regola generale delle aree multiple di un lancio: la regola
 d'area dichiara `placement.multiArea` (`count`, `minCount`, `adjacency: "side"`,
 `noun`), che `validateSpellAreaRule` accetta solo per cerchi e quadrati su punti
@@ -217,7 +240,10 @@ toglie con un clic sul numero e alla conferma restituisce `areas` e i bersagli
 uniti, ciascuno una volta; il progresso porta `multiArea` e il pannello lo mostra
 nella riga di stato. Esecutore e scrittura dei PF sono quelli di un'area sola. Le
 esplosioni di Auril (`context.areaBatch` delle Azioni Boss) sono un caso a sé e non
-passano di qui.
+passano di qui. Una zona può dichiarare `multiArea` solo se ogni sagoma diventa un pezzo di
+una struttura (Ossa della Terra), e il numero può crescere con lo slot
+(`additionalPerSlotAbove`, `baseSlot`): lo strumento lo legge dallo slot che il pannello
+manda nel contesto. Le `areas` arrivano fino all'esecutore nell'istantanea del comando.
 
 CAP-REACTION (lotto 1) mette difese vere nelle pill (`mechanics.damageDefenses`)
 e due marcatori letti dalle console attacchi e Boss: `mechanics.retaliation`

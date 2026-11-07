@@ -731,7 +731,8 @@ async function beginSpellPlacement(data) {
         }
         : null,
       areaBatch: normalizedAreaBatch(data?.context, rule),
-      multiArea: createSpellMultiAreaRuntime(rule),
+      // A count that grows with the slot (Bones of the Earth) reads the slot the panel sends.
+      multiArea: createSpellMultiAreaRuntime(rule, { slotLevel: data?.context?.slotLevel }),
       presetLine: normalizedPresetLine(data?.context, rule),
       lineStart: normalizedLineStart(data?.context, rule),
       previewInteractions: [],

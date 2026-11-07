@@ -12,7 +12,7 @@ li aggiorna con il lavoro di ottobre e risponde a due domande:
 
 La seconda è risolta (sezione 2). La prima è un piano a lotti: i lotti L1–L4
 sono fatti (sezioni 5.1 e 5.2), L5+ procede una capacità per volta (sezione 5.3,
-CAP-LINK, CAP-HP-BRANCH, CAP-CLEANSE, CAP-RESOURCE, CAP-REACTION, CAP-TEMP, CAP-STABILIZE, CAP-TERRAIN, CAP-MULTIAREA e CAP-TELEPORT fatte, con tre capacità singole). Chi lavora a
+CAP-LINK, CAP-HP-BRANCH, CAP-CLEANSE, CAP-RESOURCE, CAP-REACTION, CAP-TEMP, CAP-STABILIZE, CAP-TERRAIN, CAP-MULTIAREA, CAP-TELEPORT e CAP-STRUCTURE fatte, con tre capacità singole). Chi lavora a
 un lotto parte dalle note pratiche della sezione 8.
 
 Il perimetro è quello di sempre: un **tracker assistito**. Dadi, linea di
@@ -24,19 +24,19 @@ conferma.
 
 | Categoria | Incantesimi | Che cosa fa oggi il plugin |
 | --- | ---: | --- |
-| Automatizzati | 299 | Lancio e risoluzione assistiti: pannello, console ad area o console attacchi. |
+| Automatizzati | 302 | Lancio e risoluzione assistiti: pannello, console ad area o console attacchi. |
 | Tracciati, nessuna automazione utile | 110 | Pill con durata e concentrazione; informazioni, evocazioni e ambiente al tavolo. |
 | Solo registrazione, nessuna automazione utile | 35 | Istantanei di utilità: lo slot e il registro di combattimento. |
 | **Pronti: bastano i dati** | **0** | Si lanciano e registrano; l'automazione richiede soltanto dati e test. |
-| **Dopo una capacità condivisa** | **19** | Si lanciano e registrano; serve prima una capacità del motore. |
+| **Dopo una capacità condivisa** | **16** | Si lanciano e registrano; serve prima una capacità del motore. |
 | Su misura | 12 | Si lanciano e registrano; lo stato è troppo specifico per un'automazione generica. |
 | Da verificare | 2 | Testo o perimetro delle regole mancanti. |
 | **Totale** | **477** | **Tutti lanciabili dal libro, dalle azioni rapide e dal pannello, con il loro slot.** |
 
-Il lavoro di automazione residuo è di **31 incantesimi** (19 + 12) più i 2 da
+Il lavoro di automazione residuo è di **28 incantesimi** (16 + 12) più i 2 da
 verificare, contro i 152 di settembre: nel frattempo la console attacchi ha
 chiuso 17 trucchetti, Prigione Mentale è stata completata, i lotti L1–L4
-hanno chiuso altri 50 incantesimi, CAP-LINK altri 8, CAP-HP-BRANCH altri 5, CAP-CLEANSE altri 4, CAP-RESOURCE altri 5, CAP-REACTION altri 6, CAP-TEMP altri 5, CAP-STABILIZE altri 6, tre capacità singole altri 3, CAP-TERRAIN altri 4, CAP-MULTIAREA altri 2 e CAP-TELEPORT altri 4.
+hanno chiuso altri 50 incantesimi, CAP-LINK altri 8, CAP-HP-BRANCH altri 5, CAP-CLEANSE altri 4, CAP-RESOURCE altri 5, CAP-REACTION altri 6, CAP-TEMP altri 5, CAP-STABILIZE altri 6, tre capacità singole altri 3, CAP-TERRAIN altri 4, CAP-MULTIAREA altri 2, CAP-TELEPORT altri 4 e CAP-STRUCTURE altri 3.
 
 Ordine consigliato, dal più sicuro al più costoso:
 
@@ -46,7 +46,7 @@ Ordine consigliato, dal più sicuro al più costoso:
 | L2 ✓ | 14 | Cure, TS con danno, condizioni che finiscono al danno, TS ripetuti (fatto il 22 ottobre) | Sì, dal comando ad area esistente |
 | L3 ✓ | 12 | Zone e aree persistenti, due azioni ad area ripetibili (fatto il 22 ottobre) | Sì, dai percorsi di zona e azioni attive esistenti |
 | L4 ✓ | 7 | Incantesimi d'attacco nella console attacchi, con il loro slot (fatto il 22 ottobre) | Sì, dalla console attacchi; Tocco del vampiro cura il caster |
-| L5+ | 19 | Una capacità condivisa per volta (sezione 5.3); CAP-LINK fatta il 22 ottobre, CAP-HP-BRANCH e CAP-CLEANSE il 23, CAP-RESOURCE e il lotto 1 di CAP-REACTION il 28, il lotto 2 il 31, CAP-TEMP tra il 31 ottobre e il 3 novembre, CAP-STABILIZE, tre capacità singole e CAP-TERRAIN il 3 novembre, CAP-MULTIAREA, Minuscole meteore e CAP-TELEPORT il 6 novembre | Spesso |
+| L5+ | 16 | Una capacità condivisa per volta (sezione 5.3); CAP-LINK fatta il 22 ottobre, CAP-HP-BRANCH e CAP-CLEANSE il 23, CAP-RESOURCE e il lotto 1 di CAP-REACTION il 28, il lotto 2 il 31, CAP-TEMP tra il 31 ottobre e il 3 novembre, CAP-STABILIZE, tre capacità singole e CAP-TERRAIN il 3 novembre, CAP-MULTIAREA, Minuscole meteore e CAP-TELEPORT il 6 novembre, CAP-STRUCTURE il 7 | Spesso |
 
 ## 2. Registrare il lancio di qualunque incantesimo (fatto)
 
@@ -313,7 +313,7 @@ Una capacità per volta, con i suoi test di contratto, poi la famiglia.
 | CAP-TELEPORT ✓ | 4 (4) | Teletrasporto attivo o composito: Passo del tuono, Passo remoto, Portale arcano, Colpo del Vento d'Acciaio (in console), tutti fatti | Alto |
 | CAP-ORIGIN | 4 (3) | Azione da un'origine diversa dal caster: Sfera congelante, Soffio del drago, Rampicante afferrante, Segugio fedele | Medio |
 | CAP-MULTIAREA ✓ | 2 (2) | Più aree in un lancio, ogni creatura una volta: Tempesta di fuoco, Sciame di meteore, tutti fatti; Minuscole meteore non ne ha bisogno (ogni meteora è un'esplosione a sé) ed è in CAP-RESOURCE | Medio |
-| CAP-STRUCTURE | 3 (3) | Segmenti con PF e crollo: Muro di ghiaccio, Muro di pietra, Ossa della terra | Alto |
+| CAP-STRUCTURE ✓ | 3 (3) | Segmenti con PF e crollo: Muro di ghiaccio, Muro di pietra, Ossa della terra, tutti fatti | Alto |
 | CAP-SEQUENCE | 2 (2) | Effetto che cambia a ogni round: Tempesta di vendetta, Tsunami | Medio |
 | Singole | 1 ciascuna | CAP-MODE ✓ (Alterare sé stesso), CAP-DURATION ✓ (Scagliare maledizione), CAP-REPEAT-HEAL ✓ (Rigenerazione), CAP-SUPPRESSION (Calmare emozioni), CAP-CALENDAR (Costrizione), CAP-CARRIAGE (Sfera acquea), CAP-RELATION (Trasferimento di vita), CAP-ALLOCATION (Guarigione di massa) | Vario |
 
@@ -685,6 +685,66 @@ lato attivo e la rotazione dei portali, il fallimento di Portale arcano su uno s
 
 Test: `test/capTeleport.test.js`.
 
+**CAP-STRUCTURE, fatta il 7 novembre.** Studio e decisioni D1–D8 del 6 novembre, in tre
+lotti. Pannelli e colonne sono **zone figlie** dell'incantesimo (D1), disegnate sotto una
+radice invisibile e intoccabile che le tiene insieme: un segmento distrutto lascia un buco
+sulla mappa. I loro PF stanno nella pill del caster (`castContext.structure`, regole in
+`src/spellStructureCore.js`), mai in `meta.hp`, quindi niente barre HP e niente bersagli in
+più nelle liste: la pill dice quanti ne restano in piedi («9/10 pannelli»). Un ⚡
+`resolutionKind: "structure-segment"` sceglie il segmento con un clic sulla mappa, applica
+le difese degli oggetti (D4: immuni a veleno e psichici, il ghiaccio vulnerabile al fuoco;
+la CA si legge, il tiro per colpire resta al tavolo) e a 0 PF toglie il segmento e mette al
+suo posto il residuo, in una sola voce della Cronologia che Annulla rimette.
+
+- **Muro di pietra (S1).** Una linea dritta di 30 m entro 36 m, divisa in tratti (D2; dal 7 novembre anche pannello per pannello):
+  pannelli da 3 m spessi 15 cm con 180 PF, oppure da 6 m spessi 7,5 cm con 90 PF e la linea
+  di 60 m (D3; dal 7 novembre sempre dieci pannelli, non più «fino a»); CA 15, concentrazione. ⚡ «Danneggia pannello» e ⚡ «Fai crollare un
+  pannello», a mano, per i pannelli collegati che il GM decide di far cadere (D5). Nessun TS
+  al lancio: solo una creatura racchiusa lo fa, al tavolo.
+- **Muro di ghiaccio (S2).** Stessa linea, dieci pannelli da 3 m con 30 PF e CA 12; il TS
+  Destrezza del lancio resta com'era. La cortina gelida non scatta più su tutto il muro: compare
+  come zona figlia solo dove un pannello è distrutto, con il TS Costituzione e i 5d6 freddo a chi
+  la attraversa (D6).
+- **Ossa della Terra (S3).** Il posizionamento multiplo di CAP-MULTIAREA vale ora anche per una
+  zona, ma solo se ogni sagoma diventa un segmento di una struttura; il numero cresce con lo
+  slot (`additionalPerSlotAbove`, `baseSlot`): sei colonne di una casella entro 36 m, due in
+  più per ogni slot sopra il 6°. Ogni colonna ha 30 PF e CA 5, la pill non scade (le colonne
+  restano finché non vengono distrutte). Chi è sotto una colonna fa il TS Destrezza e, se
+  fallisce, prende «Sulla colonna», legata alla pill. Il ⚡ «Soffitto», parte del lancio, dà a
+  chi è sulla colonna 6d6 contundenti e Trattenuto, con la prova di Forza o Destrezza per
+  liberarsi; il ⚡ «Danneggia colonna» a 0 PF lascia le macerie, un cerchio di 3 m (D8).
+
+Rilettura del testo del Muro di ghiaccio con l'utente, 7 novembre (D1–D6):
+- **D1.** I muri sono sottili sulle linee della griglia, come Muro di fuoco: partono da un angolo
+  (`snapOrigin: "vertex"`) e le loro caselle sono quelle su un lato (`widthAnchor: "edge"`).
+  Il ghiaccio è spesso 30 cm, la pietra 15 cm o 7,5 cm. Sulla mappa ogni pannello è una lastra
+  (`spellStructureSlab`), non una fila di caselle. Il TS del lancio va a chi sta in quelle caselle.
+- **D2.** La cortina gelida è la lastra del pannello distrutto, con il TS di chi la attraversa (un
+  solo trigger `requiresCrossing`, una volta per turno), come i danni del Muro di fuoco.
+- **D3.** Due modi di posa: in fila, o pannello per pannello (CAP-MULTIAREA con linee, adiacenza
+  `touch`: ognuno deve toccare un altro).
+- **D4.** Cupola o sfera di 3 m come terza forma del ghiaccio: un anello di una casella sul lato
+  interno, con il TS al lancio e senza pannelli; i PF delle sezioni al tavolo.
+- **D5.** Il Muro di pietra segue le stesse regole, con quattro varianti (3 m o 6 m, in fila o
+  uno per uno).
+- **D6.** Restano al tavolo i pannelli impilati in altezza e i muri orizzontali.
+
+Sotto ogni pezzo una barra PF larga una casella, vista da tutti e senza numeri (decisione del 7
+novembre): due figli `bar` e `bar-fill` senza regola, legati al pezzo, che lancio, ⚡, Termina e
+Annulla portano con sé. Ogni pezzo ha il suo angolo di griglia (`gridCornerNear`): con quello del
+lancio i pannelli oltre il terzo non trovavano caselle e sparivano dalla mappa (trovato in stanza
+il 7 novembre).
+
+Le zone figlie si chiamano ora in italiano anche nei promemoria: «Muro di ghiaccio · cortina
+gelida», e non più con il tipo inglese; lo stesso per vortice, fessura e portale.
+
+Non automatizzati: il costo del terreno difficile delle macerie (sono disegnate, ma il costo di
+movimento viene dalla membership della radice di una zona, non dalle sue figlie), l'altezza delle
+colonne e l'elevazione dei token, i pannelli impilati o ad angolo, cupola e sfera del Muro di
+ghiaccio, le creature racchiuse, la permanenza del Muro di pietra dopo 10 minuti (D7).
+
+Test: `test/capStructure.test.js`.
+
 L'ordine consigliato resta quello dell'audit (LINK, HP-BRANCH, CLEANSE,
 RESOURCE), con CAP-ATTACK sostituita dalla console attacchi (L4). Le capacità
 che toccano gli HP (HP-BRANCH, REACTION, TEMP, MAXHP, STABILIZE) vanno
@@ -879,7 +939,7 @@ lotto. Gli incantesimi senza lavoro residuo sono elencati per livello.
 
 Nessuno: i lotti L1–L3 li hanno chiusi tutti il 22 ottobre.
 
-### Dopo una capacità condivisa (19)
+### Dopo una capacità condivisa (16)
 
 Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi la famiglia si completa con i dati.
 
@@ -894,12 +954,9 @@ Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi l
 | Sfera Acquea (`xanathar-sfera-acquea`) | 4° | CAP-CARRIAGE: creature trasportate ed espulse dalla zona. | L5+ |
 | Costrizione (`geas`) | 5° | CAP-CALENDAR: limiti per giorno o riposo. | L5+ |
 | Dissolvi il bene e il male (`dispel-evil-and-good`) | 5° | CAP-CLEANSE: scegliere un effetto attivo e terminarlo. | L5+ |
-| Muro di pietra (`wall-of-stone`) | 5° | CAP-STRUCTURE: segmenti con PF, distruzione e residui. | L5+ |
 | Ristorare superiore (`greater-restoration`) | 5° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
 | Banchetto degli eroi (`heroes-feast`) | 6° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
 | Ferire (`harm`) | 6° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
-| Muro di ghiaccio (`wall-of-ice`) | 6° | CAP-STRUCTURE: segmenti con PF, distruzione e residui. | L5+ |
-| Ossa della Terra (`xanathar-ossa-della-terra`) | 6° | CAP-STRUCTURE: segmenti con PF, distruzione e residui. | L5+ |
 | Sfera congelante (`freezing-sphere`) | 6° | CAP-ORIGIN: globo conservato e detonazione differita. | L5+ |
 | Tsunami (`phb2014-tsunami`) | 8° | CAP-SEQUENCE: effetto che cambia a ogni round. | L5+ |
 | Guarigione di massa (`mass-heal`) | 9° | CAP-ALLOCATION + CAP-CLEANSE: 700 PF da ripartire. | L5+ |
@@ -933,7 +990,7 @@ Mancano testo o perimetro delle regole.
 | Manto del Crociato (`legacy-crusaders-mantle`) | 3° | Regole da verificare prima di decidere. | — |
 | Imprigionare (`imprisonment`) | 9° | Regole da verificare prima di decidere. | — |
 
-### Automatizzati (299)
+### Automatizzati (302)
 
 Lancio e risoluzione assistiti dal pannello, dalla console ad area o dalla console attacchi.
 
@@ -942,8 +999,8 @@ Lancio e risoluzione assistiti dal pannello, dalla console ad area o dalla conso
 - **2° livello**: Aculeo Mentale, Allucinazione di Forza, Alterare sé stesso, Arma magica, Arma spirituale, Bagliore lunare, Blocca persone, Caratteristica potenziata, Cecità/sordità, Cordone di Frecce, Corona di Follia, Crescita di spine, Diavoletto di Polvere, Estasiare, Folata di vento, Frantumare, Freccia acida, Immagine speculare, Ingrandire/ridurre, Invisibilità, Levitazione, Movimenti del ragno, Nube di Pugnali, Oscurità, Passare senza tracce, Passo velato, Pelle coriacea, Percezione delle Bestie (R), Pirotecnica, Preghiera di guarigione, Protezione dai veleni, Punizione Marchiante, Raggio di affaticamento, Raggio rovente, Ragnatela, Riscaldare il metallo, Ristorare inferiore, Sciame di Palle di Neve di Snilloc, Scudiscio Mentale di Tasha, Sfera infuocata, Sfocatura, Silenzio (R), Spirito Guaritore, Stretta della Terra di Maximilian, Suggestione, Vampa di Aganazzar, Vento di Interdizione, Vincolo della Terra, Vincolo di interdizione, Zona di verità.
 - **3° livello**: Arma Elementale, Aura di Vitalità, Cerchio magico, Crescita vegetale, Dissolvi magie, Eruzione Terrestre, Evoca Raffica, Fame di Hadar, Faro di speranza, Forma gassosa, Fortezza della Mente, Frecce Infuocate, Freccia Folgorante, Fulmine, Guardiani spirituali, Intermittenza, Invocare il fulmine, Lentezza, Luce diurna, Minuscole Meteore di Melf, Morte Apparente (R), Muro d'Acqua, Muro di Sabbia, Muro di vento, Nemici in Abbondanza, Nube maleodorante, Onda di Marea, Palla di fuoco, Parola guaritrice di massa, Passo del Tuono, Paura, Protezione dall'energia, Punizione Accecante, Rinascita, Scagliare maledizione, Sonnellino, Sudario Spirituale, Tempesta di nevischio, Tocco del vampiro, Trama ipnotica, Velocità, Volare.
 - **4° livello**: Allucinazione mortale, Anatema Elementale, Aura di Purezza, Aura di Vita, Charme sui Mostri, Compulsione, Confusione, Controllare acqua, Dominare bestie, Esilio, Fulgore Nauseante, Guardiano della fede, Guardiano della Natura, Inaridire, Interdizione alla morte, Invisibilità superiore, Libertà di movimento, Muro di fuoco, Ombra di Moil, Pelle di pietra, Porta dimensionale, Punizione Demoralizzante, Scudo di fuoco, Sfera al Vetriolo, Sfera della Tempesta, Sfera elastica, Tempesta di ghiaccio, Tentacoli neri.
-- **5° livello**: Abilità Potenziata, Alba, Animare oggetti, Arma Sacra, Blocca mostri, Cerchio di Potere, Collera della Natura, Colpo del Vento d'Acciaio, Colpo infuocato, Cono di freddo, Contagio, Controllare Venti, Cura ferite di massa, Debilitazione, Dominare persona, Evoca Pioggia di Armi, Flusso di Energia Negativa, Guscio anti-vita, Immolazione, Maelstrom, Mano arcana, Muro di forza, Muro di Luce, Nube mortale, Onda Distruttiva, Passo Remoto, Piaga degli insetti, Punizione Esiliante, Reincarnazione, Rianimare morti, Risveglio, Santificare, Scossa Sinaptica, Telecinesi, Trasmutare Roccia.
-- **6° livello**: Abito Ultraterreno di Tasha, Bagliore solare, Barriera di lame, Camminare nel vento, Carne in pietra, Catena di fulmini, Cerchio di morte, Danza irresistibile, Disintegrazione, Globo di invulnerabilità, Guarigione, Interdizione Primordiale, Investitura del Ghiaccio, Investitura del Vento, Investitura della Fiamma, Investitura della Pietra, Muro di spine, Portale Arcano, Prigione Mentale, Proibizione (R), Sguardo penetrante, Suggestione di massa, Trasformazione di Tenser.
+- **5° livello**: Abilità Potenziata, Alba, Animare oggetti, Arma Sacra, Blocca mostri, Cerchio di Potere, Collera della Natura, Colpo del Vento d'Acciaio, Colpo infuocato, Cono di freddo, Contagio, Controllare Venti, Cura ferite di massa, Debilitazione, Dominare persona, Evoca Pioggia di Armi, Flusso di Energia Negativa, Guscio anti-vita, Immolazione, Maelstrom, Mano arcana, Muro di forza, Muro di Luce, Muro di pietra, Nube mortale, Onda Distruttiva, Passo Remoto, Piaga degli insetti, Punizione Esiliante, Reincarnazione, Rianimare morti, Risveglio, Santificare, Scossa Sinaptica, Telecinesi, Trasmutare Roccia.
+- **6° livello**: Abito Ultraterreno di Tasha, Bagliore solare, Barriera di lame, Camminare nel vento, Carne in pietra, Catena di fulmini, Cerchio di morte, Danza irresistibile, Disintegrazione, Globo di invulnerabilità, Guarigione, Interdizione Primordiale, Investitura del Ghiaccio, Investitura del Vento, Investitura della Fiamma, Investitura della Pietra, Muro di ghiaccio, Muro di spine, Ossa della Terra, Portale Arcano, Prigione Mentale, Proibizione (R), Sguardo penetrante, Suggestione di massa, Trasformazione di Tenser.
 - **7° livello**: Corona di Stelle, Dito della morte, Gabbia di forza, Palla di fuoco ritardata, Parola del Potere Dolore, Parola divina, Resurrezione, Rigenerazione, Simbolo, Spada arcana, Spruzzo prismatico, Tempesta di fuoco, Turbine.
 - **8° livello**: Antipatia/simpatia, Aura sacra, Dominare mostri, Drago Illusorio, Esplosione solare, Labirinto, Nube incendiaria, Orrido Avvizzimento di Abi-Dalzim, Oscurità della Follia, Parola del potere stordire, Regressione mentale, Terremoto.
 - **9° livello**: Fatale, Invulnerabilità, Lama del Disastro, Muro prismatico, Parola del Potere Guarire, Parola del potere uccidere, Previsione, Resurrezione pura, Sciame di meteore, Urlo Psichico.

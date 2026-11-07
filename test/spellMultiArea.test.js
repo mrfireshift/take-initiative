@@ -138,10 +138,11 @@ test("The confirmed placement: each shape with its targets, every creature once,
   assert.deepEqual(withoutCaster.targetIds, ["goblin"]);
 });
 
-// The tool's own path for the general rule: from the rule, never from a placement's context, apart from areaBatch.
+// The tool's own path for the general rule: from the rule, never from a placement's context, apart from areaBatch. The
+// context only says the cast's slot, for a count that grows with it (Bones of the Earth, CAP-STRUCTURE lotto S3).
 test("The area tool draws several shapes from the rule, on a path of its own", () => {
   const tool = readFileSync(new URL("../src/aoeTargetTool.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(tool, /multiArea: createSpellMultiAreaRuntime\(rule\),/);
+  assert.match(tool, /multiArea: createSpellMultiAreaRuntime\(rule, \{ slotLevel: data\?\.context\?\.slotLevel \}\),/);
   const general = tool.slice(tool.indexOf("async function sendMultiAreaProgress(runtime)"), tool.indexOf("async function sendSpellPlacementProgress(runtime)"));
   assert.ok(general.length > 0);
   assert.doesNotMatch(general, /areaBatch/u, "the general path reads nothing of the Boss Actions' batch");

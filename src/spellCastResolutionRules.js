@@ -27,6 +27,8 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
   "reverse-gravity": Object.freeze({ initialHP: false }),
   "xanathar-sfera-acquea": Object.freeze({ initialHP: false }),
   "phb2014-allucinazione-di-forza": Object.freeze({ initialHP: false }),
+  // CAP-STRUCTURE, lotto S3: the save under a pillar lifts, it does not hurt; the ceiling's 6d6 are a ⚡ of their own.
+  "xanathar-ossa-della-terra": Object.freeze({ initialHP: false }),
   // Lotto P1: area damage at the cast, in spells with no damage type for the catalog's rule to see.
   "xanathar-eruzione-terrestre": Object.freeze({
     initialHP: true,
@@ -677,7 +679,7 @@ const SPELL_CAST_SAVE_ABILITIES = Object.freeze(Object.fromEntries(Object.entrie
     "sacred-flame",
     "wall-of-fire",
     "wall-of-ice",
-    "wall-of-stone",
+    // Wall of Stone (CAP-STRUCTURE): only a creature it encloses saves, to step out: at the table, no save at the cast.
     "wall-of-thorns",
     "xanathar-coltello-di-ghiaccio",
     "xanathar-creare-falo",

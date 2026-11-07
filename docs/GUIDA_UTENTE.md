@@ -836,6 +836,46 @@ spostamento come movimento. Lo spazio libero e visibile lo valuta sempre il GM.
   destinazione**, un clic sull'uscita accanto all'altro portale. Il lato attivo e la
   rotazione restano al tavolo.
 
+Muri e colonne sono fatti di pezzi, ognuno con i suoi PF. I PF stanno sulla pill
+dell'incantesimo («9/10 pannelli»), non sui token, e il GM li scala con un ⚡: **Scegli
+sulla mappa**, un clic sul pezzo, poi il danno e il suo tipo. Il popup applica da solo le
+difese degli oggetti: immuni a veleno e psichici, il ghiaccio vulnerabile al fuoco. La CA si
+legge nel popup, il tiro per colpire si fa al tavolo. Un pezzo a 0 PF sparisce dalla mappa;
+Annulla lo rimette. Sotto ogni pezzo c'è una barra, larga una casella come quella dei token,
+che tutti vedono: verde, poi ambra sotto i due terzi dei PF, rossa sotto un terzo; senza numeri,
+che restano nel popup.
+
+I muri sono sottili, come il Muro di fuoco: partono da un angolo della griglia, corrono sulle
+sue linee e sulla mappa sono una lastra. Le caselle di un muro sono quelle sul suo lato, dalla
+parte verso cui lo tiri: chi sta lì è tagliato dal muro quando compare. Ogni muro si posa in due
+modi, scelti nel pannello:
+
+- **in fila**: un trascinamento, la linea intera di dieci pannelli;
+- **uno per uno**: un trascinamento per pannello, ognuno attaccato a un altro (a L, a scatola,
+  attorno a qualcuno). Fino a dieci; la conferma è rifiutata se un pannello non ne tocca un altro.
+
+Gli incantesimi, uno per uno:
+
+- **Muro di pietra**: spesso 15 cm, dieci pannelli da 3 metri con 180 PF, oppure spesso 7,5 cm con
+  pannelli da 6 metri e 90 PF. CA 15, concentrazione, nessun tiro salvezza al lancio: chi resta
+  rinchiuso lo gestisci al tavolo. ⚡ **Danneggia** per i colpi; ⚡ **Fai crollare** quando decidi
+  che un pannello senza appoggi cade.
+- **Muro di ghiaccio**: spesso 30 cm, dieci pannelli da 3 metri con 30 PF e CA 12. Chi è tagliato
+  dal muro fa il TS su Destrezza al lancio; da che parte viene spinto lo decidi tu. Un pannello
+  distrutto lascia la **cortina gelida**, una lastra chiara al suo posto: chi la **attraversa** fa il
+  TS su Costituzione, una volta per turno, e prende 5d6 freddo. Come per il Muro di fuoco, conta
+  anche entrare nelle caselle sul lato del muro; camminare dall'altra parte no.
+  Con **Cupola o sfera di 3 m** il muro è un anello attorno a chi racchiude: il TS lo fa chi sta sulle
+  sue caselle, ma i PF delle sezioni della cupola li tieni tu.
+- **Ossa della Terra**: disegni le colonne una casella alla volta, poi confermi: sei, due in
+  più per ogni slot sopra il 6°. Chi sta sotto una colonna fa il TS su Destrezza; chi lo
+  fallisce, o sceglie di fallirlo, prende **Sulla colonna**. Se un soffitto ferma la
+  colonna, il ⚡ **Soffitto** dà 6d6 contundenti e Trattenuto a chi ci sta sopra, senza TS;
+  si libera con un'azione e una prova di Forza o Destrezza. La pill non scade: le colonne
+  restano finché non le distruggi o non premi Termina. Una colonna a 0 PF lascia le
+  **macerie**, 3 metri attorno: sono disegnate sulla mappa, ma il costo del terreno
+  difficile lo conti tu. Altezza delle colonne ed elevazione dei token restano al tavolo.
+
 ### Azioni dalla pill sulla card
 
 Sulla card del tracker, la pill di un incantesimo con azioni (Immagine

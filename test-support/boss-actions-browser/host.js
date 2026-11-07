@@ -16,6 +16,7 @@ import { SPELL_AREA_PLACEMENT_CHANNEL } from "/src/spellAreaPlacementCore.js";
 import { buildArea, buildConeArea, buildCircleArea, buildFootprintEmanationArea, buildLineArea, buildSquareArea, areaContainsBounds, areaHitsBounds } from "/src/aoeGeometryCore.js";
 import { centeredSquarePlacementBounds, constrainedSpellAreaEnd, nearestGridCellCenter, nearestGridCellSideCenter } from "/src/spellAreaPlacementCore.js";
 import { getSpellAreaRuleById, getSpellAreaRuleForPlacement } from "/src/spellAreaRules.js";
+import { createSpellMultiAreaRuntime, spellMultiAreaConfirmProblem, spellMultiAreaMessage, spellMultiAreaProgress } from "/src/spellMultiAreaCore.js";
 
 const META = "com.thebigpicture.initiative/meta";
 const STATE = "com.thebigpicture.initiative/state";
@@ -119,7 +120,10 @@ function circleFor(rawCentre, footprint = null) {
   const cells = Math.round(rule.geometry.size.value / 1.5);
   const end = { x: centre.x + cells * GRID, y: centre.y };
   if (rule.geometry.ring === true) {
-    const ringInnerSquares = Math.round(rule.geometry.innerSize.value / 1.5);
+    // As the real tool (aoeTargetTool.js): the ring is as wide as the rule's width, at least one cell; its innerSize is
+    // never read. With innerSize, a 30 cm ring (Wall of Water, Wall of Ice's dome) fell between the cells and held none.
+    const widthCells = Number(rule.geometry.width?.value) > 0 ? Math.max(1, Math.round(rule.geometry.width.value / 1.5)) : 0;
+    const ringInnerSquares = Math.max(0, cells - widthCells);
     return { end, ringInnerSquares, area: buildArea("circle", centre, end, GRID, centre, { ring: true, ringInnerSquares }) };
   }
   // An emanation radiates from the cells the boss token occupies (as the real tool does).
@@ -132,8 +136,8 @@ function lineFor(origin, toward) {
   const rule = ruleOf(placement);
   const sizeCells = Math.round(rule.geometry.size.value / 1.5), widthCells = Math.round(rule.geometry.width.value / 1.5);
   const end = placement.preset ? placement.preset.end : constrainedSpellAreaEnd({ shape: "line", start: origin, pointer: toward, dpi: GRID, sizeCells, upTo: rule.geometry.lengthUpTo === true });
-  // The grid corner next to the start, like the real tool (the cell scan runs around it).
-  return { end, area: buildLineArea(origin, end, GRID, { x: Math.floor(origin.x / GRID) * GRID, y: Math.floor(origin.y / GRID) * GRID }, widthCells) };
+  // The grid corner next to the start, like the real tool (the cell scan runs around it); a thin wall's cells on one side.
+  return { end, area: buildLineArea(origin, end, GRID, { x: Math.floor(origin.x / GRID) * GRID, y: Math.floor(origin.y / GRID) * GRID }, widthCells, rule.geometry.widthAnchor) };
 }
 function svgNode(tag, attributes) {
   const element = document.createElementNS(overlay.namespaceURI, tag);
@@ -165,6 +169,7 @@ function drawPlacement() {
   overlay.replaceChildren();
   if (!placement) return;
   (placement.shapes || []).forEach((shape) => drawShape(shape, `${shape.ordinal}/${placement.batch.count}`));
+  (placement.multi?.shapes || []).forEach((shape) => drawShape(shape, String(shape.ordinal)));
   drawShape(placement);
   if (placement.warning) svgNode("text", { x: 20, y: 120, fill: "#fdba74", "font-size": 16 }).textContent = placement.warning;
 }
@@ -208,12 +213,22 @@ function placementClick(event) {
       const end = { x: start.x + GRID, y: start.y + GRID };
       Object.assign(placement, { origin: start, end, area: buildSquareArea(start, end, GRID, start) });
     } else Object.assign(placement, { origin: centre, end: centre, area: { cells: [{ x: centre.x - GRID / 2, y: centre.y - GRID / 2, width: GRID, height: GRID }] } });
+    // CAP-MULTIAREA (Bones of the Earth's pillars): the click fixes one more numbered shape, as the real tool does; a click
+    // on a placed one takes it off.
+    if (placement.multi) { multiAreaClick(); return; }
     if (placement.autoConfirm) { void finishPlacement("confirmed"); return; }
   } else if (placementShape() === "line") {
     if (placement.preset) return;
-    // Like the real tool, a 5 ft line starts from a cell centre.
-    if (!placement.origin) placement.origin = { x: (Math.floor(point.x / GRID) + 0.5) * GRID, y: (Math.floor(point.y / GRID) + 0.5) * GRID };
-    else Object.assign(placement, lineFor(placement.origin, point));
+    // Like the real tool, a 5 ft line starts from a cell centre; a thin wall (snapOrigin "vertex") from a grid corner.
+    if (!placement.origin) {
+      placement.origin = ruleOf(placement).placement.snapOrigin === "vertex"
+        ? cornerNear(point)
+        : { x: (Math.floor(point.x / GRID) + 0.5) * GRID, y: (Math.floor(point.y / GRID) + 0.5) * GRID };
+    } else {
+      Object.assign(placement, lineFor(placement.origin, point));
+      // A wall drawn panel by panel (CAP-STRUCTURE): the second click fixes the panel.
+      if (placement.multi) { multiAreaClick(); return; }
+    }
   } else if (placementShape() === "rectangle") {
     // Gust of Wind, Thunderwave: from the centre of the cell next to the caster, as the real tool does.
     if (!placement.origin) placement.origin = nearestGridCellCenter(point, cornerNear(point), GRID).position;
@@ -238,6 +253,25 @@ function placementClick(event) {
   }
   drawPlacement();
 }
+function multiAreaClick() {
+  const multi = placement.multi;
+  const shape = { origin: placement.origin, end: placement.end, area: placement.area };
+  Object.assign(placement, { origin: null, end: null, area: null });
+  // The same shape again takes it off: the same cell, or a panel on the same two corners.
+  const taken = multi.shapes.findIndex((entry) => entry.origin.x === shape.origin.x && entry.origin.y === shape.origin.y
+    && Math.round(entry.end.x) === Math.round(shape.end.x) && Math.round(entry.end.y) === Math.round(shape.end.y));
+  if (taken >= 0) multi.shapes.splice(taken, 1);
+  else if (multi.shapes.length < multi.count) {
+    let ordinal = 1;
+    while (multi.shapes.some((entry) => entry.ordinal === ordinal)) ordinal += 1;
+    multi.shapes.push({ ...shape, ordinal });
+    multi.shapes.sort((a, b) => a.ordinal - b.ordinal);
+  }
+  drawPlacement();
+  void OBR.broadcast.sendMessage(SPELL_AREA_PLACEMENT_CHANNEL, { type: "progress", requestId: placement.requestId, ruleId: placement.ruleId,
+    status: "placing", batchIndex: multi.shapes.length, batchTotal: multi.count, multiArea: spellMultiAreaProgress(multi),
+    message: spellMultiAreaMessage(multi) }, { destination: "LOCAL" });
+}
 const hitIds = (current, area) => {
   const rule = ruleOf(current);
   const contained = rule?.zonePolicy?.membershipTargeting?.containment === "fully-inside";
@@ -259,6 +293,12 @@ async function finishPlacement(status) {
   if (status === "confirmed" && current.batch) {
     const areas = current.shapes.map((shape) => ({ start: shape.origin, end: shape.end, targetIds: hitIds(current, shape.area) }));
     preview = { type, start: areas[0].start, end: areas[0].end, targetIds: [...new Set(areas.flatMap((area) => area.targetIds))], areas };
+  } else if (status === "confirmed" && current.multi) {
+    // As the real tool's confirmMultiAreaPlacement: the first shape on top, every shape with its own targets.
+    const areas = current.multi.shapes.map((shape) => ({ start: shape.origin, end: shape.end, targetIds: hitIds(current, shape.area) }));
+    preview = { type, start: areas[0].start, end: areas[0].end, dpi: GRID,
+      gridOrigin: { x: Math.floor(areas[0].start.x / GRID) * GRID, y: Math.floor(areas[0].start.y / GRID) * GRID },
+      targetIds: [...new Set(areas.flatMap((area) => area.targetIds))], areas };
   } else if (status === "confirmed") preview = { type, start: current.origin, end: current.end, dpi: GRID, targetIds: hitIds(current, current.area),
     // The grid corner next to the start: with no corner the zone's cells would shift half a cell from the placed ones.
     // A circle is centred on a grid intersection: its corner is its centre, and an action in the popup asks for it as the real tool gives it.
@@ -278,7 +318,14 @@ async function finishPlacement(status) {
     ...(preview ? { preview } : {}) }, { destination: "LOCAL" });
 }
 confirmButton.addEventListener("click", () => {
-  if (placement?.batch ? placement.shapes.length === placement.batch.count : placement?.area) void finishPlacement("confirmed");
+  // As the real tool: the shapes the rule asks for, each touching another when it says so.
+  if (placement?.multi) {
+    const problem = spellMultiAreaConfirmProblem({ ...placement.multi,
+      shapes: placement.multi.shapes.map((shape) => ({ ...shape, start: shape.origin, dpi: GRID })) });
+    if (problem) { placement.warning = problem; drawPlacement(); return; }
+  }
+  if (placement?.batch ? placement.shapes.length === placement.batch.count
+    : placement?.multi ? placement.multi.shapes.length >= placement.multi.minCount : placement?.area) void finishPlacement("confirmed");
 });
 cancelButton.addEventListener("click", () => void finishPlacement("cancelled"));
 window.addEventListener("keydown", (event) => { if (event.key === "Escape" && placement) void finishPlacement("cancelled"); });
@@ -287,6 +334,11 @@ OBR.broadcast.onMessage(SPELL_AREA_PLACEMENT_CHANNEL, ({ data }) => {
     void OBR.broadcast.sendMessage(SPELL_AREA_PLACEMENT_CHANNEL, { type: "accepted", requestId: data.requestId, ruleId: data.ruleId }, { destination: "LOCAL" });
     placement = { requestId: data.requestId, ruleId: data.ruleId, ruleChoice: data.ruleChoice || "", context: data.context || null, casterId: data.casterId, origin: null, area: null, end: null, theme: String(data.context?.areaTheme || "") };
     if (Number(data.context?.areaBatch?.count) >= 2) Object.assign(placement, { batch: { count: Number(data.context.areaBatch.count), minDistanceFeet: Number(data.context.areaBatch.minDistanceFeet) || 0, innerRadiusFeet: Number(data.context.areaBatch.innerRadiusFeet) || 0 }, shapes: [] });
+    // The rule's own multiArea (CAP-MULTIAREA), with the count of the slot the panel sends: squares, and a wall's panels.
+    else if (["square", "line"].includes(ruleOf(placement)?.geometry.shape)) {
+      const multi = createSpellMultiAreaRuntime(ruleOf(placement), { slotLevel: data.context?.slotLevel });
+      if (multi) placement.multi = multi;
+    }
     if (data.context?.keepOnMap?.id) placement.keep = structuredClone(data.context.keepOnMap);
     if (data.context?.autoConfirmPoint === true) placement.autoConfirm = true;
     // Cucitura Spezzata: a segment starts where the previous one ended; a click sets its end.

@@ -74,6 +74,8 @@ export const AREA_SAVE_SPELL_IDS = Object.freeze([
   "xanathar-onda-di-marea",
   "xanathar-orrido-avvizzimento-di-abi-dalzim",
   "xanathar-oscurita-della-follia",
+  // CAP-STRUCTURE, lotto S3: the save of a creature under a pillar.
+  "xanathar-ossa-della-terra",
   "xanathar-parola-radiosa",
   "xanathar-passo-del-tuono",
   "xanathar-pirotecnica",
@@ -217,6 +219,7 @@ export const AREA_PLACEMENT_ONLY_SPELL_IDS = Object.freeze([
   "spike-growth",
   "teleportation-circle",
   "phb2014-portale-arcano",
+  "wall-of-stone",
   "tiny-hut",
   "xanathar-boschetto-druidico",
   "xanathar-spirito-guaritore",
@@ -791,6 +794,16 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
   "xanathar-onda-di-marea": failedAutomation([
     conditionRule("Prono", { expiry: manual, independent: true }),
   ], { track: false }),
+  // Bones of the Earth (CAP-STRUCTURE, lotto S3, decision D8): who fails the save under a pillar, or chooses to, is
+  // lifted on top of it. The label stays with the pill of the pillars, which has no end: the ⚡ Soffitto looks for it.
+  "xanathar-ossa-della-terra": failedAutomation([
+    conditionRule("Sulla colonna", {
+      expiry: manual,
+      manualRemoval: true,
+      effectId: "bones-of-the-earth-lifted",
+      effectDetail: "Sollevato in cima alla colonna, alta fino a 9 m: altezza ed elevazione del token restano al tavolo. Togli l'etichetta quando scende o cade dalla colonna.",
+    }),
+  ]),
   "xanathar-scossa-tellurica": failedAutomation([
     conditionRule("Prono", { expiry: manual, independent: true }),
   ], { track: false }),

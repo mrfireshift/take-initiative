@@ -6154,7 +6154,7 @@
       "id": "wall-of-ice",
       "name": "Muro di ghiaccio",
       "level": 6,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "corretto",
         "lot": "P3-8",
@@ -6162,7 +6162,7 @@
         "note": "La nota sui pannelli non arrivava al pannello. Ora sì. Sezioni distrutte a CAP-STRUCTURE."
       },
       "sweep": {
-        "runs": 2,
+        "runs": 6,
         "findings": []
       },
       "bench": {
@@ -6174,7 +6174,7 @@
       "id": "wall-of-stone",
       "name": "Muro di pietra",
       "level": 5,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "corretto",
         "lot": "P3-7",
@@ -6182,7 +6182,7 @@
         "note": "Non si lanciava senza un bersaglio. Ora la pill sta sul caster. Pannelli e PF restano a CAP-STRUCTURE."
       },
       "sweep": {
-        "runs": 2,
+        "runs": 8,
         "findings": []
       },
       "bench": {
@@ -7674,7 +7674,7 @@
       "id": "xanathar-ossa-della-terra",
       "name": "Ossa della Terra",
       "level": 6,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "corretto",
         "lot": "P3-8",

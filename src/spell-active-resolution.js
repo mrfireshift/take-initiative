@@ -58,6 +58,14 @@ import { mobileAuraTargetIds, getMobileAuraRule } from "./spellAuraCore.js";
 import { loadAoEStyle } from "./aoeStyle.js";
 import { spellAreaStyle } from "./spellAreaStyleCore.js";
 import { SPELL_STATIC_ZONE_META_KEY, translatedZoneArea } from "./spellStaticZoneCore.js";
+import {
+  getSpellStructureRule,
+  normalizeSpellStructureState,
+  spellStructureDamageAfterDefenses,
+  spellStructureNounWords,
+  spellStructureSegmentMiddle,
+} from "./spellStructureCore.js";
+import { DAMAGE_TYPES } from "./damageDefensesCore.js";
 import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 import { wallOfLightTargetWithinRange } from "./wallOfLightActiveCore.js";
 import {
@@ -293,6 +301,150 @@ function teleportsSelectedCreature() {
 
 function pointTeleport() {
   return isBlinkReturn() || isTeleportAction();
+}
+
+// CAP-STRUCTURE: a panel or pillar damaged or brought down. The GM clicks it on the map; its hit points come from the
+// caster's pill (castContext.structure).
+let structureSegmentIndex = 0;
+
+function isStructureSegment() {
+  return payload?.action?.resolutionKind === "structure-segment";
+}
+
+function structureOperation() {
+  return String(payload?.action?.structure?.operation || "damage").trim();
+}
+
+function structureParentState() {
+  const caster = sceneItems.find((item) => item.id === payload?.casterId);
+  const spells = caster?.metadata?.[META_KEY]?.[`${ID}/spells`];
+  const parent = (Array.isArray(spells) ? spells : []).find((entry) => (
+    String(entry?.instanceId || "").trim() === String(payload?.instanceId || "").trim()
+  ));
+  return normalizeSpellStructureState(parent?.castContext?.structure);
+}
+
+// The segments of this spell on the map, the standing ones with their hit points.
+function structureSegmentItems() {
+  const rule = getSpellStructureRule(payload?.spellId);
+  if (!rule) return [];
+  const state = structureParentState();
+  return sceneItems
+    .map((item) => ({ item, metadata: item?.metadata?.[SPELL_STATIC_ZONE_META_KEY] }))
+    .filter(({ metadata }) => metadata?.role === "subzone"
+      && String(metadata.parentInstanceId || "") === String(payload?.instanceId || "")
+      && String(metadata.childKind || "") === rule.segmentKind)
+    .map(({ item, metadata }) => ({
+      item,
+      index: Number(metadata.childIndex),
+      geometry: metadata.geometry || {},
+      segment: state.segments.find((entry) => entry.index === Number(metadata.childIndex)) || null,
+    }))
+    .filter((entry) => entry.segment && entry.segment.hp > 0);
+}
+
+function distanceToSegment(position, start, end) {
+  const a = point(start);
+  const b = point(end);
+  if (!a || !b) return Infinity;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const length = dx * dx + dy * dy;
+  const t = length > 0 ? Math.max(0, Math.min(1, ((position.x - a.x) * dx + (position.y - a.y) * dy) / length)) : 0;
+  return Math.hypot(position.x - (a.x + dx * t), position.y - (a.y + dy * t));
+}
+
+// The standing segment nearest the click, within a square and a half of it: the line of a panel, the middle of a
+// pillar.
+function structureSegmentAt(position) {
+  let best = null;
+  for (const entry of structureSegmentItems()) {
+    const dpi = Number(entry.geometry.dpi) || 70;
+    const middle = entry.geometry.type === "line" ? null : spellStructureSegmentMiddle(entry.geometry);
+    const distance = middle
+      ? Math.hypot(position.x - middle.x, position.y - middle.y)
+      : distanceToSegment(position, entry.geometry.start, entry.geometry.end);
+    if (distance <= dpi * 1.5 && (!best || distance < best.distance)) best = { ...entry, distance };
+  }
+  return best;
+}
+
+function renderStructureSegment() {
+  const rule = getSpellStructureRule(payload?.spellId);
+  const chosen = structureSegmentItems().find((entry) => entry.index === structureSegmentIndex) || null;
+  const words = spellStructureNounWords(rule);
+  const noun = words.noun;
+  const collapse = structureOperation() === "collapse";
+  $("structureTitle").textContent = String(payload?.action?.label || "").trim() || `Danneggia ${noun}`;
+  $("structurePick").disabled = busy || !sceneLifecycle.isReady();
+  $("structurePick").textContent = chosen ? "Cambia" : "Scegli sulla mappa";
+  $("structureStatus").textContent = chosen
+    ? `${noun.charAt(0).toUpperCase()}${noun.slice(1)} ${chosen.index} · ${chosen.segment.hp}/${chosen.segment.hpMax} PF · CA ${rule.armorClass}`
+    : `Clicca sulla mappa ${words.the}.`;
+  $("structureDamageRow").hidden = collapse || !chosen;
+  const typeSelect = $("structureType");
+  if (!typeSelect.options.length) {
+    typeSelect.replaceChildren(...DAMAGE_TYPES.map((type) => {
+      const option = document.createElement("option");
+      option.value = type.id;
+      option.textContent = type.label;
+      return option;
+    }));
+    typeSelect.value = "bludgeoning";
+  }
+  const amount = Math.floor(Number($("structureDamage").value));
+  const dealt = chosen && !collapse && amount > 0
+    ? spellStructureDamageAfterDefenses(rule, amount, typeSelect.value)
+    : null;
+  const defenseWord = { immunity: "immune", vulnerability: "vulnerabile", resistance: "resistente" }[dealt?.defense] || "";
+  renderSummary(
+    !chosen ? "" : collapse ? "" : !(amount > 0) ? "Scrivi il danno." : "",
+    dealt ? `${defenseWord ? `${defenseWord.charAt(0).toUpperCase()}${defenseWord.slice(1)}: ` : ""}${chosen.segment.hp} →` : "",
+    dealt ? Math.max(0, chosen.segment.hp - dealt.amount) : null,
+  );
+  $("apply").hidden = false;
+  $("apply").textContent = collapse ? "Fai crollare" : "Applica danno";
+  $("apply").disabled = busy || !chosen || (!collapse && !(amount > 0));
+}
+
+async function pickStructureSegment() {
+  if (busy || !sceneLifecycle.isReady()) return;
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("structure-pick") });
+  const requestId = createSpellAreaPlacementRequestId();
+  pendingPlacementRequestId = requestId;
+  busy = true;
+  render();
+  try {
+    const result = await requestSpellAreaPlacement({
+      ruleId: String(payload.action.placementRuleId || "").trim(),
+      casterId: payload.casterId,
+      context: { pointSelection: true, autoConfirmPoint: true, directPointSelection: true },
+      requestId,
+    }, { broadcast: OBR.broadcast, windowRef: window });
+    if (!sceneLifecycle.isCurrent(operation) || pendingPlacementRequestId !== requestId) return;
+    const position = result?.status === "confirmed" ? point(result.preview?.position || result.preview?.start) : null;
+    if (!position) {
+      setStatus(result?.status === "cancelled" ? "Scelta annullata." : "Nessun punto scelto.", false, "warn");
+      return;
+    }
+    sceneItems = await OBR.scene.items.getItems();
+    const found = structureSegmentAt(position);
+    const words = spellStructureNounWords(getSpellStructureRule(payload?.spellId));
+    if (!found) {
+      setStatus(`${words.none} in piedi lì: clicca su ${words.one}.`, false, "warn");
+      return;
+    }
+    structureSegmentIndex = found.index;
+    setStatus("", false);
+  } catch (error) {
+    setStatus(`Scelta non riuscita: ${error?.message || error}`, false, "error");
+  } finally {
+    if (pendingPlacementRequestId === requestId) {
+      pendingPlacementRequestId = "";
+      busy = false;
+      render();
+    }
+  }
 }
 
 // Who teleports: the caster (Far Step) or the one creature selected on the map (Arcane Gate's traversal).
@@ -712,7 +864,7 @@ function renderContext() {
     $("blinkReturnSection").hidden = true;
     return;
   }
-  if (pointTeleport()) {
+  if (pointTeleport() || isStructureSegment()) {
     $("blinkReturnHint").textContent = "";
     $("blinkReturnHint").hidden = true;
     $("saveTitle").hidden = true;
@@ -2434,7 +2586,19 @@ function render() {
   $("telekinesisSection").hidden = !telekinesis;
   $("prismaticWallSection").hidden = !prismaticWall;
   $("blinkReturnSection").hidden = !blinkReturn;
+  $("structureSection").hidden = !isStructureSegment();
   $("footer").hidden = false;
+  if (isStructureSegment()) {
+    $("saveSection").hidden = true;
+    $("singleSaveSection").hidden = true;
+    $("singleHealSection").hidden = true;
+    $("attackSection").hidden = true;
+    renderStructureSegment();
+    if (statusMessage) $("status").textContent = statusMessage;
+    renderHeadingSubtitle();
+    requestCompactPopoverResize();
+    return;
+  }
   if (telekinesis) {
     $("saveSection").hidden = true;
     $("singleSaveSection").hidden = true;
@@ -2669,6 +2833,10 @@ async function placeBlinkReturn() {
 async function placeArea(anchorTargetOverride = "") {
   if (pointTeleport()) {
     await placeBlinkReturn();
+    return;
+  }
+  if (isStructureSegment()) {
+    await pickStructureSegment();
     return;
   }
   if (fixedCasterRadiusConfig()) return;
@@ -3002,6 +3170,8 @@ async function apply() {
         ? [payload.casterId]
         : isTeleportAction()
         ? teleportSubjectIds()
+        : isStructureSegment()
+        ? []
         : isPrismaticWallAction()
         ? isPrismaticWallTraversal()
           ? [selectedPrismaticTarget]
@@ -3034,8 +3204,13 @@ async function apply() {
         ? prismaticWallLayerId
         : "",
       traversalId: isPrismaticWallTraversal() ? prismaticTraversalId : "",
+      ...(isStructureSegment()
+        ? { segmentIndex: structureSegmentIndex, damageType: $("structureType").value }
+        : {}),
       damageRoll: pointTeleport()
         ? 0
+        : isStructureSegment()
+        ? (structureOperation() === "collapse" ? 0 : $("structureDamage").value)
         : isTelekinesisContest()
         ? 0
         : isPrismaticWallAction()
@@ -3143,6 +3318,10 @@ if (!payload) {
   $("confirmPlacement")?.addEventListener("click", () => void confirmPlacement());
   $("cancelPlacement")?.addEventListener("click", () => void cancelPlacement());
   $("blinkPlace")?.addEventListener("click", () => void placeArea());
+  // CAP-STRUCTURE: the click on the panel, then its damage and type.
+  $("structurePick")?.addEventListener("click", () => void placeArea());
+  $("structureDamage")?.addEventListener("input", () => render());
+  $("structureType")?.addEventListener("change", () => render());
   $("apply").addEventListener("click", () => void apply());
   $("backToChoice")?.addEventListener("click", () => {
     if (busy) return;

@@ -36,8 +36,8 @@ test("il catalogo unificato coincide con l'unione deduplicata delle due fonti le
   // 75 since lotto L2; 71 since CAP-HP-BRANCH; 67 since CAP-CLEANSE; 66 with Magic Missile; 65 with Goodberry; 64 with
   // Negative Energy Flood; 58 with the six spells of CAP-STABILIZE; 57 with Plant Growth; 60 with Control Flames, Shape
   // Water and Mold Earth (lotto P2 of the polish).
-  // 59: Remove Curse now ends the curses (polish, P4).
-  assert.equal(recordIds.size, 59);
+  // 59: Remove Curse now ends the curses (polish, P4). 58: Bones of the Earth raises its pillars (CAP-STRUCTURE, lotto S3).
+  assert.equal(recordIds.size, 58);
   assert.equal([...recordIds].some((id) => spellsPanelIds.has(id) || areaConsoleIds.has(id)), false);
   assert.equal(entries.length, getSpellCatalog().length);
   assert.equal(entries.length, 477);
@@ -78,15 +78,16 @@ test("ogni voce esposta ha un ID stabile, contratto e executor dichiarato", () =
   }
 });
 
-// 60 con Controllare Fiamme, Modellare Acqua e Modellare Terra (lotto P2 del polishing).
-test("i 59 record non automatizzati sono esposti come registrazione del lancio, nessuno resta escluso", () => {
+// 60 con Controllare Fiamme, Modellare Acqua e Modellare Terra (lotto P2 del polishing); 58 da quando Ossa della Terra
+// alza le sue colonne (CAP-STRUCTURE, lotto S3).
+test("i 58 record non automatizzati sono esposti come registrazione del lancio, nessuno resta escluso", () => {
   const entries = buildSpellUnifiedCatalogEntries();
   const exclusions = buildSpellUnifiedCatalogExclusions({ currentEntries: entries });
   const audit = buildSpellUnifiedCatalogAudit({ currentEntries: entries });
   assert.equal(exclusions.length, getSpellCatalog().length - entries.length);
   assert.deepEqual(exclusions, []);
   const recorded = entries.filter((entry) => entry.status === "registrazione");
-  assert.equal(recorded.length, 59);
+  assert.equal(recorded.length, 58);
   for (const id of ["counterspell", "greater-restoration", "wish", "acid-splash"]) {
     const entry = entries.find((candidate) => candidate.key === id);
     assert.ok(entry, id);

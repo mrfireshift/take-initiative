@@ -85,8 +85,9 @@ test("il tracker include le durate persistenti e il solo istantaneo con effetto 
   // 359 with Awaken, instantaneous but charmed for 30 days (lotto L2); 361 with Ice Storm and Earth Tremor, whose
   // difficult terrain outlasts the cast (lotto L3).
   // 362 with Goodberry, whose berries last 24 hours (CAP-RESOURCE); 363 with Plant Growth, whose overgrowth stays (CAP-TERRAIN).
-  // 360 without Control Flames, Shape Water and Mold Earth, now recorded (lotto P2 of the polish).
-  assert.equal(getTrackableSpellOptions().length, 360);
+  // 360 without Control Flames, Shape Water and Mold Earth, now recorded (lotto P2 of the polish); 361 with Bones of the
+  // Earth, whose pillars stand until destroyed (CAP-STRUCTURE, lotto S3).
+  assert.equal(getTrackableSpellOptions().length, 361);
   assert.equal(trackableIds.has("phb2014-raggio-di-infermita"), true);
   for (const entry of instantaneous) {
     if (entry.id === "phb2014-raggio-di-infermita") continue;

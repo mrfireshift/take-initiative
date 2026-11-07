@@ -3,7 +3,7 @@
 Un giro solo al tavolo per tre liste:
 - **P5** del [piano di polishing degli incantesimi](PIANO_POLISH_INCANTESIMI.md);
 - le prove in stanza dell'[audit dei popup viola](AUDIT_UX_POPUP_VIOLA.md): da V1 a V11, il trascinamento, F1, la tela nera di Fazioni e Aspetto area, Freccia Folgorante e Critico;
-- CAP-MULTIAREA, Minuscole meteore e CAP-TELEPORT del [piano di automazione](PIANO_AUTOMAZIONE_INCANTESIMI.md), e le due caselle dei danni a due tipi (sezioni 9, 10 e 11 qui sotto).
+- CAP-MULTIAREA, Minuscole meteore, CAP-TELEPORT e CAP-STRUCTURE del [piano di automazione](PIANO_AUTOMAZIONE_INCANTESIMI.md), e le due caselle dei danni a due tipi (sezioni 9, 10, 11 e 12 qui sotto).
 
 C'è anche ciò che il banco non ha potuto provare. Render è più indietro di `main`: si prova con la build locale.
 
@@ -158,3 +158,22 @@ Al banco hanno girato tutti e quattro con lo strumento finto delle aree, che non
 - [ ] **Attraversa:** seleziona una creatura sulla mappa, ⚡ **Attraversa**, **Scegli destinazione**, un clic accanto al secondo portale: la creatura si sposta subito. Senza nessuno selezionato il pulsante è spento e il popup dice di selezionare la creatura.
 - [ ] **Termina Portale arcano:** spariscono tutti e due i portali e la concentrazione.
 - [ ] **Movimento:** dopo un teletrasporto il controllo della velocità misura dalla casella d'arrivo, senza contare il salto, e Annulla non restituisce movimento.
+
+## 12. Muri e colonne (CAP-STRUCTURE)
+
+Al banco hanno girato tutti e tre, ma il banco non disegna le zone: qui si guarda come appaiono pannelli, colonne, cortina e macerie sulla mappa vera, e se si leggono dallo schermo del tavolo.
+
+- [ ] **Muro di pietra in fila:** **Pannelli da 3 m in fila**, **Posiziona area**: la linea parte da un angolo della griglia ed è sempre di 30 metri. Sulla mappa dieci lastre sottili sulla linea, ognuna con la sua barra verde sotto; **Crea zona e applica** senza TS; la pill ha la `C` e dice `10/10 pannelli`.
+- [ ] **Uno per uno:** **Pannelli da 3 m uno per uno**: tre pannelli a L, uno per trascinamento. La riga di stato dice `Pannelli sulla mappa: 3, fino a 10`. Un pannello staccato dagli altri fa rifiutare la conferma con `Il pannello N non tocca un altro pannello`.
+- [ ] **Pannelli da 6 m:** con la variante sottile la linea è di 60 metri e ogni pannello copre 6 metri, con 90 PF.
+- [ ] **Barre:** dopo un colpo la barra del pannello si accorcia e diventa ambra sotto i due terzi, rossa sotto un terzo; la vede anche la finestra dei giocatori. Annulla la rimette com'era.
+- [ ] **Danneggia pannello:** ⚡ **Danneggia**, **Scegli sulla mappa**, un clic sul pannello: `Pannello 1 · 180/180 PF · CA 15`. 60 contundenti danno `180 → 120`; con psichici il popup dice `Immune`.
+- [ ] **Fai crollare:** ⚡ **Fai crollare** su un pannello: sparisce dalla mappa senza lasciare niente, la pill scende a `2/3 pannelli`. Annulla lo rimette.
+- [ ] **Muro di ghiaccio:** **Dieci pannelli in fila** lungo una linea della griglia, con un goblin nella fila di caselle dalla parte in cui hai tirato il muro: solo lui ha il TS su Destrezza e `DANNO · 10D6` al 6° livello; chi sta dall'altra parte no.
+- [ ] **Cortina gelida:** 15 danni da fuoco su un pannello danno `Vulnerabile: 30 → 0`. Al suo posto compare una lastra chiara, la cortina. Un PG che passa nel varco riceve l'avviso `Muro di ghiaccio · cortina gelida`, TS su Costituzione, 5d6 freddo; uno che cammina lungo il muro dalla parte senza caselle, niente.
+- [ ] **Cupola:** **Cupola o sfera di 3 m**, un clic su un angolo della griglia: un anello di 8 caselle. Il TS lo fanno solo le creature sull'anello, non quella rinchiusa al centro; nessun pannello e nessuna barra.
+- [ ] **Ossa della Terra:** **Posiziona area**, tre clic su tre caselle: la riga di stato dice `Colonne sulla mappa: 3, fino a 6`. Al 7° livello `fino a 8`. Alla conferma restano selezionate solo le creature sotto le colonne.
+- [ ] **Sulla colonna:** chi fallisce il TS su Destrezza prende `Sulla colonna`; chi lo supera, niente. La pill non ha scadenza e dice `3/3 colonne`.
+- [ ] **Soffitto:** ⚡ **Soffitto**: il bersaglio è già quello sulla colonna. Con il danno, `Trattenuto` e `Azione: prova For o Des`. Riaperto, il ⚡ non trova più nessuno.
+- [ ] **Danneggia colonna:** una colonna a 0 PF sparisce e lascia le macerie, 3 metri attorno. Le macerie si vedono ma non rallentano il movimento: il costo lo conti a mano.
+- [ ] **Termina:** con Termina spariscono colonne e macerie, `Sulla colonna` e `Trattenuto`.

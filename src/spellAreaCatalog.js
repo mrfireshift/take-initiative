@@ -62,6 +62,10 @@ const PERSISTENT_ZONE_SPELL_IDS = new Set([
   "teleportation-circle",
   // CAP-TELEPORT, lotto T4: Arcane Gate's first portal; the second is a child zone of its pill.
   "phb2014-portale-arcano",
+  // CAP-STRUCTURE, lotto S1: the wall's panels, under an invisible root.
+  "wall-of-stone",
+  // CAP-STRUCTURE, lotto S3: the pillars, one on each shape drawn, under an invisible root.
+  "xanathar-ossa-della-terra",
   "tiny-hut",
   "wall-of-fire",
   "wall-of-force",
@@ -374,13 +378,81 @@ const AREA_OVERRIDES = Object.freeze({
   "mass-cure-wounds": {
     note: "L'incantesimo può curare al massimo sei creature",
   },
+  // CAP-STRUCTURE (lotti S1 e S2; decisions D1–D6 of 7/11/2026, from the 2014 texts): thin walls on the grid lines, from a
+  // grid corner, their cells on one side of the line (as Wall of Fire): ten panels in a row with one drag, or drawn one by
+  // one, each touching another. Wall of Ice is a foot thick, and can be a dome or a sphere of 3 m, its sections at the table.
   "wall-of-ice": {
     shape: "line",
     sizeMeters: 30,
-    widthMeters: 1.5,
+    widthMeters: 0.3,
     origin: "point",
     rangeMeters: 36,
-    note: "La sagoma rappresenta fino a dieci pannelli contigui in linea; cupola, sfera e singole sezioni distrutte restano da gestire manualmente.",
+    snapOrigin: "vertex",
+    widthAnchor: "edge",
+    placementOptional: false,
+    placementChoices: [
+      { id: "row", label: "Dieci pannelli in fila", shape: "line", sizeMeters: 30, widthMeters: 0.3, snapOrigin: "vertex", widthAnchor: "edge" },
+      {
+        id: "panels",
+        label: "Pannelli uno per uno",
+        shape: "line",
+        sizeMeters: 3,
+        widthMeters: 0.3,
+        snapOrigin: "vertex",
+        widthAnchor: "edge",
+        multiArea: { count: 10, minCount: 1, adjacency: "touch", noun: "pannello" },
+      },
+      // A ring a foot thick, as Wall of Water's: the area tool makes it one cell wide, on its inner side.
+      { id: "dome", label: "Cupola o sfera di 3 m", shape: "circle", sizeMeters: 3, widthMeters: 0.3, ring: true, innerSizeMeters: 2.7, zonePolicy: { structure: false } },
+    ],
+    note: "Un muro spesso 30 cm sulle linee della griglia: dieci pannelli da 3 m in fila, o uno per uno, ognuno attaccato a un altro. Fa il TS chi sta nelle caselle sul lato del muro. Cupola o sfera: i PF delle sezioni restano al tavolo, come i pannelli uno sopra l'altro.",
+  },
+  // Wall of Stone: 6 inches thick with 10-foot panels, or 3 inches with 10-by-20-foot ones; any shape.
+  "wall-of-stone": {
+    shape: "line",
+    sizeMeters: 30,
+    widthMeters: 0.15,
+    origin: "point",
+    rangeMeters: 36,
+    snapOrigin: "vertex",
+    widthAnchor: "edge",
+    placementOptional: false,
+    placementChoices: [
+      { id: "thick", label: "Pannelli da 3 m in fila (180 PF)", shape: "line", sizeMeters: 30, widthMeters: 0.15, snapOrigin: "vertex", widthAnchor: "edge" },
+      { id: "thin", label: "Pannelli da 6 m in fila (90 PF)", shape: "line", sizeMeters: 60, widthMeters: 0.075, snapOrigin: "vertex", widthAnchor: "edge" },
+      {
+        id: "thick-panels",
+        label: "Pannelli da 3 m uno per uno (180 PF)",
+        shape: "line",
+        sizeMeters: 3,
+        widthMeters: 0.15,
+        snapOrigin: "vertex",
+        widthAnchor: "edge",
+        multiArea: { count: 10, minCount: 1, adjacency: "touch", noun: "pannello" },
+      },
+      {
+        id: "thin-panels",
+        label: "Pannelli da 6 m uno per uno (90 PF)",
+        shape: "line",
+        sizeMeters: 6,
+        widthMeters: 0.075,
+        snapOrigin: "vertex",
+        widthAnchor: "edge",
+        multiArea: { count: 10, minCount: 1, adjacency: "touch", noun: "pannello" },
+      },
+    ],
+    note: "Un muro spesso 15 cm, o 7,5 cm con i pannelli da 6 m, sulle linee della griglia: dieci pannelli in fila, o uno per uno, ognuno attaccato a un altro. Pannelli uno sopra l'altro, supporti e creature racchiuse restano al tavolo.",
+  },
+  // CAP-STRUCTURE, lotto S3: one cell for each pillar, up to six and two more for each slot above the 6th
+  // (CAP-MULTIAREA with a count by slot); the creature under one saves on Dexterity.
+  "xanathar-ossa-della-terra": {
+    shape: "square",
+    sizeMeters: 1.5,
+    origin: "point",
+    rangeMeters: 36,
+    placementOptional: false,
+    multiArea: { count: 6, minCount: 1, noun: "colonna", additionalPerSlotAbove: 2, baseSlot: 6 },
+    note: "Disegna le colonne, una casella ciascuna, poi conferma; premi sul numero di una colonna per toglierla. Sotto una creatura solo se è Media o più piccola. Altezza delle colonne ed elevazione dei token restano al tavolo.",
   },
   "misty-step": {
     shape: "square",

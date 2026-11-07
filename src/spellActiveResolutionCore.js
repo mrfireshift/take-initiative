@@ -22,6 +22,8 @@ export const SPELL_ACTIVE_RESOLUTION_KINDS = Object.freeze([
   "blink-return",
   // CAP-TELEPORT: a creature teleported from a spell already active (Far Step, Arcane Gate).
   "teleport",
+  // CAP-STRUCTURE: a panel or pillar damaged or brought down (Wall of Stone, Wall of Ice, Bones of the Earth).
+  "structure-segment",
   "prismatic-wall-traversal",
   "prismatic-wall-layers",
 ]);
@@ -106,6 +108,8 @@ export function spellActiveResolutionPopoverHeight(payload) {
     case "blink-return":
     case "teleport":
       return 190;
+    case "structure-segment":
+      return action.structure?.operation === "collapse" ? 220 : 300;
     case "child-zone":
       return 500;
     case "prismatic-wall-traversal":
@@ -235,6 +239,14 @@ export function validateSpellActiveResolutionAction(action) {
   }
   if (kind === "teleport") {
     if (!spellTeleportActionSubject(action)) errors.push("action-teleport-subject-invalid");
+    if (!String(action?.placementRuleId || "").trim()) errors.push("action-placement-rule-required");
+    return { valid: errors.length === 0, errors: Object.freeze(errors) };
+  }
+  if (kind === "structure-segment") {
+    if (!["damage", "collapse"].includes(String(action?.structure?.operation || "").trim())) {
+      errors.push("action-structure-operation-invalid");
+    }
+    if (action?.requiresZoneRoot !== true) errors.push("action-zone-root-required");
     if (!String(action?.placementRuleId || "").trim()) errors.push("action-placement-rule-required");
     return { valid: errors.length === 0, errors: Object.freeze(errors) };
   }

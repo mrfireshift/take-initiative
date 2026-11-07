@@ -315,10 +315,12 @@ export function validateChildZoneContainment({
   childArea = null,
   childKind = "",
 } = {}) {
-  if (!parentArea || !childArea) return false;
   // Arcane Gate's second portal (CAP-TELEPORT, lotto T4) stands away from the first, where the GM opens it: the
-  // action's range from the caster is its only bound.
-  if (text(childKind) === "portal") return true;
+  // action's range from the caster is its only bound. CAP-STRUCTURE's panels, pillars and residues are drawn by the
+  // plugin from the cast's own geometry: a diagonal tract may rasterize a cell off its root line. The bars under them
+  // have no area at all: they are drawn under their segment, not on the grid.
+  if (["portal", "panel", "pillar", "frigid-air", "rubble", "bar", "bar-fill"].includes(text(childKind))) return true;
+  if (!parentArea || !childArea) return false;
   if (text(childKind) === "fissure") {
     const clipped = clipChildZoneAreaToParent({ parentArea, childArea });
     const cellsInside = Array.isArray(clipped?.cells)

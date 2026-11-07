@@ -2,6 +2,7 @@ import { CATALOG_SPELL_AREA_SPECS } from "./spellAreaCatalog.js";
 import { AREA_SAVE_SPELL_ID_SET } from "./areaSaveSpellRules.js";
 import { getSpellBoardTokenPlacementRuleById } from "./spellBoardTokenCore.js";
 import { isTeleportSpell } from "./spellTeleportCore.js";
+import { getSpellStructureRule } from "./spellStructureCore.js";
 import { pcBreathAreaRuleId, pcMonsterAreaRuleId } from "./pcAttackBreathId.js";
 import { spellMultiAreaRuleErrors } from "./spellMultiAreaCore.js";
 import {
@@ -30,6 +31,8 @@ export const SPELL_AREA_TRIGGER_TYPES = Object.freeze([
   "active-action",
   // CAP-TELEPORT, lotto T2: the destination of a teleport that is a step of the cast (Thunder Step), never its area.
   "teleport-step",
+  // CAP-STRUCTURE: a panel or pillar raised by the cast, and what a destroyed one leaves (spellStructureCore.js).
+  "structure-segment",
 ]);
 
 const SPELL_AREA_ORIGINS = Object.freeze(["caster", "caster-adjacent", "point"]);
@@ -937,6 +940,8 @@ const ZONE_INITIAL_SAVE_SPELL_IDS = new Set([
   "xanathar-scossa-tellurica",
   "xanathar-pirotecnica",
   "phb2014-tsunami",
+  // CAP-STRUCTURE, lotto S3: who is under a pillar saves on Dexterity, at the cast only.
+  "xanathar-ossa-della-terra",
 ]);
 // Symbol: each effect of the glyph, its save and the condition that spares a new one.
 const SYMBOL_ZONE_EFFECTS = Object.freeze([
@@ -1786,9 +1791,11 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       },
     },
   ],
+  // The sheet of frigid air a destroyed panel leaves (CAP-STRUCTURE, D2 of 7/11/2026): the save of whoever moves through
+  // it, the first time on a turn, as Wall of Fire's damage on crossing; the sheet is as thin as the wall.
   "wall-of-ice": [
     {
-      id: "wall-of-ice-frigid-sheet-save-on-entry",
+      id: "wall-of-ice-frigid-sheet-save-on-crossing",
       group: "wall-of-ice-frigid-sheet-save",
       label: "Se attraversa una sezione distrutta del Muro di Ghiaccio: TS Costituzione.",
       event: "enter",
@@ -1797,45 +1804,9 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       failureEffect: "5d6 danni da freddo, +1d6 per slot sopra il 6° (metà se superato).",
       requiresOwnTurn: false,
       triggerOnAreaMove: false,
+      requiresCrossing: true,
       persistsAfterExit: true,
-      damage: {
-        dice: "5d6",
-        type: "freddo",
-        onSave: "half",
-        baseSlot: 6,
-        additionalPerSlotAbove: 1,
-      },
-    },
-    {
-      id: "wall-of-ice-frigid-sheet-save-on-move",
-      group: "wall-of-ice-frigid-sheet-save",
-      label: "Se attraversa una sezione distrutta del Muro di Ghiaccio: TS Costituzione.",
-      event: "move",
-      frequency: "once-per-turn",
-      resolution: "manual-save",
-      failureEffect: "5d6 danni da freddo, +1d6 per slot sopra il 6° (metà se superato).",
-      requiresOwnTurn: false,
-      triggerOnAreaMove: false,
-      persistsAfterExit: true,
-      damage: {
-        dice: "5d6",
-        type: "freddo",
-        onSave: "half",
-        baseSlot: 6,
-        additionalPerSlotAbove: 1,
-      },
-    },
-    {
-      id: "wall-of-ice-frigid-sheet-save-on-leave",
-      group: "wall-of-ice-frigid-sheet-save",
-      label: "Se attraversa una sezione distrutta del Muro di Ghiaccio: TS Costituzione.",
-      event: "leave",
-      frequency: "once-per-turn",
-      resolution: "manual-save",
-      failureEffect: "5d6 danni da freddo, +1d6 per slot sopra il 6° (metà se superato).",
-      requiresOwnTurn: false,
-      triggerOnAreaMove: false,
-      persistsAfterExit: true,
+      targetArea: "body",
       damage: {
         dice: "5d6",
         type: "freddo",
@@ -2291,9 +2262,7 @@ const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
   "incendiary-cloud-save-on-turn-end": { ability: "dex" },
   "insect-plague-save-on-entry": { ability: "con" },
   "insect-plague-save-on-turn-end": { ability: "con" },
-  "wall-of-ice-frigid-sheet-save-on-entry": { ability: "con" },
-  "wall-of-ice-frigid-sheet-save-on-move": { ability: "con" },
-  "wall-of-ice-frigid-sheet-save-on-leave": { ability: "con" },
+  "wall-of-ice-frigid-sheet-save-on-crossing": { ability: "con" },
   "wall-of-thorns-save-on-entry": { ability: "dex" },
   "wall-of-thorns-save-on-turn-end": { ability: "dex" },
   "dawn-save-on-turn-end": {
@@ -2872,6 +2841,10 @@ function catalogAreaRule(spec) {
             ? "pointer"
             : "none",
           ...(choice?.snapOrigin === "vertex" ? { snapOrigin: "vertex" } : {}),
+          // CAP-STRUCTURE (D3 of 7/11/2026): a wall's panels drawn one by one.
+          ...(choice?.multiArea && typeof choice.multiArea === "object"
+            ? { multiArea: { ...choice.multiArea } }
+            : {}),
         },
         // A variant may change the zone's own cast: Pyrotechnics' smoke asks no save.
         ...(choice?.zonePolicy ? { zonePolicy: { ...choice.zonePolicy } } : {}),
@@ -2977,11 +2950,91 @@ function catalogAreaRule(spec) {
           },
           membershipEffects,
           ...(membershipEffectsByChoice ? { membershipEffectsByChoice } : {}),
-          triggers: CATALOG_ZONE_TRIGGERS[spec.spellId] || [],
+          // CAP-STRUCTURE: the wall itself triggers nothing; its residues do (the frigid air of a destroyed panel).
+          triggers: getSpellStructureRule(spec.spellId) ? [] : CATALOG_ZONE_TRIGGERS[spec.spellId] || [],
+          ...(getSpellStructureRule(spec.spellId) ? { structure: true } : {}),
         },
       }
       : {}),
     ...(spec.note ? { placementNote: spec.note } : {}),
+  });
+}
+
+// CAP-STRUCTURE: a panel or pillar the cast raises under the wall's invisible root, or the residue a destroyed one
+// leaves (spellStructureCore.js). Built from the cast's own placement: no click places it.
+function structureChildRule({
+  id,
+  spellId,
+  shape,
+  size,
+  width = null,
+  triggers = [],
+}) {
+  return defineRule({
+    id,
+    spellId,
+    trigger: { type: "structure-segment" },
+    kind: "zone",
+    geometry: {
+      shape,
+      size: meters(size, MEASURE_BY_SHAPE[shape]),
+      ...(width === null ? {} : { width: meters(width, "width") }),
+    },
+    placement: {
+      origin: "point",
+      direction: ["line", "rectangle"].includes(shape) ? "pointer" : "none",
+      anchor: "world",
+      range: null,
+    },
+    lifecycle: SPELL_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: true,
+      confirmTargets: false,
+    },
+    effectPolicy: { mode: "manual-trigger" },
+    zonePolicy: {
+      placementOptional: false,
+      owner: "caster",
+      movement: "fixed",
+      initialResolution: "none",
+      membershipTargeting: {
+        filter: "all",
+        includeCaster: true,
+      },
+      membershipEffects: [],
+      triggers,
+    },
+  });
+}
+
+// CAP-STRUCTURE: the click on the panel or pillar an action damages or brings down; the popup takes the segment
+// nearest to it (spellStructureCore.js).
+function structurePickRule(id, spellId, actionId) {
+  return defineRule({
+    id,
+    spellId,
+    trigger: { type: "active-action", actionId },
+    kind: "instant",
+    geometry: {
+      shape: "square",
+      size: meters(1.5, "side"),
+    },
+    placement: {
+      origin: "point",
+      direction: "none",
+      anchor: "world",
+      range: null,
+      mode: "point",
+    },
+    lifecycle: PREVIEW_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: true,
+      confirmTargets: false,
+      selectionMode: "manual",
+    },
+    effectPolicy: ON_CONFIRM,
   });
 }
 
@@ -4007,6 +4060,50 @@ export const SPELL_AREA_RULES = Object.freeze([
     size: 60,
     width: 3,
   }),
+  // CAP-STRUCTURE: the walls' panels and the frigid air a destroyed ice panel leaves, with the save the whole wall
+  // asked before (decision D6).
+  // Thin walls on the grid lines since 7/11/2026 (D1): the thickness of each segment is in its own geometry.
+  structureChildRule({
+    id: "wall-of-stone:panel",
+    spellId: "wall-of-stone",
+    shape: "line",
+    size: 3,
+    width: 0.15,
+  }),
+  structureChildRule({
+    id: "wall-of-ice:panel",
+    spellId: "wall-of-ice",
+    shape: "line",
+    size: 3,
+    width: 0.3,
+  }),
+  structureChildRule({
+    id: "wall-of-ice:frigid-air",
+    spellId: "wall-of-ice",
+    shape: "line",
+    size: 3,
+    width: 0.3,
+    triggers: CATALOG_ZONE_TRIGGERS["wall-of-ice"],
+  }),
+  structurePickRule("wall-of-stone:pick-damage", "wall-of-stone", "wall-of-stone-damage"),
+  structurePickRule("wall-of-stone:pick-collapse", "wall-of-stone", "wall-of-stone-collapse"),
+  structurePickRule("wall-of-ice:pick-damage", "wall-of-ice", "wall-of-ice-damage"),
+  // CAP-STRUCTURE, lotto S3: Bones of the Earth's pillars, one cell each, and the rubble a destroyed one leaves, 3 m
+  // around it (decision D8). The rubble is drawn for the GM: its difficult terrain is counted at the table, because the
+  // movement cost of a zone comes from its root (membership), not from its children.
+  structureChildRule({
+    id: "xanathar-ossa-della-terra:pillar",
+    spellId: "xanathar-ossa-della-terra",
+    shape: "square",
+    size: 1.5,
+  }),
+  structureChildRule({
+    id: "xanathar-ossa-della-terra:rubble",
+    spellId: "xanathar-ossa-della-terra",
+    shape: "circle",
+    size: 3,
+  }),
+  structurePickRule("xanathar-ossa-della-terra:pick-damage", "xanathar-ossa-della-terra", "bones-of-the-earth-damage"),
   // Arcane Gate (CAP-TELEPORT, lotto T4): the second portal, like the first, within 150 m of the caster (the action's range).
   childZoneRule({
     id: "phb2014-portale-arcano:far",

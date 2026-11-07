@@ -167,7 +167,7 @@ for (const [spellId, dice, baseSlot, triggers] of [
   ["insect-plague", "4d10", 5, 2],
   ["moonbeam", "2d10", 2, 2],
   ["spirit-guardians", "3d8", 3, 2],
-  ["wall-of-ice", "5d6", 6, 3],
+  ["wall-of-ice", "5d6", 6, 1],
   ["wall-of-thorns", "7d8", 6, 2],
 ]) {
   test(`${spellId}: the dice of its reminders grow with the slot`, () => {

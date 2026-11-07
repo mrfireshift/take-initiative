@@ -472,6 +472,9 @@ function normalizePreview(value) {
     "anchorTargetId",
     "anchorOrigin",
     "rangeOverride",
+    // CAP-MULTIAREA: each shape of one cast, with its own hit targets; Bones of the Earth raises a pillar on each
+    // (CAP-STRUCTURE, lotto S3).
+    "areas",
   ]) {
     if (value[key] !== undefined) preview[key] = serializable(value[key]);
   }

@@ -53,7 +53,8 @@ function bookAction(spellId, overrides = {}) {
 // Disintegrate, Finger of Death, Power Word Kill and Feeblemind resolve in the area command (CAP-HP-BRANCH); 67 with
 // Heal, Power Word Heal, Lesser Restoration and Dispel Magic (CAP-CLEANSE); 66 with Magic Missile (its darts); 65 with Goodberry (CAP-RESOURCE).
 // 60 with Control Flames, Shape Water and Mold Earth, which change the surroundings and left no trace (lotto P2 of the polish).
-test("the plugin only records the instantaneous spells it neither tracks nor places: 59 of the catalog", () => {
+// 58 since Bones of the Earth raises its pillars on the map (CAP-STRUCTURE, lotto S3).
+test("the plugin only records the instantaneous spells it neither tracks nor places: 58 of the catalog", () => {
   const catalog = getSpellCatalog();
   const tracked = new Set(getTrackableSpellOptions().map((option) => option.id));
   const expected = catalog
@@ -62,7 +63,7 @@ test("the plugin only records the instantaneous spells it neither tracks nor pla
     .map((spell) => spell.id);
   const recorded = getRecordOnlySpellOptions().map((option) => option.id);
   assert.deepEqual(recorded, expected);
-  assert.equal(recorded.length, 59);
+  assert.equal(recorded.length, 58);
   for (const id of ["counterspell", "greater-restoration", "wish", "scorching-ray", "mending", "identify"]) {
     assert.equal(isSpellCastRecordOnly(id), true, id);
   }
@@ -78,7 +79,7 @@ test("the plugin only records the instantaneous spells it neither tracks nor pla
 test("every spell of the catalog is a quick action option, the recorded ones flagged", () => {
   const options = getQuickActionSpellOptions();
   assert.equal(options.length, getSpellCatalog().length);
-  assert.equal(options.filter((option) => option.recordOnly).length, 59);
+  assert.equal(options.filter((option) => option.recordOnly).length, 58);
   assert.equal(options.find((option) => option.id === "counterspell").recordOnly, true);
   assert.equal(options.find((option) => option.id === "fireball").recordOnly, false);
 });

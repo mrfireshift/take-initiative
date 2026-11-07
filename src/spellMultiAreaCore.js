@@ -5,7 +5,8 @@
 // module says what the rule allows and what to tell the GM.
 
 export const SPELL_MULTI_AREA_MAX_COUNT = 12;
-export const SPELL_MULTI_AREA_ADJACENCY = Object.freeze(["none", "side"]);
+// "touch": a wall's panels drawn one by one (CAP-STRUCTURE), each touching another panel somewhere along it.
+export const SPELL_MULTI_AREA_ADJACENCY = Object.freeze(["none", "side", "touch"]);
 
 // The words for the GM, by the noun the rule declares: Italian agrees them.
 const NOUNS = Object.freeze({
@@ -37,6 +38,36 @@ const NOUNS = Object.freeze({
     pronoun: "lo",
     removed: "tolto",
   }),
+  // The panels of a wall drawn one by one (CAP-STRUCTURE, decision D3 of 7/11/2026).
+  pannello: Object.freeze({
+    one: "pannello",
+    many: "pannelli",
+    the: "Il pannello",
+    indefinite: "un pannello",
+    another: "un altro pannello",
+    besideAnother: "accanto a un altro",
+    all: "tutti i",
+    first: "il primo",
+    next: "il prossimo",
+    someone: "uno",
+    pronoun: "lo",
+    removed: "tolto",
+  }),
+  // Bones of the Earth's pillars (CAP-STRUCTURE, lotto S3).
+  colonna: Object.freeze({
+    one: "colonna",
+    many: "colonne",
+    the: "La colonna",
+    indefinite: "una colonna",
+    another: "un'altra colonna",
+    besideAnother: "accanto a un'altra",
+    all: "tutte le",
+    first: "la prima",
+    next: "la prossima",
+    someone: "una",
+    pronoun: "la",
+    removed: "tolta",
+  }),
 });
 export const SPELL_MULTI_AREA_NOUNS = Object.freeze(Object.keys(NOUNS));
 
@@ -56,15 +87,32 @@ function finitePoint(value) {
   return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
 }
 
+// The slot a cast uses, when one is known: an integer from 1 to 9, or 0.
+function castSlotLevel(value) {
+  const level = Math.floor(Number(value));
+  return Number.isInteger(level) && level >= 1 && level <= 9 ? level : 0;
+}
+
 // What a rule declares, with its defaults: exactly count shapes unless minCount says fewer will do, no constraint on
-// how they sit unless adjacency says "side", and "esplosione" as the word. Null without a valid declaration.
-export function spellMultiAreaSpec(rule) {
+// how they sit unless adjacency says "side", and "esplosione" as the word. A count that grows with the slot declares
+// additionalPerSlotAbove and baseSlot (Bones of the Earth: two more pillars for each slot above the 6th); without a slot
+// the base count holds. Null without a valid declaration.
+export function spellMultiAreaSpec(rule, { slotLevel = 0 } = {}) {
   const value = rule?.placement?.multiArea;
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const count = Number(value.count);
-  if (!Number.isInteger(count) || count < 2 || count > SPELL_MULTI_AREA_MAX_COUNT) return null;
+  const baseCount = Number(value.count);
+  if (!Number.isInteger(baseCount) || baseCount < 2 || baseCount > SPELL_MULTI_AREA_MAX_COUNT) return null;
+  const perSlot = value.additionalPerSlotAbove === undefined ? 0 : Number(value.additionalPerSlotAbove);
+  if (!Number.isInteger(perSlot) || perSlot < 0) return null;
+  const baseSlot = value.baseSlot === undefined ? 0 : Number(value.baseSlot);
+  if (perSlot > 0 && !castSlotLevel(baseSlot)) return null;
+  const slot = castSlotLevel(slotLevel);
+  const count = Math.min(
+    SPELL_MULTI_AREA_MAX_COUNT,
+    baseCount + (perSlot > 0 && slot > baseSlot ? perSlot * (slot - baseSlot) : 0),
+  );
   const minCount = value.minCount === undefined ? count : Number(value.minCount);
-  if (!Number.isInteger(minCount) || minCount < 1 || minCount > count) return null;
+  if (!Number.isInteger(minCount) || minCount < 1 || minCount > baseCount) return null;
   const adjacency = value.adjacency === undefined ? "none" : value.adjacency;
   if (!SPELL_MULTI_AREA_ADJACENCY.includes(adjacency)) return null;
   const noun = value.noun === undefined ? "esplosione" : value.noun;
@@ -73,17 +121,21 @@ export function spellMultiAreaSpec(rule) {
 }
 
 // The errors of a rule's placement.multiArea, for validateSpellAreaRule: circles or squares, drawn on free points by an
-// instant spell, and side adjacency only between squares.
+// instant spell, and side adjacency only between squares. A zone may draw several shapes only when each becomes a
+// segment of a structure (CAP-STRUCTURE: Bones of the Earth's pillars, a wall's panels one by one), under a root that
+// holds them; only such a structure draws lines, each touching another.
 export function spellMultiAreaRuleErrors(rule) {
   const value = rule?.placement?.multiArea;
   if (value === undefined) return [];
   const errors = [];
   const shape = rule?.geometry?.shape;
+  const structureZone = rule?.kind === "zone" && rule?.zonePolicy?.structure === true;
   if (!spellMultiAreaSpec(rule)) errors.push("multi-area-invalid");
-  if (!["circle", "square"].includes(shape)) errors.push("multi-area-shape-invalid");
+  if (!["circle", "square", ...(structureZone ? ["line"] : [])].includes(shape)) errors.push("multi-area-shape-invalid");
   if (value?.adjacency === "side" && shape !== "square") errors.push("multi-area-adjacency-invalid");
+  if (value?.adjacency === "touch" && shape !== "line") errors.push("multi-area-adjacency-invalid");
   if (
-    rule?.kind !== "instant"
+    !(rule?.kind === "instant" || structureZone)
     || rule?.placement?.origin !== "point"
     || rule?.placement?.mode === "point"
   ) {
@@ -93,8 +145,8 @@ export function spellMultiAreaRuleErrors(rule) {
 }
 
 // The tool's state for one placement: the declaration and the shapes fixed on the map, in the order of their numbers.
-export function createSpellMultiAreaRuntime(rule) {
-  const spec = spellMultiAreaSpec(rule);
+export function createSpellMultiAreaRuntime(rule, { slotLevel = 0 } = {}) {
+  const spec = spellMultiAreaSpec(rule, { slotLevel });
   return spec ? { ...spec, shapes: [] } : null;
 }
 
@@ -186,10 +238,49 @@ function touchBySide(a, b, epsilon) {
   return (overlapX > epsilon && overlapY > -epsilon) || (overlapY > epsilon && overlapX > -epsilon);
 }
 
+function segmentDistance(a, b) {
+  const pointToSegment = (value, start, end) => {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const lengthSquared = dx * dx + dy * dy;
+    const t = lengthSquared > 0
+      ? Math.max(0, Math.min(1, ((value.x - start.x) * dx + (value.y - start.y) * dy) / lengthSquared))
+      : 0;
+    return Math.hypot(value.x - (start.x + dx * t), value.y - (start.y + dy * t));
+  };
+  return Math.min(
+    pointToSegment(a.start, b.start, b.end),
+    pointToSegment(a.end, b.start, b.end),
+    pointToSegment(b.start, a.start, a.end),
+    pointToSegment(b.end, a.start, a.end),
+  );
+}
+
+// "Each panel must be contiguous with another panel": the number of the first panel that touches no other one, or 0.
+function isolatedTouchingOrdinal(shapes) {
+  const segments = shapes.map((shape) => {
+    const start = finitePoint(shape?.start);
+    const end = finitePoint(shape?.end);
+    return start && end ? { start, end } : null;
+  });
+  for (let index = 0; index < shapes.length; index += 1) {
+    const own = segments[index];
+    if (!own) continue;
+    const epsilon = Math.max(0.5, (Number(shapes[index].dpi) || 0) * 0.01);
+    const touches = segments.some((other, otherIndex) => (
+      otherIndex !== index && other && segmentDistance(own, other) <= epsilon
+    ));
+    if (!touches) return shapes[index].ordinal;
+  }
+  return 0;
+}
+
 // "Each cube must have at least one face adjacent to the face of another cube": the number of the first square that
-// touches no other one along a side, or 0 when they all do, with a single shape, or when the rule asks nothing.
+// touches no other one along a side, or 0 when they all do, with a single shape, or when the rule asks nothing. A
+// wall's panels drawn one by one only have to touch.
 export function spellMultiAreaIsolatedOrdinal(runtime) {
   const shapes = Array.isArray(runtime?.shapes) ? runtime.shapes : [];
+  if (runtime?.adjacency === "touch" && shapes.length >= 2) return isolatedTouchingOrdinal(shapes);
   if (runtime?.adjacency !== "side" || shapes.length < 2) return 0;
   const bounds = shapes.map(squareBounds);
   for (let index = 0; index < shapes.length; index += 1) {
@@ -218,7 +309,8 @@ export function spellMultiAreaConfirmProblem(runtime) {
   }
   const isolated = spellMultiAreaIsolatedOrdinal(runtime);
   if (isolated) {
-    return `${words.the} ${isolated} non tocca ${words.another} con un lato: togli${words.pronoun} e ridisegna${words.pronoun} ${words.besideAnother}.`;
+    const where = runtime.adjacency === "touch" ? "" : " con un lato";
+    return `${words.the} ${isolated} non tocca ${words.another}${where}: togli${words.pronoun} e ridisegna${words.pronoun} ${words.besideAnother}.`;
   }
   return "";
 }

@@ -2952,6 +2952,9 @@ async function prepareEffectsSideEffects(plan, command) {
           && descriptor.removeChildKinds.includes(
             String(item.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.childKind || ""),
           ))
+        // CAP-STRUCTURE: one destroyed panel or pillar, by its own id.
+        || (Array.isArray(descriptor.removeChildItemIds)
+          && descriptor.removeChildItemIds.includes(String(item.id || "")))
       );
       if (descriptor.singleActivation === true && existingChildren.length) {
         return {

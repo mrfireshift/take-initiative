@@ -43,6 +43,7 @@ import {
   validateBlinkReturnPlacement,
 } from "./blinkRules.js";
 import { spellTeleportActionSubject } from "./spellTeleportCore.js";
+import { getSpellStructureRule, planSpellStructureSegmentChange } from "./spellStructureCore.js";
 import {
   TELEKINESIS_CONTEST_RESOLUTION_KIND,
   TELEKINESIS_OUTCOMES,
@@ -1091,6 +1092,33 @@ async function validateBlinkReturn({
   };
 }
 
+// CAP-STRUCTURE: the panel or pillar chosen, still standing, and a damage (a collapse needs none).
+function validateStructureSegment({
+  payload,
+  segmentIndex,
+  damageRoll,
+  damageType,
+  allItems,
+} = {}) {
+  const rule = getSpellStructureRule(payload?.spellId);
+  const caster = allItems.find((item) => item?.id === payload?.casterId);
+  const spells = caster?.metadata?.[META_KEY]?.[SPELLS_KEY];
+  const parent = (Array.isArray(spells) ? spells : []).find((spell) => (
+    String(spell?.instanceId || "").trim() === String(payload?.instanceId || "").trim()
+  )) || null;
+  if (!rule) return { valid: false, errors: ["structure-rule-missing"] };
+  if (!parent) return { valid: false, errors: ["structure-parent-missing"] };
+  const plan = planSpellStructureSegmentChange({
+    rule,
+    state: parent.castContext?.structure,
+    index: segmentIndex,
+    amount: numericRoll(damageRoll) ?? 0,
+    type: damageType,
+    operation: String(payload?.action?.structure?.operation || "damage").trim(),
+  });
+  return { valid: plan.valid, errors: [...plan.errors], plan };
+}
+
 // CAP-TELEPORT: the creature moved and the cell chosen. The tool keeps the click within the rule's range; free space
 // and sight stay the GM's, as for Blink's return.
 function validateTeleportAction({
@@ -1133,6 +1161,8 @@ export async function validateSpellActiveResolutionCommit({
   layerId = "",
   traversalId = "",
   directHit = null,
+  segmentIndex = 0,
+  damageType = "",
 } = {}) {
   const payloadValidation = validateSpellActiveResolutionPayload(payload);
   const errors = [...payloadValidation.errors];
@@ -1160,6 +1190,8 @@ export async function validateSpellActiveResolutionCommit({
     ? await validateBlinkReturn({ payload, placement, targetIds: ids, allItems })
     : payload.action.resolutionKind === "teleport"
     ? validateTeleportAction({ payload, placement, targetIds: ids, allItems })
+    : payload.action.resolutionKind === "structure-segment"
+    ? validateStructureSegment({ payload, segmentIndex, damageRoll, damageType, allItems })
     : ["prismatic-wall-traversal", "prismatic-wall-layers"]
     .includes(String(payload.action.resolutionKind || "").trim())
     ? await validatePrismaticWall({

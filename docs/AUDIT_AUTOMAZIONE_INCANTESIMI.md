@@ -643,10 +643,10 @@ da questo audit.
 - Catalogo totale: **477** definizioni su 477 record.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **477**; disconnessi: **0**; fragili: **0**.
-- Opzioni trackable del runtime: **360**; definizioni con tracking persistente verificate dall'audit: **360**; definizioni con regole d'area: **142** (151 regole).
-- Workflow che richiedono smoke test runtime: **417**.
+- Opzioni trackable del runtime: **361**; definizioni con tracking persistente verificate dall'audit: **361**; definizioni con regole d'area: **144** (162 regole).
+- Workflow che richiedono smoke test runtime: **418**.
 - Lacune RAW confermate P1: **7**; discrepanze ad alta confidenza P2: **2**.
-- Impronta deterministica: `dd436a4dbc7badf1`.
+- Impronta deterministica: `4305f11f60abdcb6`.
 
 ## Decisioni di prodotto chiuse
 
@@ -659,9 +659,9 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | FULL | 66 |
-| MANUAL | 57 |
-| PARTIAL | 244 |
-| TRACK_ONLY | 110 |
+| MANUAL | 56 |
+| PARTIAL | 246 |
+| TRACK_ONLY | 109 |
 
 ### Stato di copertura (coverageStatus)
 
@@ -700,12 +700,12 @@ da questo audit.
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION | 54 |
-| AREA_GEOMETRY | 142 |
-| CAST | 277 |
-| CLEANUP | 129 |
+| ACTIVE_ACTION | 57 |
+| AREA_GEOMETRY | 144 |
+| CAST | 279 |
+| CLEANUP | 131 |
 | CONCENTRATION | 218 |
-| PERSISTENCE | 360 |
+| PERSISTENCE | 361 |
 | TURN_TRIGGER | 110 |
 
 ### Stato di integrazione console unificata
@@ -1036,7 +1036,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Muro di fuoco | `wall-of-fire` | SRD 5.1 / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Muro di ghiaccio | `wall-of-ice` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Muro di Luce | `xanathar-muro-di-luce` | Xanathar / 5 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
-| Muro di pietra | `wall-of-stone` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Muro di pietra | `wall-of-stone` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Muro di Sabbia | `xanathar-muro-di-sabbia` | Xanathar / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Muro di spine | `wall-of-thorns` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Muro di vento | `wind-wall` | SRD 5.1 / 3 | PARTIAL | ACCEPTED | PARTIAL | UNIFIED | reachable | — | — |
@@ -1055,7 +1055,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Orrido Avvizzimento di Abi-Dalzim | `xanathar-orrido-avvizzimento-di-abi-dalzim` | Xanathar / 8 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Oscurità | `darkness` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Oscurità della Follia | `xanathar-oscurita-della-follia` | Xanathar / 8 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Ossa della Terra | `xanathar-ossa-della-terra` | Xanathar / 6 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Ossa della Terra | `xanathar-ossa-della-terra` | Xanathar / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Palla di fuoco | `fireball` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Palla di fuoco ritardata | `delayed-blast-fireball` | SRD 5.1 / 7 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
 | Parlare con gli animali | `speak-with-animals` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

@@ -161,6 +161,18 @@
         <div id="prismaticWallLayers" class="prismatic-wall-layers"></div>
         <div id="prismaticWallLayerDetail" class="root-note" hidden></div>
       </section>
+      <section id="structureSection" class="section" hidden>
+        <div id="structureTitle" class="section-title">Pannello</div>
+        <div class="toolbar">
+          <button id="structurePick" class="primary" type="button">Scegli sulla mappa</button>
+          <span id="structureStatus" class="hint"></span>
+        </div>
+        <div id="structureDamageRow" class="toolbar" hidden>
+          <label for="structureDamage" class="hint">Danno</label>
+          <input id="structureDamage" type="number" min="0" step="1" inputmode="numeric" />
+          <select id="structureType" aria-label="Tipo di danno"></select>
+        </div>
+      </section>
       <section id="blinkReturnSection" class="section" hidden>
         <div id="blinkReturnTitle" class="section-title">Piano Etereo · ritorno</div>
         <div id="blinkReturnHint" class="root-note" hidden>Scegli la destinazione del ritorno sulla mappa.</div>

@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 286,
-      "PARTIAL": 24,
+      "COMPLETE / CURRENT": 289,
+      "PARTIAL": 22,
       "NO AUTOMATION REQUIRED": 145,
-      "MISSING": 7,
+      "MISSING": 6,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 31,
+    "implementableBacklog": 28,
     "readiness": {
       "GREEN": {
         "count": 0,
         "percent": 0
       },
       "YELLOW": {
-        "count": 19,
-        "percent": 61.29032258064516
+        "count": 16,
+        "percent": 57.14285714285714
       },
       "RED": {
         "count": 12,
-        "percent": 38.70967741935484
+        "percent": 42.857142857142854
       }
     },
     "scenarios": [
@@ -40210,18 +40210,20 @@
       "id": "wall-of-ice",
       "spell": "Muro di ghiaccio",
       "level": 6,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js",
+        "src/spellStructureCore.js",
+        "src/spellAreaCatalog.js",
         "src/spellAreaRules.js",
         "src/spellStaticZone.js",
-        "src/spellAreaResolutionExecutor.js"
+        "src/spellChildZoneCore.js",
+        "src/spellActiveResolutionRules.js",
+        "src/spellApplicationExecutor.js",
+        "src/spell-active-resolution.js"
       ],
       "mechanicsRequired": [
-        "Tracking/area presente; segmenti con HP, distruzione, residui e persistenza finale richiedono generalizzare child-zone/layer state.",
-        "Damage type: cold"
+        "CAP-STRUCTURE: muro spesso 30 cm sulle linee della griglia entro 36 m, dieci pannelli da 3 m in fila o uno per uno, 30 PF e CA 12 nella pill e una barra sotto ognuno; TS Destrezza al lancio per chi è nelle caselle sul lato del muro, 10d6 freddo (+2d6 per slot sopra il 6°); ⚡ Danneggia pannello raddoppia il fuoco; un pannello distrutto lascia la cortina gelida, TS Costituzione e 5d6 freddo a chi la attraversa. Cupola o sfera di 3 m con il TS al lancio, i PF delle sue sezioni al tavolo."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -40239,9 +40241,7 @@
         "C-MEMBERSHIP",
         "C-TRIGGERS"
       ],
-      "missingCapabilities": [
-        "CAP-STRUCTURE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects + composite scene side effects; Undo restore of owned geometry/trigger required",
       "recoveryImplications": "Derived area reconciliation; durable recovery does NOT cover every scene side effect",
@@ -40249,7 +40249,7 @@
         "mode": "geometric",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Tracking/area presente; segmenti con HP, distruzione, residui e persistenza finale richiedono generalizzare child-zone/layer state."
+        "required": "CAP-STRUCTURE: muro spesso 30 cm sulle linee della griglia entro 36 m, dieci pannelli da 3 m in fila o uno per uno, 30 PF e CA 12 nella pill e una barra sotto ognuno; TS Destrezza al lancio per chi è nelle caselle sul lato del muro, 10d6 freddo (+2d6 per slot sopra il 6°); ⚡ Danneggia pannello raddoppia il fuoco; un pannello distrutto lascia la cortina gelida, TS Costituzione e 5d6 freddo a chi la attraversa. Cupola o sfera di 3 m con il TS al lancio, i PF delle sue sezioni al tavolo."
       },
       "concentration": true,
       "durationLifecycle": {
@@ -40316,8 +40316,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "STRUCTURAL-ZONE",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-STRUCTURE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "wall-of-ice",
@@ -40355,7 +40355,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking/area presente; segmenti con HP, distruzione, residui e persistenza finale richiedono generalizzare child-zone/layer state.",
+        "reason": "CAP-STRUCTURE: muro spesso 30 cm sulle linee della griglia entro 36 m, dieci pannelli da 3 m in fila o uno per uno, 30 PF e CA 12 nella pill e una barra sotto ognuno; TS Destrezza al lancio per chi è nelle caselle sul lato del muro, 10d6 freddo (+2d6 per slot sopra il 6°); ⚡ Danneggia pannello raddoppia il fuoco; un pannello distrutto lascia la cortina gelida, TS Costituzione e 5d6 freddo a chi la attraversa. Cupola o sfera di 3 m con il TS al lancio, i PF delle sue sezioni al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -40372,14 +40372,19 @@
       "id": "wall-of-stone",
       "spell": "Muro di pietra",
       "level": 5,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spellStructureCore.js",
+        "src/spellAreaCatalog.js",
+        "src/spellAreaRules.js",
+        "src/spellStaticZone.js",
+        "src/spellActiveResolutionRules.js",
+        "src/spellApplicationExecutor.js",
+        "src/spell-active-resolution.js"
       ],
       "mechanicsRequired": [
-        "Tracking/area presente; segmenti con HP, distruzione, residui e persistenza finale richiedono generalizzare child-zone/layer state."
+        "CAP-STRUCTURE: muro sottile sulle linee della griglia entro 36 m, dieci pannelli in fila o uno per uno (ognuno attaccato a un altro): da 3 m spessi 15 cm (180 PF) o da 6 m spessi 7,5 cm (90 PF), CA 15, con i PF nella pill del caster in concentrazione e una barra sotto ogni pannello; ⚡ Danneggia pannello con l'immunità degli oggetti a veleno e psichici, ⚡ Fai crollare un pannello a mano. Creature racchiuse, pannelli impilati o ad angolo e permanenza dopo 10 minuti al tavolo."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -40392,9 +40397,7 @@
         "C-HISTORY",
         "C-CONCENTRATION"
       ],
-      "missingCapabilities": [
-        "CAP-STRUCTURE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -40402,7 +40405,7 @@
         "mode": "discrete",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Tracking/area presente; segmenti con HP, distruzione, residui e persistenza finale richiedono generalizzare child-zone/layer state."
+        "required": "CAP-STRUCTURE: muro sottile sulle linee della griglia entro 36 m, dieci pannelli in fila o uno per uno (ognuno attaccato a un altro): da 3 m spessi 15 cm (180 PF) o da 6 m spessi 7,5 cm (90 PF), CA 15, con i PF nella pill del caster in concentrazione e una barra sotto ogni pannello; ⚡ Danneggia pannello con l'immunità degli oggetti a veleno e psichici, ⚡ Fai crollare un pannello a mano. Creature racchiuse, pannelli impilati o ad angolo e permanenza dopo 10 minuti al tavolo."
       },
       "concentration": true,
       "durationLifecycle": {
@@ -40431,8 +40434,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "STRUCTURAL-ZONE",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-STRUCTURE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "wall-of-stone",
@@ -40461,7 +40464,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking/area presente; segmenti con HP, distruzione, residui e persistenza finale richiedono generalizzare child-zone/layer state.",
+        "reason": "CAP-STRUCTURE: muro sottile sulle linee della griglia entro 36 m, dieci pannelli in fila o uno per uno (ognuno attaccato a un altro): da 3 m spessi 15 cm (180 PF) o da 6 m spessi 7,5 cm (90 PF), CA 15, con i PF nella pill del caster in concentrazione e una barra sotto ogni pannello; ⚡ Danneggia pannello con l'immunità degli oggetti a veleno e psichici, ⚡ Fai crollare un pannello a mano. Creature racchiuse, pannelli impilati o ad angolo e permanenza dopo 10 minuti al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -50126,13 +50129,20 @@
       "id": "xanathar-ossa-della-terra",
       "spell": "Ossa della Terra",
       "level": 6,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/spellStructureCore.js",
+        "src/spellMultiAreaCore.js",
+        "src/aoeTargetTool.js",
+        "src/spellAreaCatalog.js",
+        "src/spellAreaRules.js",
+        "src/areaSaveSpellRules.js",
+        "src/spellActiveResolutionRules.js",
+        "src/spellApplicationExecutor.js"
       ],
       "mechanicsRequired": [
-        "Colonne multiple, HP e crollo con rider/terreno: donor prismaticWall/earthquake/boardToken, manca contract comune segmenti."
+        "CAP-STRUCTURE con CAP-MULTIAREA: fino a sei colonne di una casella entro 36 m, due in più per slot sopra il 6°, 30 PF e CA 5 nella pill senza scadenza, una barra sotto ognuna; TS Destrezza di chi è sotto una colonna, chi fallisce prende «Sulla colonna»; ⚡ Soffitto 6d6 contundenti e Trattenuto con la prova di Forza o Destrezza; ⚡ Danneggia colonna, a 0 PF le macerie di 3 m disegnate sulla mappa. Costo del terreno difficile delle macerie, altezza delle colonne ed elevazione al tavolo."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -50144,9 +50154,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-STRUCTURE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -50154,7 +50162,7 @@
         "mode": "discrete",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Colonne multiple, HP e crollo con rider/terreno: donor prismaticWall/earthquake/boardToken, manca contract comune segmenti."
+        "required": "CAP-STRUCTURE con CAP-MULTIAREA: fino a sei colonne di una casella entro 36 m, due in più per slot sopra il 6°, 30 PF e CA 5 nella pill senza scadenza, una barra sotto ognuna; TS Destrezza di chi è sotto una colonna, chi fallisce prende «Sulla colonna»; ⚡ Soffitto 6d6 contundenti e Trattenuto con la prova di Forza o Destrezza; ⚡ Danneggia colonna, a 0 PF le macerie di 3 m disegnate sulla mappa. Costo del terreno difficile delle macerie, altezza delle colonne ed elevazione al tavolo."
       },
       "concentration": false,
       "durationLifecycle": {
@@ -50183,8 +50191,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "STRUCTURAL-ZONE",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-STRUCTURE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-ossa-della-terra",
@@ -50212,7 +50220,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Colonne multiple, HP e crollo con rider/terreno: donor prismaticWall/earthquake/boardToken, manca contract comune segmenti.",
+        "reason": "CAP-STRUCTURE con CAP-MULTIAREA: fino a sei colonne di una casella entro 36 m, due in più per slot sopra il 6°, 30 PF e CA 5 nella pill senza scadenza, una barra sotto ognuna; TS Destrezza di chi è sotto una colonna, chi fallisce prende «Sulla colonna»; ⚡ Soffitto 6d6 contundenti e Trattenuto con la prova di Forza o Destrezza; ⚡ Danneggia colonna, a 0 PF le macerie di 3 m disegnate sulla mappa. Costo del terreno difficile delle macerie, altezza delle colonne ed elevazione al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {

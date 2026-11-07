@@ -72,6 +72,7 @@ import {
 } from "./spellBoardTokenCore.js";
 import {
   buildStaticSpellChildZoneItem,
+  buildStaticSpellStructureBarItems,
   requestStaticSpellZoneReconcile,
 } from "./spellStaticZone.js";
 import { SPELL_STATIC_ZONE_META_KEY, translatedZoneArea } from "./spellStaticZoneCore.js";
@@ -90,6 +91,15 @@ import {
   blinkStateFromCastContext,
 } from "./blinkRules.js";
 import { spellTeleportActionSubject } from "./spellTeleportCore.js";
+import {
+  getSpellStructureRule,
+  planSpellStructureSegmentChange,
+  SPELL_STRUCTURE_BAR_FILL_KIND,
+  SPELL_STRUCTURE_BAR_KIND,
+  spellStructureChangeLabel,
+  spellStructureResiduePreview,
+  spellStructureSummaryParts,
+} from "./spellStructureCore.js";
 import {
   TELEKINESIS_CONTEST_RESOLUTION_KIND,
   TELEKINESIS_SPELL_ID,
@@ -993,6 +1003,163 @@ async function executeTeleportResolution({
   return attachSpellExecutionHistory(changedIds, mutation);
 }
 
+// CAP-STRUCTURE: a panel or pillar damaged, or brought down by hand (Wall of Stone's collapse). Its hit points live in
+// the caster's pill, never in a creature's HP; at 0 the segment leaves the map with its residue (the frigid air of an
+// ice panel), in the same History entry, which Undo puts back.
+async function executeStructureSegmentResolution({
+  payload = null,
+  segmentIndex = 0,
+  damageRoll = 0,
+  damageType = "",
+  sceneEpoch = null,
+  sceneIdentity = null,
+  commandId = "",
+  isCurrent = null,
+} = {}) {
+  const rule = getSpellStructureRule(payload?.spellId);
+  const operation = String(payload?.action?.structure?.operation || "damage").trim();
+  const allItems = await OBR.scene.items.getItems();
+  const caster = allItems.find((item) => item?.id === payload?.casterId);
+  const casterSpells = caster?.metadata?.[`${ID}/meta`]?.[`${ID}/spells`];
+  const parent = (Array.isArray(casterSpells) ? casterSpells : []).find((entry) => (
+    String(entry?.instanceId || "").trim() === String(payload?.instanceId || "").trim()
+  ));
+  if (!rule || !caster || !parent) throw new Error("structure-parent-missing");
+  const plan = planSpellStructureSegmentChange({
+    rule,
+    state: parent.castContext?.structure,
+    index: segmentIndex,
+    amount: Number(damageRoll) || 0,
+    type: damageType,
+    operation,
+  });
+  if (!plan.valid) throw new Error(`structure-segment-invalid: ${plan.errors.join(", ")}`);
+  const castContext = { ...(parent.castContext || {}), structure: plan.state };
+  const turns = Math.max(0, Math.floor(Number(parent.turns) || 0));
+  const operations = [{
+    type: "spell:upsert",
+    targetIds: [payload.casterId],
+    name: String(parent.name || payload.spellName || rule.spellId).trim(),
+    source: payload.casterId,
+    casterName: String(parent.casterName || payload.casterName || "").trim(),
+    spellId: rule.spellId,
+    instanceId: payload.instanceId,
+    turns,
+    ...(turns === 0 ? { allowZeroTurns: true } : {}),
+    conc: parent.conc === true,
+    appliedAt: parent.appliedAt,
+    castContext,
+    summaryParts: spellStructureSummaryParts(rule, plan.state),
+    expectedInstanceId: payload.instanceId,
+    expectedCastContext: parent.castContext || {},
+  }];
+  // The segment on the map, a child of the wall's invisible root, and the bar under it: gone at 0, its residue in its
+  // place; still standing, a new fill for its bar.
+  const segmentChildren = (childKind) => allItems.filter((item) => {
+    const metadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+    return metadata?.role === "subzone"
+      && String(metadata.parentInstanceId || "") === String(payload.instanceId || "")
+      && String(metadata.childKind || "") === childKind
+      && Number(metadata.childIndex) === plan.segment.index;
+  });
+  const [segmentItem] = segmentChildren(rule.segmentKind);
+  const barTracks = segmentChildren(SPELL_STRUCTURE_BAR_KIND);
+  const barFills = segmentChildren(SPELL_STRUCTURE_BAR_FILL_KIND);
+  const sideEffects = [];
+  if (plan.destroyed && segmentItem) {
+    const metadata = segmentItem.metadata[SPELL_STATIC_ZONE_META_KEY];
+    // A wall's frigid air on the panel itself, a pillar's rubble 3 m around it.
+    const residuePreview = rule.residueRuleId ? spellStructureResiduePreview(rule, metadata.geometry) : null;
+    const residue = residuePreview
+      ? buildStaticSpellChildZoneItem({
+        ruleId: rule.residueRuleId,
+        instanceId: payload.instanceId,
+        casterId: payload.casterId,
+        parentId: metadata.parentZoneId,
+        spellName: payload.spellName,
+        preview: residuePreview,
+        childKind: rule.residueKind,
+        childIndex: plan.segment.index,
+        activationId: `${payload.instanceId}:residue:${plan.segment.index}`,
+        sceneEpoch: Number(payload.sceneEpoch) || 0,
+      })
+      : null;
+    sideEffects.push({
+      type: "static-zone:child-zones",
+      parentZoneId: metadata.parentZoneId,
+      parentInstanceId: payload.instanceId,
+      casterId: payload.casterId,
+      removeChildItemIds: [segmentItem.id, ...barTracks.map((item) => item.id), ...barFills.map((item) => item.id)],
+      items: residue ? [residue] : [],
+    });
+  } else if (segmentItem && plan.after !== plan.before) {
+    // The track stays; a segment from before the bars gets its whole bar.
+    const metadata = segmentItem.metadata[SPELL_STATIC_ZONE_META_KEY];
+    const bars = buildStaticSpellStructureBarItems({
+      instanceId: payload.instanceId,
+      casterId: payload.casterId,
+      parentId: metadata.parentZoneId,
+      spellName: payload.spellName,
+      segmentItem,
+      hp: plan.after,
+      hpMax: plan.segment.hpMax,
+      sceneEpoch: Number(payload.sceneEpoch) || 0,
+      parts: barTracks.length ? [SPELL_STRUCTURE_BAR_FILL_KIND] : [SPELL_STRUCTURE_BAR_KIND, SPELL_STRUCTURE_BAR_FILL_KIND],
+    });
+    if (bars.length || barFills.length) {
+      sideEffects.push({
+        type: "static-zone:child-zones",
+        parentZoneId: metadata.parentZoneId,
+        parentInstanceId: payload.instanceId,
+        casterId: payload.casterId,
+        removeChildItemIds: barFills.map((item) => item.id),
+        items: bars,
+      });
+    }
+  }
+  const label = spellStructureChangeLabel(rule, payload.spellName || parent.name, plan, operation);
+  const structureMutation = await runEffectsMutation(operations, {
+    kind: "spell",
+    label,
+    targetIds: [payload.casterId],
+    ...(sideEffects.length ? { sideEffects } : {}),
+    history: {
+      kind: "spell",
+      label,
+      payload: {
+        causality: buildSpellCausality({
+          eventType: "active-resolution",
+          spellId: rule.spellId,
+          spellName: payload.spellName,
+          instanceId: payload.instanceId,
+          casterId: payload.casterId,
+          casterName: payload.casterName,
+          action: payload.action,
+          targets: [],
+          targetIds: [],
+        }),
+        structure: {
+          index: plan.segment.index,
+          before: plan.before,
+          after: plan.after,
+          dealt: plan.dealt,
+          ...(plan.defense ? { defense: plan.defense } : {}),
+          ...(String(damageType || "").trim() ? { damageType: String(damageType).trim() } : {}),
+          destroyed: plan.destroyed,
+        },
+      },
+    },
+    ...(sceneIdentity ? { sceneIdentity } : {}),
+    ...(commandId ? { commandId } : {}),
+  });
+  requireAppliedEffectsMutation(structureMutation);
+  const changedIds = structureMutation.changedIds || [];
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    return attachSpellExecutionHistory(changedIds, { ...structureMutation, stale: true, postCommitPending: true });
+  }
+  return attachSpellExecutionHistory(changedIds, { ...structureMutation, structure: { ...plan, label } });
+}
+
 async function executeTelekinesisContestResolution({
   payload = null,
   targetIds = [],
@@ -1222,6 +1389,9 @@ export async function executeSpellActiveResolution({
   naturalStormBonus = false,
   // The damage defenses the GM ignores in this action: { targetId: [type] }.
   ignoredDefenses = {},
+  // CAP-STRUCTURE: the panel or pillar chosen on the map, and the type of the damage it takes.
+  segmentIndex = 0,
+  damageType = "",
   sceneEpoch = null,
   sceneIdentity = null,
   commandId = "",
@@ -1259,12 +1429,14 @@ export async function executeSpellActiveResolution({
   const prismaticWallResolution = isPrismaticWallActiveResolutionKind(payload?.action);
   const blinkReturnResolution = payload?.action?.resolutionKind === "blink-return";
   const teleportResolution = payload?.action?.resolutionKind === "teleport";
+  const structureResolution = payload?.action?.resolutionKind === "structure-segment";
   if (!ids.length
     && payload?.action?.resolutionKind !== "child-zone"
     && payload?.action?.allowEmptyTargets !== true
     && payload?.action?.resolutionKind !== "prismatic-wall-layers"
     && !blinkReturnResolution
-    && !teleportResolution) {
+    && !teleportResolution
+    && !structureResolution) {
     throw new Error("active-resolution-targets-required");
   }
   const commitInput = {
@@ -1282,6 +1454,7 @@ export async function executeSpellActiveResolution({
     attacks: attackEntries,
     shorteningFrom,
     ...(directHitEntry ? { directHit: directHitEntry } : {}),
+    ...(structureResolution ? { segmentIndex, damageType } : {}),
   };
   const preflight = await validateSpellActiveResolutionCommit(commitInput);
   if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
@@ -1320,6 +1493,19 @@ export async function executeSpellActiveResolution({
       payload,
       placement,
       targetIds: ids,
+      sceneEpoch,
+      sceneIdentity,
+      commandId,
+      isCurrent,
+    });
+  }
+
+  if (structureResolution) {
+    return executeStructureSegmentResolution({
+      payload,
+      segmentIndex,
+      damageRoll,
+      damageType,
       sceneEpoch,
       sceneIdentity,
       commandId,
