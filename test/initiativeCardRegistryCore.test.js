@@ -526,3 +526,102 @@ test("D1 registro schede: nella stanza vanno le sue voci e quelle toccate, non l
   assert.equal(roomScopedInitiativeCardRegistry(merged, merged, room).dars.profile.armorClass, 16);
   assert.deepEqual(roomScopedInitiativeCardRegistry({}, merged, room), {});
 });
+
+// Studio registro schede, seconda parte (C1–C5): the Room stores the registry compressed.
+function seededRandom(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 2 ** 32;
+  };
+}
+
+test("C registro schede: il registro compresso si rilegge uguale e lo stesso registro dà la stessa stringa", async () => {
+  const core = await import("../src/initiativeCardRegistryCore.js");
+  const registry = {
+    b: { name: "B", profile: { armorClass: 12, quickActions: [] }, updatedAt: 2 },
+    a: { name: "A", profile: { armorClass: 14 }, updatedAt: 1 },
+  };
+  const packed = core.packInitiativeCardRegistryForRoom(registry);
+  assert.equal(packed.v, 2);
+  assert.equal(core.isPackedInitiativeCardRegistry(packed), true);
+  assert.deepEqual(core.unpackInitiativeCardRegistryFromRoom(packed), registry);
+  const reordered = { a: { updatedAt: 1, profile: { armorClass: 14 }, name: "A" }, b: registry.b };
+  assert.deepEqual(core.packInitiativeCardRegistryForRoom(reordered), packed, "canonical JSON: an aligned Room is not rewritten");
+  // The plain registry of the previous versions reads the same.
+  assert.deepEqual(
+    decodeInitiativeCardRegistryFromRoom(packed, roomCodecDefaults),
+    decodeInitiativeCardRegistryFromRoom(registry, roomCodecDefaults),
+  );
+  assert.equal(core.isPackedInitiativeCardRegistry(registry), false);
+});
+
+test("C registro schede: il budget conta il valore compresso e tiene le voci più recenti", async () => {
+  const core = await import("../src/initiativeCardRegistryCore.js");
+  const random = seededRandom(7);
+  const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789-";
+  const spellIds = (count) => Array.from({ length: count }, () => Array.from({ length: 20 }, () => alphabet[Math.floor(random() * alphabet.length)]).join(""));
+  const registry = Object.fromEntries(Array.from({ length: 8 }, (_, index) => [
+    `pg ${index}`,
+    { name: `PG ${index}`, profile: { spellbook: { spellIds: spellIds(40), pinnedIds: [] } }, updatedAt: index + 1 },
+  ]));
+  const packed = core.packInitiativeCardRegistryForRoom(registry);
+  assert.equal(retainInitiativeCardRegistryWithinByteBudget(packed, jsonBytes(packed)), packed, "within the budget: the same value, no work");
+
+  const budget = Math.floor(jsonBytes(packed) / 2);
+  const retained = retainInitiativeCardRegistryWithinByteBudget(packed, budget);
+  assert.equal(core.isPackedInitiativeCardRegistry(retained), true, "a compressed value stays compressed");
+  assert.ok(jsonBytes(retained) <= budget);
+  const kept = Object.keys(core.unpackInitiativeCardRegistryFromRoom(retained));
+  assert.ok(kept.length > 0 && kept.length < 8);
+  assert.ok(kept.includes("pg 7"), "the newest entry stays");
+  assert.equal(core.droppedInitiativeCardRegistryNames(packed, retained).length, 8 - kept.length);
+});
+
+test("C registro schede: sei PG di 9° livello tutti diversi stanno nel budget solo compressi", async () => {
+  const core = await import("../src/initiativeCardRegistryCore.js");
+  const { readFileSync } = await import("node:fs");
+  const catalog = readFileSync(new URL("../src/spells-srd-5.1.json", import.meta.url), "utf8");
+  const catalogIds = [...new Set([...catalog.matchAll(/"id"\s*:\s*"([a-z0-9-]+)"/g)].map((match) => match[1]))];
+  assert.ok(catalogIds.length > 100);
+  const random = seededRandom(42);
+  const between = (low, high) => low + Math.floor(random() * (high - low + 1));
+  const pick = (values, count) => [...values].sort(() => random() - 0.5).slice(0, count);
+  const weapons = [["Spada lunga", "slashing", "1d8"], ["Arco lungo", "piercing", "1d8"], ["Ascia bipenne", "slashing", "1d12"],
+    ["Stocco", "piercing", "1d8"], ["Martello da guerra", "bludgeoning", "1d8"], ["Lancia", "piercing", "1d6"]];
+  const party = {};
+  for (const [name, classId, books, attacks] of [["Aelar", "paladino", 12, 3], ["Brienne", "guerriero", 0, 4], ["Corvo", "ranger", 10, 3],
+    ["Dalia", "mago", 24, 1], ["Elric", "chierico", 18, 2], ["Fenna", "bardo", 16, 2]]) {
+    const characterBuild = [{ classId, level: 9 }];
+    const book = pick(catalogIds, books);
+    const entry = {
+      actorProfileId: `actor-${name.toLowerCase()}-${between(100000, 999999)}`,
+      name,
+      updatedAt: 1_762_000_000_000 + between(0, 9e8),
+      profile: {
+        armorClass: between(12, 20), passivePerception: between(9, 18), speed: 9,
+        spellSaveDC: books ? between(12, 18) : null, spellAttackBonus: books ? between(4, 10) : null,
+        notes: "", exhaustion: 0, characterBuild, enabledClassFeatureIds: roomCodecDefaults(characterBuild), classFeaturesConfigured: true,
+        quickActions: [
+          ...pick(weapons, attacks).map(([label, type, die], index) => ({ version: 2, id: `w${index}`, label, kind: "attack", targetMode: "selection",
+            range: label === "Arco lungo" ? "ranged" : "melee", components: [{ id: "c1", type, formula: `${die}+${between(2, 5)}` }], attackBonus: between(4, 11) })),
+          ...book.slice(0, 3).map((spellId, index) => ({ version: 2, id: `s${index}`, label: spellId, kind: "spell", spellId, targetMode: "selection",
+            slotLevel: null, turns: null, applyAutomations: true, launchMode: "prepared" })),
+        ],
+        savingThrows: Object.fromEntries(["str", "dex", "con", "int", "wis", "cha"].map((key) => [key, between(-1, 9)])),
+        ...(books ? { spellbook: { spellIds: book, pinnedIds: book.slice(0, 3) } } : {}),
+      },
+    };
+    entry.profile.actorProfileId = entry.actorProfileId;
+    party[`asset:https://images.owlbear.rodeo/${name}-${between(1e8, 9e8)}/items/${between(1e8, 9e8)}.webp`] = entry;
+    party[name.toLowerCase()] = entry;
+  }
+  const encoded = encodeInitiativeCardRegistryForRoom(party, roomCodecDefaults);
+  const budget = 4_450;
+  assert.ok(jsonBytes(encoded) > budget * 2, `plain: ${jsonBytes(encoded)} B`);
+  const packed = core.packInitiativeCardRegistryForRoom(encoded);
+  assert.ok(jsonBytes(packed) <= budget * 0.8, `compressed: ${jsonBytes(packed)} B`);
+  assert.equal(retainInitiativeCardRegistryWithinByteBudget(packed, budget), packed, "the whole party stays");
+  const decoded = decodeInitiativeCardRegistryFromRoom(packed, roomCodecDefaults);
+  assert.equal(decoded.dalia.profile.spellbook.spellIds.length, 24, "the name key resolves to the full card");
+});

@@ -358,6 +358,15 @@ test("failure prima del commit non converge falsamente dopo il reread", async ()
 });
 
 const ROOM_CARD_KEY = `${ID}/initiativeCards`;
+// The Room holds the registry compressed (studio registro schede, C1–C5): the tests read it unpacked.
+const { unpackInitiativeCardRegistryFromRoom } = await import("../src/initiativeCardRegistryCore.js");
+const roomCardRegistry = () => unpackInitiativeCardRegistryFromRoom(room.metadata[ROOM_CARD_KEY]) || {};
+// Compression shrinks the harness's repeated quick actions: a book of random spell ids is what still exceeds the budget.
+function incompressibleSpellbook() {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
+  const spellIds = Array.from({ length: 64 }, () => Array.from({ length: 80 }, () => alphabet[Math.floor(Math.random() * 64)]).join(""));
+  return { spellIds, pinnedIds: [] };
+}
 const BATTLE_MASTER_20 = [{ classId: "guerriero", level: 20, subclassId: "guerriero-maestro-di-battaglia" }];
 
 async function battleMasterFeatureIds() {
@@ -393,7 +402,7 @@ test("registry Room: salva solo il delta delle capacità, token e nuova scena ve
     assert.deepEqual(storedProfile().enabledClassFeatureIds, enabled);
     assert.equal(storedProfile().classFeaturesConfigured, true);
 
-    const roomProfile = room.metadata[ROOM_CARD_KEY].hero.profile;
+    const roomProfile = roomCardRegistry().hero.profile;
     assert.equal(roomProfile.classFeaturesConfigured, false);
     assert.deepEqual(roomProfile.enabledClassFeatureIds, [extra]);
     assert.deepEqual(roomProfile.disabledDefaultClassFeatureIds, [defaults[0]]);
@@ -432,7 +441,7 @@ test("registry Room: un profilo legacy con l'elenco completo resta leggibile e m
     assert.deepEqual(profile.enabledClassFeatureIds, enabled);
 
     await runtime.cards.loadInitiativeCard(sceneTwoHero(), { hydrate: true });
-    const roomProfile = room.metadata[ROOM_CARD_KEY].hero.profile;
+    const roomProfile = roomCardRegistry().hero.profile;
     assert.equal(roomProfile.classFeaturesConfigured, false);
     assert.deepEqual(roomProfile.enabledClassFeatureIds, [extra]);
     assert.deepEqual(roomProfile.disabledDefaultClassFeatureIds, [defaults[0]]);
@@ -464,7 +473,8 @@ test("registry Room: la chiave nome diventa un alias, localStorage e token resta
     }, { commandId: "room-alias-save", transportTimeoutMs: 100 });
 
     const assetKey = "asset:https://assets.test/hero.png";
-    const roomCards = room.metadata[ROOM_CARD_KEY];
+    assert.equal(room.metadata[ROOM_CARD_KEY].v, 2, "the Room value is the compressed registry");
+    const roomCards = roomCardRegistry();
     assert.deepEqual(Object.keys(roomCards).sort(), [assetKey, "hero"].sort());
     assert.deepEqual(roomCards.hero, { sameAs: assetKey, updatedAt: roomCards[assetKey].updatedAt });
     assert.equal(roomCards[assetKey].profile.armorClass, 14);
@@ -522,7 +532,7 @@ test("D1 registro schede: le schede di altre stanze restano nel browser, quella 
   const runtime = await startRuntime();
   try {
     await runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass: 17 }, { commandId: "scope-save", transportTimeoutMs: 100 });
-    const roomCards = room.metadata[ROOM_CARD_KEY];
+    const roomCards = roomCardRegistry();
     assert.equal(roomCards.hero.profile.armorClass, 17, "the card used in this room enters the Room");
     assert.equal(roomCards.dars.profile.armorClass, 15, "the Room keeps its own cards");
     assert.equal(Object.hasOwn(roomCards, "zorya"), false, "a card of another room stays out");
@@ -533,7 +543,7 @@ test("D1 registro schede: le schede di altre stanze restano nel browser, quella 
     scene.items.push({ id: "zorya-token", name: "Zorya", layer: "CHARACTER", metadata: { [META_KEY]: {} } });
     const profile = await runtime.cards.loadInitiativeCard(clone(scene.items.at(-1)), { hydrate: true });
     assert.equal(profile.armorClass, 13, "the local copy still gives her sheet");
-    assert.equal(room.metadata[ROOM_CARD_KEY].zorya?.profile?.armorClass, 13, "and now she is in the Room");
+    assert.equal(roomCardRegistry().zorya?.profile?.armorClass, 13, "and now she is in the Room");
     assert.deepEqual(cardNotices(), []);
   } finally {
     delete globalThis.localStorage;
@@ -545,6 +555,7 @@ test("D1 registro schede: le schede di altre stanze restano nel browser, quella 
 test("D4 registro schede: l'avviso non torna dopo una ricarica, torna in un'altra stanza", async () => {
   reset();
   notices.length = 0;
+  storedProfile().spellbook = incompressibleSpellbook();
   const { storage } = localStorageStub();
   globalThis.localStorage = storage;
   const save = async (runtime, armorClass, commandId) => {
@@ -553,7 +564,7 @@ test("D4 registro schede: l'avviso non torna dopo una ricarica, torna in un'altr
   };
   let runtime = await startRuntime();
   try {
-    // The harness's huge quick actions alone exceed the Room budget.
+    // The random spellbook alone exceeds the Room budget, compressed too.
     await save(runtime, 18, "notice-1");
     assert.equal(cardNotices().length, 1);
     await stopRuntime(runtime);
@@ -563,6 +574,7 @@ test("D4 registro schede: l'avviso non torna dopo una ricarica, torna in un'altr
     await stopRuntime(runtime);
     sdkStub.room.id = "card-save-other-room";
     room.metadata = {};
+    scene.metadata = {};
     runtime = await startRuntime();
     await save(runtime, 20, "notice-other-room");
     assert.equal(cardNotices().length, 2, "another room is told");
@@ -813,12 +825,13 @@ test("L12: le azioni rapide cancellate non tornano da un token vecchio di un'alt
 test("L12: il GM viene avvisato quando il registro della stanza scarta un profilo, una volta sola", async () => {
   reset();
   notices.length = 0;
+  storedProfile().spellbook = incompressibleSpellbook();
   const runtime = await startRuntime();
   try {
-    // The harness's huge quick actions alone exceed the Room budget.
+    // The random spellbook alone exceeds the Room budget, compressed too.
     await runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass: 18 }, { commandId: "budget-1", transportTimeoutMs: 200 });
     await new Promise((resolve) => setTimeout(resolve, 20));
-    assert.equal(room.metadata[ROOM_CARD_KEY]?.hero, undefined, "the Room could not keep the profile");
+    assert.equal(roomCardRegistry().hero, undefined, "the Room could not keep the profile");
     assert.deepEqual(notices, [["Registro delle schede pieno: Hero resta solo in questo browser (non nella stanza).", "WARNING"]]);
     await runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass: 19 }, { commandId: "budget-2", transportTimeoutMs: 200 });
     await new Promise((resolve) => setTimeout(resolve, 20));

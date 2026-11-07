@@ -1,3 +1,4 @@
+import { deflateSync, inflateSync, strFromU8, strToU8 } from "fflate";
 import { canonicalImageUrl, normalizedItemName } from "./factionRegistryCore.js";
 import { sanitizeQuickActions } from "./quickActionsCore.js";
 import { hasSpellbook } from "./spellbookCore.js";
@@ -65,14 +66,83 @@ export function normalizeInitiativeCardRegistry(value) {
   return registry;
 }
 
+// Studio registro schede, seconda parte (C1–C5): in the Room the registry is stored compressed, { v: 2, deflate } with
+// the deflated JSON in base64, so a whole party fits the domain budget. The JSON is canonical (sorted keys): the same
+// registry gives the same string and an aligned Room is not written again (skipUnchanged). A Room still holding the
+// plain registry of the previous versions is read as it is and compressed at its first write.
+export const ROOM_CARD_PACKED_VERSION = 2;
+const ROOM_CARD_PACKED_FIELD = "deflate";
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map((entry) => canonicalJson(entry) ?? "null").join(",")}]`;
+  if (value && typeof value === "object") {
+    const fields = Object.keys(value).sort()
+      .map((key) => [key, canonicalJson(value[key])])
+      .filter(([, json]) => json !== undefined)
+      .map(([key, json]) => `${JSON.stringify(key)}:${json}`);
+    return `{${fields.join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 0x8000) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(index, index + 0x8000));
+  }
+  return btoa(binary);
+}
+
+function base64ToBytes(text) {
+  const binary = atob(text);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+export function isPackedInitiativeCardRegistry(value) {
+  return !!value
+    && typeof value === "object"
+    && value.v === ROOM_CARD_PACKED_VERSION
+    && typeof value[ROOM_CARD_PACKED_FIELD] === "string";
+}
+
+export function packInitiativeCardRegistryForRoom(value) {
+  const json = canonicalJson(normalizeInitiativeCardRegistry(value));
+  return {
+    v: ROOM_CARD_PACKED_VERSION,
+    [ROOM_CARD_PACKED_FIELD]: bytesToBase64(deflateSync(strToU8(json), { level: 9 })),
+  };
+}
+
+// The plain registry of a Room value, compressed or not. An unreadable compressed value counts as an empty registry.
+export function unpackInitiativeCardRegistryFromRoom(value) {
+  if (!isPackedInitiativeCardRegistry(value)) return value;
+  try {
+    return normalizeInitiativeCardRegistry(JSON.parse(strFromU8(inflateSync(base64ToBytes(value[ROOM_CARD_PACKED_FIELD])))));
+  } catch (error) {
+    console.warn("[initiative-card] registro della stanza illeggibile:", error?.message || error);
+    return {};
+  }
+}
+
+// A value already within the budget comes back unchanged (the start-up check of the background costs nothing).
+// Otherwise the newest entries are kept, measured in the value's own format: a compressed value stays compressed.
 export function retainInitiativeCardRegistryWithinByteBudget(
   value,
   maxBytes = ROOM_METADATA_DOMAIN_MAX_BYTES["initiative-cards"],
 ) {
-  const source = normalizeInitiativeCardRegistry(value);
+  const packed = isPackedInitiativeCardRegistry(value);
   const budget = Math.max(2, Math.floor(Number(maxBytes) || 0));
-  if (jsonBytes(source) <= budget) return { ...source };
+  if (packed && jsonBytes(value) <= budget) return value;
+  const source = normalizeInitiativeCardRegistry(unpackInitiativeCardRegistryFromRoom(value));
+  if (!packed && jsonBytes(source) <= budget) return { ...source };
+  const measure = packed ? (registry) => jsonBytes(packInitiativeCardRegistryForRoom(registry)) : jsonBytes;
+  const retained = retainInitiativeCardEntriesWithinByteBudget(source, budget, measure);
+  return packed ? packInitiativeCardRegistryForRoom(retained) : retained;
+}
 
+function retainInitiativeCardEntriesWithinByteBudget(source, budget, measure) {
   // Gli alias Room seguono la propria voce: entrano subito dopo di lei e
   // soltanto se lei è stata conservata. Gli alias pendenti si scartano.
   const aliasesByTarget = new Map();
@@ -89,11 +159,11 @@ export function retainInitiativeCardRegistryWithinByteBudget(
   const retained = {};
   for (const [key, entry] of ordered) {
     const candidate = { ...retained, [key]: entry };
-    if (jsonBytes(candidate) > budget) continue;
+    if (measure(candidate) > budget) continue;
     retained[key] = entry;
     for (const aliasKey of (aliasesByTarget.get(key) || []).sort((left, right) => left.localeCompare(right))) {
       const aliasCandidate = { ...retained, [aliasKey]: source[aliasKey] };
-      if (jsonBytes(aliasCandidate) <= budget) retained[aliasKey] = source[aliasKey];
+      if (measure(aliasCandidate) <= budget) retained[aliasKey] = source[aliasKey];
     }
   }
   return retained;
@@ -102,8 +172,8 @@ export function retainInitiativeCardRegistryWithinByteBudget(
 // The characters whose profile the budget left out of the Room (aliases and deletions are not profiles): their sheet
 // stays only in this browser. [] when nothing was dropped.
 export function droppedInitiativeCardRegistryNames(requested, retained) {
-  const source = normalizeInitiativeCardRegistry(requested);
-  const kept = normalizeInitiativeCardRegistry(retained);
+  const source = normalizeInitiativeCardRegistry(unpackInitiativeCardRegistryFromRoom(requested));
+  const kept = normalizeInitiativeCardRegistry(unpackInitiativeCardRegistryFromRoom(retained));
   const names = [];
   for (const [key, entry] of Object.entries(source)) {
     if (Object.hasOwn(kept, key) || entry?.deleted === true || resolvedRoomCardAliasTarget(source, entry) !== null) continue;
@@ -283,7 +353,7 @@ export function encodeInitiativeCardRegistryForRoom(value, defaultClassFeatureId
 }
 
 export function decodeInitiativeCardRegistryFromRoom(value, defaultClassFeatureIds) {
-  return mapInitiativeCardRegistryProfiles(resolveInitiativeCardRoomAliases(value), (profile) =>
+  return mapInitiativeCardRegistryProfiles(resolveInitiativeCardRoomAliases(unpackInitiativeCardRegistryFromRoom(value)), (profile) =>
     expandRoomAbilityModifiers(decodeInitiativeCardRoomProfile(profile, defaultClassFeatureIds))
   );
 }

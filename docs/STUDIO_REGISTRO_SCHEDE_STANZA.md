@@ -128,3 +128,104 @@ Test:
 Senza la patch falliscono entrambi.
 
 Resta la prova in stanza. La prima volta l'avviso può elencare ancora le schede di altre campagne già salvate nella stanza (D2).
+
+# Seconda parte: far stare tutto il gruppo
+
+7 novembre 2026. Studio chiesto dall'utente dopo D3: «Preferirei farli stare tutti», senza peggiorare le prestazioni. Nessun codice è cambiato.
+
+## Le misure
+
+Le misure vengono da script usa e getta fuori dal repository, che usano la codifica reale della stanza (`encodeInitiativeCardRegistryForRoom`). I tre gruppi:
+
+- **d'esempio:** cinque PG di 5° livello, quello della prima parte;
+- **pesante:** sei PG di 11° livello con 3 armi, 2 incantesimi rapidi e una capacità ciascuno; le schede si somigliano molto;
+- **vario:** sei PG di 9° livello, tutti diversi, con incantesimi veri presi a caso dal catalogo (319), armi e numeri diversi. È il caso più sfavorevole per la compressione e il più vicino a un gruppo vero.
+
+| Leva | d'esempio (5 PG) | pesante (6 PG) | vario (6 PG) |
+| --- | --- | --- | --- |
+| oggi | 7.026 B | 13.019 B | 12.300 B circa |
+| L1: azioni rapide senza i valori che `sanitizeQuickAction` rimette da solo | 6.603 | 11.009 | — |
+| + L2: profilo senza campi nulli o vuoti, tiri salvezza in array | 5.608 | 9.815 | — |
+| + L3: alias del nome dentro la voce invece che come voce a parte | 4.853 | 8.909 | — |
+| + L4: `actorProfileId` scritto una volta sola | 4.628 | 8.643 | — |
+| **C: compressione (deflate + base64) della codifica di oggi** | **1.578** | **1.946** | **3.222 (26 %)** |
+| C con L1–L4 | 1.334 | 1.622 | — |
+
+Il budget è di 4.450 B.
+
+- **Le leve L1–L4** tolgono il 34 %. Bastano appena per cinque PG di 5° livello, non per sei di livello più alto.
+- **La compressione** porta sei PG di 9° livello tutti diversi a circa 540 B l'uno: nel budget di oggi ne entrano circa otto.
+- **L1–L4 prima di comprimere** aggiungono solo il 10–15 %, perché la compressione toglie già le ripetizioni.
+
+## Le strade
+
+| Strada | Quanti PG | Costo e rischio |
+| --- | --- | --- |
+| B1. Leve L1–L4 | 5 piccoli, non 6 grandi | medio-alto. In lettura vanno ricostruite le forme esatte. Esempio: un'azione incantesimo senza `launchMode` è letta come vecchio formato (`hasLegacyQuickActionStorage`). Un campo assente in `mergeProfile` vuol dire «tieni il default», non `null` |
+| B2. Byte presi da altri domini | +1 PG circa | medio: PF ricordati, fazioni o vitali cominciano a scartare prima |
+| **C. Compressione** | **circa 8** | basso-medio, vedi sotto |
+
+## Come sarebbe la compressione
+
+1. **Cosa si scrive.** Il valore alla chiave `com.thebigpicture.initiative/initiativeCards` diventa un oggetto con un campo di versione e il registro di oggi compresso in base64. La chiave non cambia.
+2. **JSON stabile.** Prima di comprimere il registro diventa un JSON con le chiavi in ordine fisso. Due registri uguali danno così la stessa stringa, e `skipUnchanged` continua a evitare la scrittura a ogni apertura della scheda. Senza questo passo ogni apertura riscriverebbe la stanza.
+3. **Lettura.** `decodeInitiativeCardRegistryFromRoom` accetta i due formati: compresso e quello di oggi. Una stanza vecchia si legge com'è e passa al formato compresso alla prima scrittura.
+4. **Budget.** La scelta di cosa tenere resta la stessa: le voci più recenti, gli alias con la loro voce, l'avviso D9. Cambia la misura: si conta la stringa compressa. Il numero di voci si sceglie con una ricerca binaria, circa 4–5 compressioni, e solo quando il registro supera il budget.
+5. **Controllo all'avvio** (`reconcileRoomMetadataBudget` in `background.js`). Usa la stessa funzione. Se il valore compresso sta nel budget lo restituisce identico, senza decomprimere.
+6. **Cosa non cambia.** La copia nel browser e i token restano non compressi. Restano uguali anche le altre chiavi della stanza e il budget di 4.450 B.
+
+### La libreria
+
+Le funzioni di budget (`planRoomMetadataWrite`, `compactOwnedRoomMetadata`) sono sincrone. La compressione nativa del browser (`CompressionStream`) è asincrona e lì non entra senza riscriverle.
+
+| Opzione | Rapporto | Note |
+| --- | --- | --- |
+| **fflate** (libreria MIT, sincrona, senza dipendenze) | come deflate: 26 % | una dipendenza nuova, circa 8 KB nei pacchetti che leggono il registro (scheda, sfondo) |
+| Compressore LZ scritto nel progetto (tipo lz-string) | 35–40 % circa | nessuna dipendenza, ma circa 200 righe da mantenere |
+| `CompressionStream` nativo | 26 % | nessuna dipendenza; obbliga a toccare le funzioni di budget comuni a tutti i domini |
+
+## Prestazioni
+
+| Momento | Oggi | Con la compressione |
+| --- | --- | --- |
+| Codifica per la stanza a ogni scrittura | 1,4–1,7 ms, quasi tutto per le capacità di default | + 0,06–0,08 ms con zlib nativo; con fflate stimati 0,2–0,4 ms, **da misurare nel primo passo** |
+| Lettura del registro (apertura scheda, velocità, azioni rapide) | parse del JSON | + circa 0,06 ms (decompressione e parse) |
+| Scrittura oltre il budget | un ciclo sulle voci | 4–5 compressioni: circa 1–2 ms |
+| Byte inviati a ogni scrittura della chiave | fino a 4.450 | circa un quarto per lo stesso gruppo |
+| Apertura della scheda con la stanza già allineata | nessuna scrittura | nessuna scrittura (JSON stabile) |
+
+Nessun ascoltatore dei cambi della stanza legge questa chiave (verificato: la leggono solo `initiativeCards.js` e il controllo all'avvio). Il costo resta legato alle aperture e ai salvataggi delle schede.
+
+## Rischi
+
+- **Client vecchi.** Una pagina ancora aperta con la versione di prima vede un registro vuoto. Se è il GM e salva una scheda, riscrive la chiave nel formato vecchio. Il client nuovo lo legge comunque e lo ricomprime alla prima scrittura: non si perde niente che quel client non avesse già. Con un solo deploy alla volta il caso è raro.
+- **Leggibilità.** Nella console la chiave non si legge più a occhio: serve una riga per decomprimerla, da aggiungere al documento delle istruzioni del banco.
+- **Test.** I test che leggono `room.metadata[ROOM_CARD_KEY].hero` direttamente vanno adattati per decodificare prima. I `ROOM-BUDGET-*` devono restare verdi.
+
+## Decisioni (seconda parte)
+
+| # | Domanda | Proposta |
+| --- | --- | --- |
+| C1 | Quale strada | **C, solo compressione**. B1 costa più di quanto rende dopo la compressione; B2 non serve |
+| C2 | Quale libreria | **fflate**, sincrona: le funzioni di budget restano come sono |
+| C3 | Formato e compatibilità | **stessa chiave**, oggetto con versione, lettura dei due formati, passaggio alla prima scrittura |
+| C4 | Budget del dominio | **resta 4.450 B**: nessun byte tolto agli altri |
+| C5 | Oltre circa 8 PG | **come oggi**: restano le voci più recenti e l'avviso, una volta per stanza |
+
+## Esito della seconda parte (7 novembre 2026)
+
+L'utente ha approvato C1–C5 come proposte.
+
+- **Dipendenza:** `fflate` 0.8.3 (MIT), versione esatta in `package.json`. Comprimere 4,4 KB di registro costa 0,17 ms, decomprimere e rileggere 0,18 ms.
+- **Funzioni nuove in `initiativeCardRegistryCore.js`:**
+  - `packInitiativeCardRegistryForRoom`: JSON con le chiavi in ordine fisso, deflate livello 9, base64 → `{ v: 2, deflate }`;
+  - `unpackInitiativeCardRegistryFromRoom`: un valore illeggibile vale come registro vuoto;
+  - `isPackedInitiativeCardRegistry`.
+- **Lettura:** `decodeInitiativeCardRegistryFromRoom` decomprime prima di risolvere gli alias e accetta ancora il formato di prima.
+- **Budget:** `retainInitiativeCardRegistryWithinByteBudget` restituisce identico un valore già nel budget. Altrimenti tiene le voci più recenti misurando nel formato del valore: un registro compresso resta compresso. `droppedInitiativeCardRegistryNames` legge i due formati. Il controllo all'avvio (`background.js`) usa la stessa funzione e non è cambiato.
+- **Scrittura:** `updateRoomCards()` comprime il registro della stanza prima di scriverlo.
+- **Test:**
+  - `initiativeCardRegistryCore.test.js`: «C registro schede», tre test: rilettura e stessa stringa, budget sul valore compresso, sei PG di 9° livello tutti diversi che stanno nel budget solo compressi;
+  - `initiativeCardSaveTransportRegression.test.js`: legge la stanza decompressa; gli avvisi L12 e D4 usano un libro di incantesimi casuale, che non si comprime.
+
+Resta la prova in stanza: aprire e salvare le schede del gruppo e controllare che l'avviso non compaia più.

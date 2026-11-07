@@ -27,6 +27,7 @@ import {
   droppedInitiativeCardRegistryNames,
   resolveInitiativeCardActorMatch,
   roomScopedInitiativeCardRegistry,
+  packInitiativeCardRegistryForRoom,
 } from "./initiativeCardRegistryCore.js";
 import {
   ACTOR_PROFILE_ID_FIELD,
@@ -468,7 +469,10 @@ async function updateRoomCards(updater, { isCurrent = () => true } = {}) {
         OBR.room,
         METADATA_OWNERSHIP.INITIATIVE_CARDS,
         // Only this Room's cards (studio registro schede, D1): the local copy keeps every room's.
-        encodeInitiativeCardRegistryForRoom(roomScopedInitiativeCardRegistry(next, previous, roomRegistry), classFeatureDefaults),
+        // Compressed (seconda parte dello studio, C1–C5): the retain below measures and keeps it compressed.
+        packInitiativeCardRegistryForRoom(
+          encodeInitiativeCardRegistryForRoom(roomScopedInitiativeCardRegistry(next, previous, roomRegistry), classFeatureDefaults),
+        ),
         {
           runtime: "initiativeCards",
           roomBudget: {
