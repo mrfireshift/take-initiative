@@ -113,6 +113,21 @@ export function droppedInitiativeCardRegistryNames(requested, retained) {
   return names;
 }
 
+// What a write sends to the Room: the entries the Room already holds and the ones this write touched (a sheet opened
+// or saved, a token added to the initiative, an Undo). The GM's local copy is not split by room: its other entries
+// (characters of other rooms) stay in the browser and do not fill this Room's budget.
+// `previous` is the merged registry the updater started from; "touched" is an entry it replaced.
+export function roomScopedInitiativeCardRegistry(next, previous, roomRegistry) {
+  const source = normalizeInitiativeCardRegistry(next);
+  const before = previous && typeof previous === "object" ? previous : {};
+  const room = roomRegistry && typeof roomRegistry === "object" ? roomRegistry : {};
+  const scoped = {};
+  for (const [key, entry] of Object.entries(source)) {
+    if (Object.hasOwn(room, key) || entry !== before[key]) scoped[key] = entry;
+  }
+  return scoped;
+}
+
 export function mergeInitiativeCardRegistries(...sources) {
   const merged = {};
   for (const source of sources) {

@@ -511,3 +511,18 @@ test("L12: i profili scartati dal budget della stanza sono elencati per nome, se
   assert.deepEqual(droppedInitiativeCardRegistryNames(requested, { aria: requested.aria }), ["Borin"]);
   assert.deepEqual(droppedInitiativeCardRegistryNames(requested, requested), []);
 });
+
+// Studio registro schede, D1: the Room receives its own entries and the ones the write touched, not the whole local copy.
+test("D1 registro schede: nella stanza vanno le sue voci e quelle toccate, non le altre della copia locale", async () => {
+  const { roomScopedInitiativeCardRegistry } = await import("../src/initiativeCardRegistryCore.js");
+  const room = { dars: { name: "Dars", profile: {}, updatedAt: 4 } };
+  const local = { zorya: { name: "Zorya", profile: {}, updatedAt: 9 }, kos: { name: "Kos", profile: {}, updatedAt: 8 } };
+  const previous = mergeInitiativeCardRegistries(local, room);
+  const next = { ...previous, hero: { name: "Hero", profile: {}, updatedAt: 10 }, kos: { ...local.kos, updatedAt: 11 } };
+  assert.deepEqual(Object.keys(roomScopedInitiativeCardRegistry(next, previous, room)).sort(), ["dars", "hero", "kos"]);
+  // A newer local copy of a Room entry goes to the Room; a key the updater removed is gone.
+  const newerLocal = { dars: { name: "Dars", profile: { armorClass: 16 }, updatedAt: 12 } };
+  const merged = mergeInitiativeCardRegistries(newerLocal, room);
+  assert.equal(roomScopedInitiativeCardRegistry(merged, merged, room).dars.profile.armorClass, 16);
+  assert.deepEqual(roomScopedInitiativeCardRegistry({}, merged, room), {});
+});

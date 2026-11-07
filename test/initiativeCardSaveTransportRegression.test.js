@@ -494,6 +494,85 @@ test("registry Room: la chiave nome diventa un alias, localStorage e token resta
   }
 });
 
+function localStorageStub() {
+  const local = new Map();
+  return {
+    local,
+    storage: {
+      getItem: (key) => (local.has(key) ? local.get(key) : null),
+      setItem: (key, value) => { local.set(key, String(value)); },
+      removeItem: (key) => { local.delete(key); },
+    },
+  };
+}
+
+// The other warnings of the harness (the recovery journal without IndexedDB) are not the registry's.
+const cardNotices = () => notices.filter(([message]) => message.startsWith("Registro delle schede"));
+
+// Studio registro schede, D1: the GM's local copy holds the cards of every room; only this Room's go to the Room.
+test("D1 registro schede: le schede di altre stanze restano nel browser, quella usata qui entra nella stanza", async () => {
+  reset();
+  notices.length = 0;
+  storedProfile().quickActions = [];
+  const { local, storage } = localStorageStub();
+  const foreign = { name: "Zorya", profile: { armorClass: 13 }, updatedAt: 5 };
+  local.set(`${ID}/initiativeCards/local`, JSON.stringify({ zorya: foreign }));
+  room.metadata[ROOM_CARD_KEY] = { dars: { name: "Dars", profile: { armorClass: 15 }, updatedAt: 4 } };
+  globalThis.localStorage = storage;
+  const runtime = await startRuntime();
+  try {
+    await runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass: 17 }, { commandId: "scope-save", transportTimeoutMs: 100 });
+    const roomCards = room.metadata[ROOM_CARD_KEY];
+    assert.equal(roomCards.hero.profile.armorClass, 17, "the card used in this room enters the Room");
+    assert.equal(roomCards.dars.profile.armorClass, 15, "the Room keeps its own cards");
+    assert.equal(Object.hasOwn(roomCards, "zorya"), false, "a card of another room stays out");
+    const localCards = JSON.parse(local.get(`${ID}/initiativeCards/local`));
+    assert.deepEqual(Object.keys(localCards).sort(), ["dars", "hero", "zorya"], "the local copy keeps every card");
+
+    // Opening Zorya's sheet here makes her a card of this room.
+    scene.items.push({ id: "zorya-token", name: "Zorya", layer: "CHARACTER", metadata: { [META_KEY]: {} } });
+    const profile = await runtime.cards.loadInitiativeCard(clone(scene.items.at(-1)), { hydrate: true });
+    assert.equal(profile.armorClass, 13, "the local copy still gives her sheet");
+    assert.equal(room.metadata[ROOM_CARD_KEY].zorya?.profile?.armorClass, 13, "and now she is in the Room");
+    assert.deepEqual(cardNotices(), []);
+  } finally {
+    delete globalThis.localStorage;
+    await stopRuntime(runtime);
+  }
+});
+
+// Studio registro schede, D4: the same set of left-out cards is told once per room, a reload of the GM's page included.
+test("D4 registro schede: l'avviso non torna dopo una ricarica, torna in un'altra stanza", async () => {
+  reset();
+  notices.length = 0;
+  const { storage } = localStorageStub();
+  globalThis.localStorage = storage;
+  const save = async (runtime, armorClass, commandId) => {
+    await runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass }, { commandId, transportTimeoutMs: 200 });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  };
+  let runtime = await startRuntime();
+  try {
+    // The harness's huge quick actions alone exceed the Room budget.
+    await save(runtime, 18, "notice-1");
+    assert.equal(cardNotices().length, 1);
+    await stopRuntime(runtime);
+    runtime = await startRuntime();
+    await save(runtime, 19, "notice-reload");
+    assert.equal(cardNotices().length, 1, "a reload does not tell the same set again");
+    await stopRuntime(runtime);
+    sdkStub.room.id = "card-save-other-room";
+    room.metadata = {};
+    runtime = await startRuntime();
+    await save(runtime, 20, "notice-other-room");
+    assert.equal(cardNotices().length, 2, "another room is told");
+  } finally {
+    sdkStub.room.id = "card-save-room";
+    delete globalThis.localStorage;
+    await stopRuntime(runtime);
+  }
+});
+
 // Opening the character sheet (GM): the read-through realignment of the Room registry and of the token.
 // Counts the Room writes; gate holds the token writes until released.
 function countRoomWrites() {

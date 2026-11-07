@@ -26,6 +26,7 @@ import {
   retainInitiativeCardRegistryWithinByteBudget,
   droppedInitiativeCardRegistryNames,
   resolveInitiativeCardActorMatch,
+  roomScopedInitiativeCardRegistry,
 } from "./initiativeCardRegistryCore.js";
 import {
   ACTOR_PROFILE_ID_FIELD,
@@ -397,12 +398,53 @@ async function readInitiativeCardRegistry() {
 }
 
 // D9: the characters the Room budget left out, told to the GM once per set (every sheet opening writes the registry).
+// Studio registro schede, D4: the set is remembered per room in this browser, so a reload of the GM's page does not
+// tell it again (the cards are still in this browser's copy). Without localStorage the memory of the page is used.
+const DROPPED_ROOM_CARDS_NOTICE_KEY = `${ID}/initiativeCards/droppedNotice`;
+const DROPPED_ROOM_CARDS_NOTICE_ROOMS = 20;
 let lastDroppedRoomCardsNotice = "";
+
+function droppedRoomCardsNoticeRoomId() {
+  try { return String(OBR.room.id || ""); } catch { return ""; }
+}
+
+function readDroppedRoomCardsNotices() {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    const value = JSON.parse(localStorage.getItem(DROPPED_ROOM_CARDS_NOTICE_KEY) || "{}");
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch {
+    return null;
+  }
+}
+
+// Returns false when the browser cannot remember it: the page's memory decides alone.
+function rememberDroppedRoomCardsNotice(roomId, signature) {
+  const notices = readDroppedRoomCardsNotices();
+  if (!notices || !roomId) return false;
+  delete notices[roomId];
+  if (signature) notices[roomId] = signature;
+  const kept = Object.fromEntries(Object.entries(notices).slice(-DROPPED_ROOM_CARDS_NOTICE_ROOMS));
+  try {
+    localStorage.setItem(DROPPED_ROOM_CARDS_NOTICE_KEY, JSON.stringify(kept));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function noticeDroppedRoomCards(names) {
   const signature = JSON.stringify(names);
-  if (!names.length) { lastDroppedRoomCardsNotice = ""; return; }
+  const roomId = droppedRoomCardsNoticeRoomId();
+  if (!names.length) {
+    lastDroppedRoomCardsNotice = "";
+    if (readDroppedRoomCardsNotices()?.[roomId]) rememberDroppedRoomCardsNotice(roomId, "");
+    return;
+  }
   if (signature === lastDroppedRoomCardsNotice) return;
   lastDroppedRoomCardsNotice = signature;
+  if (roomId && readDroppedRoomCardsNotices()?.[roomId] === signature) return;
+  rememberDroppedRoomCardsNotice(roomId, signature);
   try {
     if (await OBR.player.getRole() !== "GM") return;
     await OBR.notification.show(`Registro delle schede pieno: ${names.join(", ")} ${names.length === 1 ? "resta" : "restano"} solo in questo browser (non nella stanza).`, "WARNING");
@@ -415,10 +457,8 @@ async function updateRoomCards(updater, { isCurrent = () => true } = {}) {
     const classFeatureDefaults = await roomClassFeatureDefaults();
     const metadata = await OBR.room.getMetadata().catch(() => ({}));
     if (!isCurrent()) return null;
-    const previous = mergeInitiativeCardRegistries(
-      readLocalInitiativeCards(),
-      decodeInitiativeCardRegistryFromRoom(metadata?.[ROOM_CARD_KEY], classFeatureDefaults)
-    );
+    const roomRegistry = decodeInitiativeCardRegistryFromRoom(metadata?.[ROOM_CARD_KEY], classFeatureDefaults);
+    const previous = mergeInitiativeCardRegistries(readLocalInitiativeCards(), roomRegistry);
     const next = normalizeInitiativeCardRegistry(updater({ ...previous }) || previous);
     const localWritten = writeLocalInitiativeCards(next);
     let droppedNames = [];
@@ -427,7 +467,8 @@ async function updateRoomCards(updater, { isCurrent = () => true } = {}) {
       await writeRoomMetadataKey(
         OBR.room,
         METADATA_OWNERSHIP.INITIATIVE_CARDS,
-        encodeInitiativeCardRegistryForRoom(next, classFeatureDefaults),
+        // Only this Room's cards (studio registro schede, D1): the local copy keeps every room's.
+        encodeInitiativeCardRegistryForRoom(roomScopedInitiativeCardRegistry(next, previous, roomRegistry), classFeatureDefaults),
         {
           runtime: "initiativeCards",
           roomBudget: {
