@@ -430,6 +430,14 @@ function classFeatureChoiceControl(feature, { compact = false, label = "", defau
     : "class-feature-choice";
   select.title = label || `Variante di ${feature?.name || "capacità"}`;
   select.setAttribute("aria-label", select.title);
+  // A rolled outcome (Wild Surge's d8, rolled at the table each time Rage starts) starts empty: no outcome by default.
+  if (feature?.choiceMode === "roll") {
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Esito tirato…";
+    select.appendChild(placeholder);
+    select.dataset.rolled = "1";
+  }
   for (const optionValue of options) {
     const option = document.createElement("option");
     option.value = optionValue.id;
@@ -466,6 +474,11 @@ function classFeatureAutoChoiceControls(feature, { compact = false, enabledFeatu
 
 function classFeatureChoiceSelection(control) {
   return control ? String(control.value || "").trim() : "";
+}
+
+// A rolled outcome still empty (Wild Surge's d8): its control, so that the activation waits for the roll.
+function classFeatureUnrolledControl(controls) {
+  return [...controls].find((control) => control?.dataset?.rolled === "1" && !classFeatureChoiceSelection(control)) || null;
 }
 
 function classFeatureAutoChoiceSelection(controls) {
@@ -1009,11 +1022,21 @@ function renderQuickActionList(list, actions, emptyText) {
     const autoChoiceControls = feature
       ? classFeatureAutoChoiceControls(feature, { compact: true, enabledFeatureIds })
       : new Map();
-    button.addEventListener("click", () => void launchQuickAction(
-      action,
-      classFeatureChoiceSelection(choiceControl),
-      classFeatureAutoChoiceSelection(autoChoiceControls),
-    ));
+    button.addEventListener("click", () => {
+      // A rolled outcome left empty: said on the bar's status line, and nothing is launched.
+      const unrolled = classFeatureUnrolledControl([choiceControl, ...autoChoiceControls.values()]);
+      if (unrolled) {
+        const status = $(quickActionSurface(action).statusId);
+        status.textContent = `Indica l'esito tirato (${unrolled.title}).`;
+        status.dataset.tone = "error";
+        return;
+      }
+      void launchQuickAction(
+        action,
+        classFeatureChoiceSelection(choiceControl),
+        classFeatureAutoChoiceSelection(autoChoiceControls),
+      );
+    });
     actionEntry.appendChild(button);
     if (choiceControl) actionEntry.appendChild(choiceControl);
     for (const control of autoChoiceControls.values()) actionEntry.appendChild(control);
@@ -3081,6 +3104,8 @@ function renderClassFeatures() {
                 await deactivateClassFeature(item.id, activeInstance.instanceId);
                 return;
               }
+              const unrolled = classFeatureUnrolledControl([choiceControl, ...autoChoiceControls.values()]);
+              if (unrolled) throw new Error(`Indica l'esito tirato (${unrolled.title}).`);
               const autoChoiceIds = classFeatureAutoChoiceSelection(autoChoiceControls);
               const autoChoiceValues = promptAutoChoiceDieValues(autoChoiceIds);
               await activateClassFeature({

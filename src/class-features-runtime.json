@@ -5290,7 +5290,7 @@
           "effectPlan": {
             "kind": "aura",
             "conditionName": "Aura Tempestosa: Tundra",
-            "detail": "Area di 3 m: quando l'effetto viene attivato, le creature scelte nell'aura ottengono PF temporanei (2, poi 3 al 5°, 4 al 10°, 5 al 15°, 6 al 20° livello). All'attivazione vanno alle creature selezionate sulla mappa (nessuna: solo il barbaro); nei turni dopo, con l'azione bonus, dalla console PF rapidi.",
+            "detail": "Area di 3 m: quando l'effetto viene attivato, le creature scelte nell'aura ottengono PF temporanei (2, poi 3 al 5°, 4 al 10°, 5 al 15°, 6 al 20° livello). Entrando in Ira vanno alle creature selezionate sulla mappa entro 3 m (nessuna: solo il barbaro); nei turni dopo, con l'azione bonus, dalla console PF rapidi.",
             "temporaryHp": {
               "amount": {
                 "byClassLevel": {
@@ -5910,6 +5910,7 @@
           }
         }
       ],
+      "choiceMode": "roll",
       "breaksConcentration": true,
       "duration": {
         "rounds": null,

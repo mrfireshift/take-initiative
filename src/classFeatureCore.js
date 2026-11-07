@@ -136,14 +136,16 @@ export function classFeatureChoiceOptions(feature) {
     .filter(Boolean);
 }
 
-// The variant the profile fixes: the one sub-feature enabled among the feature's own variants, whose id is the
-// feature's followed by the choice (Beast Form's -artigli) or ending with it (Wild Surge's -risultato-2, Spirit
-// Totem's -spirito-orso). An id that only ends like a choice fixes nothing (a Leonin's -artigli, a tiefling's -3, the
-// Totem Warrior's -orso), nor do several variants enabled together (Starry Form's three constellations, reference
-// cards enabled by default): then the GM chooses. The catalog names each sub-feature of a feature with variants
-// after it (test/classFeatureActivationChoice.test.js checks it).
-function classFeatureEnabledVariantChoiceId(feature, enabledFeatureIds = []) {
-  if (!feature?.id) return "";
+// The variant the profile fixes, only for a choice the manual ties to the sheet (choiceMode "configuration": Storm
+// Aura's environment, changed only on gaining a level): the one sub-feature enabled among the feature's own variants,
+// whose id is the feature's followed by the choice (-tundra) or ending with it. Several enabled together fix nothing,
+// nor does an id that only ends like a choice (a species trait). Every other variant is chosen or rolled at each use,
+// as the manual has it (Beast Form's at each rage, Starry Form's at each transformation, Spirit Totem's spirit at each
+// summoning, Wild Surge's d8 each time Rage starts): a variant's card enabled on the sheet fixes nothing, and the GM
+// chooses. The catalog names each sub-feature of a feature with variants after it (test/classFeatureActivationChoice
+// .test.js checks it). The runtime reads it too, for a configuration that starts with its parent (Storm Aura, with Rage).
+export function classFeatureEnabledVariantChoiceId(feature, enabledFeatureIds = []) {
+  if (!feature?.id || feature.choiceMode !== "configuration") return "";
   const prefix = `${feature.id}-`;
   const choices = classFeatureChoiceOptions(feature);
   const variantOf = (id) => {

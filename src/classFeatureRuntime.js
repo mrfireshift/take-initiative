@@ -24,6 +24,7 @@ import {
   classFeatureBreaksConcentration,
   classFeatureConditionInstancesForActivation,
   classFeatureEffectProjection,
+  classFeatureEnabledVariantChoiceId,
   classFeatureRequiresActivationChoice,
   classFeatureSpellSlotCreationCost,
   classFeatureTemporaryHpApplications,
@@ -238,14 +239,49 @@ const reactionResult = (reaction) => (reaction.applies ? { reaction: { spent: !r
 
 // CAP-TEMP, lotto T2a: the creatures selected on the map for a plan that gives them temporary hit points
 // (applyTo "selection": the Bear spirit's creatures of the druid's choice in its aura), whatever the feature targets.
-async function selectedTemporaryHpCreatureIds(feature, choiceId, requestedTargetIds) {
+// An aura centered on the character (Storm Aura's 3 m) gives its temporary hit points only to the creatures selected
+// inside it, as the manual has it (the Tundra's go to the creatures chosen in the aura). Spirit Totem's aura is centered
+// on its spirit, whose place the plugin does not know: its selection stays whole.
+async function selectedTemporaryHpCreatureIds(feature, choiceId, requestedTargetIds, sourceId = "", characterBuild = []) {
   if (classFeatureEffectPlan(feature, choiceId)?.temporaryHp?.applyTo !== "selection") return [];
   const selected = Array.isArray(requestedTargetIds)
     ? requestedTargetIds
     : await OBR.player.getSelection().catch(() => []);
   if (!Array.isArray(selected) || !selected.length) return [];
   const items = await OBR.scene.items.getItems(selected);
-  return items.filter((entry) => entry?.layer === "CHARACTER" && !entry.attachedTo).map((entry) => entry.id);
+  const ids = items.filter((entry) => entry?.layer === "CHARACTER" && !entry.attachedTo).map((entry) => entry.id);
+  const targeting = classFeatureTargeting(feature, characterBuild);
+  if (targeting.mode !== "aura" || !targeting.rangeMeters || !sourceId || !ids.length) return ids;
+  return idsWithinMetersOf(sourceId, ids, targeting.rangeMeters);
+}
+
+// The ids within meters of the source, measured as resolveTargetIds measures a feature's range (bounds on the grid);
+// one whose place is unknown counts as within, as there.
+async function idsWithinMetersOf(sourceId, ids, meters) {
+  const [dpiValue, scale, sourceBounds, boundsById] = await Promise.all([
+    OBR.scene.grid.getDpi().catch(() => 1),
+    OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
+    OBR.scene.items.getItemBounds([sourceId]).catch(() => null),
+    Promise.all(ids.map(async (id) => [id, await OBR.scene.items.getItemBounds([id]).catch(() => null)])),
+  ]);
+  const dpi = Math.max(1, Number(dpiValue) || 1);
+  const parsedScale = scale?.parsed && typeof scale.parsed === "object" ? scale.parsed : { multiplier: 1.5, unit: "m" };
+  const rangeCells = spellAreaGridCells({ value: meters, unit: "m" }, parsedScale);
+  const source = sourceBounds ? gridGeometryFromBounds(sourceBounds, dpi) : null;
+  if (!source?.position) return ids;
+  return boundsById
+    .filter(([, bounds]) => !bounds
+      || classFeatureTargetWithinRange(source, gridGeometryFromBounds(bounds, dpi), rangeCells, dpi))
+    .map(([id]) => id);
+}
+
+// A notice in Owlbear for what an activation left out (an automatic child it could not start); never in the way.
+function classFeatureNotice(message) {
+  try {
+    void Promise.resolve(OBR.notification?.show?.(message, "WARNING")).catch(() => {});
+  } catch {
+    // A courtesy only.
+  }
 }
 
 async function resolveTargetIds(sourceId, feature, requestedTargetIds, characterBuild = []) {
@@ -1621,7 +1657,7 @@ export async function activateClassFeature({
     ...classFeatureTemporaryHpApplications(feature, {
       sourceId: sourceItem.id,
       targetIds: resolvedTargetIds,
-      selectedTargetIds: await selectedTemporaryHpCreatureIds(feature, plannedChoiceId, targetIds),
+      selectedTargetIds: await selectedTemporaryHpCreatureIds(feature, plannedChoiceId, targetIds, sourceItem.id, profile.characterBuild),
       choiceId: plannedChoiceId,
       characterBuild: profile.characterBuild,
       value,
@@ -1753,14 +1789,20 @@ export async function activateClassFeature({
       if (!childId || !enabledIds.has(childId)) continue;
       if (latestState.instances.some((entry) => entry.featureId === childId)) continue;
       const child = getClassFeatureDefinition(childId);
-      // A child with variants waits for its outcome only when the sheet asks it (classFeatureRequiresActivationChoice):
-      // the one the profile fixes (Wild Surge with its 2nd outcome alone enabled) is applied by
-      // planClassFeatureActivation. A variant set by configuration (Storm Aura's environment) still waits for its own
-      // activation.
-      if (!child || (Array.isArray(child.choiceOptions) && child.choiceOptions.length
-        && !String(autoChoiceIds?.[childId] || "").trim()
-        && (child.choiceMode === "configuration"
-          || classFeatureRequiresActivationChoice(child, enabledList, CLASS_FEATURE_BY_ID)))) continue;
+      if (!child) continue;
+      if (Array.isArray(child.choiceOptions) && child.choiceOptions.length
+        && !String(autoChoiceIds?.[childId] || "").trim()) {
+        // A variant set on the sheet (Storm Aura's environment) starts with its parent, as the manual has it:
+        // planClassFeatureActivation applies it; with none set, the GM is told. Any other variant is chosen or rolled
+        // at each use (Wild Surge's d8, each time Rage starts): it waits for its outcome.
+        if (child.choiceMode === "configuration") {
+          if (!classFeatureEnabledVariantChoiceId(child, enabledList)) {
+            classFeatureNotice(`${child.name}: nessuna variante nella scheda (${child.choiceOptions
+              .map((option) => option.label || option.id).join(", ")}), quindi non è partita con ${feature.name}.`);
+            continue;
+          }
+        } else if (classFeatureRequiresActivationChoice(child, enabledList, CLASS_FEATURE_BY_ID)) continue;
+      }
       autoResults.push(await activateClassFeature({
         sourceId: sourceItem.id,
         featureId: childId,

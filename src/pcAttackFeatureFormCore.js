@@ -120,7 +120,12 @@ function requiresChoice(feature, enabledIds) {
 const choiceField = (feature, enabledIds, { id = "choice", label = "" } = {}) => {
   if (!requiresChoice(feature, enabledIds)) return null;
   const options = classFeatureChoiceOptions(feature);
-  return options.length ? { id, type: "select", label: label || "Variante", options: options.map(({ id: value, label: text }) => ({ value, label: text })) } : null;
+  if (!options.length) return null;
+  // A rolled outcome (Wild Surge's d8, rolled each time Rage starts) starts empty, as in the sheet: no outcome by default.
+  const rolled = feature.choiceMode === "roll";
+  return { id, type: "select", label: label || "Variante",
+    options: [...(rolled ? [{ value: "", label: "Esito tirato…" }] : []), ...options.map(({ id: value, label: text }) => ({ value, label: text }))],
+    ...(rolled ? { rolled: true } : {}) };
 };
 
 // The form of one feature. state: pcAttackFeatureState's. characterBuild: for the targeting (the aura's radius).
@@ -316,6 +321,9 @@ export function pcAttackFeatureRequest(feature, form, values = {}, { sourceId = 
     return { fn: "activateClassFeature", params: { sourceId, featureId: feature.id, ...targets, spellId: spell.id, spellMode,
       spellLevelConfirmed: spellMode === "steal" && values.spellLevelConfirmed === true } };
   }
+  // A rolled outcome left empty (Wild Surge's d8): the roll comes first.
+  const unrolled = (Array.isArray(form.fields) ? form.fields : []).find((field) => field.rolled && !String(values[field.id] ?? "").trim());
+  if (unrolled) return { error: `Indica l'esito tirato (${unrolled.label}).` };
   const autoChoiceIds = Object.fromEntries(Object.entries(values)
     .filter(([key, value]) => key.startsWith("auto:") && value).map(([key, value]) => [key.slice(5), value]));
   // The die of the automatic choice taken, when it asks one (its field shows only for that choice).

@@ -4,7 +4,7 @@ import { CLASS_FEATURE_BY_ID, CLASS_FEATURE_RESOURCE_POOL_BY_ID, getAvailableCla
 import {
   classFeatureChoiceOptions, classFeatureParentFeatureId, classFeatureRequiresActivationChoice, planClassFeatureActivation,
 } from "../src/classFeatureCore.js";
-import { pcAttackFeatureForm, pcAttackFeatureState } from "../src/pcAttackFeatureFormCore.js";
+import { pcAttackFeatureForm, pcAttackFeatureRequest, pcAttackFeatureState } from "../src/pcAttackFeatureFormCore.js";
 
 // classFeatureRequiresActivationChoice looked a variant feature's parent up in CLASS_FEATURE_BY_ID, a name
 // classFeatureCore.js does not define: a ReferenceError for every feature with variants and a duration tied to another
@@ -38,12 +38,12 @@ const consoleAsks = (profile, id, fieldId = "choice") => pcAttackFeatureForm(
   { characterBuild: profile.characterBuild },
 ).fields.some((field) => field.id === fieldId);
 
-test("Beast Form asks its variant as the console does, and nothing once a variant is enabled", () => {
+test("Beast Form asks its form as the console does, a form's card enabled or not: it is chosen at each rage", () => {
   const beast = barbarian("barbaro-cammino-della-bestia", [BEAST_FORM]);
   assert.equal(sheetAsks(beast, BEAST_FORM), true);
   assert.equal(sheetAsks(beast, BEAST_FORM), consoleAsks(beast, BEAST_FORM));
   const claws = barbarian("barbaro-cammino-della-bestia", [BEAST_FORM, `${BEAST_FORM}-artigli`]);
-  assert.equal(sheetAsks(claws, BEAST_FORM), false, "Claws enabled: the variant is the sheet's");
+  assert.equal(sheetAsks(claws, BEAST_FORM), true, "the Claws' card enabled: the form is still chosen (Tasha's)");
   assert.equal(sheetAsks(claws, BEAST_FORM), consoleAsks(claws, BEAST_FORM));
 });
 
@@ -53,9 +53,10 @@ test("Wild Surge asks its outcome on its own card and as Rage's automatic outcom
   assert.equal(sheetAsks(wild, WILD_SURGE), true);
   assert.equal(sheetAsks(wild, WILD_SURGE), consoleAsks(wild, WILD_SURGE));
   assert.equal(sheetAsks(wild, WILD_SURGE), consoleAsks(wild, RAGE, `auto:${WILD_SURGE}`), "Rage's control for the outcome");
-  const fixed = barbarian("barbaro-cammino-della-magia-selvaggia", [`${WILD_SURGE}-risultato-2`]);
-  assert.equal(sheetAsks(fixed, WILD_SURGE), false, "an outcome enabled as a sub-feature: nothing to ask");
-  assert.equal(sheetAsks(fixed, WILD_SURGE), consoleAsks(fixed, RAGE, `auto:${WILD_SURGE}`));
+  // The d8 is rolled each time Rage starts (Tasha's): an outcome's card enabled alone fixes nothing.
+  const card = barbarian("barbaro-cammino-della-magia-selvaggia", [`${WILD_SURGE}-risultato-2`]);
+  assert.equal(sheetAsks(card, WILD_SURGE), true, "an outcome's card enabled: the outcome is still rolled");
+  assert.equal(sheetAsks(card, WILD_SURGE), consoleAsks(card, RAGE, `auto:${WILD_SURGE}`));
 });
 
 test("a duration tied to a feature with variants asks nothing, as in the console: the sheet passes the map for it", () => {
@@ -82,11 +83,13 @@ test("no feature of the catalog throws, with the map or without it", () => {
   }
 });
 
-// Which enabled id fixes the variant: a sub-feature of the same feature, enabled alone. The rule took any id ending with
-// "-<choice>", and the species traits, always enabled, matched it: a Leonin's claws fixed Beast Form's Claws, a
-// tiefling's bloodline trait (-3) Wild Surge's outcome 3. The dropdown vanished from the sheet and the console, and the
-// activation imposed that variant over the GM's (planClassFeatureActivation reads the same rule). Starry Form and Spirit
-// Totem, whose three variants are reference cards enabled by default, always took the first one.
+// Which enabled id fixes the variant: only a sub-feature of a choice the manual ties to the sheet (choiceMode
+// "configuration": Storm Aura's environment), enabled alone. The rule took any id ending with "-<choice>", and the species
+// traits, always enabled, matched it: a Leonin's claws fixed Beast Form's Claws, a tiefling's bloodline trait (-3) Wild
+// Surge's outcome 3. The dropdown vanished from the sheet and the console, and the activation imposed that variant over
+// the GM's (planClassFeatureActivation reads the same rule). Starry Form and Spirit Totem, whose three variants are
+// reference cards enabled by default, always took the first one. The manual chooses Beast Form's form at each rage,
+// Starry Form's constellation at each transformation and Spirit Totem's spirit at each summoning: no card fixes them.
 
 const BEAST = "barbaro-cammino-della-bestia";
 const WILD = "barbaro-cammino-della-magia-selvaggia";
@@ -145,7 +148,7 @@ test("another trait, or another class's feature, that ends like a variant fixes 
   }
   const simic = { characterBuild: [{ classId: "barbaro", level: 5, subclassId: WILD }], species: { id: "ibrido-simic", ancestryId: "scalatore-planata" } };
   assert.equal(sheetAsks(simic, WILD_SURGE), true, "the manta glide (-5) is not outcome 5");
-  // A druid and sorcerer with the Chalice configured: the dragon wings (-drago) are not a second variant.
+  // A druid and sorcerer with the Chalice's card: the dragon wings (-drago) fix nothing, nor does the card.
   const starsSorcerer = {
     characterBuild: [{ classId: "druido", level: 2, subclassId: "druido-circolo-delle-stelle" },
       { classId: "stregone", level: 14, subclassId: "stregone-discendenza-draconica" }],
@@ -153,9 +156,9 @@ test("another trait, or another class's feature, that ends like a variant fixes 
     enabledClassFeatureIds: [STARRY_FORM, `${STARRY_FORM}-calice`, "stregone-discendenza-draconica-ali-di-drago"],
   };
   assert.ok(enabledIds(starsSorcerer).includes("stregone-discendenza-draconica-ali-di-drago"));
-  assert.equal(sheetAsks(starsSorcerer, STARRY_FORM), false);
-  assert.equal(applied(starsSorcerer, STARRY_FORM, "arciere"), "calice");
-  // A druid and Totem Warrior with the Unicorn configured: the barbarian's bear does not take its place.
+  assert.equal(sheetAsks(starsSorcerer, STARRY_FORM), true);
+  assert.equal(applied(starsSorcerer, STARRY_FORM, "arciere"), "arciere");
+  // A druid and Totem Warrior with the Unicorn's card: neither the barbarian's bear nor the card chooses the spirit.
   const shepherdTotem = {
     characterBuild: [{ classId: "druido", level: 2, subclassId: "druido-circolo-del-pastore" },
       { classId: "barbaro", level: 3, subclassId: "barbaro-cammino-del-combattente-totemico" }],
@@ -164,11 +167,11 @@ test("another trait, or another class's feature, that ends like a variant fixes 
       "barbaro-cammino-del-combattente-totemico-spirito-totemico", "barbaro-cammino-del-combattente-totemico-spirito-totemico-orso"],
   };
   assert.ok(enabledIds(shepherdTotem).includes("barbaro-cammino-del-combattente-totemico-spirito-totemico-orso"));
-  assert.equal(sheetAsks(shepherdTotem, SPIRIT_TOTEM), false);
-  assert.equal(applied(shepherdTotem, SPIRIT_TOTEM, "falco"), "unicorno");
+  assert.equal(sheetAsks(shepherdTotem, SPIRIT_TOTEM), true);
+  assert.equal(applied(shepherdTotem, SPIRIT_TOTEM, "falco"), "falco");
 });
 
-test("the variants enabled together fix nothing: Starry Form and Spirit Totem ask by default, one variant alone is fixed", () => {
+test("Starry Form, Spirit Totem and Beast Form ask at each use, whatever variant cards the sheet enables", () => {
   const stars = { characterBuild: [{ classId: "druido", level: 2, subclassId: "druido-circolo-delle-stelle" }] };
   const shepherd = { characterBuild: [{ classId: "druido", level: 2, subclassId: "druido-circolo-del-pastore" }] };
   for (const [profile, id, asked] of [[stars, STARRY_FORM, "calice"], [shepherd, SPIRIT_TOTEM, "unicorno"]]) {
@@ -178,15 +181,40 @@ test("the variants enabled together fix nothing: Starry Form and Spirit Totem as
     assert.equal(applied(profile, id, asked), asked, `${id}: the GM's variant, not the first card's`);
   }
   const bear = { ...shepherd, classFeaturesConfigured: true, enabledClassFeatureIds: [SPIRIT_TOTEM, `${SPIRIT_TOTEM}-spirito-orso`] };
-  assert.equal(sheetAsks(bear, SPIRIT_TOTEM), false);
-  assert.equal(consoleAsks(bear, SPIRIT_TOTEM), false);
-  assert.equal(applied(bear, SPIRIT_TOTEM, "falco"), "orso");
+  assert.equal(sheetAsks(bear, SPIRIT_TOTEM), true, "the Bear's card alone: the spirit is still chosen at each summoning");
+  assert.equal(consoleAsks(bear, SPIRIT_TOTEM), true);
+  assert.equal(applied(bear, SPIRIT_TOTEM, "falco"), "falco");
+  assert.equal(applied(bear, SPIRIT_TOTEM, ""), "choice-required");
   const clawsAndTail = barbarian(BEAST, [BEAST_FORM, `${BEAST_FORM}-artigli`, `${BEAST_FORM}-coda`]);
   assert.equal(sheetAsks(clawsAndTail, BEAST_FORM), true, "Claws and Tail enabled: the GM chooses");
   assert.equal(applied(clawsAndTail, BEAST_FORM, "morso"), "morso");
   const tail = { ...barbarian(BEAST, [BEAST_FORM, `${BEAST_FORM}-coda`]), species: { id: "leonin" } };
-  assert.equal(sheetAsks(tail, BEAST_FORM), false, "the Tail alone, whatever the Leonin's claws");
-  assert.equal(applied(tail, BEAST_FORM, "morso"), "coda");
+  assert.equal(sheetAsks(tail, BEAST_FORM), true, "the Tail's card alone: the form is still chosen at each rage");
+  assert.equal(applied(tail, BEAST_FORM, "morso"), "morso");
+});
+
+// The one choice the manual ties to the sheet: Storm Aura's environment, changed only on gaining a level (Xanathar's).
+// Its card enabled alone is the variant, whatever the GM asks; with none, there is nothing to apply.
+test("Storm Aura's environment is the sheet's: its card enabled alone fixes it", () => {
+  const herald = "barbaro-cammino-dell-araldo-della-tempesta";
+  assert.equal(feature(STORM_AURA).choiceMode, "configuration");
+  assert.equal(applied(barbarian(herald, [STORM_AURA, `${STORM_AURA}-tundra`]), STORM_AURA, "deserto"), "tundra");
+  assert.equal(applied(barbarian(herald, [STORM_AURA]), STORM_AURA, ""), "choice-required");
+});
+
+// Tasha's rolls Wild Surge's d8 each time Rage starts: the outcome is never the sheet's (choiceMode "roll"). The console,
+// as the sheet, starts its dropdown empty and asks the roll before it activates Rage.
+test("Wild Surge's outcome is rolled each time: never fixed by a card, an empty dropdown, the roll asked first", () => {
+  assert.equal(feature(WILD_SURGE).choiceMode, "roll");
+  const card = barbarian(WILD, [`${WILD_SURGE}-risultato-2`]);
+  assert.equal(applied(card, WILD_SURGE, "7"), "7", "the outcome rolled, not the card's");
+  const form = pcAttackFeatureForm(feature(RAGE), pcAttackFeatureState(card, {}, getEnabledClassFeatures(card), 1),
+    { characterBuild: card.characterBuild });
+  const outcome = form.fields.find((field) => field.id === `auto:${WILD_SURGE}`);
+  assert.deepEqual([outcome.rolled, outcome.options[0]], [true, { value: "", label: "Esito tirato…" }]);
+  assert.match(pcAttackFeatureRequest(feature(RAGE), form, {}, { sourceId: "pc" }).error, /^Indica l'esito tirato/u);
+  assert.deepEqual(pcAttackFeatureRequest(feature(RAGE), form, { [`auto:${WILD_SURGE}`]: "7" }, { sourceId: "pc" }).params.autoChoiceIds,
+    { [WILD_SURGE]: "7" });
 });
 
 test("the catalog names each sub-feature of a feature with variants after it, and nothing else: the rule reads the id", () => {

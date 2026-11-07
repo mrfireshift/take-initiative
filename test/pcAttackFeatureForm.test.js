@@ -64,13 +64,13 @@ test("the generic path across classes: a variant to choose, a required feature, 
   assert.ok(form1.fields[0].options.length >= 2);
   const choiceId = form1.fields[0].options[1].value;
   assert.equal(pcAttackFeatureRequest(feature("barbaro-cammino-della-bestia-forma-della-bestia"), form1, { choice: choiceId }, { sourceId: "bar" }).params.choiceId, choiceId);
-  // A variant fixed by its sub-feature, enabled alone (Spirit Totem's Bear), asks nothing, as in the sheet; the three
-  // spirits enabled by default fix none, and the GM chooses.
+  // Spirit Totem's spirit is chosen at each summoning (Xanathar's), as in the sheet: asked with the three spirits
+  // enabled by default, and with the Bear's card alone too.
   const druid = { characterBuild: [{ classId: "druido", level: 2, subclassId: "druido-circolo-del-pastore" }] };
   assert.deepEqual(form("druido-circolo-del-pastore-totem-spirituale", druid).fields.map((field) => field.id), ["choice"]);
   const bear = { ...druid, classFeaturesConfigured: true,
     enabledClassFeatureIds: ["druido-circolo-del-pastore-totem-spirituale", "druido-circolo-del-pastore-totem-spirituale-spirito-orso"] };
-  assert.deepEqual(form("druido-circolo-del-pastore-totem-spirituale", bear).fields, []);
+  assert.deepEqual(form("druido-circolo-del-pastore-totem-spirituale", bear).fields.map((field) => field.id), ["choice"]);
   const barbarian = { characterBuild: [{ classId: "barbaro", level: 3, subclassId: "barbaro-cammino-del-combattente-totemico" }] };
   const wolf = getEnabledClassFeatures(barbarian).find((entry) => entry.id === "barbaro-cammino-del-combattente-totemico-sintonia-totemica-lupo");
   if (wolf) assert.match(form(wolf.id, barbarian).disabledReason, /Richiede prima Ira/);

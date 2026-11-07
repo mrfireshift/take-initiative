@@ -22,6 +22,9 @@ globalThis.IDBKeyRange = versionedKeyRange;
 globalThis.location = { pathname: "/background.html" };
 
 const scene = { ready: true, metadata: {}, items: [] };
+// The GM's selection on the map, and the notices shown in Owlbear (resetScene clears both).
+let selection = [];
+const notices = [];
 const readyListeners = new Set();
 const metadataListeners = new Set();
 const broadcastListeners = new Map();
@@ -35,7 +38,7 @@ function itemsFor(ids) {
 
 const sdkStub = {
   onReady() {},
-  player: { getRole: async () => "GM", getId: async () => "species-hp-gm" },
+  player: { getRole: async () => "GM", getId: async () => "species-hp-gm", getSelection: async () => [...selection] },
   room: { id: "species-hp-room", getMetadata: async () => ({}), setMetadata: async () => {} },
   scene: {
     isReady: async () => scene.ready,
@@ -85,7 +88,7 @@ const sdkStub = {
       for (const listener of [...(broadcastListeners.get(channel) || [])]) listener({ data: clone(data) });
     },
   },
-  notification: { show: async () => {} },
+  notification: { show: async (message, variant) => { notices.push({ message, variant }); } },
 };
 
 mock.module("@owlbear-rodeo/sdk", {
@@ -114,6 +117,8 @@ const PC = (id, name, x, hp, hpMax, species, extra = {}) => ({
 });
 
 function resetScene() {
+  selection = [];
+  notices.length = 0;
   scene.ready = true;
   scene.metadata = { [STATE_KEY]: { order: ["grom", "zar", "kael", "tek", "ssa"], current: 0, round: 2 } };
   scene.items = [
@@ -300,17 +305,20 @@ test("a yuan-ti pureblood is never poisoned, whoever applies the condition", asy
   assert.deepEqual(conditionNames("grom"), ["Avvelenato"]);
 });
 
-// CAP-TEMP, lotto T2a: a class feature's temporary hit points by its level, to the creatures selected on the map.
+// CAP-TEMP, lotto T2a: a class feature's temporary hit points by its level, to the creatures selected on the map. The
+// spirit is chosen at each summoning (Xanathar's): the Bear's card on the sheet does not choose it.
 test("Spirit Totem, Bear: 5 + the druid's level in temporary hit points to the creatures selected, with the pill", async () => {
   scene.items.push({ id: "dru", name: "Dru", layer: "CHARACTER", position: { x: 9000, y: 0 },
     metadata: { [META_KEY]: { hp: 20, hpMax: 30, attitude: "pc", conditions: { version: 2, instances: [] },
       initiativeCard: { characterBuild: [{ classId: "druido", level: 4, subclassId: "druido-circolo-del-pastore" }],
         abilityModifiers: { str: 0, dex: 1, con: 1, int: 0, wis: 3, cha: 0 },
-        // The spirit is the one configured on the sheet: the Bear alone.
+        // The Bear's card alone on the sheet: the spirit is still the GM's choice.
         classFeaturesConfigured: true, enabledClassFeatureIds: ["druido-circolo-del-pastore-totem-spirituale",
           "druido-circolo-del-pastore-totem-spirituale-spirito-orso"] } } } });
+  await assert.rejects(classFeatureRuntime.activateClassFeature({ sourceId: "dru",
+    featureId: "druido-circolo-del-pastore-totem-spirituale", targetIds: ["dru", "zar"] }), /Scegli una variante/);
   await classFeatureRuntime.activateClassFeature({ sourceId: "dru", featureId: "druido-circolo-del-pastore-totem-spirituale",
-    targetIds: ["dru", "zar"] });
+    choiceId: "orso", targetIds: ["dru", "zar"] });
   assert.deepEqual([metaOf("dru").hp, metaOf("dru").tempHp], [20, 9], "the wounded druid keeps its HP");
   assert.deepEqual([metaOf("zar").hp, metaOf("zar").tempHp], [30, 9]);
   assert.ok(conditionNames("dru").some((name) => /Totem Spirituale/u.test(name)), conditionNames("dru").join(","));
@@ -331,25 +339,39 @@ test("Rage with Shadowy Tendrils: the 1d12 entered at the table becomes the barb
   assert.ok(conditionNames("wb").some((name) => /Viti Oscure/u.test(name)), conditionNames("wb").join(","));
 });
 
-// An outcome fixed on the sheet (Wild Surge's 2nd alone enabled): neither the sheet nor the console asks it, so Rage gets
-// no automatic outcome, and the runtime skipped the surge. It starts now with the outcome fixed; with none chosen and
-// none fixed it still waits for the GM.
-test("Rage with Wild Surge's outcome fixed on the sheet: the surge starts with it, no outcome asked", async () => {
+// Tasha's rolls Wild Surge's d8 each time Rage starts: an outcome's card enabled on the sheet fixes nothing. The outcome
+// is the one entered at the table; with none entered, Rage starts alone.
+test("Rage with Wild Surge: the outcome rolled at the table, whatever outcome card the sheet enables", async () => {
   const SURGE = "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio";
   scene.items.push(barbarian("wf", "barbaro-cammino-della-magia-selvaggia", ["barbaro-ira", SURGE, `${SURGE}-risultato-2`]));
-  const fixed = await classFeatureRuntime.activateClassFeature({ sourceId: "wf", featureId: "barbaro-ira" });
-  assert.deepEqual(fixed.autoResults.map((result) => [result.feature.id, result.instance.choiceId]), [[SURGE, "2"]]);
-  assert.ok(conditionNames("wf").some((name) => /Teletrasporto/u.test(name)), conditionNames("wf").join(","));
-  scene.items.push(barbarian("wn", "barbaro-cammino-della-magia-selvaggia", ["barbaro-ira", SURGE]));
+  const rolled = await classFeatureRuntime.activateClassFeature({ sourceId: "wf", featureId: "barbaro-ira", autoChoiceIds: { [SURGE]: "7" } });
+  assert.deepEqual(rolled.autoResults.map((result) => [result.feature.id, result.instance.choiceId]), [[SURGE, "7"]]);
+  assert.ok(conditionNames("wf").some((name) => /Rampicanti/u.test(name)), conditionNames("wf").join(","));
+  scene.items.push(barbarian("wn", "barbaro-cammino-della-magia-selvaggia", ["barbaro-ira", SURGE, `${SURGE}-risultato-2`]));
   const open = await classFeatureRuntime.activateClassFeature({ sourceId: "wn", featureId: "barbaro-ira" });
-  assert.deepEqual(open.autoResults, [], "no outcome chosen nor fixed");
+  assert.deepEqual(open.autoResults, [], "no outcome entered: the card of the 2nd is not the roll");
   assert.deepEqual(metaOf("wn").classFeatureState.instances.map((instance) => instance.featureId), ["barbaro-ira"]);
 });
 
-test("Storm Aura, Tundra configured on the sheet: its temporary hit points to the creatures selected when it starts", async () => {
+// Xanathar's: the aura's effect starts when the barbarian enters rage. Rage starts Storm Aura with the sheet's
+// environment, and the Tundra's temporary hit points go to the creatures selected inside its 3 m.
+test("Rage starts Storm Aura with the sheet's environment: the Tundra's temporary hit points within its 3 m", async () => {
   const AURA = "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa";
-  scene.items.push(barbarian("sh", "barbaro-cammino-dell-araldo-della-tempesta", ["barbaro-ira", AURA, `${AURA}-tundra`]));
-  await classFeatureRuntime.activateClassFeature({ sourceId: "sh", featureId: "barbaro-ira" });
-  await classFeatureRuntime.activateClassFeature({ sourceId: "sh", featureId: AURA, targetIds: ["sh", "zar"] });
-  assert.deepEqual([metaOf("sh").tempHp, metaOf("zar").tempHp], [3, 3], "3 at the 5th level, from the Tundra configured");
+  scene.items.push(barbarian("sh", "barbaro-cammino-dell-araldo-della-tempesta", ["barbaro-ira", AURA, `${AURA}-tundra`]),
+    PC("ally", "Ally", 9650, 30, 40, { id: "umano" }));
+  selection = ["sh", "ally", "zar"];
+  const rage = await classFeatureRuntime.activateClassFeature({ sourceId: "sh", featureId: "barbaro-ira" });
+  assert.deepEqual(rage.autoResults.map((result) => [result.feature.id, result.instance.choiceId]), [[AURA, "tundra"]]);
+  assert.deepEqual([metaOf("sh").tempHp, metaOf("ally").tempHp, metaOf("zar").tempHp], [3, 3, undefined],
+    "3 at the 5th level, to the barbarian and the ally beside it; Zar, 90 m away, is outside the aura");
+});
+
+test("Rage with Storm Aura and no environment on the sheet: Rage starts, the aura does not, and the GM is told", async () => {
+  const AURA = "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa";
+  scene.items.push(barbarian("sx", "barbaro-cammino-dell-araldo-della-tempesta", ["barbaro-ira", AURA]));
+  const rage = await classFeatureRuntime.activateClassFeature({ sourceId: "sx", featureId: "barbaro-ira" });
+  assert.deepEqual(rage.autoResults, []);
+  assert.deepEqual(metaOf("sx").classFeatureState.instances.map((instance) => instance.featureId), ["barbaro-ira"]);
+  assert.match(notices.at(-1)?.message || "", /^Aura Tempestosa: nessuna variante nella scheda/u);
+  assert.equal(notices.at(-1)?.variant, "WARNING");
 });
