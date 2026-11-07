@@ -193,7 +193,9 @@ quel personaggio.
   danno; scende sotto il nome solo se non ci sta. Dice il conto (`Res. freddo: 20 → 10`)
   e il suo suggerimento dice di chi è la difesa e che cosa fa al numero. Un clic la ignora per quel lancio: il chip si barra e il danno
   torna pieno. Il TS viene prima: 20 con TS superato sono 10, e con la resistenza 5.
-  Le difese dei mostri limitate alle armi non magiche non contano contro un incantesimo.
+  Le difese limitate alle armi non magiche, dei mostri e di Avatar della Battaglia, non contano
+  contro un incantesimo; la resistenza ai danni degli incantesimi (Aura di Interdizione,
+  Resistenza agli Incantesimi dell'abiuratore) sì, su ogni tipo.
   Il registro di combattimento dice quale difesa ha contato o è stata ignorata.
 - Spruzzo prismatico e Muro prismatico fanno il conto raggio per raggio e strato per
   strato, ognuno col suo tipo e il suo TS. Nello Spruzzo il chip compare accanto al nome
@@ -421,6 +423,46 @@ chiedere un bersaglio o mantenere un'aura. Il GM deve confermare tiri, scelte,
 esiti e conseguenze che il plugin non può risolvere. Le istanze attive mostrano
 durata, bersagli e promemoria; le condizioni create dalla capacità compaiono
 nella finestra **Condizioni** e vengono rimosse insieme all'istanza corretta.
+
+#### Difese ai danni dalle capacità
+
+Le capacità che danno resistenze, immunità o vulnerabilità le fanno contare da
+sole: nella console attacchi, nella console Boss, nel pannello incantesimi e
+nei promemoria compare il chip della difesa (`Res. taglienti: 12 → 6`), che un
+clic ignora per quel colpo. La pill e la card non cambiano aspetto: niente
+etichette in più.
+
+- **Con la pill**: Ira, Spirito Totemico: Orso, Runa delle Colline invocata,
+  Corpo Vuoto, Conquistatore Invincibile, Forma d'Ombra, Manto di Stelle e
+  Tomba di Levistus difendono finché la pill è attiva, e smettono quando
+  finisce. La Tomba di Levistus dà la vulnerabilità al fuoco: se il colpo che
+  la fa scattare è da fuoco, ignora la vulnerabilità per quel colpo.
+  Tempesta Protettrice dà alle creature scelte nell'aura la resistenza
+  dell'ambiente.
+- **Partenza insieme**: l'Ira avvia gli effetti dello Spirito Totemico (Orso,
+  Aquila, Lupo) e di Sintonia Totemica (Aquila, Orso) abilitati sulla scheda;
+  Forma Siderale avvia Manto di Stelle. Finiscono con lei; ognuno ha una sua
+  voce nella Cronologia, quindi per annullare tutto serve un **Annulla** in più
+  per ciascuno.
+- **Passive**: Purezza del Corpo, Anima della Forgia, Cuore della Tempesta,
+  Scudo del Pensiero e le altre valgono dal loro livello, se abilitate. Anima
+  Tempestosa prende il tipo dall'ambiente scelto per l'Aura Tempestosa, Dono
+  Elementale dal tipo di genio. Si vedono nel blocco **Difese ai danni** della
+  card; in modifica si scrivono solo le difese in più.
+- **Tipo a scelta**: Affinità Elementale (1 ora, 1 punto stregoneria),
+  Resilienza Immonda e Pietra del Trasmutatore (sul portatore) chiedono il
+  tipo all'attivazione e lo mostrano nella pill. Le armi magiche o d'argento
+  superano Resilienza Immonda: per quel colpo ignora il chip.
+- **Solo contro armi non magiche**: Avatar della Battaglia e Santo della Forgia
+  e del Fuoco (in armatura pesante, data per indossata) resistono ai danni
+  contundenti, perforanti e taglienti come le difese dei mostri: il chip dice
+  `non magici`, gli incantesimi le superano e un'arma magica si toglie con un clic.
+- **Contro gli incantesimi**: Resistenza agli Incantesimi dell'abiuratore e
+  l'Aura di Interdizione dimezzano ogni danno di un incantesimo: pannello,
+  aree, promemoria degli incantesimi, Dardo incantato e incantesimi della
+  console attacchi. Le azioni dei mostri nella console Boss non sono
+  incantesimi, anche quando ne portano il nome (Meteor Swarm di Auril): lì
+  dimezza a mano.
 
 Per conteggi, adapter, limiti e persistenza consulta
 [Capacità di classe](CAPACITA_CLASSE.md).
@@ -694,7 +736,7 @@ Le condizioni più usate al tavolo si applicano senza aprire la finestra: tutte 
 
 Ogni pulsante mostra lo stato della condizione: evidenziato se ce l'hanno tutte le creature scelte, con un bordo leggero se ce l'hanno solo alcune. In quel caso un clic la aggiunge a chi non ce l'ha; se ce l'hanno tutte, la toglie a tutte. Ogni clic è una voce della Cronologia. La rimozione toglie la condizione intera, anche quella messa da un incantesimo con una durata: per durate e fonti usa la finestra completa.
 
-**Ira** non è una condizione ma la capacità del Barbaro: si attiva dalle capacità di classe e non compare più tra le condizioni da applicare.
+**Ira** non è una condizione ma la capacità del Barbaro: si attiva dalle capacità di classe e non compare più tra le condizioni da applicare. Finché è attiva, il barbaro resiste ai danni contundenti, perforanti e taglienti (vedi [Difese ai danni dalle capacità](#difese-ai-danni-dalle-capacità)).
 
 ### Indebolimento
 

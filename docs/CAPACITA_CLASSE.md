@@ -22,9 +22,9 @@ Arcana 2016 e non è la stessa progressione del Ranger 2014.
 
 Lo stato di supporto è intenzionalmente esplicito:
 
-- **267 `implemented`**: la capacità può essere attivata dal runtime secondo
+- **271 `implemented`**: la capacità può essere attivata dal runtime secondo
   l'adapter dichiarato;
-- **593 `not-automated`**: la voce resta consultabile e gestibile manualmente,
+- **589 `not-automated`**: la voce resta consultabile e gestibile manualmente,
   ma il pulsante di attivazione non applica una meccanica automatica. Le
   passive, le reazioni e gli effetti istantanei compaiono come
   **Promemoria descrittivo**; le altre come gestione manuale al tavolo, con il
@@ -125,6 +125,42 @@ Alcuni adapter richiedono conferme aggiuntive: risultato del dado di Ispirazione
 Bardica, esito di Scacciare Non Morti, modalità di Linguaggio Universale/Occhi
 della Notte, scelta dello spell per Ladro di Incantesimi o livello dello slot
 per Fonte di Magia. Questi passaggi restano deliberatamente al GM.
+
+## Difese ai danni
+
+Le resistenze, immunità e vulnerabilità delle capacità stanno nel catalogo, mai
+nel metadata del token: la pill e la card restano come sono, e il plugin le
+legge da `damageDefensesCore.js` ogni volta che conta un danno. Le leggono la
+console attacchi, la console Boss, il pannello incantesimi con le sue aree, i
+promemoria e il Dardo incantato.
+
+| Dato nel catalogo | Capacità | Quando vale |
+| --- | --- | --- |
+| `effectPlan.damageDefenses` | Ira, Spirito Totemico: Orso, Runa delle Colline invocata, Corpo Vuoto, Conquistatore Invincibile, Forma d'Ombra, Manto di Stelle, Tomba di Levistus (vulnerabilità al fuoco) | finché la pill è attiva |
+| `targetEffect.damageDefenses` di un'opzione | Tempesta Protettrice (fuoco, fulmine o freddo secondo l'ambiente) | sulle creature nell'aura |
+| `choiceOptions[].effectPlan.damageDefenses` | Affinità Elementale, Resilienza Immonda, Pietra del Trasmutatore | il tipo scelto all'attivazione |
+| `passiveMechanics.damageDefenses` | Purezza del Corpo, Interdizione della Natura, Anima della Forgia, Santo della Forgia e del Fuoco, Impervio alla Non Morte, Difese Psichiche, Scudo Mentale, Scudo del Pensiero, Anima Oceanica, Anima Radiosa, Cuore della Tempesta, Anima del Vento, Runa delle Colline (veleno) | dal livello della capacità, se abilitata sulla scheda |
+| `passiveMechanics.damageDefensesByOption` | Anima Tempestosa (ambiente), Dono Elementale (tipo di genio) | secondo l'opzione salvata sulla scheda |
+| `passiveMechanics.nonmagicalDamageDefenses` | Avatar della Battaglia, Santo della Forgia in armatura pesante (data per indossata) | contro armi non magiche, come le difese dei mostri |
+| `spellDamageResistance` | Resistenza agli Incantesimi (passiva), Aura di Interdizione (sull'effetto dell'aura) | contro ogni tipo di danno di un incantesimo |
+
+- **Pill e aure**: una pill `class-feature` si riconosce dal suo `effectId`
+  (e dal `choiceId`); il membro di un'aura da `<capacità>:area` e dal nome della
+  condizione, perché la sua pill non dice l'opzione.
+- **Difese passive**: si sommano a quelle scritte a mano sulla card e a quelle
+  della specie, senza scriverle nel profilo; l'editor della scheda propone solo
+  quelle scritte a mano.
+- **Contro armi non magiche**: le righe dicono «non magici», gli incantesimi le
+  superano e un'arma magica si toglie con un clic sul chip. Se un'altra fonte
+  dà la stessa resistenza (l'Ira), vale anche contro la magia.
+- **Danni degli incantesimi**: valgono solo dove il danno è di un incantesimo:
+  pannello, aree, promemoria che nominano l'incantesimo, Dardo incantato,
+  incantesimi e trucchetti della console attacchi. Un'azione di un mostro
+  nella console Boss non è un incantesimo, anche quando ne porta il nome.
+- **Figli automatici**: l'Ira avvia gli effetti abilitati dello Spirito Totemico
+  (Orso, Aquila, Lupo) e di Sintonia Totemica (Aquila, Orso); Forma Siderale
+  avvia Manto di Stelle. Ognuno finisce con la capacità che l'ha avviato e ha
+  una voce sua nella Cronologia.
 
 ## Adapter attualmente pronti
 
