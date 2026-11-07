@@ -961,6 +961,11 @@ function renderQuickActionList(list, actions, emptyText) {
     return;
   }
 
+  // The profile's enabled features, as the feature cards pass them (renderClassFeatures): a variant the profile fixes
+  // shows no dropdown here either, since the activation applies it whatever the dropdown says.
+  const enabledFeatureIds = profile && actions.some((action) => action.kind === "feature")
+    ? getEnabledClassFeatures(profile).map((entry) => entry.id)
+    : [];
   for (const action of actions) {
     const actionEntry = document.createElement("div");
     actionEntry.className = "quick-action-entry";
@@ -1000,9 +1005,9 @@ function renderQuickActionList(list, actions, emptyText) {
       : quickActionSummary(action);
     copy.append(label, summary);
     button.append(icon, copy);
-    const choiceControl = feature ? classFeatureChoiceControl(feature, { compact: true }) : null;
+    const choiceControl = feature ? classFeatureChoiceControl(feature, { compact: true, enabledFeatureIds }) : null;
     const autoChoiceControls = feature
-      ? classFeatureAutoChoiceControls(feature, { compact: true })
+      ? classFeatureAutoChoiceControls(feature, { compact: true, enabledFeatureIds })
       : new Map();
     button.addEventListener("click", () => void launchQuickAction(
       action,

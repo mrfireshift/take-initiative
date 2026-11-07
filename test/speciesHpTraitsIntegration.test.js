@@ -331,6 +331,21 @@ test("Rage with Shadowy Tendrils: the 1d12 entered at the table becomes the barb
   assert.ok(conditionNames("wb").some((name) => /Viti Oscure/u.test(name)), conditionNames("wb").join(","));
 });
 
+// An outcome fixed on the sheet (Wild Surge's 2nd alone enabled): neither the sheet nor the console asks it, so Rage gets
+// no automatic outcome, and the runtime skipped the surge. It starts now with the outcome fixed; with none chosen and
+// none fixed it still waits for the GM.
+test("Rage with Wild Surge's outcome fixed on the sheet: the surge starts with it, no outcome asked", async () => {
+  const SURGE = "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio";
+  scene.items.push(barbarian("wf", "barbaro-cammino-della-magia-selvaggia", ["barbaro-ira", SURGE, `${SURGE}-risultato-2`]));
+  const fixed = await classFeatureRuntime.activateClassFeature({ sourceId: "wf", featureId: "barbaro-ira" });
+  assert.deepEqual(fixed.autoResults.map((result) => [result.feature.id, result.instance.choiceId]), [[SURGE, "2"]]);
+  assert.ok(conditionNames("wf").some((name) => /Teletrasporto/u.test(name)), conditionNames("wf").join(","));
+  scene.items.push(barbarian("wn", "barbaro-cammino-della-magia-selvaggia", ["barbaro-ira", SURGE]));
+  const open = await classFeatureRuntime.activateClassFeature({ sourceId: "wn", featureId: "barbaro-ira" });
+  assert.deepEqual(open.autoResults, [], "no outcome chosen nor fixed");
+  assert.deepEqual(metaOf("wn").classFeatureState.instances.map((instance) => instance.featureId), ["barbaro-ira"]);
+});
+
 test("Storm Aura, Tundra configured on the sheet: its temporary hit points to the creatures selected when it starts", async () => {
   const AURA = "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa";
   scene.items.push(barbarian("sh", "barbaro-cammino-dell-araldo-della-tempesta", ["barbaro-ira", AURA, `${AURA}-tundra`]));

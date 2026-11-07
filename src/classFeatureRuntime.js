@@ -24,6 +24,7 @@ import {
   classFeatureBreaksConcentration,
   classFeatureConditionInstancesForActivation,
   classFeatureEffectProjection,
+  classFeatureRequiresActivationChoice,
   classFeatureSpellSlotCreationCost,
   classFeatureTemporaryHpApplications,
   classFeatureRuntimeSupport,
@@ -39,6 +40,7 @@ import {
   planClassFeatureDeactivation,
 } from "./classFeatureCore.js";
 import {
+  CLASS_FEATURE_BY_ID,
   CLASS_FEATURE_RESOURCE_POOL_BY_ID,
   getClassFeatureDefinition,
   getAvailableClassFeatures,
@@ -1740,9 +1742,8 @@ export async function activateClassFeature({
   ])));
   const autoResults = [...prerequisiteResults];
   if (!suppressAutoActivation && Array.isArray(feature.autoActivateFeatureIds)) {
-    const enabledIds = new Set(
-      getEnabledClassFeatures(profile).map((entry) => entry.id)
-    );
+    const enabledList = getEnabledClassFeatures(profile).map((entry) => entry.id);
+    const enabledIds = new Set(enabledList);
     const latestSource = (await OBR.scene.items.getItems([sourceItem.id]))[0] || sourceItem;
     const latestState = normalizeClassFeatureState(
       latestSource.metadata?.[META_KEY]?.[CLASS_FEATURE_STATE_FIELD]
@@ -1752,8 +1753,14 @@ export async function activateClassFeature({
       if (!childId || !enabledIds.has(childId)) continue;
       if (latestState.instances.some((entry) => entry.featureId === childId)) continue;
       const child = getClassFeatureDefinition(childId);
+      // A child with variants waits for its outcome only when the sheet asks it (classFeatureRequiresActivationChoice):
+      // the one the profile fixes (Wild Surge with its 2nd outcome alone enabled) is applied by
+      // planClassFeatureActivation. A variant set by configuration (Storm Aura's environment) still waits for its own
+      // activation.
       if (!child || (Array.isArray(child.choiceOptions) && child.choiceOptions.length
-        && !String(autoChoiceIds?.[childId] || "").trim())) continue;
+        && !String(autoChoiceIds?.[childId] || "").trim()
+        && (child.choiceMode === "configuration"
+          || classFeatureRequiresActivationChoice(child, enabledList, CLASS_FEATURE_BY_ID)))) continue;
       autoResults.push(await activateClassFeature({
         sourceId: sourceItem.id,
         featureId: childId,
