@@ -12,7 +12,7 @@ li aggiorna con il lavoro di ottobre e risponde a due domande:
 
 La seconda è risolta (sezione 2). La prima è un piano a lotti: i lotti L1–L4
 sono fatti (sezioni 5.1 e 5.2), L5+ procede una capacità per volta (sezione 5.3,
-CAP-LINK, CAP-HP-BRANCH, CAP-CLEANSE, CAP-RESOURCE, CAP-REACTION, CAP-TEMP, CAP-STABILIZE e CAP-TERRAIN fatte, con tre capacità singole). Chi lavora a
+CAP-LINK, CAP-HP-BRANCH, CAP-CLEANSE, CAP-RESOURCE, CAP-REACTION, CAP-TEMP, CAP-STABILIZE, CAP-TERRAIN e CAP-MULTIAREA fatte, con tre capacità singole). Chi lavora a
 un lotto parte dalle note pratiche della sezione 8.
 
 Il perimetro è quello di sempre: un **tracker assistito**. Dadi, linea di
@@ -33,10 +33,10 @@ conferma.
 | Da verificare | 2 | Testo o perimetro delle regole mancanti. |
 | **Totale** | **477** | **Tutti lanciabili dal libro, dalle azioni rapide e dal pannello, con il loro slot.** |
 
-Il lavoro di automazione residuo è di **38 incantesimi** (26 + 12) più i 2 da
+Il lavoro di automazione residuo è di **35 incantesimi** (23 + 12) più i 2 da
 verificare, contro i 152 di settembre: nel frattempo la console attacchi ha
 chiuso 17 trucchetti, Prigione Mentale è stata completata, i lotti L1–L4
-hanno chiuso altri 50 incantesimi, CAP-LINK altri 8, CAP-HP-BRANCH altri 5, CAP-CLEANSE altri 4, CAP-RESOURCE altri 4, CAP-REACTION altri 6, CAP-TEMP altri 5, CAP-STABILIZE altri 6, tre capacità singole altri 3 e CAP-TERRAIN altri 4.
+hanno chiuso altri 50 incantesimi, CAP-LINK altri 8, CAP-HP-BRANCH altri 5, CAP-CLEANSE altri 4, CAP-RESOURCE altri 5, CAP-REACTION altri 6, CAP-TEMP altri 5, CAP-STABILIZE altri 6, tre capacità singole altri 3, CAP-TERRAIN altri 4 e CAP-MULTIAREA altri 2.
 
 Ordine consigliato, dal più sicuro al più costoso:
 
@@ -46,7 +46,7 @@ Ordine consigliato, dal più sicuro al più costoso:
 | L2 ✓ | 14 | Cure, TS con danno, condizioni che finiscono al danno, TS ripetuti (fatto il 22 ottobre) | Sì, dal comando ad area esistente |
 | L3 ✓ | 12 | Zone e aree persistenti, due azioni ad area ripetibili (fatto il 22 ottobre) | Sì, dai percorsi di zona e azioni attive esistenti |
 | L4 ✓ | 7 | Incantesimi d'attacco nella console attacchi, con il loro slot (fatto il 22 ottobre) | Sì, dalla console attacchi; Tocco del vampiro cura il caster |
-| L5+ | 26 | Una capacità condivisa per volta (sezione 5.3); CAP-LINK fatta il 22 ottobre, CAP-HP-BRANCH e CAP-CLEANSE il 23, CAP-RESOURCE e il lotto 1 di CAP-REACTION il 28, il lotto 2 il 31, CAP-TEMP tra il 31 ottobre e il 3 novembre, CAP-STABILIZE, tre capacità singole e CAP-TERRAIN il 3 novembre | Spesso |
+| L5+ | 23 | Una capacità condivisa per volta (sezione 5.3); CAP-LINK fatta il 22 ottobre, CAP-HP-BRANCH e CAP-CLEANSE il 23, CAP-RESOURCE e il lotto 1 di CAP-REACTION il 28, il lotto 2 il 31, CAP-TEMP tra il 31 ottobre e il 3 novembre, CAP-STABILIZE, tre capacità singole e CAP-TERRAIN il 3 novembre, CAP-MULTIAREA e Minuscole meteore il 6 novembre | Spesso |
 
 ## 2. Registrare il lancio di qualunque incantesimo (fatto)
 
@@ -304,7 +304,7 @@ Una capacità per volta, con i suoi test di contratto, poi la famiglia.
 | CAP-LINK ✓ | 9 (8) | Legame mantenuto o spostato e fine su evento: Marchio del cacciatore, Sortilegio, Dardo stregato, Duello obbligato, Corona di follia, Debilitazione, Invisibilità, Lama roboante, tutti fatti | Medio |
 | CAP-HP-BRANCH ✓ | 5 (5) | Soglie di PF prima e dopo il danno: Disintegrazione, Dito della morte, Parola del potere uccidere, Regressione mentale, Parola divina, tutti fatti | Alto: HP |
 | CAP-CLEANSE ✓ (5 di 7) | 7 (5) | Scegliere e terminare effetti attivi: Ristorare inferiore, Dissolvi magie, Guarigione, Parola del potere guarire, Rimuovi maledizione fatti; restano Dissolvi il bene e il male (lotto a parte, con la console attacchi) e Guarigione di massa (CAP-ALLOCATION) | Medio |
-| CAP-RESOURCE ✓ (4 di 5) | 5 (4) | Contatore consumato: Bacche benefiche, Guardiano della fede, Immagine speculare, Cordone di frecce, tutti fatti; Minuscole meteore aspetta CAP-MULTIAREA | Medio |
+| CAP-RESOURCE ✓ | 5 (5) | Contatore consumato: Bacche benefiche, Guardiano della fede, Immagine speculare, Cordone di frecce, Minuscole meteore, tutti fatti | Medio |
 | CAP-REACTION ✓ | 6 (6) | Reazione assistita al danno o all'attacco: Scudo di fuoco, Santuario, Interdizione primordiale, Ombra di Moil, Interdizione alla morte, Vincolo di interdizione, tutti fatti | Alto: HP |
 | CAP-TEMP ✓ | 5 (5) | PF temporanei consumati dal danno: Vita falsata, Eroismo, Armatura di Agathys, Trasformazione di Tenser, Flusso di energia negativa, tutti fatti | Alto: HP |
 | CAP-MAXHP | 4 (4) | PF massimi reversibili: Aiuto, Banchetto degli eroi, Ferire, Ristorare superiore | Alto: HP e barre |
@@ -312,7 +312,7 @@ Una capacità per volta, con i suoi test di contratto, poi la famiglia.
 | CAP-STABILIZE ✓ | 6 (6) | Stabilizzare, riportare a 1 PF, penalità che scendono ai riposi: Salvare i morenti, Rinascita, Rianimare morti, Reincarnazione, Resurrezione, Resurrezione pura, tutti fatti | Alto: HP |
 | CAP-TELEPORT | 4 (3) | Teletrasporto attivo o composito: Passo del tuono, Passo remoto, Portale arcano | Alto |
 | CAP-ORIGIN | 4 (3) | Azione da un'origine diversa dal caster: Sfera congelante, Soffio del drago, Rampicante afferrante, Segugio fedele | Medio |
-| CAP-MULTIAREA | 3 (2) | Più aree in un lancio: Tempesta di fuoco, Sciame di meteore, Minuscole meteore | Medio |
+| CAP-MULTIAREA ✓ | 2 (2) | Più aree in un lancio, ogni creatura una volta: Tempesta di fuoco, Sciame di meteore, tutti fatti; Minuscole meteore non ne ha bisogno (ogni meteora è un'esplosione a sé) ed è in CAP-RESOURCE | Medio |
 | CAP-STRUCTURE | 3 (3) | Segmenti con PF e crollo: Muro di ghiaccio, Muro di pietra, Ossa della terra | Alto |
 | CAP-SEQUENCE | 2 (2) | Effetto che cambia a ogni round: Tempesta di vendetta, Tsunami | Medio |
 | Singole | 1 ciascuna | CAP-MODE ✓ (Alterare sé stesso), CAP-DURATION ✓ (Scagliare maledizione), CAP-REPEAT-HEAL ✓ (Rigenerazione), CAP-SUPPRESSION (Calmare emozioni), CAP-CALENDAR (Costrizione), CAP-CARRIAGE (Sfera acquea), CAP-RELATION (Trasferimento di vita), CAP-ALLOCATION (Guarigione di massa) | Vario |
@@ -433,8 +433,8 @@ termina l'incantesimo.
   tutto, l'ultimo colpo per intero). A zero l'incantesimo termina e la zona
   sparisce (`static-zone:remove-ended`), tutto nella stessa voce annullabile.
 
-Test: `test/spellResources.test.js`. Minuscole meteore di Melf, che consuma
-meteore su più aree, aspetta CAP-MULTIAREA.
+Test: `test/spellResources.test.js`. Minuscole meteore di Melf si è aggiunta il 6
+novembre, con CAP-MULTIAREA (sotto).
 
 **CAP-REACTION, lotto 1, fatto il 28 ottobre.** Nessuna nuova scrittura dei
 PF del bersaglio: difese e avvisi dove l'attacco si registra, nella console
@@ -615,6 +615,37 @@ la prova per scorgerlo, i movimenti di Follia, l'obbligo di allontanarsi di Paur
 Il caster dentro la sfera non è tra i bersagli attivi.
 
 Test: `test/spellZonesAndRepeatedAreas.test.js` e `test/spellSlotSpendUndo.test.js`.
+
+**CAP-MULTIAREA, fatta il 6 novembre.** Studio e decisioni D1–D6 del 6 novembre. È una
+regola generale, scritta per gli incantesimi e separata dal caso di Auril: le esplosioni
+della Proiezione Fatata restano un caso a sé (`context.areaBatch` delle Azioni Boss),
+non toccato.
+
+- La regola d'area dichiara `placement.multiArea` (`count`, `minCount`, `adjacency`,
+  `noun`), validata in `validateSpellAreaRule`; la logica pura è in
+  `src/spellMultiAreaCore.js` (parole per il GM, numeri, adiacenza, unione).
+  Solo cerchi o quadrati, su punti liberi, di un incantesimo istantaneo.
+- Lo strumento delle aree (`src/aoeTargetTool.js`) ha una strada sua: ogni sagoma
+  rilasciata resta con il suo numero, il clic o la pressione sul numero la toglie, una
+  conferma le prende tutte. Il risultato porta `areas` e i bersagli uniti, ognuno una
+  volta; la riga di stato del pannello mostra il conteggio dello strumento.
+- Sciame di meteore: quattro esplosioni di 12 m, tutte e quattro per confermare (D1);
+  il fuoco e i contundenti hanno una casella ciascuno, con la propria difesa, dal lotto
+  delle due caselle del 6 novembre (piano di polishing, P4 lotto 2).
+- Tempesta di fuoco: da uno a dieci cubi di 3 m (D2); un cubo che non tocca un altro
+  cubo con un lato blocca la conferma, sovrapporsi va bene, l'angolo da solo no (D3).
+- Minuscole meteore di Melf (D5, D6): ogni meteora è un'esplosione a sé, quindi niente
+  unione. Il contatore (6, più 2 per slot sopra il 3°) parte con la meteora del lancio
+  già spesa e sta su una pill del caster: un incantesimo d'area con contatore e senza
+  zona la mette lì (`casterHoldsAreaCounter` nell'esecutore ad area). Il ⚡ «Lancia
+  meteora» è un'azione `save-area` con `resource`, ripetibile e con il promemoria a
+  inizio turno; una meteora nel vuoto si spende; l'ultima chiude incantesimo e
+  concentrazione.
+
+Non automatizzati: l'altezza dei cubi, le piante risparmiate dalla Tempesta, il fuoco
+agli oggetti.
+
+Test: `test/spellMultiArea.test.js` e `test/melfMinuteMeteors.test.js`.
 
 L'ordine consigliato resta quello dell'audit (LINK, HP-BRANCH, CLEANSE,
 RESOURCE), con CAP-ATTACK sostituita dalla console attacchi (L4). Le capacità
@@ -810,7 +841,7 @@ lotto. Gli incantesimi senza lavoro residuo sono elencati per livello.
 
 Nessuno: i lotti L1–L3 li hanno chiusi tutti il 22 ottobre.
 
-### Dopo una capacità condivisa (26)
+### Dopo una capacità condivisa (23)
 
 Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi la famiglia si completa con i dati.
 
@@ -819,7 +850,6 @@ Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi l
 | Aiuto (`aid`) | 2° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
 | Calmare emozioni (`calm-emotions`) | 2° | CAP-SUPPRESSION: sospendere condizioni senza toglierle. | L5+ |
 | Soffio del Drago (`xanathar-soffio-del-drago`) | 2° | CAP-ORIGIN: azione da un'origine diversa dal caster. | L5+ |
-| Minuscole Meteore di Melf (`xanathar-minuscole-meteore-di-melf`) | 3° | CAP-MULTIAREA + CAP-RESOURCE: meteore consumate per attivazione. | L5+ |
 | Passo del Tuono (`xanathar-passo-del-tuono`) | 3° | CAP-TELEPORT: teletrasporto con passeggero e danno nel punto lasciato. | L5+ |
 | Trasferimento di Vita (`xanathar-trasferimento-di-vita`) | 3° | CAP-RELATION: danno al caster, cura doppia al bersaglio. | L5+ |
 | Rampicante Afferrante (`phb2014-rampicante-afferrante`) | 4° | CAP-ORIGIN: azione da un'origine diversa dal caster. | L5+ |
@@ -837,10 +867,8 @@ Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi l
 | Ossa della Terra (`xanathar-ossa-della-terra`) | 6° | CAP-STRUCTURE: segmenti con PF, distruzione e residui. | L5+ |
 | Portale Arcano (`phb2014-portale-arcano`) | 6° | CAP-TELEPORT: coppia di portali con attraversamento. | L5+ |
 | Sfera congelante (`freezing-sphere`) | 6° | CAP-ORIGIN: globo conservato e detonazione differita. | L5+ |
-| Tempesta di fuoco (`fire-storm`) | 7° | CAP-MULTIAREA: più aree in un lancio, bersagli senza duplicati. | L5+ |
 | Tsunami (`phb2014-tsunami`) | 8° | CAP-SEQUENCE: effetto che cambia a ogni round. | L5+ |
 | Guarigione di massa (`mass-heal`) | 9° | CAP-ALLOCATION + CAP-CLEANSE: 700 PF da ripartire. | L5+ |
-| Sciame di meteore (`meteor-swarm`) | 9° | CAP-MULTIAREA: più aree in un lancio, bersagli senza duplicati. | L5+ |
 | Tempesta di vendetta (`storm-of-vengeance`) | 9° | CAP-SEQUENCE: effetto che cambia a ogni round. | L5+ |
 
 ### Su misura (12)
@@ -871,20 +899,20 @@ Mancano testo o perimetro delle regole.
 | Manto del Crociato (`legacy-crusaders-mantle`) | 3° | Regole da verificare prima di decidere. | — |
 | Imprigionare (`imprisonment`) | 9° | Regole da verificare prima di decidere. | — |
 
-### Automatizzati (292)
+### Automatizzati (295)
 
 Lancio e risoluzione assistiti dal pannello, dalla console ad area o dalla console attacchi.
 
 - **Trucchetti**: Amicizia, Beffa crudele, Colpo accurato, Creare Falò, Dardo di fuoco, Deflagrazione occulta, Ferocia Primordiale, Fiamma sacra, Fiotto acido, Frusta di Spine, Guida, Infestazione, Interdizione alle Lame, Lama Roboante, Lama Verdefiamma, Lenza Elettrizzante, Morsa del Gelo, Parola Radiosa, Produrre fiamma, Raggio di gelo, Resistenza, Rintocco dei Morti, Rombo di Tuono, Salvare i morenti, Scheggia della Mente, Spruzzo velenoso, Stretta folgorante, Tocco gelido, Turbine di Spade.
 - **1° livello**: Amicizia con gli animali, Anatema, Armatura di Agathys, Armatura magica, Assorbire Elementi (reazione), Bacche benefiche, Benedizione, Braccia di Hadar, Catapulta, Cerimonia (R), Charme su persone, Colpo dello Zefiro, Colpo Intrappolante, Coltello di Ghiaccio, Comando, Cura ferite, Dardo di Caos, Dardo incantato, Dardo Stregato, Dardo tracciante, Duello Obbligato, Eroismo, Favore divino, Globo Cromatico, Incuti Paura, Infliggi ferite, Intimorire infernale (reazione), Intralciare, Legame con le Bestie, Luminescenza, Mani brucianti, Marchio del cacciatore, Miscela Caustica di Tasha, Nube di nebbia, Onda tonante, Parola guaritrice, Passo veloce, Protezione dal bene e dal male, Punizione Collerica, Punizione Incandescente, Punizione Tonante, Raffica di Spine, Raggio di Infermità, Risata incontenibile, Ritirata rapida, Saltare, Santuario, Scossa Tellurica, Scudo (reazione), Scudo della fede, Sonno, Sortilegio, Spruzzo colorato, Sussurri Dissonanti, Trabocchetto, Unto, Vita falsata.
 - **2° livello**: Aculeo Mentale, Allucinazione di Forza, Alterare sé stesso, Arma magica, Arma spirituale, Bagliore lunare, Blocca persone, Caratteristica potenziata, Cecità/sordità, Cordone di Frecce, Corona di Follia, Crescita di spine, Diavoletto di Polvere, Estasiare, Folata di vento, Frantumare, Freccia acida, Immagine speculare, Ingrandire/ridurre, Invisibilità, Levitazione, Movimenti del ragno, Nube di Pugnali, Oscurità, Passare senza tracce, Passo velato, Pelle coriacea, Percezione delle Bestie (R), Pirotecnica, Preghiera di guarigione, Protezione dai veleni, Punizione Marchiante, Raggio di affaticamento, Raggio rovente, Ragnatela, Riscaldare il metallo, Ristorare inferiore, Sciame di Palle di Neve di Snilloc, Scudiscio Mentale di Tasha, Sfera infuocata, Sfocatura, Silenzio (R), Spirito Guaritore, Stretta della Terra di Maximilian, Suggestione, Vampa di Aganazzar, Vento di Interdizione, Vincolo della Terra, Vincolo di interdizione, Zona di verità.
-- **3° livello**: Arma Elementale, Aura di Vitalità, Cerchio magico, Crescita vegetale, Dissolvi magie, Eruzione Terrestre, Evoca Raffica, Fame di Hadar, Faro di speranza, Forma gassosa, Fortezza della Mente, Frecce Infuocate, Freccia Folgorante, Fulmine, Guardiani spirituali, Intermittenza, Invocare il fulmine, Lentezza, Luce diurna, Morte Apparente (R), Muro d'Acqua, Muro di Sabbia, Muro di vento, Nemici in Abbondanza, Nube maleodorante, Onda di Marea, Palla di fuoco, Parola guaritrice di massa, Paura, Protezione dall'energia, Punizione Accecante, Rinascita, Scagliare maledizione, Sonnellino, Sudario Spirituale, Tempesta di nevischio, Tocco del vampiro, Trama ipnotica, Velocità, Volare.
+- **3° livello**: Arma Elementale, Aura di Vitalità, Cerchio magico, Crescita vegetale, Dissolvi magie, Eruzione Terrestre, Evoca Raffica, Fame di Hadar, Faro di speranza, Forma gassosa, Fortezza della Mente, Frecce Infuocate, Freccia Folgorante, Fulmine, Guardiani spirituali, Intermittenza, Invocare il fulmine, Lentezza, Luce diurna, Minuscole Meteore di Melf, Morte Apparente (R), Muro d'Acqua, Muro di Sabbia, Muro di vento, Nemici in Abbondanza, Nube maleodorante, Onda di Marea, Palla di fuoco, Parola guaritrice di massa, Paura, Protezione dall'energia, Punizione Accecante, Rinascita, Scagliare maledizione, Sonnellino, Sudario Spirituale, Tempesta di nevischio, Tocco del vampiro, Trama ipnotica, Velocità, Volare.
 - **4° livello**: Allucinazione mortale, Anatema Elementale, Aura di Purezza, Aura di Vita, Charme sui Mostri, Compulsione, Confusione, Controllare acqua, Dominare bestie, Esilio, Fulgore Nauseante, Guardiano della fede, Guardiano della Natura, Inaridire, Interdizione alla morte, Invisibilità superiore, Libertà di movimento, Muro di fuoco, Ombra di Moil, Pelle di pietra, Porta dimensionale, Punizione Demoralizzante, Scudo di fuoco, Sfera al Vetriolo, Sfera della Tempesta, Sfera elastica, Tempesta di ghiaccio, Tentacoli neri.
 - **5° livello**: Abilità Potenziata, Alba, Animare oggetti, Arma Sacra, Blocca mostri, Cerchio di Potere, Collera della Natura, Colpo infuocato, Cono di freddo, Contagio, Controllare Venti, Cura ferite di massa, Debilitazione, Dominare persona, Evoca Pioggia di Armi, Flusso di Energia Negativa, Guscio anti-vita, Immolazione, Maelstrom, Mano arcana, Muro di forza, Muro di Luce, Nube mortale, Onda Distruttiva, Piaga degli insetti, Punizione Esiliante, Reincarnazione, Rianimare morti, Risveglio, Santificare, Scossa Sinaptica, Telecinesi, Trasmutare Roccia.
 - **6° livello**: Abito Ultraterreno di Tasha, Bagliore solare, Barriera di lame, Camminare nel vento, Carne in pietra, Catena di fulmini, Cerchio di morte, Danza irresistibile, Disintegrazione, Globo di invulnerabilità, Guarigione, Interdizione Primordiale, Investitura del Ghiaccio, Investitura del Vento, Investitura della Fiamma, Investitura della Pietra, Muro di spine, Prigione Mentale, Proibizione (R), Sguardo penetrante, Suggestione di massa, Trasformazione di Tenser.
-- **7° livello**: Corona di Stelle, Dito della morte, Gabbia di forza, Palla di fuoco ritardata, Parola del Potere Dolore, Parola divina, Resurrezione, Rigenerazione, Simbolo, Spada arcana, Spruzzo prismatico, Turbine.
+- **7° livello**: Corona di Stelle, Dito della morte, Gabbia di forza, Palla di fuoco ritardata, Parola del Potere Dolore, Parola divina, Resurrezione, Rigenerazione, Simbolo, Spada arcana, Spruzzo prismatico, Tempesta di fuoco, Turbine.
 - **8° livello**: Antipatia/simpatia, Aura sacra, Dominare mostri, Drago Illusorio, Esplosione solare, Labirinto, Nube incendiaria, Orrido Avvizzimento di Abi-Dalzim, Oscurità della Follia, Parola del potere stordire, Regressione mentale, Terremoto.
-- **9° livello**: Fatale, Invulnerabilità, Lama del Disastro, Muro prismatico, Parola del Potere Guarire, Parola del potere uccidere, Previsione, Resurrezione pura, Urlo Psichico.
+- **9° livello**: Fatale, Invulnerabilità, Lama del Disastro, Muro prismatico, Parola del Potere Guarire, Parola del potere uccidere, Previsione, Resurrezione pura, Sciame di meteore, Urlo Psichico.
 
 ### Tracciati: nessuna automazione utile (110)
 

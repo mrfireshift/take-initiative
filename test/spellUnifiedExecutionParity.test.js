@@ -172,6 +172,8 @@ function completeSession(contract, overrides = {}) {
     hpValues: {
       damage: inputs.damage?.required ? 12 : null,
       primaryDamage: inputs.primaryDamage?.required ? 13 : null,
+      // Two types in one damage: the box of the second part (spellCastDamageParts).
+      secondDamage: inputs.secondDamage?.required ? 11 : null,
       healing: inputs.healing?.required ? 12 : null,
       // CAP-TEMP, lotto T3b: the die of the temporary hit points (False Life's 1d4).
       ...(inputs.temporaryHp?.required ? { temporaryHp: 3 } : {}),

@@ -187,7 +187,24 @@ benefiche è una cura `single-heal` con `anyCreature`, senza aura. Cordone di
 frecce e Guardiano della fede lo tengono sull'istanza proprietaria della zona:
 `src/zoneResourceCore.js` lo scala a ogni trigger, dal comando ad area e dall'avviso
 (una munizione per creatura, il danno inflitto) e a zero toglie anche la zona con
-`static-zone:remove-ended`, nella stessa voce della Cronologia.
+`static-zone:remove-ended`, nella stessa voce della Cronologia. Minuscole meteore
+di Melf è un incantesimo d'area senza zona: l'esecutore ad area mette la sua pill
+sul caster (`casterHoldsAreaCounter`, `persistence.owner: "caster"`), con il
+contatore che parte dalla meteora del lancio già spesa (`spentAtCast`). Il ⚡
+`melf-meteor` è un'azione `save-area` con `resource`, ripetibile, con
+`allowEmptyTargets`, e a zero rompe la concentrazione (`endConcentrationAtZero`).
+
+CAP-MULTIAREA è la regola generale delle aree multiple di un lancio: la regola
+d'area dichiara `placement.multiArea` (`count`, `minCount`, `adjacency: "side"`,
+`noun`), che `validateSpellAreaRule` accetta solo per cerchi e quadrati su punti
+liberi di un incantesimo istantaneo. La logica pura è in `src/spellMultiAreaCore.js`;
+in `src/aoeTargetTool.js` la strada `fixMultiAreaShape`, `removeMultiAreaShapeAt` e
+`confirmMultiAreaPlacement` lascia ogni sagoma sulla mappa con il suo numero, la
+toglie con un clic sul numero e alla conferma restituisce `areas` e i bersagli
+uniti, ciascuno una volta; il progresso porta `multiArea` e il pannello lo mostra
+nella riga di stato. Esecutore e scrittura dei PF sono quelli di un'area sola. Le
+esplosioni di Auril (`context.areaBatch` delle Azioni Boss) sono un caso a sé e non
+passano di qui.
 
 CAP-REACTION (lotto 1) mette difese vere nelle pill (`mechanics.damageDefenses`)
 e due marcatori letti dalle console attacchi e Boss: `mechanics.retaliation`

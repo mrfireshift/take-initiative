@@ -1,5 +1,6 @@
 import { HEAT_METAL_DROP_CHOICE_EFFECT } from "./spellActiveResolutionRules.js";
 import { spellActionDamageTypes, spellDamageAfterDefense } from "./spellDamageDefenseCore.js";
+import { damageTypeLabel } from "./damageDefensesCore.js";
 
 const clone = (value) => {
   if (value === undefined) return undefined;
@@ -53,7 +54,8 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
   "storm-of-vengeance": Object.freeze({ initialHP: true, successfulSaveDamage: "none" }),
   // Xanathar. The thunder where the caster was; the teleport stays at the table (CAP-TELEPORT).
   "xanathar-passo-del-tuono": Object.freeze({ initialHP: true }),
-  // Xanathar. The meteor of the cast, on its 1,5 m; the others stay at the table (CAP-MULTIAREA).
+  // Xanathar. The meteor of the cast, on its 1,5 m; each later one is its own explosion, from the counter of meteors
+  // (the ⚡ melf-meteor, spellActiveResolutionRules.js).
   "xanathar-minuscole-meteore-di-melf": Object.freeze({ initialHP: true }),
   "phb2014-evoca-raffica": Object.freeze({
     initialHP: true,
@@ -499,7 +501,8 @@ const SPELL_CAST_DAMAGE_DICE = Object.freeze({
   "tasha-scheggia-della-mente": cantripDice("1d6"),
   "tasha-turbine-di-spade": cantripDice("1d6"),
   "phb2014-braccia-di-hadar": castDice("2d6", 1, 1),
-  "phb2014-onda-distruttiva": castDice("5d6"),
+  // PHB 2014: 5d6 thunder and 5d6 radiant or necrotic, one box each (SPELL_CAST_DAMAGE_PARTS).
+  "phb2014-onda-distruttiva": castDice("5d6+5d6"),
   "phb2014-raggio-di-infermita": castDice("2d8", 1, 1),
   "phb2014-tsunami": castDice("6d10"),
 });
@@ -507,6 +510,72 @@ const SPELL_CAST_DAMAGE_DICE = Object.freeze({
 const spellIdOf = (spellOrId) => String(
   typeof spellOrId === "string" ? spellOrId : spellOrId?.id || "",
 ).trim();
+
+// Two types in one damage (decisions D1–D4 of 6/11): a box for each part in the panel, with its dice and its type, and its
+// own save factor and defense before the sum (spellDamagePartsAfterDefense). A part may be the caster's choice of type:
+// Destructive Wave's radiant or necrotic is the cast's variant (AREA_SAVE_RULE_CHOICES). The boxes are the panel's damage and
+// secondDamage fields.
+export const SPELL_DAMAGE_PART_FIELDS = Object.freeze(["damage", "secondDamage"]);
+const damagePart = (types, formula, baseSlot = 0, additionalPerSlotAbove = 0) => Object.freeze({
+  types: Object.freeze([].concat(types)),
+  formula,
+  baseSlot,
+  additionalPerSlotAbove,
+});
+const SPELL_CAST_DAMAGE_PARTS = Object.freeze({
+  // 4d6 fire and 4d6 radiant; above the 5th, 1d6 more per slot on the fire or on the radiant, as the caster chooses (D4).
+  "flame-strike": Object.freeze({
+    parts: Object.freeze([damagePart("fire", "4d6"), damagePart("radiant", "4d6")]),
+    choiceDice: Object.freeze({ die: "d6", baseSlot: 5, perSlotAbove: 1, where: "al fuoco o ai radiosi" }),
+  }),
+  // 2d8 bludgeoning, 1d8 more for each slot above the 4th, and 4d6 cold.
+  "ice-storm": Object.freeze({ parts: Object.freeze([damagePart("bludgeoning", "2d8", 4, 1), damagePart("cold", "4d6")]) }),
+  "meteor-swarm": Object.freeze({ parts: Object.freeze([damagePart("fire", "20d6"), damagePart("bludgeoning", "20d6")]) }),
+  // PHB 2014: 5d6 thunder, and 5d6 radiant or necrotic, the caster's choice.
+  "phb2014-onda-distruttiva": Object.freeze({
+    parts: Object.freeze([damagePart("thunder", "5d6"), damagePart(["radiant", "necrotic"], "5d6")]),
+  }),
+});
+
+function damagePartDice(part, slotLevel) {
+  const match = part.formula.match(/^(\d+)d(\d+)$/iu);
+  if (!match) return part.formula;
+  const resolvedSlot = slotLevel !== null && Number.isFinite(Number(slotLevel))
+    ? Math.max(part.baseSlot, Math.floor(Number(slotLevel)))
+    : part.baseSlot;
+  return `${Number(match[1]) + Math.max(0, resolvedSlot - part.baseSlot) * part.additionalPerSlotAbove}d${match[2]}`;
+}
+
+// The parts of a two-type damage in the order of their boxes, { field, type, label, dice, choice }; [] for any other spell.
+export function spellCastDamageParts(spellOrId, { slotLevel = null, choiceValue = "" } = {}) {
+  const definition = SPELL_CAST_DAMAGE_PARTS[spellIdOf(spellOrId)];
+  if (!definition) return [];
+  const choice = String(choiceValue || "").trim();
+  return definition.parts.map((part, index) => {
+    const type = part.types.includes(choice) ? choice : part.types[0];
+    return Object.freeze({
+      field: SPELL_DAMAGE_PART_FIELDS[index],
+      type,
+      label: damageTypeLabel(type),
+      dice: damagePartDice(part, slotLevel),
+      ...(part.types.length > 1 ? { choice: true } : {}),
+    });
+  });
+}
+
+// A cast whose variant only says the type of a part (Destructive Wave's radiant or necrotic): changing it changes no area, no
+// target and no number, so the panel keeps the whole session.
+export function spellCastDamagePartsTypeChoice(spellOrId) {
+  return (SPELL_CAST_DAMAGE_PARTS[spellIdOf(spellOrId)]?.parts || []).some((part) => part.types.length > 1);
+}
+
+// Flame Strike above the 5th: its extra dice go where the caster wants, so the panel says it under the boxes (D4).
+export function spellCastDamagePartsHint(spellOrId, slotLevel = null) {
+  const extra = SPELL_CAST_DAMAGE_PARTS[spellIdOf(spellOrId)]?.choiceDice;
+  if (!extra || slotLevel === null || !Number.isFinite(Number(slotLevel))) return "";
+  const count = Math.max(0, Math.floor(Number(slotLevel)) - extra.baseSlot) * extra.perSlotAbove;
+  return count ? `Slot superiore: +${count}${extra.die} ${extra.where}, a tua scelta. Scrivili nella casella che scegli.` : "";
+}
 
 // A cantrip's dice grow with the character's level, which the panel does not know: the hint says how.
 export function spellCantripDamageHint(spellOrId) {

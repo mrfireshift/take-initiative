@@ -1826,6 +1826,17 @@ export function bootSpellUnifiedPanel(
       }, {
         broadcast: runtimeOverrides.broadcast || OBR.broadcast,
         windowRef: runtimeOverrides.windowRef || globalThis.window,
+        // CAP-MULTIAREA: while the shapes of one cast are drawn, the tool's count in the status line.
+        onProgress: (progress) => {
+          if (!progress?.multiArea || !String(progress.message || "").trim()) return;
+          if (destroyed || !sceneLifecycle.isCurrent(operation)
+            || state.session.placement?.requestId !== requestId) return;
+          state.session = updateSpellPanelSession(state.session, {
+            feedback: { state: "loading", message: String(progress.message).trim() },
+          });
+          state.revision += 1;
+          render();
+        },
       });
       if (destroyed || !sceneLifecycle.isCurrent(operation)
         || state.session.placement?.requestId !== requestId) return;
@@ -3226,6 +3237,14 @@ export function bootSpellUnifiedPanel(
         variant,
         castContext: state.session.castContext,
       });
+      // A variant that only names a damage type (Destructive Wave's radiant or necrotic): the area, the targets, their
+      // outcomes and the damage written stay; only the second box changes its name.
+      if (nextContract?.presentation?.variant?.damageTypeOnly === true) {
+        state.session = updateSpellPanelSession(state.session, { variant });
+        state.contract = nextContract;
+        render();
+        return;
+      }
       ++targetingSelectionSequence;
       provider.clearTargetingReference?.();
       state.session = changeSpellPanelVariant(

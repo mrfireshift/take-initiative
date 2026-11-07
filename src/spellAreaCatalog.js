@@ -421,13 +421,18 @@ const AREA_OVERRIDES = Object.freeze({
   "sleep": {
     note: "Dopo la sagoma, con Modifica bersagli tieni soltanto le creature coperte dal totale di dadi",
   },
-  // Lotto P3-8: what the shape cannot say, until CAP-MULTIAREA and CAP-SEQUENCE.
+  // CAP-MULTIAREA: "up to ten 10-foot cubes, each with a face adjacent to the face of another cube", one storm.
   "fire-storm": {
-    note: "La sagoma è il riquadro che contiene i dieci cubi di 3 m: con Modifica bersagli togli chi resta fuori dai cubi.",
+    sizeMeters: 3,
+    multiArea: { count: 10, minCount: 1, adjacency: "side", noun: "cubo" },
+    note: "Disegna da uno a dieci cubi di 3 m, ognuno con un lato contro un altro cubo, poi conferma; premi sul numero di un cubo per toglierlo. Chi è in più cubi è un bersaglio una volta sola.",
   },
+  // CAP-MULTIAREA: four points, and a creature in more than one explosion is affected only once.
   "meteor-swarm": {
-    note: "La sagoma è una sola delle quattro esplosioni: con Modifica bersagli aggiungi chi è nelle altre. Chi è in più esplosioni subisce l'effetto una volta.",
+    multiArea: { count: 4, noun: "esplosione" },
+    note: "Disegna le quattro esplosioni, poi conferma; premi sul numero di un'esplosione per toglierla. Chi è in più esplosioni è un bersaglio una volta sola.",
   },
+  // Lotto P3-8: what the shape cannot say, until CAP-SEQUENCE.
   "storm-of-vengeance": {
     note: "Il TS è quello del primo round. Dal secondo round pioggia acida, fulmini, grandine e vento restano al tavolo.",
   },
@@ -775,6 +780,10 @@ function catalogSpec(spell) {
       ? { ownerLabelTargets: String(override.ownerLabelTargets).trim() }
       : {}),
     ...(override.followCaster === true ? { followCaster: true } : {}),
+    // CAP-MULTIAREA: several shapes in one cast, each creature once (spellMultiAreaCore.js).
+    ...(override.multiArea && typeof override.multiArea === "object"
+      ? { multiArea: Object.freeze({ ...override.multiArea }) }
+      : {}),
     ...(override.note ? { note: override.note } : {}),
   });
 }

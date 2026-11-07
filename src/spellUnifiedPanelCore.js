@@ -55,6 +55,8 @@ import {
 } from "./chainLightningTargetingCore.js";
 import {
   getSpellCastResolutionRule,
+  spellCastDamageParts,
+  spellCastDamagePartsTypeChoice,
   spellCastPrimaryHit,
   spellCastSaveAbility,
   spellCastSaveOnlyIfUnwilling,
@@ -153,6 +155,7 @@ const SPELL_PANEL_VALIDATION_MESSAGES = Object.freeze({
   placement: "Posiziona e conferma l'area",
   outcomes: "Registra l'esito di ogni bersaglio",
   damage: "Inserisci il valore del danno",
+  secondDamage: "Inserisci il danno di tutte e due le parti",
   healing: "Inserisci il valore della cura",
   temporaryHp: "Inserisci il tiro dei PF temporanei",
   execution: "Apri il pannello dedicato per continuare",
@@ -289,7 +292,9 @@ function variantChoicePresentation(spell, choices, variantOptions) {
     && sameChoiceOptions(choices.effect, attackOptions);
   const options = effectChoicesAreAttackOutcomes ? [] : variantOptions;
   const sources = new Set(options.map((option) => text(option?.source)).filter(Boolean));
-  const label = sources.size === 1 && sources.has("effect")
+  const label = spellCastDamagePartsTypeChoice(spell)
+    ? "Tipo di danno"
+    : sources.size === 1 && sources.has("effect")
     ? "Effetto"
     : sources.size === 1 && sources.has("area")
       ? "Modalità"
@@ -1171,6 +1176,12 @@ function inputDescriptor({
   // A cast's own hit on its primary target (Ice Knife's shard): its damage, asked when the attack hits.
   const primaryHit = phasePlan?.phase === "prepare" ? null : spellCastPrimaryHit(spell);
   const primaryDamageRequired = !!primaryHit && damageRequired;
+  // Two types in one damage (Flame Strike, Ice Storm, Meteor Swarm, Destructive Wave): a second box for the second part, each
+  // with its type and its defense (spellCastDamageParts). Only the cast's own damage: an action or a trigger says its own.
+  const damageParts = phasePlan?.phase === "prepare" || selectedAction
+    ? []
+    : spellCastDamageParts(spell, { choiceValue });
+  const secondDamageRequired = damageRequired && damageParts.length > 1;
   const healingRequired = hpInputVisible && healing;
   // CAP-TEMP, lotto T3b: the die of the temporary hit points the cast gives (False Life's 1d4, the 2d6 of a variant of
   // Enhance Ability), rolled at the table.
@@ -1226,6 +1237,10 @@ function inputDescriptor({
     damage: {
       required: damageRequired,
       visible: damageRequired,
+    },
+    secondDamage: {
+      required: secondDamageRequired,
+      visible: secondDamageRequired,
     },
     primaryDamage: {
       required: primaryDamageRequired,
@@ -1726,6 +1741,8 @@ export function buildSpellUnifiedPanelContract({
         placeholder: variantPresentation.placeholder,
         control: variantPresentation.control,
         preserveTargets: workflowRule?.preserveTargetsOnChoiceChange === true,
+        // The variant only names a damage type (Destructive Wave): the panel keeps area, targets, outcomes and boxes.
+        ...(spellCastDamagePartsTypeChoice(spell) ? { damageTypeOnly: true } : {}),
       },
       composition: composition
         ? {
@@ -1915,6 +1932,12 @@ function normalizedHpValues(value = {}, overrides = {}) {
   if (overrides.primaryDamage !== undefined || source.primaryDamage !== undefined) {
     normalized.primaryDamage = inputValue(
       overrides.primaryDamage !== undefined ? overrides.primaryDamage : source.primaryDamage,
+    );
+  }
+  // The second part of a two-type damage (spellCastDamageParts); damage holds the first.
+  if (overrides.secondDamage !== undefined || source.secondDamage !== undefined) {
+    normalized.secondDamage = inputValue(
+      overrides.secondDamage !== undefined ? overrides.secondDamage : source.secondDamage,
     );
   }
   if (overrides.temporaryHp !== undefined || source.temporaryHp !== undefined) {
@@ -2493,13 +2516,16 @@ function validationFor(contract, session, placement) {
       add("outcomes", "outcomes-required");
     }
   }
-  if (inputs.damage?.required
-    && !preparedHailMiss
+  const damageAsked = !preparedHailMiss
     && !spellCastSparesEveryTarget(contract?.spell?.id, session.targetIds, session.outcomes)
     && !initialZoneResolutionMayHaveNoTargets(contract, session.targetIds)
-    && !emptyPlacedDamageCast(contract, session.targetIds)
-    && !hasSessionValue(session.hpValues.damage)) {
+    && !emptyPlacedDamageCast(contract, session.targetIds);
+  if (inputs.damage?.required && damageAsked && !hasSessionValue(session.hpValues.damage)) {
     add("damage", "damage-required");
+  }
+  // Two types in one damage: both boxes, as the dice of both parts are rolled.
+  if (inputs.secondDamage?.required && damageAsked && !hasSessionValue(session.hpValues.secondDamage)) {
+    add("secondDamage", "second-damage-required");
   }
   if (inputs.primaryDamage?.required
     && (inputs.primaryDamage.onHitOnly !== true || ["hit", "critical"].includes(text(session.attackOutcome)))

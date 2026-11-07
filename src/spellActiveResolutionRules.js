@@ -810,6 +810,33 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       requiresParentInstance: true,
     },
   ],
+  // Xanathar. One or two meteors at the cast, then as a bonus action on each later turn: each explodes on its own
+  // point, so two of them are two explosions, two saves and two damages. One meteor per resolution: for the second of
+  // the same turn, the GM resolves it again. The cast resolves the first one (spellApplicationPlanCore.js).
+  "xanathar-minuscole-meteore-di-melf": [
+    {
+      id: "melf-meteor",
+      label: "Lancia una meteora · 2d6",
+      buttonLabel: "Lancia meteora",
+      detail: "Azione bonus: scegli il punto della meteora e risolvi un TS Destrezza per le creature entro 1,5 m. Per la seconda meteora del turno, ripeti.",
+      economy: "bonus-action",
+      resolutionKind: "save-area",
+      subjectMode: "none",
+      requiresTargets: false,
+      turnStartPrompt: true,
+      showInOverview: true,
+      placementRuleId: "xanathar-minuscole-meteore-di-melf:cast",
+      placementWords: { place: "Posiziona la meteora", again: "Riposiziona la meteora", done: "Meteora confermata" },
+      // A meteor sent where nobody stands is spent all the same.
+      allowEmptyTargets: true,
+      damageRequiredWithTargetsOnly: true,
+      rangeOrigin: "caster",
+      save: { ability: "dex", onSuccess: "half" },
+      damage: damage({ formula: "2d6", type: "fuoco", onSave: "half" }),
+      resource: { key: "meteors", consume: 1, endSpellAtZero: true, endConcentrationAtZero: true },
+      requiresParentInstance: true,
+    },
+  ],
   "gust-of-wind": [
     {
       id: "gust-of-wind-direction",

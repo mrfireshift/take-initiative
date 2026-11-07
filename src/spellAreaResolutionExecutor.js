@@ -49,7 +49,7 @@ import {
 } from "./saveSpellCore.js";
 import { CLEANSE_SPELL_ID_SET, planCleanseTarget } from "./cleanseSpellRules.js";
 import { deathWardPill, planDeathWard, planWardingBondDamage } from "./reactionHpCore.js";
-import { initialSpellUses } from "./spellApplicationPlanCore.js";
+import { initialSpellUses, spellHasInitialUses } from "./spellApplicationPlanCore.js";
 import { ZONE_RESOURCE_SPENDS, zoneTriggerResourceSpend } from "./zoneResourceCore.js";
 import {
   MAGIC_MISSILE_SPELL_ID,
@@ -72,6 +72,7 @@ import {
   spellDamageDefenseApplied,
   spellDamageDefenseRows,
   spellDamagePartAfterDefense,
+  spellDamagePartsAfterDefense,
   spellDamagePartsDefenses,
   spellDamageTypes,
 } from "./spellDamageDefenseCore.js";
@@ -441,6 +442,23 @@ function spellHpDefenseRows(hp, spell, item) {
   });
 }
 
+// The parts of a two-type damage the command carries (spellCastDamageParts), or null for a damage of one type.
+function spellHpDamageParts(hp) {
+  return Array.isArray(hp?.parts) && hp.parts.length > 1 ? hp.parts : null;
+}
+
+// The defenses a two-type damage met on this creature, one row per part, for the combat log.
+function spellHpDamagePartRows(hp, item) {
+  const parts = spellHpDamageParts(hp);
+  return parts
+    ? spellDamagePartsAfterDefense({
+      parts,
+      defenses: magicalDamageDefensesForItem(item, META_KEY),
+      ignoredTypes: hp?.ignoredDefenses?.[text(item?.id)],
+    }).rows
+    : null;
+}
+
 // The defense of the primary target against a cast's own hit (Ice Knife's shard), with what the GM ignored in this cast.
 function spellPrimaryHitDefenseRows(hp, primaryHit, item) {
   return spellDamageDefenseRows({
@@ -482,21 +500,31 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
         ? QUICK_HP_FACTORS.FULL
         : normalizeFactor(hp.outcomeFactors?.[targetId]);
       const noDamage = zeroDamage || outcome === SAVE_SPELL_OUTCOMES.IMMUNE;
+      // Two types in one damage (hp.parts): each part after the save and its own defense, then the sum, as the panel's
+      // preview counts it. One damage all the same: one concentration save, one death save failure.
+      const parts = mode === QUICK_HP_MODES.DAMAGE && !noDamage && spellHpDamageParts(hp)
+        ? spellDamagePartsAfterDefense({
+          parts: spellHpDamageParts(hp),
+          factor: factorName,
+          defenses: magicalDamageDefensesForItem(item, META_KEY),
+          ignoredTypes: hp?.ignoredDefenses?.[targetId],
+        })
+        : null;
       // The creature's defense against this damage, the same as the panel's preview (hpPreviewFor).
-      const defense = mode === QUICK_HP_MODES.DAMAGE && !noDamage
+      const defense = mode === QUICK_HP_MODES.DAMAGE && !noDamage && !parts
         ? spellDamageDefenseApplied(spellHpDefenseRows(hp, spell, item))
         : null;
       const scaledChange = calculateQuickHPChange({
         mode,
-        value: noDamage ? 0 : defense ? spellDamageAfterDefense(amount, factorName, defense) : amount,
-        factor: defense ? QUICK_HP_FACTORS.FULL : factorName,
+        value: noDamage ? 0 : parts ? parts.after : defense ? spellDamageAfterDefense(amount, factorName, defense) : amount,
+        factor: defense || parts ? QUICK_HP_FACTORS.FULL : factorName,
         hp: itemMeta(item).hp,
         hpMax: itemMeta(item).hpMax,
         tempHp: itemMeta(item).tempHp,
         deathSaveDamage: takesDeathSaveDamage(itemMeta(item)),
       });
       // The factor stays the outcome's: the log says "half" for a passed save, and the defense on its own line.
-      const areaChange = defense ? { ...scaledChange, factor: factorName } : scaledChange;
+      const areaChange = defense || parts ? { ...scaledChange, factor: factorName } : scaledChange;
       // A cast's own hit on its primary target (Ice Knife's shard): its outcome, then its defense, as the panel's preview.
       const primaryHit = spellCastPrimaryHit(spell?.id);
       const primaryTarget = mode === QUICK_HP_MODES.DAMAGE && targetId === primaryTargetId;
@@ -912,7 +940,7 @@ function castContextFor({ spell, resolution, command, mobileAura, boardToken, pl
     && spell.saveAutomation.failed.some((rule) => Number(rule?.saveReminder?.damage?.additionalPerSlotAbove) > 0);
   if (!hasActiveResolution && !hasScaledReminder && !mobileAura && !boardToken
     && !resolution?.targeting && !resolution?.choice) return null;
-  return {
+  const context = {
     ...(command?.spell?.castContext && typeof command.spell.castContext === "object"
       ? clone(command.spell.castContext)
       : {}),
@@ -928,6 +956,22 @@ function castContextFor({ spell, resolution, command, mobileAura, boardToken, pl
       ? { targetContexts: resolution.targetContexts }
       : {}),
   };
+  // CAP-RESOURCE on an area spell that leaves no zone (Melf's Minute Meteors): the cast sets its counter, which the
+  // caster's pill keeps (casterHoldsAreaCounter below).
+  return casterHoldsAreaCounter({ spell, command, mobileAura, boardToken })
+    ? initialSpellUses(spell, context)
+    : context;
+}
+
+// An area spell cast with a counter and no zone to keep it (Melf's Minute Meteors): its pill goes on the caster, and its
+// later actions spend it there. A zone keeps its own counter on its owner instance (ZONE_RESOURCE_SPENDS above).
+function casterHoldsAreaCounter({ spell, command, mobileAura, boardToken }) {
+  return command?.source?.kind === "cast"
+    && spellHasInitialUses(spell)
+    && !ZONE_RESOURCE_SPENDS[text(spell?.id)]
+    && !mobileAura
+    && !boardToken
+    && placementRuleFor(command, spell)?.kind !== "zone";
 }
 
 function serializableEffectChanges(mutation) {
@@ -1635,6 +1679,10 @@ async function buildPlan(command, runtime) {
       : mobileAura && placementRule?.targeting?.confirmTargets === false
         ? [casterId]
         : uniqueIds([...resolved.spellTargetIds, casterId]);
+  }
+  // The counter of an area spell without a zone (Melf's Minute Meteors) needs a pill to live on: the caster's.
+  if (!trigger && casterId && casterHoldsAreaCounter({ spell, command, mobileAura, boardToken })) {
+    resolved.persistence = { ...(resolved.persistence || {}), owner: "caster" };
   }
   const effectSubjectIds = uniqueIds([
     ...resolved.spellTargetIds,
@@ -2466,7 +2514,8 @@ export function spellAreaCausality(plan) {
     const areaDefenses = Array.isArray(change?.prismaticContributions)
       ? spellDamagePartsDefenses(change.prismaticContributions)
       : hasRawDamage && factor !== 0
-        ? spellHpDefenseRows(command?.hp, plan?.spell, item).filter((row) => !row.manual)
+        ? (spellHpDamagePartRows(command?.hp, item) || spellHpDefenseRows(command?.hp, plan?.spell, item))
+          .filter((row) => !row.manual)
           .map(({ type, defense, ignored }) => ({ type, defense, ...(ignored ? { ignored: true } : {}) }))
         : [];
     // Ice Knife's target: its defense against the shard too, when the shard hit it.

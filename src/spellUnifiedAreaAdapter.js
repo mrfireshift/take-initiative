@@ -234,6 +234,10 @@ function hpInput(contract, session) {
     return {
       mode: "damage",
       amount: session?.hpValues?.damage,
+      // Two types in one damage: the box of the second part; the command pairs each box with its type (spellCastDamageParts).
+      ...(inputs.secondDamage?.required === true
+        ? { secondAmount: session?.hpValues?.secondDamage }
+        : {}),
       ...(hasInputValue(primaryDamage)
         ? { primaryAmount: primaryDamage }
         : {}),

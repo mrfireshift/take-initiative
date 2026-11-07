@@ -3,6 +3,7 @@ import { AREA_SAVE_SPELL_ID_SET } from "./areaSaveSpellRules.js";
 import { getSpellBoardTokenPlacementRuleById } from "./spellBoardTokenCore.js";
 import { isTeleportSpell } from "./spellTeleportCore.js";
 import { pcBreathAreaRuleId, pcMonsterAreaRuleId } from "./pcAttackBreathId.js";
+import { spellMultiAreaRuleErrors } from "./spellMultiAreaCore.js";
 import {
   DELAYED_BLAST_FIREBALL_ID,
   DELAYED_BLAST_FIREBALL_RANGE_METERS,
@@ -626,6 +627,8 @@ export function validateSpellAreaRule(rule) {
   ) {
     errors.push("direction-unexpected");
   }
+  // CAP-MULTIAREA: several shapes of one cast (spellMultiAreaCore.js).
+  errors.push(...spellMultiAreaRuleErrors(rule));
   if (!allowed(SPELL_AREA_PERSISTENCE, persistence)) {
     errors.push("persistence-invalid");
   }
@@ -2906,6 +2909,7 @@ function catalogAreaRule(spec) {
       ...(isTeleportSpell(spec.spellId) ? { mode: "point" } : {}),
       ...(spec.centered === true ? { centered: true } : {}),
       ...(spec.snapOrigin === "vertex" ? { snapOrigin: "vertex" } : {}),
+      ...(spec.multiArea ? { multiArea: { ...spec.multiArea } } : {}),
     },
     lifecycle: persistent ? SPELL_LIFECYCLE : PREVIEW_LIFECYCLE,
     ...(placementChoices.length ? { placementChoices } : {}),

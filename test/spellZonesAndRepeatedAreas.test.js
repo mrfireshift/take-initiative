@@ -384,8 +384,9 @@ test("Ice Storm deals the cast's damage and leaves the zone of difficult terrain
     spellId: "ice-storm", casterId: "druid", targetIds,
     preview: { type: "circle", start: { x: 0, y: 0 }, end: { x: 600, y: 0 }, gridOrigin: { x: 0, y: 0 }, dpi: 150, targetIds, targetLocked: true } };
   const command = buildSpellAreaResolutionCommand({ contract, spellId: "ice-storm", phase: "cast", source: { kind: "cast", sceneEpoch: 3 },
-    casterId: "druid", slotLevel: 4, targetIds, candidateTargetIds: targetIds, outcomes: { a: "failed", b: "passed" }, hpAmount: 20,
-    placement, targetLocked: true, sceneEpoch: 3, currentSceneEpoch: 3, validateSpatial: false });
+    // Two boxes, 12 bludgeoning and 8 cold (test/spellDamageParts.test.js): 20 on a failed save, 6 + 4 on a passed one.
+    casterId: "druid", slotLevel: 4, targetIds, candidateTargetIds: targetIds, outcomes: { a: "failed", b: "passed" }, hpAmount: 12,
+    secondDamageAmount: 8, placement, targetLocked: true, sceneEpoch: 3, currentSceneEpoch: 3, validateSpatial: false });
   assert.equal(command.valid, true, JSON.stringify(command.errors));
   const items = [token("druid", 40), token("a", 40), token("b", 40)];
   const plan = await buildSpellAreaResolutionExecutionPlan(command, {

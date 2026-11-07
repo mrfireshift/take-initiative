@@ -202,12 +202,18 @@ quel personaggio.
   fuoco, Immolazione, Colpo intrappolante…) il chip sta accanto al campo **Danni**. Poiché
   premere l'esito applica subito, il suo conto è quello del danno pieno: con il TS
   superato conta prima la metà, e il suggerimento lo ricorda.
-- Il conto resta a te, e il danno va scritto già ridotto, in questi casi:
-  - **due tipi in un solo numero** (Colpo infuocato, Tempesta di ghiaccio, Sciame di
-    meteore): il chip dice `Res. fuoco: al GM`, e non tocca il numero;
-  - **un tipo che il plugin non conosce**: Onda distruttiva e Guardiani spirituali (a
-    scelta), il Soffio di Drago illusorio (scelto al lancio), Evoca raffica ed Evoca
-    pioggia di armi (quello dell'arma). Qui non compare nessun chip.
+- **Due tipi nello stesso danno** (Colpo infuocato, Tempesta di ghiaccio, Sciame di
+  meteore, Onda distruttiva): il pannello ha una casella per tipo, con i suoi dadi
+  (`Fuoco · 4d6`, `Radiosi · 4d6`), e le somma. Ogni casella prende la sua metà col TS
+  superato e la difesa del suo tipo: il chip dice che cosa ha fatto a quella parte
+  (`Res. fuoco: 13 → 6`), e il danno resta uno solo per la concentrazione e i TS contro la
+  morte. Per Onda distruttiva il selettore del pannello sceglie **Radiosi** o
+  **Necrotici**, e la seconda casella ne prende il nome. Colpo infuocato agli slot alti
+  dice sotto le caselle quanti d6 aggiungere, al fuoco o ai radiosi, dove vuoi tu.
+- Il conto resta a te, e il danno va scritto già ridotto, quando il plugin non conosce
+  il tipo: Guardiani spirituali (radiosi o necrotici), il Soffio di Drago illusorio
+  (scelto al lancio), Evoca raffica ed Evoca pioggia di armi (quello dell'arma). Qui non
+  compare nessun chip.
 - Protezione dai veleni al lancio toglie anche **Avvelenato**: una sola volta se
   la creatura ne ha più d'uno, perché neutralizza un veleno solo, e il plugin
   sceglie il primo in elenco. Nulla se «Applica condizioni dell'incantesimo» è
@@ -796,6 +802,17 @@ entro 3 metri dal bersaglio, il loro TS su Destrezza e i 2d8. **Risolvi freccia*
 scrive tutto insieme, e un solo Annulla toglie tutto. Il danno dell'arma non si
 registra nella console attacchi: la freccia lo sostituisce.
 
+Minuscole meteore di Melf tiene le sue meteore sulla pill del caster: sei, più due per
+ogni slot sopra il 3°. La prima la risolve il pannello al lancio, quindi la pill parte
+da 5 al 3° livello. Ogni meteora successiva si lancia con il ⚡ **Lancia meteora**
+(azione bonus), nel popup come il fulmine di Invocare il fulmine: **Posiziona la
+meteora**, i TS su Destrezza di chi sta entro 1,5 metri dal punto, i 2d6 di fuoco.
+Per la seconda meteora dello stesso turno lo ripeti: due meteore sono due esplosioni,
+e chi sta in tutte e due fa due tiri salvezza e prende due danni. Anche una meteora
+lanciata dove non c'è nessuno si spende. Il popup si apre da solo all'inizio dei
+turni del caster dopo il lancio; quando finiscono le meteore, finiscono anche
+l'incantesimo e la concentrazione. Annulla rimette PF e meteora.
+
 ### Azioni dalla pill sulla card
 
 Sulla card del tracker, la pill di un incantesimo con azioni (Immagine
@@ -1155,11 +1172,21 @@ bersagli giusti: la parte del caster per una cura o una benedizione, la parte
 avversaria per un danno. Togli o aggiungi le spunte dalla lista, entro il limite
 di bersagli. **Modifica bersagli** lascia l'area dov'è e apre la lista a
 qualsiasi creatura; **Riposiziona area** la ridisegna. Sotto il pulsante dell'area il
-pannello dice ciò che la sagoma non può disegnare: per Tempesta di fuoco è il riquadro
-dei dieci cubi, per Sciame di meteore una sola delle quattro esplosioni; da lì togli o
-aggiungi le creature con **Modifica bersagli**. Nel registro e nella
+pannello dice ciò che la sagoma non può disegnare, per esempio i pannelli del Muro di
+ghiaccio. Nel registro e nella
 Cronologia un lancio senza TS (una cura, Parola del potere uccidere, Dissolvi
 magie) compare come incantesimo, non come tiro salvezza.
+
+Alcuni incantesimi hanno più aree in un solo lancio: Sciame di meteore ha quattro
+esplosioni di 12 m, Tempesta di fuoco da uno a dieci cubi di 3 m. Dopo **Posiziona
+area** disegni le sagome una dopo l'altra. Ognuna resta sulla mappa con il suo numero
+(1/4, 2/4… per lo Sciame, 1, 2, 3… per i cubi), e la riga di stato del pannello conta
+quante ne mancano. Per togliere una sagoma premi sul suo numero, poi ridisegnala dove
+vuoi. Alla conferma il pannello mostra una riga per ogni creatura, anche se sta in più
+aree: un tiro salvezza e un danno, come dicono i testi. Lo Sciame si conferma solo con
+tutte e quattro le esplosioni. Ogni cubo della Tempesta deve toccare un altro cubo con
+un lato: se un cubo resta isolato, la conferma lo dice con il suo numero. I danni da fuoco
+e contundenti dello Sciame hanno una casella ciascuno, ognuna con la sua difesa.
 
 **Aspetto area** permette di scegliere colore del riempimento, colore del contorno, opacità e spessore. Lo stile è una preferenza locale: vale per le nuove aree e ricolora le aree disegnate a mano già sulla mappa, mentre le zone degli incantesimi (Raggio lunare, Muro di fuoco) conservano il loro tema. Dal menu contestuale di un'area puoi scegliere **Riseleziona bersagli**.
 

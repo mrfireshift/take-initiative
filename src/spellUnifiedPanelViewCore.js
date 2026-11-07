@@ -16,6 +16,7 @@ import {
   spellDamageDefenseRows,
   spellDamageDefenseText,
   spellDamageDefenseTitle,
+  spellDamagePartsAfterDefense,
   spellPanelDamageTypes,
 } from "./spellDamageDefenseCore.js";
 import { spellTargetMatchesFilters } from "./spellsPanelTargetPicker.js";
@@ -59,6 +60,8 @@ import {
 import {
   spellSaveDamageFactor,
   spellCantripDamageHint,
+  spellCastDamageParts,
+  spellCastDamagePartsHint,
   spellCastHealingFormula,
   spellCastHpPoolFormula,
   spellCastPrimaryHit,
@@ -425,7 +428,15 @@ function hpPreviewFor(
   if (!isHealing && !isDamage) return { visible: false, targets: [] };
 
   const mode = isHealing ? QUICK_HP_MODES.HEAL : QUICK_HP_MODES.DAMAGE;
-  const value = numberOrNull(session?.hpValues?.[isHealing ? "healing" : "damage"]);
+  // Two types in one damage: one box for each part, each with its own defense, as the commit counts them (hpEntries).
+  const damageParts = !isHealing && isDamage && inputs.secondDamage?.visible === true
+    ? spellCastDamageParts(spellId, { slotLevel: session?.slotLevel, choiceValue: session?.variant })
+      .map((part) => ({ type: part.type, amount: numberOrNull(session?.hpValues?.[part.field]) }))
+    : [];
+  const partsWritten = damageParts.length > 1 && damageParts.every((part) => part.amount !== null && part.amount >= 0);
+  const value = damageParts.length > 1
+    ? partsWritten ? damageParts.reduce((sum, part) => sum + part.amount, 0) : null
+    : numberOrNull(session?.hpValues?.[isHealing ? "healing" : "damage"]);
   const preview = {
     visible: true,
     mode,
@@ -502,8 +513,17 @@ function hpPreviewFor(
             ? spellSaveDamageFactor(spellId, outcome) || QUICK_HP_FACTORS.HALF
             : QUICK_HP_FACTORS.FULL;
       const noDamage = !isHealing && factor === "zero";
+      // Two types in one damage: each part after the save and its own defense, then the sum (spellDamagePartsAfterDefense).
+      const parts = partsWritten && !immune && !attackMiss && !noDamage
+        ? spellDamagePartsAfterDefense({
+          parts: damageParts,
+          factor,
+          defenses: candidate.damageDefenses,
+          ignoredTypes: session?.ignoredDefenses?.[candidate.key],
+        })
+        : null;
       // The creature's defense, as the commit reads it (hpEntries in spellAreaResolutionExecutor.js).
-      const defense = isHealing || immune || attackMiss || noDamage
+      const defense = parts || isHealing || immune || attackMiss || noDamage
         ? null
         : spellDamageDefenseApplied(spellDamageDefenseRows({
           types: spellPanelDamageTypes(spellId, session?.triggerRuntime),
@@ -512,15 +532,17 @@ function hpPreviewFor(
         }));
       let change = calculateQuickHPChange({
         mode,
-        value: immune || attackMiss || noDamage ? 0 : defense ? spellDamageAfterDefense(value, factor, defense) : value,
-        factor: attackMiss || defense ? QUICK_HP_FACTORS.FULL : factor,
+        value: immune || attackMiss || noDamage ? 0 : parts ? parts.after : defense ? spellDamageAfterDefense(value, factor, defense) : value,
+        factor: attackMiss || defense || parts ? QUICK_HP_FACTORS.FULL : factor,
         hp: beforeHP,
         hpMax,
         tempHp: candidate.tempHp,
       });
       const defenseCount = isHealing || immune || attackMiss || noDamage
         ? null
-        : { before: spellDamageBeforeDefense(value, factor), after: change.requested };
+        : parts
+          ? { before: parts.before, after: change.requested, rows: parts.rows }
+          : { before: spellDamageBeforeDefense(value, factor), after: change.requested };
       // Ice Knife's target: the shard's hit before the burst, after its outcome and its defense, as the commit does it.
       const primaryHit = isDamage && inputs.primaryDamage?.visible ? spellCastPrimaryHit(spellId) : null;
       const primaryValue = primaryHit && asText(session?.primaryTargetId) === candidate.key
@@ -622,6 +644,29 @@ function candidateDefenseChips({ candidate, presentation, session, spellId, dama
   if (!candidate?.selected) return [];
   if (spellId === PRISMATIC_SPRAY_SPELL_ID) return prismaticSprayDefenseChips(candidate, session);
   if (presentation?.inputs?.damage?.visible !== true || !damageInputVisible) return [];
+  // Two types in one damage: a chip for each part a defense meets, with what it did to that part.
+  if (presentation?.inputs?.secondDamage?.visible === true) {
+    const parts = spellCastDamageParts(spellId, { slotLevel: session?.slotLevel, choiceValue: session?.variant });
+    const counted = new Map((Array.isArray(count?.rows) ? count.rows : []).map((row) => [row.type, row]));
+    return parts
+      .map((part) => {
+        const [row] = spellDamageDefenseRows({
+          types: [part.type],
+          defenses: candidate.damageDefenses,
+          ignoredTypes: session?.ignoredDefenses?.[candidate.key],
+        });
+        return row || null;
+      })
+      .filter(Boolean)
+      .map((row) => {
+        const numbers = { before: counted.get(row.type)?.before || 0, after: counted.get(row.type)?.after || 0 };
+        return {
+          ...row,
+          text: spellDamageDefenseText(row, numbers),
+          title: spellDamageDefenseTitle(row, { name: candidate.label, ...numbers }),
+        };
+      });
+  }
   const areaChips = spellDamageDefenseRows({
     types: spellPanelDamageTypes(spellId, session?.triggerRuntime),
     defenses: candidate.damageDefenses,
@@ -782,7 +827,23 @@ function normalizeEffectFields(
     const failedFormula = spellSaveDamageFormula(spellId, "failed", session?.slotLevel, session?.variant);
     // Mixed outcomes roll the same dice when the save only halves or spares them.
     const shownFormula = selectedFormula || (!passedFormula || passedFormula === failedFormula ? failedFormula : "");
-    fields.push({
+    // Two types in one damage: a box for each part, named by its type, with its dice ("Fuoco · 4d6", "Radiosi · 4d6").
+    const damageParts = inputs.secondDamage?.visible
+      ? spellCastDamageParts(spellId, { slotLevel: session?.slotLevel, choiceValue: session?.variant })
+      : [];
+    const partsHint = damageParts.length > 1 ? spellCastDamagePartsHint(spellId, session?.slotLevel) : "";
+    for (const [index, part] of (damageParts.length > 1 ? damageParts : []).entries()) {
+      fields.push({
+        id: part.field,
+        type: "number",
+        label: `${part.label.charAt(0).toLocaleUpperCase("it")}${part.label.slice(1)} · ${part.dice}`,
+        hint: index === damageParts.length - 1 ? partsHint : "",
+        min: 0,
+        value: hpValues[part.field] ?? "",
+        invalid: validation.firstInvalidField === part.field,
+      });
+    }
+    if (damageParts.length < 2) fields.push({
       id: "damage",
       type: "number",
       label: shownFormula ? `Danno · ${shownFormula}` : damageFormula,

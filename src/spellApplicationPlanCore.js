@@ -96,7 +96,22 @@ const INITIAL_SPELL_USE_RULES = Object.freeze({
     baseUses: 60,
     usesPerSlot: 0,
   }),
+  // Xanathar: six meteors, two more for each slot above the 3rd. The cast resolves the first one in the panel, so it
+  // is already spent; each later one is an explosion of its own (spellActiveResolutionRules.js, melf-meteor).
+  "xanathar-minuscole-meteore-di-melf": Object.freeze({
+    key: "meteors",
+    label: "meteore",
+    baseSlot: 3,
+    baseUses: 6,
+    usesPerSlot: 2,
+    spentAtCast: 1,
+  }),
 });
+
+// A spell whose cast sets a counter (the table above).
+export function spellHasInitialUses(spell) {
+  return Object.hasOwn(INITIAL_SPELL_USE_RULES, String(spell?.id || ""));
+}
 
 export function initialSpellUses(spell, castContext = {}) {
   const context = castContext && typeof castContext === "object" ? { ...castContext } : {};
@@ -112,7 +127,7 @@ export function initialSpellUses(spell, castContext = {}) {
     uses: {
       key: rule.key,
       label: rule.label,
-      remaining: total,
+      remaining: Math.max(0, total - (rule.spentAtCast || 0)),
       total,
       showInPill: true,
     },

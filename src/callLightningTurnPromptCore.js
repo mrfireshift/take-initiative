@@ -32,6 +32,7 @@ export const EYEBITE_SICKENED_TURN_PROMPT_ACTION_ID = "eyebite-sickened";
 export const ENERVATION_TURN_PROMPT_ACTION_ID = "enervation-repeat";
 export const HEAT_METAL_TURN_PROMPT_ACTION_ID = "heat-metal-repeat";
 export const CROWN_OF_STARS_TURN_PROMPT_ACTION_ID = "crown-of-stars-launch";
+export const MELF_METEOR_TURN_PROMPT_ACTION_ID = "melf-meteor";
 export const FLAME_ARROWS_TURN_PROMPT_ACTION_ID = "flame-arrows-consume";
 export const WALL_OF_LIGHT_TURN_PROMPT_ACTION_ID = "wall-of-light-beam";
 export const HOLY_WEAPON_TURN_PROMPT_ACTION_ID = "holy-weapon-dismiss";
@@ -125,6 +126,12 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     ownerContext: "caster",
     availableAfterCast: true,
     availableOnCastTurn: true,
+  }),
+  // Melf's Minute Meteors: on each turn after the cast; the cast's own second meteor is the panel's action.
+  Object.freeze({
+    spellId: "xanathar-minuscole-meteore-di-melf",
+    actionId: MELF_METEOR_TURN_PROMPT_ACTION_ID,
+    ownerContext: "caster",
   }),
   Object.freeze({
     spellId: "xanathar-frecce-infuocate",

@@ -859,6 +859,12 @@ const ANTIPATHY_SYMPATHY_END_SAVE = Object.freeze({
 });
 
 export const AREA_SAVE_RULE_CHOICES = Object.freeze({
+  // Destructive Wave (PHB 2014): its second 5d6 are radiant or necrotic, the caster's choice; the box of that part takes its
+  // name (spellCastDamageParts). The prone of a failed save is the base automation, kept by both.
+  "phb2014-onda-distruttiva": Object.freeze([
+    Object.freeze({ id: "radiant", label: "Radiosi" }),
+    Object.freeze({ id: "necrotic", label: "Necrotici" }),
+  ]),
   // Transmute Rock (XGtE): only the mud leaves terrain behind (spellAreaRules.js); the other two are resolved at the cast.
   "xanathar-trasmutare-roccia": Object.freeze([
     Object.freeze({

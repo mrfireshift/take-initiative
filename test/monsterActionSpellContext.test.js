@@ -416,8 +416,10 @@ function iceCommand({ monsterActionContext = iceContext, spellId = "ice-storm", 
     preview: { type: "circle", start: { x: 0, y: 0 }, end: { x: 600, y: 0 }, gridOrigin: { x: 0, y: 0 }, dpi: 150, targetIds: ["target-a", "target-b"], targetLocked: true } };
   const route = routeSpellUnifiedPanelOpenRequest({ sourceId: "auril-token", casterId: "auril-token", spellId, slotLevel,
     targetIds: ["target-a", "target-b"], placement: icePlacement, sceneEpoch: 7, monsterActionContext });
+  // Ice Storm has a box for each type, 16 bludgeoning and 12 cold (test/spellDamageParts.test.js); Freezing Sphere has one.
+  const hpValues = route.contract.presentation.inputs.secondDamage?.required ? { damage: 16, secondDamage: 12 } : { damage: 28 };
   return buildSpellUnifiedAreaCommand({ contract: route.contract,
-    session: { ...route.session, outcomes: { "target-a": "failed", "target-b": "passed" }, hpValues: { damage: 28 } }, source: { sceneEpoch: 7 } });
+    session: { ...route.session, outcomes: { "target-a": "failed", "target-b": "passed" }, hpValues }, source: { sceneEpoch: 7 } });
 }
 function withHp(fixture) {
   for (const id of ["target-a", "target-b"]) fixture.items.find((item) => item.id === id).metadata = { "com.thebigpicture.initiative/meta": { hp: 60, hpMax: 60, inInitiative: true } };

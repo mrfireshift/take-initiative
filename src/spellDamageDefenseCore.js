@@ -43,18 +43,18 @@ const SPELL_DAMAGE_TYPES = Object.freeze(Object.fromEntries([
   ...spellsOfType("psychic", ["phb2014-punizione-collerica", "phb2014-punizione-demoralizzante"]),
   ...spellsOfType("radiant", ["branding-smite", "phb2014-punizione-accecante"]),
   ...spellsOfType("thunder", ["phb2014-punizione-tonante"]),
-  // Two types in one number: the panel cannot know how much is of each, and the defense stays with the GM.
+  // Two types in one damage: a box for each part (spellCastDamageParts), each with its own defense
+  // (spellDamagePartsAfterDefense). Destructive Wave's second part is radiant or necrotic, the cast's choice.
   ["flame-strike", Object.freeze(["fire", "radiant"])],
   ["ice-storm", Object.freeze(["bludgeoning", "cold"])],
   ["meteor-swarm", Object.freeze(["bludgeoning", "fire"])],
+  ["phb2014-onda-distruttiva", Object.freeze(["thunder", "radiant", "necrotic"])],
 ]));
 
 // With no fixed type to read: the GM still writes the damage after the defenses.
 export const SPELL_DAMAGE_TYPE_LEFT_TO_GM = Object.freeze({
   // Its own count, dart by dart (magicMissileCore.js).
   "magic-missile": "dardi",
-  // Radiant or necrotic, the caster's choice.
-  "phb2014-onda-distruttiva": "a scelta",
   // The weapon's type.
   "phb2014-evoca-raffica": "dell'arma",
   "phb2014-evoca-pioggia-di-armi": "dell'arma",
@@ -107,6 +107,26 @@ export function spellDamageAfterDefense(amount, factor, defense = null) {
 
 export function spellDamageBeforeDefense(amount, factor) {
   return scaledQuickHPAmount(amount, factor);
+}
+
+// Two types in one damage (spellCastDamageParts): each part with the save's factor, then its own defense, then the sum, as the
+// Boss console counts its components (componentDamageAfterDefense). parts: [{ type, amount }]; factor: "full", "half" or
+// "zero"; defenses and ignoredTypes as in spellDamageDefenseRows. rows: one for each part whose type meets a defense, with
+// what that defense did to that part. The panel's preview and the area commit both count with this.
+export function spellDamagePartsAfterDefense({ parts = [], factor = "full", defenses = null, ignoredTypes = [] } = {}) {
+  let before = 0;
+  let after = 0;
+  const rows = [];
+  for (const part of Array.isArray(parts) ? parts : []) {
+    const amount = Math.max(0, Math.floor(Number(part?.amount) || 0));
+    const [row] = spellDamageDefenseRows({ types: [part?.type].filter(Boolean), defenses, ignoredTypes });
+    const partBefore = factor === "zero" ? 0 : spellDamageBeforeDefense(amount, factor);
+    const partAfter = factor === "zero" ? 0 : componentDamageAfterDefense(amount, factor, row && !row.ignored ? row.defense : null);
+    before += partBefore;
+    after += partAfter;
+    if (row) rows.push({ ...row, before: partBefore, after: partAfter });
+  }
+  return { before, after, rows };
 }
 
 // A part of a damage with its own type and its own save: a ray of Prismatic Spray, a layer of Prismatic Wall. part: { type (its

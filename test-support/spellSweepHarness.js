@@ -368,6 +368,8 @@ async function castOnce({ id, phase, variant, outcome }) {
       temporaryHp: spellCastTemporaryHpRollRange(presentation.inputs?.temporaryHp?.die)?.min ?? 1,
       hp: SWEEP_DAMAGE,
       ...(presentation.inputs?.primaryDamage?.required || presentation.inputs?.primaryDamage?.visible ? { primaryDamage: SWEEP_DAMAGE } : {}),
+      // Two types in one damage: the box of the second part (spellCastDamageParts).
+      ...(presentation.inputs?.secondDamage?.required ? { secondDamage: SWEEP_DAMAGE } : {}),
     },
   });
   const view = buildSpellPanelViewModel(contract, session);

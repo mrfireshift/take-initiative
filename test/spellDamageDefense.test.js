@@ -196,7 +196,8 @@ test("il tipo della tabella non contraddice il catalogo, che ha solo il primo ti
   assert.deepEqual([...spellDamageTypes("flame-strike")], ["fire", "radiant"]);
   assert.deepEqual([...spellDamageTypes("ice-storm")], ["bludgeoning", "cold"]);
   assert.deepEqual([...spellDamageTypes("meteor-swarm")], ["bludgeoning", "fire"]);
-  assert.deepEqual([...spellDamageTypes("phb2014-onda-distruttiva")], [], "radiosi o necrotici, a scelta");
+  assert.deepEqual([...spellDamageTypes("phb2014-onda-distruttiva")], ["thunder", "radiant", "necrotic"],
+    "5d6 da tuono e 5d6 radiosi o necrotici, a scelta: due caselle (spellCastDamageParts)");
 });
 
 test("le azioni del ⚡ leggono il tipo dalla loro etichetta; un tipo scelto al lancio resta al GM", () => {
@@ -331,11 +332,11 @@ test("il chip sta accanto al nome, senza una riga sua, e resta attivo anche con 
   assert.equal(section.querySelectorAll(".unified-target-row__select").length, 2, "la riga senza difese ha il suo nome com'era");
 });
 
-test("due tipi in un numero: il pannello non tocca il numero e lo dice", () => {
-  const [row] = coneView({ spellId: "flame-strike", outcomes: { sera: "failed" } }).targets.candidates;
-  assert.equal(row.hpPreview.afterHP, 20);
-  assert.deepEqual(row.defenseChips.map((chip) => chip.text), ["Res. fuoco: al GM"]);
-  assert.equal(row.defenseChips[0].manual, true);
+test("due tipi in un danno: una casella per tipo, e ognuna incontra la sua difesa (test/spellDamageParts.test.js)", () => {
+  const [row] = coneView({ spellId: "flame-strike", outcomes: { sera: "failed" }, hpValues: { damage: 20, secondDamage: 10 } }).targets.candidates;
+  assert.equal(row.hpPreview.afterHP, 40 - (10 + 10), "sera resiste al fuoco: 20 → 10; i radiosi interi");
+  assert.deepEqual(row.defenseChips.map((chip) => chip.text), ["Res. fuoco: 20 → 10"]);
+  assert.equal(row.defenseChips[0].manual, undefined);
 });
 
 test("la sessione conserva le difese ignorate e le dimentica cambiando incantesimo", () => {

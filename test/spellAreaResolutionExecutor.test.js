@@ -75,7 +75,13 @@ function commandFor(spellId, extra = {}) {
     outcomes,
     placement,
     targetLocked: true,
-    hp: needsHp ? { mode: "damage", amount: 12 } : undefined,
+    // Two types in one damage: the second box too, and the variant that names it (test/spellDamageParts.test.js).
+    hp: needsHp
+      ? { mode: "damage", amount: 12, ...(contract.presentation?.inputs?.secondDamage?.required ? { secondAmount: 9 } : {}) }
+      : undefined,
+    ...(contract.presentation?.variant?.options?.length && contract.presentation?.inputs?.secondDamage?.required
+      ? { choiceValue: contract.presentation.variant.options[0].value }
+      : {}),
     sceneEpoch: 3,
     currentSceneEpoch: 3,
     validateSpatial: false,
@@ -223,7 +229,8 @@ test("Onda Distruttiva collega danno iniziale e Prono ai fallimenti", () => {
   const command = commandFor("phb2014-onda-distruttiva", { slotLevel: 5 });
   assert.equal(command.valid, true, command.errors?.join(", "));
   assert.equal(command.hp.mode, "damage");
-  assert.equal(command.hp.amount, 12);
+  assert.equal(command.hp.amount, 12 + 9, "5d6 thunder and 5d6 radiant: two boxes");
+  assert.deepEqual(command.hp.parts, [{ type: "thunder", amount: 12 }, { type: "radiant", amount: 9 }]);
   assert.equal(command.hp.outcomeFactors["target-1"], "full");
   assert.equal(
     command.resolution.conditionApplications[0].conditionName,

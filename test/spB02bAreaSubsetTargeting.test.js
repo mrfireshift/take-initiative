@@ -57,6 +57,12 @@ function commandFor(spellId, {
     candidateTargetIds,
     outcomes,
     hpAmount,
+    // 5d6 thunder and 5d6 radiant or necrotic: the second box and its type, as the panel's variant gives them
+    // (test/spellDamageParts.test.js).
+    ...(currentContract.presentation?.inputs?.secondDamage?.required ? { secondDamageAmount: hpAmount } : {}),
+    ...(currentContract.presentation?.variant?.options?.length
+      ? { choiceValue: currentContract.presentation.variant.options[0].value }
+      : {}),
     placement: placement || {
       status: "confirmed",
       spellId,
@@ -102,7 +108,7 @@ test("SP-B02B.1 R1: Arbitrary subset - geometric [enemy-A, enemy-B, ally-C], sel
   const view = modelFor(spellId, {
     targetIds: ["enemy-a"],
     outcomes: { "enemy-a": "failed" },
-    hpValues: { damage: 30 },
+    hpValues: { damage: 30, secondDamage: 30 },
     placement: {
       confirmed: true,
       spellId,
@@ -141,7 +147,7 @@ test("SP-B02B.1 R2: Ally selection - geometric [enemy-A, ally-C], select [ally-C
   const view = modelFor(spellId, {
     targetIds: ["ally-c"],
     outcomes: { "ally-c": "failed" },
-    hpValues: { damage: 30 },
+    hpValues: { damage: 30, secondDamage: 30 },
     placement: {
       confirmed: true,
       spellId,
@@ -178,7 +184,7 @@ test("SP-B02B.1 R3: Hostile deselection - geometric [enemy-A, enemy-B], select [
   const view = modelFor(spellId, {
     targetIds: ["enemy-a"],
     outcomes: { "enemy-a": "passed" },
-    hpValues: { damage: 30 },
+    hpValues: { damage: 30, secondDamage: 30 },
     placement: {
       confirmed: true,
       spellId,
@@ -326,7 +332,7 @@ test("SP-B02B.1 Edge Case: Candidate refresh removes target that is no longer wi
   const view = modelFor(spellId, {
     targetIds: ["enemy-a"], // C is removed from selected
     outcomes: { "enemy-a": "failed" },
-    hpValues: { damage: 30 },
+    hpValues: { damage: 30, secondDamage: 30 },
     placement: {
       confirmed: true,
       spellId,

@@ -1,8 +1,9 @@
 # Prova in stanza: incantesimi e popup
 
-Un giro solo al tavolo per due liste:
+Un giro solo al tavolo per tre liste:
 - **P5** del [piano di polishing degli incantesimi](PIANO_POLISH_INCANTESIMI.md);
-- le prove in stanza dell'[audit dei popup viola](AUDIT_UX_POPUP_VIOLA.md): da V1 a V11, il trascinamento, F1, la tela nera di Fazioni e Aspetto area, Freccia Folgorante e Critico.
+- le prove in stanza dell'[audit dei popup viola](AUDIT_UX_POPUP_VIOLA.md): da V1 a V11, il trascinamento, F1, la tela nera di Fazioni e Aspetto area, Freccia Folgorante e Critico;
+- CAP-MULTIAREA e Minuscole meteore del [piano di automazione](PIANO_AUTOMAZIONE_INCANTESIMI.md), e le due caselle dei danni a due tipi (sezioni 9 e 10 qui sotto).
 
 C'è anche ciò che il banco non ha potuto provare. Render è più indietro di `main`: si prova con la build locale.
 
@@ -119,3 +120,25 @@ Segna con una x ciò che va. Per ciò che non va, scrivi sotto, in una riga, che
 - [ ] **Tocco del vampiro:** **Lancia** finché non è attivo, poi la console passa da sola al tocco.
 - [ ] **Creare Falò** da un'azione Trucchetti: si lancia nel pannello, e la console non si riapre.
 - [ ] **Lama Roboante:** in un attacco con arma da mischia compare fra gli extra solo se il PG ce l'ha.
+
+## 9. Più aree in un lancio e Minuscole meteore
+
+Al banco ha girato lo strumento delle aree vero, ma senza la mappa di Owlbear: qui si guarda come si disegna.
+
+- [ ] **Sciame di meteore:** **Posiziona area**, poi quattro esplosioni una dopo l'altra. Ognuna resta sulla mappa con `1/4`, `2/4`…, e la riga di stato del pannello conta quelle che mancano.
+- [ ] **Togliere un'esplosione:** premi sul numero di una: sparisce, e la prossima che disegni riprende il suo numero. Con quattro esplosioni sulla mappa, una quinta non parte.
+- [ ] **Una creatura in due esplosioni:** nel pannello ha una riga sola, un TS e un danno.
+- [ ] **Tempesta di fuoco:** tre cubi di 3 m in fila, poi conferma. I numeri sono `1`, `2`, `3`.
+- [ ] **Cubo isolato:** un cubo lontano dagli altri, poi conferma: la conferma lo rifiuta con il suo numero. Un cubo che ne tocca un altro solo d'angolo, lo stesso. Premere sull'angolo di un cubo non lo toglie.
+- [ ] **Auril:** lo sciame della Proiezione Fatata si disegna come prima, con la distanza minima e il cerchio interno.
+- [ ] **Minuscole meteore:** al lancio la prima meteora; la pill del caster mostra `(5)` al 3° livello.
+- [ ] **Lancia meteora:** dal ⚡ della pill, **Posiziona la meteora**, poi TS e danno: la pill scende a `(4)`. Poi una seconda meteora nello stesso turno, e una dove non c'è nessuno: si spendono tutte e due.
+- [ ] **Promemoria:** al turno successivo del caster il popup della meteora si apre da solo.
+- [ ] **Ultima meteora:** finisce l'incantesimo, e la `C` di concentrazione sparisce.
+- [ ] **Annulla:** rimette PF e meteora.
+
+## 10. Due caselle per i danni a due tipi
+
+- [ ] **Due caselle, Colpo infuocato:** su un goblin resistente al fuoco, `Fuoco · 4d6` e `Radiosi · 4d6`. Il chip dice `Res. fuoco: N → N/2` e conta solo il fuoco; al 6° livello, sotto le caselle, `+1d6 al fuoco o ai radiosi`.
+- [ ] **Due caselle, Onda distruttiva:** il selettore dice **Radiosi** o **Necrotici**, e la seconda casella ne prende il nome. La prima è `Tuono · 5d6`: controlla sul tuo manuale che i 5d6 da tuono ci siano.
+- [ ] **Una casella vuota:** con una sola delle due scritta, il pulsante chiede `Inserisci il danno di tutte e due le parti`.

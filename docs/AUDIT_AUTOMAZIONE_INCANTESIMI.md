@@ -700,7 +700,7 @@ da questo audit.
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION | 51 |
+| ACTIVE_ACTION | 52 |
 | AREA_GEOMETRY | 139 |
 | CAST | 277 |
 | CLEANUP | 128 |

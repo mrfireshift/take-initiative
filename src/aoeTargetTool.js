@@ -54,6 +54,17 @@ import {
   spellZoneMovementDistanceMeters,
 } from "./spellZoneMovementCore.js";
 import { spellAreaStyle } from "./spellAreaStyleCore.js";
+import {
+  createSpellMultiAreaRuntime,
+  spellMultiAreaConfirmProblem,
+  spellMultiAreaFreeOrdinal,
+  spellMultiAreaMessage,
+  spellMultiAreaPreview,
+  spellMultiAreaProgress,
+  spellMultiAreaShapeAt,
+  spellMultiAreaShapeLabel,
+  spellMultiAreaShapeMiddle,
+} from "./spellMultiAreaCore.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { currentSceneEpoch } from "./sceneEpoch.js";
 
@@ -340,6 +351,115 @@ async function fixAreaBatchShape(state, area) {
   }
 }
 
+// CAP-MULTIAREA, the general rule (spellMultiAreaCore.js): an area rule with placement.multiArea draws its shapes one
+// by one; a released shape stays on the map with its number, pressing on the number takes it off, and one confirmation
+// takes them together. Its own path: the Boss Actions' areaBatch above is a case of its own and stays as it is.
+async function sendMultiAreaProgress(runtime) {
+  const multiArea = runtime?.multiArea;
+  if (!multiArea) return;
+  await OBR.broadcast.sendMessage(
+    SPELL_AREA_PLACEMENT_CHANNEL,
+    {
+      type: "progress",
+      requestId: runtime.session.requestId,
+      ruleId: runtime.session.ruleId,
+      spellId: runtime.session.spellId,
+      casterId: runtime.session.casterId,
+      status: "placing",
+      context: runtime.context,
+      preview: runtime.session.preview,
+      batchIndex: multiArea.shapes.length,
+      batchTotal: multiArea.count,
+      multiArea: spellMultiAreaProgress(multiArea),
+      message: spellMultiAreaMessage(multiArea),
+    },
+    { destination: "LOCAL" },
+  ).catch(() => {});
+}
+
+async function fixMultiAreaShape(state, area) {
+  const runtime = spellPlacementSession;
+  const multiArea = runtime?.multiArea;
+  if (!multiArea || multiArea.shapes.length >= multiArea.count) return;
+  const ordinal = spellMultiAreaFreeOrdinal(multiArea);
+  const shape = {
+    ordinal,
+    type: state.type,
+    start: point(state.start),
+    end: point(state.end),
+    dpi: state.dpi,
+    gridOrigin: point(state.gridOrigin),
+    area,
+    middle: spellMultiAreaShapeMiddle(area),
+    interaction: state.interaction,
+  };
+  multiArea.shapes.push(shape);
+  multiArea.shapes.sort((a, b) => a.ordinal - b.ordinal);
+  if (state.interaction) runtime.previewInteractions.push(state.interaction);
+  state.interaction = null;
+  activeDrag = null;
+  shape.interaction?.[0]?.((items) => {
+    if (items[2]?.text) items[2].text.plainText = spellMultiAreaShapeLabel(multiArea, ordinal);
+  });
+  runtime.session = reviewSpellAreaPlacement(runtime.session, {
+    type: shape.type,
+    start: shape.start,
+    end: shape.end,
+    ...(area.type === "circle" ? { radius: area.radius } : {}),
+    dpi: shape.dpi,
+    gridOrigin: shape.gridOrigin,
+    targetIds: [],
+  });
+  await sendMultiAreaProgress(runtime);
+  if (multiArea.shapes.length === multiArea.count) {
+    await OBR.notification.show(spellMultiAreaMessage(multiArea, "full"), "INFO");
+  }
+}
+
+// Pressing on a placed shape's number takes it off the map; the next one drawn takes its number back.
+function removeMultiAreaShapeAt(pointer) {
+  const runtime = spellPlacementSession;
+  const multiArea = spellMovementSession ? null : runtime?.multiArea;
+  const index = multiArea ? spellMultiAreaShapeAt(multiArea, pointer) : -1;
+  if (index < 0) return false;
+  const [shape] = multiArea.shapes.splice(index, 1);
+  shape.interaction?.[1]?.();
+  runtime.previewInteractions = (runtime.previewInteractions || []).filter((entry) => entry !== shape.interaction);
+  void sendMultiAreaProgress(runtime);
+  void OBR.notification.show(spellMultiAreaMessage(multiArea, "removed", { ordinal: shape.ordinal }), "INFO");
+  return true;
+}
+
+async function confirmMultiAreaPlacement(runtime) {
+  const multiArea = runtime.multiArea;
+  const problem = spellMultiAreaConfirmProblem(multiArea);
+  if (problem) {
+    await OBR.notification.show(problem, "WARNING");
+    return;
+  }
+  const hitTargetIds = [];
+  for (const shape of multiArea.shapes) {
+    hitTargetIds.push(await findHitTargetIds(shape.area, runtime.rule));
+    if (spellPlacementSession !== runtime) return;
+  }
+  const preview = spellMultiAreaPreview(multiArea, hitTargetIds, {
+    includeCaster: runtime.rule.targeting.includeCaster === true,
+    casterId: runtime.session.casterId,
+  });
+  const [first] = multiArea.shapes;
+  runtime.session = reviewSpellAreaPlacement(runtime.session, {
+    type: first.type,
+    start: first.start,
+    end: first.end,
+    ...(first.area.type === "circle" ? { radius: first.area.radius } : {}),
+    dpi: first.dpi,
+    gridOrigin: first.gridOrigin,
+    targetIds: preview.targetIds,
+    areas: preview.areas,
+  });
+  await closeSpellPlacement("confirmed");
+}
+
 async function sendSpellPlacementProgress(runtime) {
   const batch = runtime?.batch;
   const areaBatch = runtime?.areaBatch;
@@ -611,6 +731,7 @@ async function beginSpellPlacement(data) {
         }
         : null,
       areaBatch: normalizedAreaBatch(data?.context, rule),
+      multiArea: createSpellMultiAreaRuntime(rule),
       presetLine: normalizedPresetLine(data?.context, rule),
       lineStart: normalizedLineStart(data?.context, rule),
       previewInteractions: [],
@@ -655,6 +776,7 @@ async function beginSpellPlacement(data) {
       startDrag(rule.geometry.shape, { pointerPosition: runtime.presetLine.end });
       if (activeDrag?.presetLine) activeDrag.ended = true;
     }
+    if (runtime.multiArea) await sendMultiAreaProgress(runtime);
   } catch (error) {
     if (spellPlacementSession !== runtime) return;
     const message = String(error?.message || error || "placement-start-failed");
@@ -1829,6 +1951,10 @@ async function finishDrag(state) {
       await fixAreaBatchShape(state, area);
       return;
     }
+    if (spellPlacementSession.multiArea) {
+      await fixMultiAreaShape(state, area);
+      return;
+    }
     spellPlacementSession.session = reviewSpellAreaPlacement(
       spellPlacementSession.session,
       {
@@ -1914,6 +2040,15 @@ function startDrag(type, event) {
         `Le ${areaBatch.count} esplosioni sono tutte sulla mappa: trascina il centro di una per spostarla, oppure conferma.`,
         "INFO",
       );
+      return;
+    }
+  }
+  const multiArea = spellMovementSession ? null : spellPlacementSession?.multiArea;
+  if (multiArea) {
+    const multiPointer = point(event?.pointerPosition);
+    if (multiPointer && removeMultiAreaShapeAt(multiPointer)) return;
+    if (multiArea.shapes.length >= multiArea.count) {
+      void OBR.notification.show(spellMultiAreaMessage(multiArea, "full"), "INFO");
       return;
     }
   }
@@ -2095,6 +2230,10 @@ async function confirmSpellPlacement() {
     await closeSpellPlacement("confirmed");
     return;
   }
+  if (runtime?.multiArea) {
+    await confirmMultiAreaPlacement(runtime);
+    return;
+  }
   if (
     !runtime
     || !state?.ended
@@ -2193,7 +2332,10 @@ function modeDefinition(type, label, icon) {
     // A point placement (e.g. a teleport destination) also takes a plain click: the gesture of a drag that does not move.
     onToolClick: (_context, event) => {
       const runtime = spellPlacementSession;
-      if (!runtime || spellMovementSession || !isPointPlacement(runtime.rule) || isBoardTokenPlacement(runtime.rule)) return;
+      if (!runtime || spellMovementSession || !isPointPlacement(runtime.rule) || isBoardTokenPlacement(runtime.rule)) {
+        // Several areas of one cast: a click on a placed shape's number takes it off the map, like a drag from it.
+        return removeMultiAreaShapeAt(point(event?.pointerPosition)) ? false : undefined;
+      }
       startDrag(type, event);
       endDrag(event);
       return false;

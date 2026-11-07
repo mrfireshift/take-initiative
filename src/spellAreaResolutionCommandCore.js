@@ -45,6 +45,7 @@ import { QUICK_HP_FACTORS } from "./quickHpCore.js";
 import { normalizeMonsterActionContext } from "./monsterActionContextCore.js";
 import {
   getSpellCastResolutionRule,
+  spellCastDamageParts,
   spellCastPrimaryHit,
   spellCastPrimaryHitTypes,
   spellCastSparesEveryTarget,
@@ -882,6 +883,7 @@ function normalizeHp(
   legacyPreparedArea = false,
   omitDamageInput = false,
   forceDamageInput = false,
+  damageParts = [],
 ) {
   const rawHp = input.hp && typeof input.hp === "object" ? input.hp : {
     ...(input.hp === null || input.hp === undefined ? {} : { amount: input.hp }),
@@ -972,6 +974,24 @@ function normalizeHp(
     && (effectiveAmount === null || effectiveAmount < 0 || !Number.isFinite(effectiveAmount))) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.HP_INVALID);
   }
+  // Two types in one damage (spellCastDamageParts): the first box is the amount above, the second its own; each takes the
+  // type of its part from the rules, never from the session, and the damage of the cast is their sum.
+  const partsApply = Array.isArray(damageParts) && damageParts.length > 1 && validMode === "damage" && !omitDamageInput;
+  const secondValue = partsApply
+    ? firstDefined(rawHp.secondAmount, input.secondDamageAmount, session.hpValues?.secondDamage, null)
+    : null;
+  const secondProvided = secondValue !== null && secondValue !== undefined && text(secondValue) !== "";
+  const secondAmount = secondProvided ? finiteOrNull(secondValue) : null;
+  if (partsApply && required && !secondProvided) addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.HP_REQUIRED);
+  if (partsApply && secondProvided && (secondAmount === null || secondAmount < 0)) {
+    addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.HP_INVALID);
+  }
+  const parts = partsApply && effectiveAmount !== null && effectiveAmount >= 0 && secondAmount !== null && secondAmount >= 0
+    ? [
+      { type: damageParts[0].type, amount: Math.floor(effectiveAmount) },
+      { type: damageParts[1].type, amount: Math.floor(secondAmount) },
+    ]
+    : null;
   if (!required && validMode === "none" && effectiveAmount !== null) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.HP_UNEXPECTED);
   }
@@ -998,7 +1018,10 @@ function normalizeHp(
   return {
     required,
     mode: omitDamageInput ? "none" : required || effectiveAmount !== null ? validMode : "none",
-    amount: effectiveAmount === null ? null : Math.floor(effectiveAmount),
+    amount: parts
+      ? parts.reduce((sum, part) => sum + part.amount, 0)
+      : effectiveAmount === null ? null : Math.floor(effectiveAmount),
+    ...(parts ? { parts } : {}),
     ...(Object.keys(ignoredDefenses).length ? { ignoredDefenses } : {}),
     ...(Array.isArray(rawHp.damageTypes) ? { damageTypes: uniqueIds(rawHp.damageTypes) } : {}),
     primaryAmount: primaryAmount === null ? null : Math.floor(primaryAmount),
@@ -1704,6 +1727,11 @@ export function buildSpellAreaResolutionCommand(input = {}) {
     primaryTargetId,
     legacyPreparedArea,
     emptyDamageCastAllowed && targetIds.length === 0,
+    false,
+    // Two types in one damage: the parts of the cast's own damage, with the type the variant chose (Destructive Wave).
+    spell && contract?.presentation?.inputs?.secondDamage?.required === true
+      ? spellCastDamageParts(spell, { slotLevel, choiceValue })
+      : [],
   );
 
   let resolutionResult = null;

@@ -610,8 +610,9 @@ già prima che il danno sia scritto, perché chi scrive il danno dimezzato deve 
 che cosa fa al numero. Un clic la ignora per quel lancio, e passa da `session.ignoredDefenses` a `hp.ignoredDefenses`. Il registro di combattimento dice quale difesa ha contato (`targets[].defenses`).
 
 Restano al GM, e la guida lo dice:
-- **Due tipi in un solo numero:** Colpo infuocato, Tempesta di ghiaccio, Sciame di meteore. Il chip dice `Res. fuoco: al GM` e non tocca il numero: il pannello non sa quanta parte è di fuoco.
-- **Un tipo non fisso:** Onda distruttiva, Guardiani spirituali, Evoca raffica, Evoca pioggia di armi, il Soffio di Drago illusorio.
+- **Un tipo non fisso:** Guardiani spirituali, Evoca raffica, Evoca pioggia di armi, il Soffio di Drago illusorio.
+
+I due tipi in un solo numero erano in questo elenco: Colpo infuocato, Tempesta di ghiaccio e Sciame di meteore, con il chip `Res. fuoco: al GM`, e Onda distruttiva tra i tipi non fissi. Dal 6/11 (decisioni D1–D4 dell'utente) il pannello ha una casella per parte, con il suo tipo e i suoi dadi (`spellCastDamageParts` in `src/spellCastResolutionRules.js`). Ogni casella prende la metà del TS e la sua difesa prima della somma, come la console Boss (`spellDamagePartsAfterDefense`); anteprima, comando (`hp.parts`) ed esecutore contano con la stessa funzione, e il totale resta un solo danno. Onda distruttiva sceglie Radiosi o Necrotici con la variante, e chiede di nuovo anche i 5d6 da tuono: il testo privato li aveva persi, e il pannello ne chiedeva metà. Test: `test/spellDamageParts.test.js`.
 
 Le punizioni erano in questo elenco: «il loro danno si somma a quello dell'attacco». Ma il loro popup chiede solo i loro dadi, e l'arma si registra a parte nella console, con le sue difese. Dal 5/11 (F1 dell'audit dei popup viola, decisioni D1-D4 dell'utente) contano come gli altri incantesimi: le sette punizioni sono nella tabella dei tipi, il chip sta nella riga fissa del popup, e `buildPreparedInitialDamageMutation` fa lo stesso conto, con il clic che ignora. Il colpo diretto di Freccia Folgorante, lasciato al GM con D4, dal 6/11 si scrive nel suo popup: esito, metà se manca e difesa del bersaglio (vedi l'audit dei popup viola, «Fatto: Freccia Folgorante e Critico»).
 

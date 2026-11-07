@@ -741,12 +741,17 @@ function syntheticSession(contract) {
     targetIds,
     primaryTargetId: inputs.primaryTarget?.required ? targetIds[0] : "",
     outcomes: attack ? {} : Object.fromEntries(targetIds.map((id) => [id, "failed"])),
-    attackOutcome: attack ? "hit" : "",
+    // An attack beside the saves (Ice Knife's shard, the arrows' panel resolutions): its outcome and its hit, as in
+    // test/spellUnifiedExecutionParity.test.js.
+    attackOutcome: attack || contract?.presentation?.outcomes?.mode === "attack-and-save" ? "hit" : "",
     targetContext,
     castContext,
     placement: syntheticPlacement(contract, targetIds, castContext),
     hpValues: {
       damage: inputs.damage?.required ? 12 : null,
+      primaryDamage: inputs.primaryDamage?.required ? 13 : null,
+      // Two types in one damage: the box of the second part (spellCastDamageParts).
+      secondDamage: inputs.secondDamage?.required ? 11 : null,
       healing: inputs.healing?.required ? 12 : null,
       ...(inputs.temporaryHp?.required ? { temporaryHp: 1 } : {}),
     },

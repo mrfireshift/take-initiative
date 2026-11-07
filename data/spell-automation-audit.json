@@ -103,7 +103,7 @@
       "CAST_NO_MUTATIONS": 3
     },
     "smokeCategories": {
-      "ACTIVE_ACTION": 51,
+      "ACTIVE_ACTION": 52,
       "AREA_GEOMETRY": 139,
       "CAST": 277,
       "CLEANUP": 128,
@@ -8788,7 +8788,8 @@
             "placement",
             "outcomes",
             "hp",
-            "damage"
+            "damage",
+            "secondDamage"
           ]
         },
         "cast": {
@@ -9046,7 +9047,8 @@
             "placement",
             "outcomes",
             "hp",
-            "damage"
+            "damage",
+            "primaryDamage"
           ]
         },
         "cast": {
@@ -31413,6 +31415,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
         "AREA_GEOMETRY",
         "CAST",
         "CONCENTRATION",
@@ -31430,7 +31433,8 @@
       "coverage": [
         "tracking",
         "aree:instant",
-        "TS"
+        "TS",
+        "fasi/azioni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -31451,10 +31455,13 @@
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "melf-meteor"
+        ],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST",
           "CONCENTRATION",
@@ -31499,14 +31506,21 @@
           "ruleIds": []
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
-          "reminderActionIds": [],
+          "declaredActionIds": [
+            "melf-meteor"
+          ],
+          "panelActionIds": [
+            "melf-meteor"
+          ],
+          "reminderActionIds": [
+            "melf-meteor"
+          ],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel-and-reminder"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST",
           "CONCENTRATION",
@@ -35266,7 +35280,8 @@
       "coverage": [
         "aree:instant",
         "TS",
-        "status:Prono"
+        "status:Prono",
+        "varianti"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -35314,11 +35329,13 @@
           "visibleInputs": [
             "caster",
             "slot",
+            "variant",
             "targets",
             "placement",
             "outcomes",
             "hp",
             "damage",
+            "secondDamage",
             "automation"
           ]
         },
@@ -46215,7 +46232,8 @@
             "placement",
             "outcomes",
             "hp",
-            "damage"
+            "damage",
+            "secondDamage"
           ]
         },
         "cast": {
@@ -53024,7 +53042,8 @@
             "placement",
             "outcomes",
             "hp",
-            "damage"
+            "damage",
+            "secondDamage"
           ]
         },
         "cast": {

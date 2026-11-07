@@ -648,6 +648,11 @@ function createChildActivationId() {
 
 // What the action places, in the panel's words when it is an area: its button before and after, and the line once confirmed.
 function placementWords() {
+  // An action may say its own words (Melf's meteors); the spells below kept theirs here.
+  const declared = payload?.action?.placementWords;
+  if (declared?.place && declared?.again && declared?.done) {
+    return { place: String(declared.place), again: String(declared.again), done: String(declared.done) };
+  }
   if (isCallLightning()) return { place: "Posiziona il fulmine", again: "Riposiziona il fulmine", done: "Fulmine confermato" };
   if (isFlameInvestiture()) return { place: "Posiziona la linea di fuoco", again: "Riposiziona la linea di fuoco", done: "Linea di fuoco confermata" };
   if (isHolyWeapon()) return { place: "Posiziona l'esplosione", again: "Riposiziona l'esplosione", done: "Esplosione confermata" };

@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 279,
-      "PARTIAL": 30,
+      "COMPLETE / CURRENT": 282,
+      "PARTIAL": 27,
       "NO AUTOMATION REQUIRED": 145,
       "MISSING": 8,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 38,
+    "implementableBacklog": 35,
     "readiness": {
       "GREEN": {
         "count": 0,
         "percent": 0
       },
       "YELLOW": {
-        "count": 26,
-        "percent": 68.42105263157895
+        "count": 23,
+        "percent": 65.71428571428571
       },
       "RED": {
         "count": 12,
-        "percent": 31.57894736842105
+        "percent": 34.285714285714285
       }
     },
     "scenarios": [
@@ -17263,18 +17263,17 @@
       "id": "fire-storm",
       "spell": "Tempesta di fuoco",
       "level": 7,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js",
+        "src/spellAreaCatalog.js",
         "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
+        "src/spellMultiAreaCore.js",
+        "src/aoeTargetTool.js",
         "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
-        "Manca cast instant con union di più geometrie e dedup target; child-zone supporta placement multiplo, ma non è già il contract instant multi-centro.",
-        "Damage type: fire"
+        "CAP-MULTIAREA: da uno a dieci cubi di 3 m entro 45 m, ognuno con un lato a contatto con un altro, disegnati nello stesso lancio; ogni creatura una volta sola, TS Destrezza, 7d10 fuoco, metà se superato."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -17291,9 +17290,7 @@
         "C-MEMBERSHIP",
         "C-TRIGGERS"
       ],
-      "missingCapabilities": [
-        "CAP-MULTIAREA"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects + composite scene side effects; Undo restore of owned geometry/trigger required",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -17301,7 +17298,7 @@
         "mode": "geometric",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Union/allocations need listed gaps"
+        "required": "CAP-MULTIAREA: da uno a dieci cubi di 3 m entro 45 m, ognuno con un lato a contatto con un altro, disegnati nello stesso lancio; ogni creatura una volta sola, TS Destrezza, 7d10 fuoco, metà se superato."
       },
       "concentration": false,
       "durationLifecycle": {
@@ -17347,8 +17344,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "MULTI-GEOMETRY",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-MULTIAREA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "fire-storm",
@@ -17385,7 +17382,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Manca cast instant con union di più geometrie e dedup target; child-zone supporta placement multiplo, ma non è già il contract instant multi-centro.",
+        "reason": "CAP-MULTIAREA: da uno a dieci cubi di 3 m entro 45 m, ognuno con un lato a contatto con un altro, disegnati nello stesso lancio; ogni creatura una volta sola, TS Destrezza, 7d10 fuoco, metà se superato.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -27460,18 +27457,18 @@
       "id": "meteor-swarm",
       "spell": "Sciame di meteore",
       "level": 9,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js",
+        "src/spellAreaCatalog.js",
         "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
+        "src/spellMultiAreaCore.js",
+        "src/aoeTargetTool.js",
+        "src/spellCastResolutionRules.js",
         "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
-        "Manca cast instant con union di più geometrie e dedup target; child-zone supporta placement multiplo, ma non è già il contract instant multi-centro.",
-        "Damage type: fire"
+        "CAP-MULTIAREA: quattro esplosioni di 12 m di raggio disegnate nello stesso lancio; ogni creatura una volta sola, TS Destrezza, 20d6 fuoco e 20d6 contundenti in due caselle con la difesa di ciascuna, metà se superato."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -27488,9 +27485,7 @@
         "C-MEMBERSHIP",
         "C-TRIGGERS"
       ],
-      "missingCapabilities": [
-        "CAP-MULTIAREA"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects + composite scene side effects; Undo restore of owned geometry/trigger required",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -27498,7 +27493,7 @@
         "mode": "geometric",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Union/allocations need listed gaps"
+        "required": "CAP-MULTIAREA: quattro esplosioni di 12 m di raggio disegnate nello stesso lancio; ogni creatura una volta sola, TS Destrezza, 20d6 fuoco e 20d6 contundenti in due caselle con la difesa di ciascuna, metà se superato."
       },
       "concentration": false,
       "durationLifecycle": {
@@ -27544,8 +27539,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "MULTI-GEOMETRY",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-MULTIAREA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "meteor-swarm",
@@ -27582,7 +27577,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Manca cast instant con union di più geometrie e dedup target; child-zone supporta placement multiplo, ma non è già il contract instant multi-centro.",
+        "reason": "CAP-MULTIAREA: quattro esplosioni di 12 m di raggio disegnate nello stesso lancio; ogni creatura una volta sola, TS Destrezza, 20d6 fuoco e 20d6 contundenti in due caselle con la difesa di ciascuna, metà se superato.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -48606,17 +48601,16 @@
       "id": "xanathar-minuscole-meteore-di-melf",
       "spell": "Minuscole Meteore di Melf",
       "level": 3,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/supplementSpellRules.js",
         "src/spellApplicationPlanCore.js",
-        "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
+        "src/spellActiveResolutionRules.js",
+        "src/callLightningTurnPromptCore.js",
         "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
-        "Una/due aree per attivazione e budget consumato per meteora: riusare geometrie/contatore ma collegare union/dedup e consumo al resolver."
+        "CAP-RESOURCE: sei meteore e due in più per slot sopra il 3°, una spesa al lancio con la sua esplosione; ⚡ Lancia meteora (azione bonus) dal turno dopo, 2d6 fuoco entro 1,5 m, TS Destrezza; l'ultima termina l'incantesimo e la concentrazione."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -48634,10 +48628,7 @@
         "C-MEMBERSHIP",
         "C-TRIGGERS"
       ],
-      "missingCapabilities": [
-        "CAP-MULTIAREA",
-        "CAP-RESOURCE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects + composite scene side effects; Undo restore of owned geometry/trigger required",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -48645,7 +48636,7 @@
         "mode": "geometric",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Una/due aree per attivazione e budget consumato per meteora: riusare geometrie/contatore ma collegare union/dedup e consumo al resolver."
+        "required": "CAP-RESOURCE: sei meteore e due in più per slot sopra il 3°, una spesa al lancio con la sua esplosione; ⚡ Lancia meteora (azione bonus) dal turno dopo, 2d6 fuoco entro 1,5 m, TS Destrezza; l'ultima termina l'incantesimo e la concentrazione."
       },
       "concentration": true,
       "durationLifecycle": {
@@ -48691,8 +48682,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "RESOURCE-AREA",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-MULTIAREA + CAP-RESOURCE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-minuscole-meteore-di-melf",
@@ -48730,7 +48721,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Una/due aree per attivazione e budget consumato per meteora: riusare geometrie/contatore ma collegare union/dedup e consumo al resolver.",
+        "reason": "CAP-RESOURCE: sei meteore e due in più per slot sopra il 3°, una spesa al lancio con la sua esplosione; ⚡ Lancia meteora (azione bonus) dal turno dopo, 2d6 fuoco entro 1,5 m, TS Destrezza; l'ultima termina l'incantesimo e la concentrazione.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {

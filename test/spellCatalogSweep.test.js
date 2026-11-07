@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const { runSpellSweep, sweepCatalog, sweepFindings } = await import("../test-support/spellSweepHarness.js");
-const { spellCastPrimaryHit } = await import("../src/spellCastResolutionRules.js");
+const { spellCastDamageParts, spellCastPrimaryHit } = await import("../src/spellCastResolutionRules.js");
 
 const IN_MEMORY_TELEPORT = "Nella scena in memoria il token non si sposta: provato al banco (Passo velato, 03/11/2026).";
 const LIVING_TARGET = "Il bersaglio della prova è vivo: il rifiuto è voluto (test/stabilizeSpells.test.js).";
@@ -72,7 +72,9 @@ test("a cast with its damage field takes the damage, and the save halves or spar
     const taken = 40 - record.hp.one;
     // A cast with a hit of its own on its target (Ice Knife): the failed run hits with it too, the passed run misses.
     const hit = spellCastPrimaryHit(record.id) ? 20 : 0;
-    const expected = record.outcome === "failed" ? [20 + hit] : [0, 10, 20];
+    // Two types in one damage (Flame Strike, Meteor Swarm…): the sweep writes 20 in each box.
+    const boxes = spellCastDamageParts(record.id).length || 1;
+    const expected = record.outcome === "failed" ? [20 * boxes + hit] : [0, 10 * boxes, 20 * boxes];
     // Healing and self-targeted casts show up as another amount on the target; these three have their own damage.
     if (taken < 0 || record.mode === "self") continue;
     if (["power-word-kill", "magic-missile", "phb2014-aura-di-vitalita"].includes(record.id)) continue;
