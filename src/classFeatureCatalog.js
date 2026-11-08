@@ -189,7 +189,7 @@ export function buildClassFeatureQuickActions(profile) {
     }));
 }
 
-function classFeatureResourceStatus(feature, profile, stateValue) {
+export function classFeatureResourceStatus(feature, profile, stateValue) {
   const costs = Array.isArray(feature?.resourceCosts) ? feature.resourceCosts : [];
   if (!costs.length) {
     return { ready: true, entries: [] };
