@@ -7,6 +7,7 @@ import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem, mergeDamageDefenses, profileDamageDefensesForItem,
   EVASION_DEFENSE, evasionAppliesTo, evasionFactor, evasionForItem, withSpellDamageResistance } from "./damageDefensesCore.js";
+import { adjustForDamageReactions, defenseWithReactionResistance } from "./damageReactionCore.js";
 
 export const BOSS_ACTION_STATE_FIELD = "bossActionState";
 // The seam drawing kept on the map (Cucitura del Non-Luogo): { sourceId, actionInstanceId } of its boss and use.
@@ -208,8 +209,10 @@ export function damageAmount(value) {
 // Actor Profile defenses (resistance/immunity/vulnerability) apply per damage type after the save/attack factor.
 // The GM may ignore a defense for one resolution; the preview the GM saw must match the profile at commit.
 // spell: the damage is a spell's (the attack console's spells and cantrips), so a resistance to spells counts on top.
+// reactions (avvisi di reazione, lot R3b): the target's reactions to this damage (Uncanny Dodge, Parry, Spectral
+// Defense...), applied after the check of the defenses the GM saw (damageReactionCore.js); none: as before.
 export function defendedComponents(components, inputs, factor, targetItem, ignoredTypes = [], expectedDefenses, marked = false,
-  { spell = false } = {}) {
+  { spell = false, reactions = [] } = {}) {
   const profileDefenses = damageDefensesForItem(targetItem, META_KEY);
   const ownProfileDefenses = profileDamageDefensesForItem(targetItem, META_KEY);
   // Cleaned as the effective defenses are: a resistance and a vulnerability to the same type both stay (lotto M6).
@@ -219,24 +222,32 @@ export function defendedComponents(components, inputs, factor, targetItem, ignor
   const marks = marked ? bossMarkedDefenses(profileDefenses) : profileDefenses;
   const defenses = spell ? withSpellDamageResistance(marks, targetItem, META_KEY) : marks;
   const ignored = new Set(Array.isArray(ignoredTypes) ? ignoredTypes : []);
+  // Lot R3b: what the reactions leave to compute (halvings in the inputs, so the factor is "full") and what they resist.
+  const reacted = Array.isArray(reactions) && reactions.length
+    ? adjustForDamageReactions({ components, inputs, factor, reactions }) : null;
+  const computeInputs = reacted?.active ? reacted.inputs : inputs;
+  const computeFactor = reacted?.active ? reacted.factor : factor;
+  const resisted = new Set(reacted?.active ? reacted.resistanceTypes : []);
   const pieces = components.map((component) => {
     const inputAmount = inputs[component.id];
     if (factor === "zero") return {...clone(component),inputAmount,factor,defense:null,amount:0};
     const profileDefense = damageDefenseFor(defenses, component.type);
-    const defense = profileDefense && !ignored.has(component.type) ? profileDefense : null;
+    const ownDefense = profileDefense && !ignored.has(component.type) ? profileDefense : null;
+    const defense = resisted.has(component.type) ? defenseWithReactionResistance(ownDefense) : ownDefense;
     const markRule = marked && component.type === "cold" ? {mark:{rule:"cold-ward-break",profileDefense:damageDefenseFor(profileDefenses,"cold")}} : {};
     // Effective defenses include active effects; the source says which one the log should credit.
     const defenseSource = damageDefenseFor(ownProfileDefenses, component.type) === profileDefense ? "actor-profile" : "effect";
     return {...clone(component),inputAmount,factor,defense,
-      ...(profileDefense ? {defenseSource,...(defense ? {} : {defenseIgnored:profileDefense})} : {}),...markRule,
-      amount:componentDamageAfterDefense(inputAmount,factor,defense)};
+      ...(profileDefense ? {defenseSource,...(ownDefense ? {} : {defenseIgnored:profileDefense})} : {}),...markRule,
+      ...(reacted?.active ? {reactionInput:computeInputs[component.id],...(resisted.has(component.type) && defense !== ownDefense ? {reactionDefense:true} : {})} : {}),
+      amount:componentDamageAfterDefense(computeInputs[component.id],computeFactor,defense)};
   });
   if (factor === "zero") return pieces;
   // The damage of a type is summed before the save and the defense (7 + 3 slashing resisted: 5, as bossDefendedDamage
   // previews): the points the pieces lose to the rounding go back to the type's first piece, so the log adds up to it.
   const types = new Map();
   pieces.forEach((piece, index) => {
-    const input = Number(piece.inputAmount);
+    const input = Number(reacted?.active ? piece.reactionInput : piece.inputAmount);
     if (!Number.isFinite(input)) return;
     const total = types.get(piece.type) || { first: index, input: 0, amount: 0, defense: piece.defense };
     total.input += input;
@@ -244,7 +255,7 @@ export function defendedComponents(components, inputs, factor, targetItem, ignor
     types.set(piece.type, total);
   });
   for (const total of types.values()) {
-    const extra = componentDamageAfterDefense(total.input, factor, total.defense) - total.amount;
+    const extra = componentDamageAfterDefense(total.input, computeFactor, total.defense) - total.amount;
     if (extra) pieces[total.first] = { ...pieces[total.first], amount: pieces[total.first].amount + extra };
   }
   return pieces;
@@ -329,6 +340,9 @@ export function buildBossActionMutation({
   profile, action, sourceItem, targetItem, mode = "", outcome = "",
   componentAmounts = {}, actionInstanceId, round, manualConfirmed=false, ignoredDefenses = [], expectedDefenses,
   turnState = null, grappledIds = [], expectedMarkedIds, expectedEvasion, rider = "", teleport = null, critical = false,
+  // Avvisi di reazione, lot R3b: the target's reactions to this damage (the reactor's reaction and resource are added by
+  // the runtime, read again at the commit, decision E3).
+  damageReactions = [],
 } = {}) {
   if (!isBossActionCreature(sourceItem) || !isBossActionTargetItem(targetItem))
     throw new Error("Attore e bersaglio devono essere token creatura reali.");
@@ -370,7 +384,12 @@ export function buildBossActionMutation({
   const inputs = Object.fromEntries(components.map(component => [component.id, miss ? null : damageAmount(componentAmounts[component.id])]));
   const marked = bossMarkApplies({profile,sourceItem,targetItem,round,components,amounts:inputs,factor:miss?"zero":factor});
   markExpectation(expectedMarkedIds,[targetItem],marked?[targetItem.id]:[]);
-  const damageComponents = defendedComponents(components,inputs,miss?"zero":factor,targetItem,ignoredDefenses,expectedDefenses,marked);
+  const reactionsOnTarget = miss ? [] : (Array.isArray(damageReactions) ? damageReactions : []);
+  const damageComponents = defendedComponents(components,inputs,miss?"zero":factor,targetItem,ignoredDefenses,expectedDefenses,marked,
+    {reactions:reactionsOnTarget});
+  // Why the damage is what it is (lot R3b): one line per reaction, for the History and the combat log.
+  const damageReactionRecords = reactionsOnTarget.length
+    ? adjustForDamageReactions({components,inputs,factor,reactions:reactionsOnTarget}).records.map(record=>({id:targetItem.id,...record})) : [];
   const requestedDamage = damageComponents.reduce((sum,c)=>sum+c.amount,0);
   const sourceMeta = sourceItem.metadata?.[META_KEY] || {};
   const targetMeta = targetItem.metadata?.[META_KEY] || {};
@@ -449,6 +468,7 @@ export function buildBossActionMutation({
       metadataPatches:[...use.metadataPatches,...(change?.changed?[targetProfileAssert(targetItem)]:[])],
       sceneMetadataPreconditions:use.sceneMetadataPreconditions,
       history:{kind:"monster-action",label,payload:{causality,damageComponents:clone(damageComponents),
+        ...(damageReactionRecords.length?{damageReactions:clone(damageReactionRecords)}:{}),
         ...(manualText?{manualRemainder:manualText}:{})}},
     },
   };
@@ -590,6 +610,8 @@ export function buildBossActionGroupMutation({
   profile, action, sourceItem, targetItems = [], outcomes = {}, componentAmounts = {},
   actionInstanceId, round, turnState = null, manualConfirmed = false, areaPlacement = null, areaPlacements = null, innerIds = null,
   ignoredDefenses = {}, expectedDefenses, expectedImmuneIds, expectedMarkedIds, expectedEvasionIds,
+  // Avvisi di reazione, lot R3b-4: the reactions to this damage, each with the creature it protects (targetId).
+  damageReactions = [],
 } = {}) {
   if (!isBossActionCreature(sourceItem)) throw new Error("L’attore deve essere il token reale del boss.");
   if (!actionInstanceId || typeof actionInstanceId !== "string") throw new Error("Identità azione mancante.");
@@ -667,7 +689,7 @@ export function buildBossActionGroupMutation({
   const failedConditions = execution.onFailed?.conditions || [];
   const failedMark = execution.onFailed?.mark || null;
   const failedEffect = execution.onFailed?.effect || null;
-  const hpUpdates = [], changes = [], causalTargets = [], conditionOperations = [];
+  const hpUpdates = [], changes = [], causalTargets = [], conditionOperations = [], groupReactionRecords = [];
   const conditionExpiry = (entry) => ({...clone(entry.expiry),...(entry.expiry.actor === "source" ? {actorId:sourceItem.id} : {})});
   const immunityOptions = immunity ? {sourceId:sourceItem.id,sourceName:sourceItem.name || profile.name,parentEffectId:"",type:"automatic",
     effectId:bossImmunityEffectId(action),effectKind:"buff",effectDetail:`Immune a ${immunity.condition} di ${action.name} per 24 ore.`,
@@ -676,8 +698,11 @@ export function buildBossActionGroupMutation({
     const outcome = outcomes[target.id];
     const immune = immuneIds.has(target.id);
     const factor = factorFor(target);
+    const targetReactions = (Array.isArray(damageReactions) ? damageReactions : []).filter((reaction) => reaction?.targetId === target.id);
     const damageComponents = defendedComponents(componentsFor(target),inputs,factor,target,ignoredDefenses?.[target.id] || [],
-      expectedDefenses === undefined ? undefined : expectedDefenses?.[target.id] || {},markedIds.includes(target.id));
+      expectedDefenses === undefined ? undefined : expectedDefenses?.[target.id] || {},markedIds.includes(target.id),{reactions:targetReactions});
+    if (targetReactions.length) groupReactionRecords.push(...adjustForDamageReactions({components:componentsFor(target),inputs,factor,reactions:targetReactions})
+      .records.map((record)=>({id:target.id,...record})));
     const requestedDamage = damageComponents.reduce((sum,component)=>sum+component.amount,0);
     const meta = target.metadata?.[META_KEY] || {};
     const change = calculateQuickHPChange({value:requestedDamage,hp:meta.hp,hpMax:meta.hpMax,tempHp:meta.tempHp,deathSaveDamage:takesDeathSaveDamage(meta)});
@@ -812,6 +837,7 @@ export function buildBossActionGroupMutation({
       sceneMetadataPreconditions:use.sceneMetadataPreconditions,
       history:{kind:"monster-action",label,payload:{causality,
         damageComponents:causalTargets.map((target)=>({targetId:target.id,components:clone(target.damageComponents)})),
+        ...(groupReactionRecords.length?{damageReactions:clone(groupReactionRecords)}:{}),
         manualRemainder:manualSteps.join("\n")}},
     },
   };

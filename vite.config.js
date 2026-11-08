@@ -84,6 +84,8 @@ export default defineConfig(() => {
         playerScreen: path.resolve(process.cwd(), "player-screen.html"),
         diceTray: path.resolve(process.cwd(), "dice-tray.html"),
         diceNotice: path.resolve(process.cwd(), "dice-notice.html"),
+        reactionNotice: path.resolve(process.cwd(), "reaction-notice.html"),
+        reactionMove: path.resolve(process.cwd(), "reaction-move.html"),
         compactRoundTab: path.resolve(process.cwd(), "compact-round-tab.html"),
         spellActiveResolution: path.resolve(process.cwd(), "spell-active-resolution.html"),
         delayedBlastFireballResolution: path.resolve(process.cwd(), "delayed-blast-fireball-resolution.html"),

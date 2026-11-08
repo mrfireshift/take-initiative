@@ -10,6 +10,7 @@ import { BOSS_ACTION_STATE_FIELD, bossInstanceForItem, isBossActionCreature, bui
   sanitizeBossAreaPlacement } from "./bossActionExecutionCore.js";
 import { bossCollapseMarkerSpec } from "./bossCollapseCore.js";
 import { createMonsterActionContext } from "./monsterActionContextCore.js";
+import { planReactionFeatureSpend } from "./reactionFeatureRuntime.js";
 import { getEffectsMutationSceneContext, runEffectsMutation, requireAppliedEffectsMutation } from "./effectsMutations.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { buildSpellUnifiedPanelRouteQuery } from "./spellUnifiedPanelRoutingCore.js";
@@ -291,6 +292,22 @@ export function createBossActionRuntime({
       || request.bossInstanceId!==undefined && request.bossInstanceId!==presentation.bossInstanceId)
       throw new Error("Profilo o binding cambiato: riapri l'azione.");
   }
+  // Avvisi di reazione, lots R3b and R3b-4: the operations of the creatures that react to the damage
+  // (reactionFeatureRuntime.js), added to the plan; plan.reactorIds, for their labels after the commit.
+  async function spendBossDamageReactions(plan,reactions,scope,actionInstanceId) {
+    const ids=[...new Set(reactions.map(reaction=>String(reaction?.reactorId || "")).filter(Boolean))];
+    const reactors=await api.scene.items.getItems(ids);
+    if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri la console Boss.");
+    plan.reactorIds=[];
+    for(const reaction of reactions) {
+      const reactorItem=reactors.find(item=>item.id===reaction?.reactorId) || null;
+      const spend=planReactionFeatureSpend({reactorItem,reaction,initiativeState:scope.turnState,
+        operationId:`${actionInstanceId}:${reaction?.reactorId}:${reaction?.reactionId}`});
+      if(!spend.ok) throw new Error(spend.message);
+      plan.operations.push(...spend.operations);
+      if(spend.operations.length) plan.reactorIds.push(reactorItem.id);
+    }
+  }
   async function executeBossAction(request={},manualRegistration=false) {
     const {sourceId,actionId,targetId}=request;
     if(busy.has(sourceId)) throw new Error("Risoluzione già in corso.");
@@ -323,7 +340,8 @@ export function createBossActionRuntime({
         distance:request.distance ?? null,damage:request.damage ?? null,landing:request.landing ?? null,effect:request.effect ?? null,roll:request.roll ?? null,
         rider:request.rider ?? null,collisionTargetId:request.collisionTargetId ?? null,collisionOutcome:request.collisionOutcome ?? null,
         collisionIgnoredDefenses:request.collisionIgnoredDefenses ?? null,collisionExpectedDefenses:request.collisionExpectedDefenses ?? null,
-        seam:request.seam ?? null,sequenceConfirmed:request.sequenceConfirmed===true,teleport:request.teleport ?? null,critical:request.critical===true});
+        seam:request.seam ?? null,sequenceConfirmed:request.sequenceConfirmed===true,teleport:request.teleport ?? null,critical:request.critical===true,
+        damageReactions:request.damageReactions ?? null});
       let draft=drafts.get(actionInstanceId);
       if(draft && (draft.decisionKey!==decisionKey || draft.options.sceneIdentity!==scope.scene.sceneIdentity))
         throw new Error("Le decisioni o la scena del draft sono cambiate: riapri l'azione.");
@@ -358,7 +376,11 @@ export function createBossActionRuntime({
             manualConfirmed:request.manualConfirmed===true,areaPlacement:request.areaPlacement || null,
             areaPlacements:request.areaPlacements || null,innerIds:request.innerIds || null,
             ignoredDefenses:request.ignoredDefenses || {},expectedDefenses:request.expectedDefenses,expectedImmuneIds:request.expectedImmuneIds,
-            expectedMarkedIds:request.expectedMarkedIds,expectedEvasionIds:request.expectedEvasionIds});
+            expectedMarkedIds:request.expectedMarkedIds,expectedEvasionIds:request.expectedEvasionIds,
+            damageReactions:Array.isArray(request.damageReactions)?request.damageReactions:[]});
+          // Lot R3b-4: the reactors' reaction and resource in the action's own command, read again now.
+          if(Array.isArray(request.damageReactions) && request.damageReactions.length)
+            await spendBossDamageReactions(plan,request.damageReactions,scope,actionInstanceId);
         } else if(seamAction) {
           plan=buildBossSeamMutation({profile,action,sourceItem:scope.item,seam:request.seam,actionInstanceId,round:scope.round});
         } else if(effectEnd) {
@@ -380,6 +402,10 @@ export function createBossActionRuntime({
           if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri la console Boss.");
           plan=buildBossActionMutation({...request,profile,action,sourceItem:scope.item,targetItem,actionInstanceId,round:scope.round,
             turnState:scope.turnState,grappledIds});
+          // Avvisi di reazione, lot R3b (decision E3): the reactors' reaction and resource in the action's own command, read
+          // again now; a reaction used meanwhile stops the commit with its reason, nothing written.
+          if(!["miss"].includes(request.outcome) && Array.isArray(request.damageReactions) && request.damageReactions.length)
+            await spendBossDamageReactions(plan,request.damageReactions,scope,actionInstanceId);
         }
         // Strappare la Cucitura: the drawings of the seam it tears go once the tear is committed.
         if(group && action.execution.target.area?.shape==="seam")
@@ -407,6 +433,12 @@ export function createBossActionRuntime({
             sceneIdentity:scope.scene.sceneIdentity,isCurrent:scope.isCurrent}) || []));}
           catch(error) {warnings.push(String(error?.message || error));}
         }
+      }
+      // Lot R3b: the pills of a creature that reacted for another (its "Reazione usata").
+      const reactorLabels=(plan.reactorIds || []).filter(id=>!damaged.some(row=>row.item?.id===id));
+      if(reactorLabels.length && result.duplicate!==true && scope.isCurrent()) {
+        try {const {refreshConditionLabels}=await import("./conditions.js");await refreshConditionLabels(reactorLabels);}
+        catch(error) {warnings.push(String(error?.message || error));}
       }
       if(plan.seamDrawingIds?.length && result.duplicate!==true && scope.isCurrent()) {
         try {warnings.push(...(await removeSeamDrawings({api,sourceId,itemIds:plan.seamDrawingIds,isCurrent:scope.isCurrent}) || []));}

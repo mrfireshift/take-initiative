@@ -24,6 +24,7 @@ import { CLASS_FEATURE_STATE_FIELD, planClassFeatureResourceAdjustment } from ".
 import { getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import { pcAttackFeatureState } from "./pcAttackFeatureFormCore.js";
 import { isOffTurn, planReactionSpend } from "./reactionTrackerCore.js";
+import { planReactionFeatureSpend } from "./reactionFeatureRuntime.js";
 import { committedHpFor } from "./sharedHpViewCore.js";
 
 // The slot each smite of the attack spends (Divine Smite at its level, Eldritch Smite from Pact Magic), in order:
@@ -195,6 +196,19 @@ export function createPcAttackRuntime({
     return {item:scope.item,action,actionId:action?.id || "",...(chosen?.spellId?{spellId:chosen.spellId}:{}),picker,featureState,
       targets,turnState:scope.turnState,sceneIdentity:scope.scene.sceneIdentity};
   }
+  // Lot R3b: the operations of the creatures that react to the damage (reactionFeatureRuntime.js).
+  async function spendDamageReactions(reactions,plan,scope) {
+    const ids=[...new Set(reactions.map(reaction=>String(reaction?.reactorId || "")).filter(Boolean))];
+    const reactors=ids.length?await api.scene.items.getItems(ids):[];
+    for(const reaction of reactions) {
+      const reactorItem=reactors.find(item=>item.id===reaction?.reactorId) || null;
+      const spend=planReactionFeatureSpend({reactorItem,reaction,initiativeState:scope.turnState,
+        operationId:`${plan.options?.commandId || "attack"}:${reaction?.reactorId}:${reaction?.reactionId}`});
+      if(!spend.ok) throw new Error(spend.message);
+      plan.operations.push(...spend.operations);
+      if(spend.operations.length) plan.labelTargetIds=[...new Set([...(plan.labelTargetIds || []),reactorItem.id])];
+    }
+  }
   async function executePcAttack(request={}) {
     const {sourceId,actionId,targetId}=request;
     if(busy.has(sourceId)) throw new Error("Registrazione già in corso.");
@@ -237,7 +251,7 @@ export function createPcAttackRuntime({
         weaponCantrip:request.weaponCantrip ?? null,expectedSecondaryDefenses:request.expectedSecondaryDefenses ?? null,sharedHp:request.sharedHp || null,
         activations:request.activations ?? null,attackMode:request.attackMode || "",modeAmount:request.modeAmount ?? null,
         expectedBurstDefenses:request.expectedBurstDefenses ?? null,castWithoutSlot:request.castWithoutSlot===true,
-        useReaction:request.useReaction===true,
+        useReaction:request.useReaction===true,damageReactions:request.damageReactions ?? null,
         spellCast:request.spellCast ?? null,hitEffect:request.hitEffect ?? null,reappliedDefenses:request.reappliedDefenses ?? null});
       let draft=drafts.get(attackInstanceId);
       if(draft && (draft.decisionKey!==decisionKey || draft.options.sceneIdentity!==scope.scene.sceneIdentity))
@@ -250,7 +264,12 @@ export function createPcAttackRuntime({
           spellId:request.spellId || "",weaponCantrip:request.weaponCantrip || null,secondaryItem:secondaryItem || null,
           expectedSecondaryDefenses:request.expectedSecondaryDefenses,activations:request.activations || [],tempHpItems,
           attackMode:request.attackMode || "",modeAmount:request.modeAmount ?? null,burstItems,expectedBurstDefenses:request.expectedBurstDefenses || {},
-          spellCast:request.spellCast || null,linkItems,hitEffect:request.hitEffect || null,reappliedDefenses:request.reappliedDefenses || []});
+          spellCast:request.spellCast || null,linkItems,hitEffect:request.hitEffect || null,reappliedDefenses:request.reappliedDefenses || [],
+          damageReactions:Array.isArray(request.damageReactions)?request.damageReactions:[]});
+        // Avvisi di reazione, lot R3b (decision E3): the reactors' reaction and resource in the attack's own command, read
+        // again now; a reaction used meanwhile stops the commit with its reason, nothing written.
+        if(request.outcome!=="miss" && Array.isArray(request.damageReactions) && request.damageReactions.length)
+          await spendDamageReactions(request.damageReactions,plan,scope);
         spendSmiteSlots(scope.item,plan,request.castWithoutSlot===true);
         spendSpellCastSlot(scope.item,plan,request.castWithoutSlot===true);
         const reaction=spendAttackReaction(scope.item,plan,scope.turnState,request.useReaction===true);
@@ -401,7 +420,8 @@ export function createPcAttackRuntime({
       const attackInstanceId=request.attackInstanceId || newId();
       const decisionKey=JSON.stringify({kind:"area",sourceId,actionId,spellId:request.spellId || "",attackMode:request.attackMode || "",
         members:wanted,componentAmounts:Object.entries(request.componentAmounts || {}).sort(([a],[b])=>a.localeCompare(b)),
-        riders:request.riders ?? null,extras:request.extras ?? null,modeAmount:request.modeAmount ?? null,expectedDefenses:request.expectedDefenses ?? null});
+        riders:request.riders ?? null,extras:request.extras ?? null,modeAmount:request.modeAmount ?? null,expectedDefenses:request.expectedDefenses ?? null,
+        damageReactions:request.damageReactions ?? null});
       let draft=drafts.get(attackInstanceId);
       if(draft && (draft.decisionKey!==decisionKey || draft.options.sceneIdentity!==scope.scene.sceneIdentity))
         throw new Error("Le decisioni o la scena dell'attacco sono cambiate: riapri l'attacco.");
@@ -409,7 +429,10 @@ export function createPcAttackRuntime({
       if(!draft) {
         const plan=buildPcAttackAreaMutation({action,spellId:request.spellId || "",attackMode:request.attackMode || "",sourceItem:scope.item,members,
           componentAmounts:request.componentAmounts || {},riders:request.riders || [],extras:request.extras || [],modeAmount:request.modeAmount ?? null,
-          attackInstanceId,expectedDefenses:request.expectedDefenses || {},turnState:scope.turnState});
+          attackInstanceId,expectedDefenses:request.expectedDefenses || {},turnState:scope.turnState,
+          damageReactions:Array.isArray(request.damageReactions)?request.damageReactions:[]});
+        // Lot R3b-4: the reactors' reaction and resource in the attack's own command, read again now.
+        if(Array.isArray(request.damageReactions) && request.damageReactions.length) await spendDamageReactions(request.damageReactions,plan,scope);
         draft={decisionKey,plan,options:{...plan.options,...(bossLinkResisted.length?{bossLinkResisted}:{}),
           sceneIdentity:request.sceneIdentity || scope.scene.sceneIdentity,sceneEpoch:scope.epoch}};
         drafts.set(attackInstanceId,draft);

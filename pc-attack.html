@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/popover-glass.css" />
   <link rel="stylesheet" href="/console-shell.css" />
   <link rel="stylesheet" href="/console-panel.css" />
+  <link rel="stylesheet" href="/reaction-prompt.css" />
   <link rel="stylesheet" href="/rules-text.css" />
   <style>
     .turn-badge { flex: 0 0 auto; padding: 1px 6px; border: 1px solid rgba(253, 230, 138, .42); border-radius: var(--obrt-radius-pill); background: rgba(161, 98, 7, .30); color: var(--warn-text); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); }
@@ -306,6 +307,7 @@
           </div>
           <p class="action-facts" id="pc-attack-facts"></p>
           <div class="component-list" id="pc-attack-damage"></div>
+          <div class="damage-reactions" id="pc-attack-damage-reactions" hidden></div>
           <p class="monster-note" id="pc-attack-monster-note" hidden></p>
           <div class="extras-section" id="pc-attack-extras-section" hidden>
             <div class="section-head"><span class="caption" id="pc-attack-extras-caption">Extra al colpo</span><button class="add-extra" id="pc-attack-add-extra" type="button">+ Danno extra</button></div>

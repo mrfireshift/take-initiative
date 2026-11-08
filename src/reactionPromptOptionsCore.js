@@ -12,9 +12,13 @@ const text = (value, limit = 160) => String(value ?? "").trim().slice(0, limit);
 export const REACTION_PROMPT_MUTED_LIMIT = 200;
 export const REACTION_PROMPT_DEFAULTS = Object.freeze({
   enabled: true,
-  triggers: Object.freeze({ hit: true, damage: true, miss: false, spellCast: true, move: false }),
+  // Miss on since lot R3c (decision D3: off until its reactions were wired).
+  triggers: Object.freeze({ hit: true, damage: true, miss: true, spellCast: true, move: false }),
   actors: Object.freeze({ pcs: true, npcs: false }),
   counterspellCantrips: false,
+  // Lot R6a (decisions D1 and H4): the characters' reactions on the table screen, read only. Off by default; the Online
+  // profile sends them to the characters' players anyway (R6b).
+  screen: false,
   muted: Object.freeze([]),
 });
 const ACTOR_KEY_PATTERN = /^[ain][0-9A-Za-z_:.-]{1,220}$/u;
@@ -49,6 +53,7 @@ export function normalizeReactionPromptOptions(value) {
     triggers: Object.fromEntries(Object.entries(defaults.triggers).map(([key, fallback]) => [key, booleanOr(triggers[key], fallback)])),
     actors: { pcs: booleanOr(actors.pcs, defaults.actors.pcs), npcs: booleanOr(actors.npcs, defaults.actors.npcs) },
     counterspellCantrips: booleanOr(source.counterspellCantrips, defaults.counterspellCantrips),
+    screen: booleanOr(source.screen, defaults.screen),
     muted: normalizeMuted(source.muted),
   };
 }

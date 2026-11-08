@@ -363,6 +363,10 @@ export function buildSpellUnifiedAreaCommand({
     ...(Object.keys(session?.ignoredDefenses || {}).length
       ? { ignoredDefenses: session.ignoredDefenses }
       : {}),
+    // Avvisi di reazione, lot R3b-5: the reactions to the damage the GM added in the panel.
+    ...(Array.isArray(session?.damageReactions) && session.damageReactions.length
+      ? { damageReactions: session.damageReactions }
+      : {}),
     sharedHp: session?.sharedHp,
     sceneEpoch,
     currentSceneEpoch: sceneEpoch,

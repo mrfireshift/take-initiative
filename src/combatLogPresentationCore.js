@@ -378,7 +378,9 @@ function hpTargetLine(target, event = null) {
       ? tempText
       : `${signedNumber(hpDelta)} PF · ${tempText}`;
   // Lot U3b: why the HP are not what the command asked (Warding Bond, Death Ward), from the History's record.
-  const reasons = (Array.isArray(event?.payload?.reactions) ? event.payload.reactions : [])
+  // Avvisi di reazione, lot R3b (decision E5): the reactions that changed an attack's damage, under a key of their own.
+  const reasons = [...(Array.isArray(event?.payload?.reactions) ? event.payload.reactions : []),
+    ...(Array.isArray(event?.payload?.damageReactions) ? event.payload.damageReactions : [])]
     .filter((record) => stringValue(record?.id) && stringValue(record.id) === stringValue(target?.id))
     .map((record) => stringValue(record.text))
     .filter(Boolean);

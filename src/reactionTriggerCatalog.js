@@ -20,14 +20,18 @@
 // filters: range ("melee" | "ranged"), attackRoll (an attack with a roll), critical, damageTypes (any of them).
 // flow: what Usa opens, an existing flow: "cast-spell" (castReactionSpell), "spell-panel" (openReactionSpellPanel),
 // "use-feature" (the Capacità tab's use: resource and reaction), "off-turn-attack" (the console off turn, with the
-// reaction), "counterspell" (openCounterspellPopover), "note" (the rule only: the GM applies it at the table).
+// reaction), "counterspell" (openCounterspellPopover), "note" (the rule only: the GM applies it at the table),
+// "modifier" (lot R3b: a line on the console's draft, the damage changed and the reaction and its resource spent in the
+// attack's own command, damageReactionCore.js), "activate-feature" (the feature's own activation: Tomb of Levistus).
 // effect: what the reaction does, for the prompt's text and, from lot R3, the modifier ("ac-bonus", "halve",
 // "reduce", "resistance", "downgrade-critical", "reroll", "retaliation", "attack", "counter", "other").
-// lot: the lot of the study that wires it.
+// lot: the lot of the study that wires it. R2b: the spell fails and its caster loses the slot (Magic-User's Nemesis), or
+// it has no effect on the thief, who leaves its targets (Spell Thief).
 
 export const REACTION_TRIGGERS = Object.freeze(["hit", "damage", "miss", "spell-cast", "move-leave", "move-enter", "turn-end-near"]);
 export const REACTION_TIMINGS = Object.freeze(["before", "after"]);
-export const REACTION_FLOWS = Object.freeze(["cast-spell", "spell-panel", "use-feature", "off-turn-attack", "counterspell", "note"]);
+export const REACTION_FLOWS = Object.freeze(["cast-spell", "spell-panel", "use-feature", "off-turn-attack", "counterspell", "note",
+  "modifier", "activate-feature"]);
 
 // The option switch of each trigger (reactionPromptOptions in reactionCandidatesCore.js).
 export const REACTION_TRIGGER_OPTION = Object.freeze({
@@ -50,6 +54,9 @@ const entry = (value) => Object.freeze({
 });
 const spell = (value) => entry({ source: "spell", ...value });
 const feature = (value) => entry({ source: "class-feature", flow: "use-feature", ...value });
+// Lot R4: a monster's reaction read from its stat block (monsterReactionParseCore.js); the amount and the melee
+// requirement of a Parry come from the text, the rule shown is the stat block's own.
+const monster = (value) => entry({ source: "monster", flow: "use-feature", lot: "R4", ...value });
 
 export const REACTION_TRIGGER_CATALOG = Object.freeze([
   // A. Hit, before the damage: they change the outcome.
@@ -70,8 +77,8 @@ export const REACTION_TRIGGER_CATALOG = Object.freeze([
     effect: { kind: "ac-bonus", ability: "cha" }, short: "+ Car alla CA",
     rule: "Lui o una creatura entro 3 m colpita: + modificatore di Carisma alla CA; se l'attacco manca, un attacco con arma contro l'attaccante." }),
   feature({ id: "warding-maneuver", label: "Manovra Protettrice", featureIds: ["guerriero-cavaliere-errante-manovra-protettrice"],
-    triggers: ["hit"], timing: "before", protects: "self-or-ally", rangeMeters: 1.5, filters: { attackRoll: true }, lot: "R3a",
-    effect: { kind: "ac-bonus", dice: "1d8", thenResistance: true }, short: "+1d8 CA, poi resistenza",
+    triggers: ["hit"], timing: "before", protects: "self-or-ally", rangeMeters: 1.5, filters: { attackRoll: true }, lot: "R3b", flow: "modifier",
+    effect: { kind: "resistance", acBonusDice: "1d8" }, short: "+1d8 CA, poi resistenza",
     rule: "Lui o una creatura entro 1,5 m colpita: +1d8 alla CA; se l'attacco colpisce lo stesso, resistenza al suo danno." }),
   feature({ id: "sentinel-at-deaths-door", label: "Sentinella alla Porta della Morte",
     featureIds: ["chierico-dominio-della-tomba-sentinella-alla-porta-della-morte"],
@@ -96,56 +103,56 @@ export const REACTION_TRIGGER_CATALOG = Object.freeze([
   feature({ id: "uncanny-dodge", label: "Schivata Prodigiosa", featureIds: ["ladro-schivata-prodigiosa",
     "ranger-cacciatore-difesa-del-cacciatore-superiore-schivata-prodigiosa",
     "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-schivata-prodigiosa"],
-  triggers: ["hit"], timing: "before", filters: { attackRoll: true }, lot: "R3b",
+  triggers: ["hit"], timing: "before", filters: { attackRoll: true }, lot: "R3b", flow: "modifier",
   effect: { kind: "halve" }, short: "Danno dimezzato",
   rule: "Colpito da un attaccante che vede: dimezza il danno di questo attacco." }),
   feature({ id: "parry-maneuver", label: "Parata", featureIds: ["guerriero-maestro-di-battaglia-manovre-parata"],
-    triggers: ["damage"], timing: "before", filters: { range: "melee", attackRoll: true }, lot: "R3b",
+    triggers: ["damage"], timing: "before", filters: { range: "melee", attackRoll: true }, lot: "R3b", flow: "modifier",
     effect: { kind: "reduce", dice: "superiority", ability: "dex" }, short: "− dado di superiorità + Des",
     rule: "Danneggiato da un attacco in mischia: riduce il danno di un dado di superiorità + modificatore di Destrezza." }),
   feature({ id: "deflect-missiles", label: "Deviare Proiettili", featureIds: ["monaco-deviare-proiettili"],
-    triggers: ["hit"], timing: "before", filters: { range: "ranged", attackRoll: true }, lot: "R3b",
+    triggers: ["hit"], timing: "before", filters: { range: "ranged", attackRoll: true }, lot: "R3b", flow: "modifier",
     effect: { kind: "reduce", dice: "1d10", ability: "dex", plusLevel: "monaco" }, short: "− 1d10 + Des + livello",
     rule: "Colpito da un attacco con arma a distanza: riduce il danno di 1d10 + Destrezza + livello da monaco." }),
   feature({ id: "song-of-defense", label: "Canzone di Difesa", featureIds: ["mago-canto-della-lama-canzone-di-difesa"],
-    triggers: ["damage"], timing: "before", requiresReactorCondition: "Melodia della Lama", lot: "R3b",
+    triggers: ["damage"], timing: "before", requiresReactorCondition: "Melodia della Lama", lot: "R3b", flow: "modifier",
     effect: { kind: "reduce", perSlotLevel: 5 }, short: "− 5 per livello dello slot",
     rule: "Subisce danni con il Canto della Lama attivo: spende uno slot e riduce il danno di 5 per livello dello slot." }),
   feature({ id: "protective-field", label: "Campo Protettivo", featureIds: ["guerriero-guerriero-psionico-potere-psionico-campo-protettivo"],
-    triggers: ["damage"], timing: "before", protects: "self-or-ally", rangeMeters: 9, lot: "R3b",
+    triggers: ["damage"], timing: "before", protects: "self-or-ally", rangeMeters: 9, lot: "R3b", flow: "modifier",
     effect: { kind: "reduce", dice: "psionic", ability: "int" }, short: "− dado psionico + Int",
     rule: "Lui o una creatura entro 9 m subisce danni: li riduce di un dado psionico + modificatore di Intelligenza." }),
   feature({ id: "spirit-shield", label: "Spiriti Protettori", featureIds: ["barbaro-cammino-del-guardiano-ancestrale-spiriti-protettori"],
-    triggers: ["damage"], timing: "before", protects: "ally", rangeMeters: 9, requiresReactorCondition: "Ira", lot: "R3b",
+    triggers: ["damage"], timing: "before", protects: "ally", rangeMeters: 9, requiresReactorCondition: "Ira", lot: "R3b", flow: "modifier",
     effect: { kind: "reduce", dice: "2d6" }, short: "− 2d6 (3d6, 4d6)",
     rule: "Un alleato entro 9 m subisce danni, con l'Ira attiva: li riduce di 2d6 (3d6 al 10°, 4d6 al 14°)." }),
   feature({ id: "guardian-coil", label: "Spirale Guardiana", featureIds: ["warlock-l-insondabile-spirale-guardiana"],
-    triggers: ["damage"], timing: "before", lot: "R3b",
+    triggers: ["damage"], timing: "before", lot: "R3b", flow: "modifier",
     effect: { kind: "reduce", dice: "1d8" }, short: "− 1d8 (2d8)",
     rule: "Una creatura entro 3 m dal tentacolo subisce danni: li riduce di 1d8 (2d8 al 10°). Un alleato resta a giudizio del GM." }),
   feature({ id: "deflect-energy", label: "Corpo del Sé Astrale", featureIds: ["monaco-via-del-se-astrale-corpo-del-se-astrale"],
     triggers: ["damage"], timing: "before", filters: { damageTypes: ["acid", "cold", "fire", "force", "lightning", "thunder"] },
-    requiresReactorCondition: "Braccia del Sé Astrale", lot: "R3b",
+    requiresReactorCondition: "Braccia del Sé Astrale", lot: "R3b", flow: "modifier",
     effect: { kind: "reduce", dice: "1d10", ability: "wis", plusLevel: "monaco" }, short: "− 1d10 + Sag + livello",
     rule: "Con il corpo astrale: subisce acido, freddo, fuoco, forza, fulmine o tuono e lo riduce di 1d10 + Saggezza + livello da monaco." }),
   feature({ id: "spectral-defense", label: "Difesa Spettrale", featureIds: ["ranger-viandante-dell-orizzonte-difesa-spettrale"],
-    triggers: ["damage"], timing: "before", filters: { attackRoll: true }, lot: "R3b",
+    triggers: ["damage"], timing: "before", filters: { attackRoll: true }, lot: "R3b", flow: "modifier",
     effect: { kind: "resistance", instance: true }, short: "Resistenza a questo danno",
     rule: "Subisce danni da un attacco: resistenza a tutto il danno di questo attacco." }),
   feature({ id: "swarming-dispersal", label: "Dispersione Brulicante", featureIds: ["ranger-custode-degli-sciami-dispersione-brulicante"],
-    triggers: ["damage"], timing: "before", lot: "R3b",
+    triggers: ["damage"], timing: "before", lot: "R3b", flow: "modifier",
     effect: { kind: "resistance", instance: true, teleportMeters: 9 }, short: "Resistenza, poi 9 m",
     rule: "Subisce danni: resistenza a questo danno, poi si teletrasporta fino a 9 m." }),
   feature({ id: "dampen-elements", label: "Mitigare Elementi", featureIds: ["chierico-dominio-della-natura-mitigare-elementi"],
-    triggers: ["damage"], timing: "before", protects: "self-or-ally", rangeMeters: 9, filters: { damageTypes: ELEMENTAL_DAMAGE_TYPES }, lot: "R3b",
+    triggers: ["damage"], timing: "before", protects: "self-or-ally", rangeMeters: 9, filters: { damageTypes: ELEMENTAL_DAMAGE_TYPES }, lot: "R3b", flow: "modifier",
     effect: { kind: "resistance", instance: true }, short: "Resistenza a questo danno",
     rule: "Lui o una creatura entro 9 m subisce acido, freddo, fuoco, fulmine o tuono: resistenza a questo danno." }),
   feature({ id: "tomb-of-levistus", label: "Tomba di Levistus", featureIds: ["warlock-suppliche-occulte-tomba-di-levistus"],
-    triggers: ["damage"], timing: "before", lot: "R3b",
+    triggers: ["damage"], timing: "before", lot: "R3b", flow: "activate-feature",
     effect: { kind: "other", tempHp: true }, short: "PF temporanei, poi incapacitato",
     rule: "Subisce danni: 10 PF temporanei per livello da warlock che assorbono questo danno; vulnerabile al fuoco e incapacitato fino alla fine del suo prossimo turno." }),
   feature({ id: "cutting-words", label: "Parole Taglienti", featureIds: ["bardo-collegio-della-sapienza-parole-taglienti"],
-    triggers: ["damage"], timing: "before", protects: "other", attackerRangeMeters: 18, lot: "R3b",
+    triggers: ["damage"], timing: "before", protects: "other", attackerRangeMeters: 18, lot: "R3b", flow: "modifier",
     effect: { kind: "reduce", dice: "bardic" }, short: "− dado di Ispirazione",
     rule: "Una creatura entro 18 m tira i danni: il dado di Ispirazione Bardica li riduce (anche un tiro per colpire o una prova)." }),
 
@@ -207,18 +214,18 @@ export const REACTION_TRIGGER_CATALOG = Object.freeze([
     effect: { kind: "counter" }, short: "Contrasta",
     rule: "Una creatura entro 18 m lancia un incantesimo: lo contrasta, automatico fino al livello dello slot, oltre prova con CD 10 + livello." }),
   feature({ id: "magic-users-nemesis", label: "Nemesi degli Incantatori", featureIds: ["ranger-uccisore-di-mostri-nemesi-degli-incantatori"],
-    triggers: ["spell-cast"], timing: "before", casterRangeMeters: 18, targetsCaster: true, lot: "R2",
+    triggers: ["spell-cast"], timing: "before", casterRangeMeters: 18, targetsCaster: true, lot: "R2b",
     effect: { kind: "counter", save: "wis" }, short: "TS Saggezza o fallisce",
     rule: "Una creatura entro 18 m lancia un incantesimo: TS Saggezza contro la CD del ranger, o l'incantesimo fallisce." }),
   feature({ id: "spell-thief", label: "Ladro di Incantesimi", featureIds: ["ladro-mistificatore-arcano-ladro-di-incantesimi"],
-    triggers: ["spell-cast"], timing: "before", requiresSpellTarget: true, targetsCaster: true, lot: "R2",
+    triggers: ["spell-cast"], timing: "before", requiresSpellTarget: true, targetsCaster: true, lot: "R2b",
     effect: { kind: "counter", save: "spellcasting" }, short: "Ruba l'incantesimo",
     rule: "Bersaglio di un incantesimo: il caster tira un TS con la sua caratteristica da incantatore; se fallisce, l'effetto non ha effetto sul ladro, che ruba l'incantesimo." }),
 
   // F. Movement (lot R5, off by default).
   entry({ id: "opportunity-attack", label: "Attacco di opportunità", source: "universal", triggers: ["move-leave"], timing: "after",
     flow: "off-turn-attack", targetsMover: true, lot: "R5", effect: { kind: "attack" }, short: "Attacco in mischia",
-    rule: "Una creatura ostile esce dalla sua portata: un attacco in mischia contro di lei." }),
+    rule: "Una creatura ostile esce dalla sua portata, se non si è disimpegnata: un attacco in mischia contro di lei." }),
   feature({ id: "halo-of-spores", label: "Alone di Spore", featureIds: ["druido-circolo-delle-spore-alone-di-spore"],
     triggers: ["move-enter"], timing: "after", targetsMover: true, lot: "R5",
     effect: { kind: "retaliation", dice: "1d4", type: "necrotic", save: "con" }, short: "1d4 necrotici",
@@ -227,6 +234,20 @@ export const REACTION_TRIGGER_CATALOG = Object.freeze([
     triggers: ["turn-end-near"], timing: "after", targetsMover: true, flow: "note", lot: "R5",
     effect: { kind: "other" }, short: "Metà velocità senza AdO",
     rule: "Un nemico finisce il turno entro 1,5 m: si muove fino a metà velocità senza provocare attacchi di opportunità." }),
+
+  // M. A monster's reactions from its stat block (lot R4, decisions G1-G5): only the forms the plugin recognizes.
+  monster({ id: "monster-parry", label: "Parata", monsterKind: "ac-bonus", triggers: ["hit"], timing: "before",
+    filters: { attackRoll: true }, effect: { kind: "ac-bonus" }, short: "+N CA",
+    rule: "Aggiunge N alla CA contro un attacco in mischia che lo colpirebbe (testo dello statblock)." }),
+  monster({ id: "monster-halve", label: "Schivata Prodigiosa", monsterKind: "halve", triggers: ["hit"], timing: "before",
+    filters: { attackRoll: true }, flow: "modifier", effect: { kind: "halve" }, short: "Danno dimezzato",
+    rule: "Dimezza il danno di un attacco che lo colpisce (testo dello statblock)." }),
+  monster({ id: "monster-note-hit", label: "Reazione", monsterKind: "note-hit", triggers: ["damage"], timing: "after",
+    filters: { attackRoll: true }, effect: { kind: "other" }, short: "Dopo il colpo",
+    rule: "Una creatura lo colpisce con un attacco (testo dello statblock)." }),
+  monster({ id: "monster-note-miss", label: "Reazione", monsterKind: "note-miss", triggers: ["miss"], timing: "after",
+    effect: { kind: "other" }, short: "Dopo il mancato",
+    rule: "Una creatura lo manca con un attacco (testo dello statblock)." }),
 ]);
 
 const BY_ID = new Map(REACTION_TRIGGER_CATALOG.map((value) => [value.id, value]));

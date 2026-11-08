@@ -9,7 +9,7 @@ import {
   counterspellSuggestedSpellIds,
 } from "./counterspellCore.js";
 import { castCounterspell, counterspellSlotOptions, loadCounterspellScene } from "./counterspellRuntime.js";
-import { COUNTERSPELL_POPOVER_ID } from "./counterspellLauncher.js";
+import { COUNTERSPELL_POPOVER_ID, COUNTERSPELL_RESULT_CHANNEL } from "./counterspellLauncher.js";
 import "./popoverDrag.js";
 
 // Counterspell's popup: who is casting, which spell at which level, the slot it is countered with; the verdict follows
@@ -21,6 +21,19 @@ const casterId = params.get("source") || "";
 const quickActionId = params.get("quickAction") || "";
 const requestedSlotLevel = Number(params.get("slotLevel")) || null;
 const requestedSlotSource = params.get("slotSource") || "";
+// Avvisi di reazione, lot R2: opened from a reaction prompt, the cast that triggered it and who waits for the result.
+const requestedTargetId = params.get("target") || "";
+const requestedSpellId = params.get("spell") || "";
+const requestedSpellLevel = params.get("spellLevel") ?? "";
+const requestId = params.get("request") || "";
+let resultSent = false;
+
+// The spell panel that waits: how the popup ended. Sent once; nothing when nobody waits.
+function sendResult(outcome) {
+  if (!requestId || resultSent) return;
+  resultSent = true;
+  void OBR.broadcast.sendMessage(COUNTERSPELL_RESULT_CHANNEL, { requestId, outcome }, { destination: "LOCAL" }).catch(() => {});
+}
 const catalog = getQuickActionSpellOptions();
 let scene = { caster: null, candidates: [], unit: "", rangeLimit: 18 };
 let slotOptions = [];
@@ -125,6 +138,7 @@ async function cast() {
     }, { confirm: async (message) => window.confirm(message) });
     if (result.status === "cast") {
       done = true;
+      sendResult(result.context?.outcome === COUNTERSPELL_OUTCOMES.COUNTERED ? "countered" : "failed");
       setStatus(result.message, "ok");
       window.setTimeout(() => void OBR.popover.close(COUNTERSPELL_POPOVER_ID).catch(() => {}), 2500);
     } else {
@@ -160,7 +174,10 @@ for (const button of document.querySelectorAll(".outcomes button")) {
 }
 $("targetSlot").addEventListener("change", render);
 $("cast").addEventListener("click", () => void cast());
-$("close").addEventListener("click", () => void OBR.popover.close(COUNTERSPELL_POPOVER_ID).catch(() => {}));
+$("close").addEventListener("click", () => {
+  sendResult("closed");
+  void OBR.popover.close(COUNTERSPELL_POPOVER_ID).catch(() => {});
+});
 
 OBR.onReady(async () => {
   scene = await loadCounterspellScene(casterId);
@@ -177,8 +194,9 @@ OBR.onReady(async () => {
       entry.item.id,
     )),
   );
-  // The creature selected on the map, when there is one, is the likely caster being countered.
-  const selection = await OBR.player.getSelection().catch(() => []);
+  // The creature selected on the map, when there is one, is the likely caster being countered; from a reaction prompt,
+  // the creature that is casting.
+  const selection = requestedTargetId ? [requestedTargetId] : await OBR.player.getSelection().catch(() => []);
   const picked = (selection || []).find((id) => scene.candidates.some((entry) => entry.item.id === id));
   if (picked) $("target").value = picked;
   slotOptions = counterspellSlotOptions(scene.caster);
@@ -192,6 +210,15 @@ OBR.onReady(async () => {
     || slotOptions.find((option) => option.available) || slotOptions[0];
   if (preferred) $("slot").value = preferred.value;
   renderSpellList();
+  // From a reaction prompt: the spell being cast and its level, as the GM would type them.
+  const requestedSpell = requestedSpellId ? catalog.find((option) => option.id === requestedSpellId) : null;
+  if (requestedSpell) {
+    $("spell").value = requestedSpell.label;
+    $("spellLevel").value = String(requestedSpell.level);
+  }
+  if (requestedSpellLevel !== "" && [...$("spellLevel").options].some((option) => option.value === requestedSpellLevel)) {
+    $("spellLevel").value = requestedSpellLevel;
+  }
   render();
   $("spell").focus();
 });

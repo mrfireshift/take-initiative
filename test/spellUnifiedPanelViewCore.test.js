@@ -754,3 +754,35 @@ test("il controller reale usa adapter e provider senza importare executor o rego
   assert.doesNotMatch(controller, /executeSpellApplication|applyOperation|getSpellAreaRule|getSpellAreaRules/);
   assert.match(controller, /executeSpellUnifiedBoardToken(StateUpdate|Recreate)/);
 });
+
+// Avvisi di reazione, lot R3b-5: the reactions to the damage beside the session, on their creature only, as the
+// commit counts them (spellAreaResolutionExecutor.js); immune and the others as before.
+test("la preview HP conta le reazioni al danno della sua creatura", () => {
+  const currentContract = contract("fireball");
+  const session = createSpellPanelSession({
+    contract: currentContract,
+    casterId: "caster-a",
+    targetIds: ["failed", "passed", "immune"],
+    outcomes: { failed: "failed", passed: "passed", immune: "immune" },
+    hpValues: { damage: 20 },
+  });
+  const field = { reactionId: "protective-field", reactorId: "dars", reactorName: "Dars", amount: 4 };
+  const dampen = { reactionId: "dampen-elements", reactorId: "ilse", reactorName: "Ilse" };
+  const view = buildUnifiedPanelViewModel({
+    contract: currentContract,
+    session: { ...session, damageReactions: [{ ...field, targetId: "failed" }, { ...dampen, targetId: "passed" }, { ...field, targetId: "immune" }] },
+    targetCandidates: [
+      { key: "failed", label: "Fallito", hp: 20, hpMax: 20 },
+      { key: "passed", label: "Superato", hp: 20, hpMax: 20 },
+      { key: "immune", label: "Immune", hp: 20, hpMax: 20 },
+    ],
+  });
+  assert.deepEqual(
+    view.effects.preview.targets.map((target) => ({ key: target.key, factor: target.factor, afterHP: target.afterHP })),
+    [
+      { key: "failed", factor: "full", afterHP: 4 },
+      { key: "passed", factor: "half", afterHP: 15 },
+      { key: "immune", factor: "immune", afterHP: 20 },
+    ],
+  );
+});

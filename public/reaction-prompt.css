@@ -1,0 +1,44 @@
+/* Reaction prompts (avvisi di reazione, lots R1 and R2, reactionPromptView.js): who can react, with what and why, in
+   the reaction's purple over the window's glass. Usa opens the flow that already exists, Ignora closes it, "Non
+   chiedere più" mutes it. Loaded by the attack console, the Boss console and the spell panel: every value has a
+   fallback, so it needs none of their sheets. */
+.reaction-prompt { flex: 0 0 auto; display: grid; gap: 4px; margin: var(--obrt-space-md, 6px) var(--obrt-space-xl, 12px) 0; padding: 7px 10px; border: 1px solid rgba(192, 132, 252, .55); border-radius: var(--obrt-radius-md, 8px); background: rgba(88, 28, 135, .42); box-shadow: inset 0 0 0 1px rgba(192, 132, 252, .12), 0 8px 22px rgba(0, 0, 0, .35); color: #fff; }
+.reaction-prompt[hidden] { display: none; }
+.reaction-prompt-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: var(--obrt-type-secondary, 12px); line-height: 1.3; }
+.reaction-prompt-tag { flex: 0 0 auto; color: #c084fc; font-weight: var(--obrt-weight-bold, 700); white-space: nowrap; }
+.reaction-prompt-tag::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 4px; vertical-align: 1px; background: currentColor; transform: rotate(45deg); }
+.reaction-prompt-why { min-width: 0; color: var(--muted, #a5b4c8); text-wrap: pretty; }
+.reaction-prompt-row { display: flex; align-items: center; gap: 6px; min-height: var(--obrt-hit-min, 24px); }
+.reaction-prompt-body { flex: 1 1 auto; min-width: 0; display: grid; gap: 1px; font-size: var(--obrt-type-secondary, 12px); line-height: 1.3; }
+.reaction-prompt-effect { color: var(--muted, #a5b4c8); text-wrap: pretty; }
+.reaction-prompt .mini-button, .reaction-prompt .reaction-prompt-button { flex: 0 0 auto; }
+.reaction-prompt .reaction-prompt-button { height: var(--obrt-hit-min, 24px); padding: 0 8px; border: 1px solid rgba(148, 163, 184, .35); border-radius: var(--obrt-radius-md, 8px); background: rgba(15, 23, 42, .72); color: #fff; font: inherit; font-size: var(--obrt-type-secondary, 12px); cursor: pointer; }
+.reaction-prompt .reaction-prompt-button:disabled { opacity: .45; cursor: default; }
+.reaction-prompt-use:not(:disabled) { border-color: rgba(192, 132, 252, .75); background: rgba(126, 34, 206, .55); color: #fff; }
+.reaction-prompt-use:hover:not(:disabled) { background: rgba(147, 51, 234, .7); }
+.reaction-prompt-mute { flex: 0 0 auto; min-height: var(--obrt-hit-min, 24px); padding: 0 4px; border: 0; border-radius: var(--obrt-radius-md, 8px); background: transparent; color: var(--muted, #a5b4c8); font: inherit; font-size: var(--obrt-type-caption, 11px); white-space: nowrap; cursor: pointer; }
+.reaction-prompt-mute:hover:not(:disabled) { background: var(--obrt-hover, rgba(255, 255, 255, .08)); color: #fff; }
+.reaction-prompt-mute:disabled { opacity: .45; cursor: default; }
+.reaction-prompt-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.reaction-prompt-hint { margin-right: auto; color: var(--muted, #a5b4c8); font-size: var(--obrt-type-caption, 11px); }
+/* Lot R6: a player's answer from their screen (Online profile); their Usa is lit, the GM confirms. */
+.reaction-prompt-answer { color: var(--muted, #a5b4c8); font-size: var(--obrt-type-caption, 11px); font-weight: var(--obrt-weight-bold, 700); }
+.reaction-prompt-answer.is-use { color: #e9d5ff; }
+.reaction-prompt .reaction-prompt-use-requested:not(:disabled) { background: rgba(147, 51, 234, .85); box-shadow: 0 0 0 2px rgba(233, 213, 255, .75); }
+/* The spell panel (lot R2): above its fixed Lancia row, which the script measures (bottom). */
+.reaction-prompt-floating { position: absolute; left: 12px; right: 12px; bottom: 72px; z-index: 11; margin: 0; }
+/* Over the panel's list: a full background, the rows under it must not show through. */
+.reaction-prompt-floating { background: rgba(46, 16, 74, .97); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: 0 -6px 24px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(192, 132, 252, .12); }
+/* Lot R3b: the target's reactions to the damage, lines on the console's draft under the damage (Usa writes nothing:
+   Registra spends them with the attack). */
+.damage-reactions { display: grid; gap: 2px; margin-top: 4px; }
+.damage-reactions[hidden] { display: none; }
+/* Lot R3b-5: in the spell panel, a box of its own right above Lancia (the prompt goes above it). */
+.damage-reactions.reaction-prompt-floating { margin: 0; }
+.damage-reactions-caption { color: #c084fc; font-size: var(--obrt-type-caption, 11px); font-weight: var(--obrt-weight-bold, 700); }
+.damage-reaction { display: flex; align-items: center; gap: 6px; min-height: var(--obrt-hit-min, 24px); font-size: var(--obrt-type-secondary, 12px); }
+.damage-reaction-label { flex: 1 1 auto; min-width: 0; line-height: 1.3; }
+.damage-reaction-effect { flex: 0 0 auto; color: var(--muted, #a5b4c8); }
+.damage-reaction input, .damage-reaction select { flex: 0 0 64px; width: 64px; min-height: 24px; padding: 2px 4px; border: 1px solid rgba(192, 132, 252, .55); border-radius: var(--obrt-radius-md, 8px); background: rgba(15, 23, 42, .72); color: inherit; font: inherit; }
+.damage-reaction-remove { flex: 0 0 auto; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--obrt-radius-md, 8px); background: transparent; color: var(--muted, #a5b4c8); cursor: pointer; }
+.damage-reaction-remove:hover:not(:disabled) { background: var(--obrt-hover, rgba(255, 255, 255, .08)); color: #fff; }

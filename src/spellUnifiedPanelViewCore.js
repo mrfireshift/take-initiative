@@ -8,6 +8,7 @@ import { spellCastTemporaryHpHint, spellCastTemporaryHpRollRange, spellCastTempo
 import { ID } from "./constants.js";
 import { buildSharedHpPreview } from "./sharedHpViewCore.js";
 import { PRISMATIC_SPRAY_SPELL_ID, prismaticSprayDamageRays } from "./prismaticSprayRules.js";
+import { spellDamageWithReactions } from "./damageReactionCore.js";
 import {
   spellActionDamageTypes,
   spellDamageAfterDefense,
@@ -539,10 +540,19 @@ function hpPreviewFor(
           defenses: candidate.damageDefenses,
           ignoredTypes: session?.ignoredDefenses?.[candidate.key],
         }));
+      // Avvisi di reazione, lot R3b-5: this creature's reactions to the damage, as the commit counts them (hpEntries).
+      const reactionTypes = spellPanelDamageTypes(spellId, session?.triggerRuntime);
+      const reacted = isHealing || immune || attackMiss || noDamage ? null : spellDamageWithReactions({
+        parts: partsWritten ? damageParts : [{ type: reactionTypes[0], amount: value }],
+        factor,
+        defenseFor: (type) => (!partsWritten && reactionTypes.length > 1 ? null : spellDamageDefenseApplied(spellDamageDefenseRows({
+          types: [type], defenses: candidate.damageDefenses, ignoredTypes: session?.ignoredDefenses?.[candidate.key] }))),
+        reactions: (Array.isArray(session?.damageReactions) ? session.damageReactions : []).filter((row) => row?.targetId === candidate.key),
+      });
       let change = calculateQuickHPChange({
         mode,
-        value: immune || attackMiss || noDamage ? 0 : parts ? parts.after : defense ? spellDamageAfterDefense(value, factor, defense) : value,
-        factor: attackMiss || defense || parts ? QUICK_HP_FACTORS.FULL : factor,
+        value: immune || attackMiss || noDamage ? 0 : reacted ? reacted.value : parts ? parts.after : defense ? spellDamageAfterDefense(value, factor, defense) : value,
+        factor: attackMiss || defense || parts || reacted ? QUICK_HP_FACTORS.FULL : factor,
         hp: beforeHP,
         hpMax,
         tempHp: candidate.tempHp,

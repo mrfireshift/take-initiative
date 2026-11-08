@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reazione al movimento</title>
+    <link rel="stylesheet" href="/ui-typography.css" />
+    <link rel="stylesheet" href="/reaction-prompt.css" />
+    <style>
+      /* Avvisi di reazione, lot R5: the GM's prompt after a movement (reactionMoveWatcher.js). No color-scheme on the
+         root: Owlbear would put a black canvas behind the glass. */
+      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent !important; }
+      body { box-sizing: border-box; color: #fff; font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif); font-size: 12px; }
+      .reaction-move { box-sizing: border-box; min-height: 100vh; margin: 0; overflow: hidden; background: rgba(46, 16, 74, .97); }
+      .reaction-move-status { margin: 0; color: var(--muted, #a5b4c8); font-size: var(--obrt-type-caption, 11px); }
+      .reaction-move-status[data-state="error"] { color: #fca5a5; }
+    </style>
+  </head>
+  <body>
+    <div id="reaction-move" class="reaction-prompt reaction-move" hidden></div>
+    <p id="reaction-move-status" class="reaction-move-status" role="status" aria-live="polite" hidden></p>
+    <script type="module" src="/src/reaction-move.js"></script>
+  </body>
+</html>

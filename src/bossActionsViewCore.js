@@ -1,3 +1,4 @@
+import { adjustForDamageReactions, defenseWithReactionResistance } from "./damageReactionCore.js";
 import { ID } from "./constants.js";
 import { bossSpellReferenceIds, BOSS_ACTION_SPELL_IDS } from "./bossActionProfileCore.js";
 import { scaledQuickHPAmount } from "./quickHpCore.js";
@@ -617,18 +618,26 @@ function damageByType(components, amounts) {
 }
 
 // Preview with the same arithmetic as the commit: outcome factor first, then the Actor Profile defense, on each type's sum.
-export function bossDefendedDamage(components = [], amounts = {}, outcome = "", profileDefenses = {}, ignoredTypes = [], marked = false, evasion = false) {
+// reactions (avvisi di reazione, lot R3b): the target's reactions to this damage, as defendedComponents applies them at
+// the commit (damageReactionCore.js), so that the total the GM sees is the one written.
+export function bossDefendedDamage(components = [], amounts = {}, outcome = "", profileDefenses = {}, ignoredTypes = [], marked = false, evasion = false,
+  reactions = []) {
   const defenses = marked ? bossMarkedDefenses(profileDefenses) : profileDefenses;
   if (outcome === "miss") return 0;
   const base = outcome === "passed" ? "half" : "full";
   // Evasion: a passed DEX save takes nothing, a failed one half (the shared factors have no "zero").
-  const factor = evasion ? evasionFactor(base) : base;
-  if (factor === "zero") return 0;
+  const outcomeFactor = evasion ? evasionFactor(base) : base;
+  if (outcomeFactor === "zero") return 0;
+  const reacted = Array.isArray(reactions) && reactions.length
+    ? adjustForDamageReactions({ components, inputs: amounts, factor: outcomeFactor, reactions }) : null;
+  const factor = reacted?.active ? reacted.factor : outcomeFactor;
+  const resisted = new Set(reacted?.active ? reacted.resistanceTypes : []);
   const ignored = new Set(Array.isArray(ignoredTypes) ? ignoredTypes : []);
   let sum = 0;
-  for (const [type, value] of damageByType(components, amounts)) {
-    const defense = damageDefenseFor(defenses, type);
-    sum += componentDamageAfterDefense(value, factor, defense && !ignored.has(type) ? defense : null);
+  for (const [type, value] of damageByType(components, reacted?.active ? reacted.inputs : amounts)) {
+    const profileDefense = damageDefenseFor(defenses, type);
+    const own = profileDefense && !ignored.has(type) ? profileDefense : null;
+    sum += componentDamageAfterDefense(value, factor, resisted.has(type) ? defenseWithReactionResistance(own) : own);
   }
   return sum;
 }

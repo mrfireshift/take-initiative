@@ -230,11 +230,12 @@ const CATALOG_INDEX = new Map(REACTION_TRIGGER_CATALOG.map((entry, index) => [en
 
 /**
  * The reactions an event allows. context: items (the scene items), state (the initiative state: its order), options
- * (the prompts' options, normalized here), distance(a, b) (meters between two items, or null when unknown).
+ * (the prompts' options, normalized here), distance(a, b) (meters between two items, or null when unknown),
+ * monsterReactions ({ item id: [reactions read from its stat block] }, monsterReactionParseCore.js, lot R4).
  * Returns { trigger, candidates }: each candidate { key, reactionId, label, source, timing, flow, lot, reactorId,
  * reactorName, actorKey, protectedId, protectedName, spellId, featureId, variant, targetIds, short, rule, why }.
  */
-export function reactionCandidates(event, { items = [], state = null, options = undefined, distance = null } = {}) {
+export function reactionCandidates(event, { items = [], state = null, options = undefined, distance = null, monsterReactions = null } = {}) {
   const value = normalizeReactionEvent(event);
   const result = { trigger: value.trigger, candidates: [] };
   const opts = normalizeReactionPromptOptions(options);
@@ -283,6 +284,14 @@ export function reactionCandidates(event, { items = [], state = null, options = 
         if (!feature) continue;
         featureId = feature.id;
       }
+      // Lot R4: a monster's reaction of this kind, read from its stat block; a Parry that says "melee" only in melee.
+      let monsterReaction = null;
+      if (entry.source === "monster") {
+        const list = monsterReactions && typeof monsterReactions === "object" ? monsterReactions[baseId(reactor.id)] : null;
+        monsterReaction = (Array.isArray(list) ? list : []).find((reaction) => reaction?.kind === entry.monsterKind) || null;
+        if (!monsterReaction) continue;
+        if (monsterReaction.melee && value.range !== "melee") continue;
+      }
 
       const absorbed = entry.effect?.variantByType ? value.damageTypes.find((type) => ABSORB_ELEMENTS_CHOICES[type]) : "";
       const targetIds = entry.targetsAttacker ? (value.attackerId ? [value.attackerId] : [])
@@ -293,7 +302,7 @@ export function reactionCandidates(event, { items = [], state = null, options = 
         result.candidates.push({
           key: `${baseId(reactor.id)}::${entry.id}${target ? `::${target.id}` : ""}`,
           reactionId: entry.id,
-          label: entry.label,
+          label: monsterReaction && entry.effect?.kind === "other" ? monsterReaction.name : entry.label,
           source: entry.source,
           timing: entry.timing,
           flow: entry.flow,
@@ -307,8 +316,9 @@ export function reactionCandidates(event, { items = [], state = null, options = 
           featureId,
           variant: absorbed ? ABSORB_ELEMENTS_CHOICES[absorbed] : "",
           targetIds,
-          short: entry.short,
-          rule: entry.rule,
+          short: monsterReaction?.kind === "ac-bonus" ? `+${monsterReaction.amount} CA` : entry.short,
+          rule: monsterReaction ? `${monsterReaction.name}: ${monsterReaction.text}` : entry.rule,
+          ...(monsterReaction?.kind === "ac-bonus" ? { amount: monsterReaction.amount } : {}),
           why: why(value, { attacker, caster, mover, target }),
         });
       }

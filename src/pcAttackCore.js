@@ -7,6 +7,7 @@
 // its save and its pill, committed with the attack.
 import { ID } from "./constants.js";
 import { calculateQuickHPChange, QUICK_HP_MODES } from "./quickHpCore.js";
+import { adjustForDamageReactions } from "./damageReactionCore.js";
 import { takesDeathSaveDamage } from "./deathSaveCore.js";
 import { spellCasterHealingChange } from "./spellDamageHealingCore.js";
 import { sanitizeQuickAction, sanitizeQuickActions, QUICK_ACTION_ATTACK_DAMAGE_TYPES, QUICK_ACTION_VERSION, quickActionRechargeState,
@@ -1123,6 +1124,8 @@ export function pcAttackPreview({
   action, spellId = "", sourceItem = null, targetItem = null, outcome = "", amounts = {}, ignoredDefenses = [],
   riders = [], extras = [], turnState = null, weaponCantrip = null, secondaryItem = null, activations = [], tempHpItems = [],
   attackMode = "", modeAmount = "", burstItems = [], spellCast = null, hitEffect = null, reappliedDefenses = [],
+  // Avvisi di reazione, lot R3b: the target's reactions to this damage (Uncanny Dodge, Parry...), as the commit applies them.
+  damageReactions = [],
 } = {}) {
   const resolved = pcAttackResolvedAction(action, spellId, attackMode);
   if (!resolved) return { ready: false, blocker: pcAttackAction(action)
@@ -1176,7 +1179,7 @@ export function pcAttackPreview({
   // A monster's hit effect (fase 5, lotto 4): its save's damage on top, with the target's defenses.
   const hitPlan = targetItem ? pcAttackHitEffectPlan({ attack, outcome, hitEffect, targetItem, sourceItem }) : null;
   const total = (targetItem && outcome && !miss
-    ? bossDefendedDamage(components, allAmounts, factor === "half" ? "passed" : "hit", attackDefenses, appliedIgnored) : 0)
+    ? bossDefendedDamage(components, allAmounts, factor === "half" ? "passed" : "hit", attackDefenses, appliedIgnored, false, false, damageReactions) : 0)
     + (hitPlan?.components || []).reduce((sum, component) => sum + component.amount, 0);
   // The count the console shows: what each defense did to the damage typed, and to a monster's save on the hit.
   const targetCard = targetItem?.metadata?.[META_KEY]?.initiativeCard;
@@ -1289,6 +1292,9 @@ export function buildPcAttackMutation({
   weaponCantrip = null, secondaryItem = null, expectedSecondaryDefenses, activations = [], tempHpItems = [],
   attackMode = "", modeAmount = null, burstItems = [], expectedBurstDefenses = {}, spellCast = null, linkItems = [], hitEffect = null,
   reappliedDefenses = [],
+  // Avvisi di reazione, lot R3b: the target's reactions to this damage, on the target only (decision E3: the reactor's
+  // reaction and resource are added by the runtime, read again at the commit).
+  damageReactions = [],
 } = {}) {
   if (!isBossActionCreature(sourceItem) || !isBossActionTargetItem(targetItem))
     throw new Error("Attaccante e bersaglio devono essere token creatura reali.");
@@ -1374,9 +1380,14 @@ export function buildPcAttackMutation({
   const hitPlan = pcAttackHitEffectPlan({ attack, outcome, hitEffect, targetItem, sourceItem, attackInstanceId, turnState });
   if (hitPlan.blocker) throw new Error(hitPlan.blocker);
   // A critical hit keeps the full factor: the totals the GM enters already include the doubled dice.
+  const reactionsOnTarget = miss ? [] : (Array.isArray(damageReactions) ? damageReactions : []);
   const damageComponents = [...defendedComponents(components, inputs, factor, targetItem,
     [...ignoredDefenses, ...pcAttackMagicIgnoredDefenses(attack, targetItem, reappliedDefenses)],
-    expectedDefenses, false, { spell: pcAttackSpellDamage(attack) }), ...hitPlan.components];
+    expectedDefenses, false, { spell: pcAttackSpellDamage(attack), reactions: reactionsOnTarget }), ...hitPlan.components];
+  // Why the damage is what it is (lot R3b): one line per reaction, for the History and the combat log.
+  const damageReactionRecords = reactionsOnTarget.length
+    ? adjustForDamageReactions({ components, inputs, factor, reactions: reactionsOnTarget }).records
+      .map((record) => ({ id: targetItem.id, ...record })) : [];
   const requestedDamage = damageComponents.reduce((sum, component) => sum + component.amount, 0);
   const targetMeta = targetItem.metadata?.[META_KEY] || {};
   let change = null;
@@ -1584,6 +1595,7 @@ export function buildPcAttackMutation({
   const pillTargetIds = [...new Set([...Object.keys(activationPlan.instancesByTarget), ...linkEnds.map((end) => end.itemId)])];
   if (activationPlan.notes.length) causality.notes = [...activationPlan.notes];
   if (hitPlan.causality) causality.onHit = hitPlan.causality;
+  if (damageReactionRecords.length) causality.damageReactions = structuredClone(damageReactionRecords);
   return {
     change, damageComponents, causality,
     followUps: [...pcAttackFollowUps(sourceMeta.initiativeCard, chosenRiders, activationPlan.chosen.map((activation) => activation.id)), ...activationPlan.notes],
@@ -1656,6 +1668,7 @@ export function buildPcAttackMutation({
         { key: STATE_KEY, field: "current", value: turnState?.current },
       ] } : {}),
       history: { kind: PC_ATTACK_HISTORY_KIND, label, payload: { causality, damageComponents: structuredClone(damageComponents),
+        ...(damageReactionRecords.length ? { damageReactions: structuredClone(damageReactionRecords) } : {}),
         // The cantrip's on-hit effect is not applied yet: it is recorded as the part the GM resolves by hand.
         ...(DAMAGING_OUTCOMES.has(outcome) && attack.cantrip?.effectNote ? { manualRemainder: attack.cantrip.effectNote }
           : hitPlan.manual ? { manualRemainder: hitPlan.manual } : {}) } },
@@ -1975,8 +1988,11 @@ function areaInputs(attack, { amounts = {}, riders = [], extras = [], modeOption
   };
 }
 
+// damageReactions (avvisi di reazione, lot R3b-4): the reactions to this damage, each with the creature it protects
+// (targetId), counted on that creature's row only.
 export function pcAttackAreaPreview({
   action, spellId = "", attackMode = "", sourceItem = null, members = [], amounts = {}, riders = [], extras = [], modeAmount = "", turnState = null,
+  damageReactions = [],
 } = {}) {
   const attack = pcAttackResolvedAction(action, spellId, attackMode);
   if (!attack?.area) return { ready: false, blocker: "Non è un attacco ad area.", rows: [], total: 0 };
@@ -1997,8 +2013,9 @@ export function pcAttackAreaPreview({
     const profileDefenses = damageDefensesForItem(member.item, META_KEY);
     const memberDefenses = pcAttackDefensesAgainst(attack, profileDefenses, member.item);
     const magicTypes = pcAttackAreaMagicIgnored(attack, member.item);
+    const memberReactions = (Array.isArray(damageReactions) ? damageReactions : []).filter((reaction) => reaction?.targetId === member.item.id);
     const total = member.outcome && factor !== "zero" && amountsReady
-      ? bossDefendedDamage(components, inputs, factor === "half" ? "passed" : "hit", memberDefenses, magicTypes) : 0;
+      ? bossDefendedDamage(components, inputs, factor === "half" ? "passed" : "hit", memberDefenses, magicTypes, false, false, memberReactions) : 0;
     const hp = Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax)
       ? { before: meta.hp, after: calculateQuickHPChange({ value: total, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp }).afterHP, hpMax: meta.hpMax } : null;
     const conditionImmune = attack.monster?.onFail ? pcAttackTargetConditionImmune(member.item, attack.monster.onFail.condition) : false;
@@ -2044,6 +2061,9 @@ export function pcAttackAreaRowDamage(row) {
 export function buildPcAttackAreaMutation({
   action, spellId = "", attackMode = "", sourceItem, members = [], componentAmounts = {}, riders = [], extras = [], modeAmount = null,
   attackInstanceId, expectedDefenses = {}, turnState = null,
+  // Avvisi di reazione, lot R3b-4: the reactions to this damage, each with the creature it protects (targetId); the
+  // reactors' reaction and resource are added by the runtime (decision E3).
+  damageReactions = [],
 } = {}) {
   if (!isBossActionCreature(sourceItem)) throw new Error("L'attaccante deve essere un token creatura reale.");
   if (!attackInstanceId || typeof attackInstanceId !== "string") throw new Error("Identità dell'attacco mancante.");
@@ -2100,10 +2120,14 @@ export function buildPcAttackAreaMutation({
       throw new Error(`${member.item.name || member.item.id} non ha PF canonici validi.`);
     const evasion = pcAttackTargetEvasion(attack, member.item);
     const factor = areaFactor(attack, member.outcome, card, evasion);
+    const memberReactions = factor === "zero" ? []
+      : (Array.isArray(damageReactions) ? damageReactions : []).filter((reaction) => reaction?.targetId === member.item.id);
     const damageComponents = defendedComponents(components, inputs, factor, member.item, pcAttackAreaMagicIgnored(attack, member.item),
-      expectedDefenses?.[member.item.id], false, { spell: pcAttackSpellDamage(attack) });
+      expectedDefenses?.[member.item.id], false, { spell: pcAttackSpellDamage(attack), reactions: memberReactions });
     const requested = damageComponents.reduce((sum, component) => sum + component.amount, 0);
-    return { item: member.item, meta, outcome: member.outcome, factor, damageComponents, evasion,
+    const reactionRecords = memberReactions.length
+      ? adjustForDamageReactions({ components, inputs, factor, reactions: memberReactions }).records.map((record) => ({ id: member.item.id, ...record })) : [];
+    return { item: member.item, meta, outcome: member.outcome, factor, damageComponents, evasion, reactionRecords,
       conditionImmune: attack.monster?.onFail ? pcAttackTargetConditionImmune(member.item, attack.monster.onFail.condition) : false,
       change: calculateQuickHPChange({ value: requested, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp, deathSaveDamage: takesDeathSaveDamage(meta) }) };
   });
@@ -2228,7 +2252,8 @@ export function buildPcAttackAreaMutation({
         { key: STATE_KEY, field: "current", value: turnState?.current },
       ] } : {}),
       history: { kind: PC_ATTACK_HISTORY_KIND, label, payload: { causality,
-        damageComponents: structuredClone(rows.flatMap((row) => row.damageComponents)) } },
+        damageComponents: structuredClone(rows.flatMap((row) => row.damageComponents)),
+        ...(rows.some((row) => row.reactionRecords.length) ? { damageReactions: structuredClone(rows.flatMap((row) => row.reactionRecords)) } : {}) } },
     },
   };
 }

@@ -73,6 +73,7 @@ import {
 } from "./reactionTrackerCore.js";
 import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments, undoHistoryThrough } from "./history.js";
+import { handleReactionMoveSegments } from "./reactionMoveWatcher.js";
 import { decorateCompositeEffectsHistoryEntry } from "./effectsMutationCompositeHistoryCore.js";
 import { recordCombatTurn } from "./combatLog.js";
 import { shouldHandleHistoryUndoShortcut } from "./historyUndoUiCore.js";
@@ -11918,6 +11919,8 @@ try {
   if (IS_GM) {
     enableSpeedCheckProcessor();
     subscribeMovementSegments(queueSpeedCheckMovements);
+    // Avvisi di reazione, lot R5: the movement's reactions (Opportunity Attack), read only; it writes nothing.
+    subscribeMovementSegments(handleReactionMoveSegments);
     try {
       await mountMovementHistoryWatcher();
     } catch (err) {

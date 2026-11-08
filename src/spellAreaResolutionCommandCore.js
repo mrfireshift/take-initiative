@@ -1019,6 +1019,13 @@ function normalizeHp(
   const ignoredDefenses = Object.fromEntries(targetIds
     .map((targetId) => [targetId, uniqueIds(requestedIgnoredDefenses?.[targetId])])
     .filter(([, types]) => types.length));
+  // Avvisi di reazione, lot R3b-5: the reactions to the damage, each on a target of this cast.
+  const requestedReactions = rawHp.damageReactions || input.damageReactions;
+  const damageReactions = (Array.isArray(requestedReactions) ? requestedReactions : [])
+    .filter((row) => row && typeof row === "object" && targetIds.includes(text(row.targetId)) && text(row.reactorId) && text(row.reactionId))
+    .map((row) => ({ reactionId: text(row.reactionId), reactorId: text(row.reactorId), reactorName: text(row.reactorName), featureId: text(row.featureId),
+      targetId: text(row.targetId), ...(Number.isFinite(Number(row.amount)) && row.amount !== "" && row.amount !== null ? { amount: Math.max(0, Math.floor(Number(row.amount))) } : {}),
+      ...(Number.isInteger(Number(row.slotLevel)) && Number(row.slotLevel) > 0 ? { slotLevel: Number(row.slotLevel) } : {}) }));
   return {
     required,
     mode: omitDamageInput ? "none" : required || effectiveAmount !== null ? validMode : "none",
@@ -1027,6 +1034,7 @@ function normalizeHp(
       : effectiveAmount === null ? null : Math.floor(effectiveAmount),
     ...(parts ? { parts } : {}),
     ...(Object.keys(ignoredDefenses).length ? { ignoredDefenses } : {}),
+    ...(damageReactions.length ? { damageReactions } : {}),
     ...(Array.isArray(rawHp.damageTypes) ? { damageTypes: uniqueIds(rawHp.damageTypes) } : {}),
     primaryAmount: primaryAmount === null ? null : Math.floor(primaryAmount),
     primaryRequired: primaryDamageRequired,

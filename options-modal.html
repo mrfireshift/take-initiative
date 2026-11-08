@@ -112,7 +112,7 @@
             <div><h2 id="reaction-prompts-title">Avvisi di reazione</h2></div>
             <span class="scope-badge local">Questo browser</span>
           </div>
-          <p class="option-note">Nelle console attacchi e Boss, sopra Registra: chi può reagire, con cosa e perché. Usa apre il lancio di sempre, Ignora chiude; registrare senza usarla vale come Ignora. L'avviso non scrive niente da solo.</p>
+          <p class="option-note">Nelle console attacchi e Boss sopra Registra, nel pannello incantesimi sopra Lancia: chi può reagire, con cosa e perché. Usa apre il lancio di sempre, Ignora chiude; registrare o lanciare senza usarla vale come Ignora. L'avviso non scrive niente da solo.</p>
           <label class="option-toggle compact">
             <span>Mostra gli avvisi di reazione</span>
             <input type="checkbox" data-reaction="enabled" />
@@ -122,16 +122,32 @@
             <input type="checkbox" data-reaction="triggers.hit" />
           </label>
           <label class="option-toggle compact">
-            <span>Quando una creatura subisce danni (Assorbire elementi, Intimorire infernale)</span>
+            <span>Quando una creatura subisce danni (Assorbire elementi, Intimorire infernale, Ritorsione)</span>
             <input type="checkbox" data-reaction="triggers.damage" />
+          </label>
+          <label class="option-toggle compact">
+            <span>Quando un attacco manca (Replica, Opporsi alla Marea)</span>
+            <input type="checkbox" data-reaction="triggers.miss" />
+          </label>
+          <label class="option-toggle compact">
+            <span>Quando una creatura lancia un incantesimo dal pannello (Controincantesimo)</span>
+            <input type="checkbox" data-reaction="triggers.spellCast" />
+          </label>
+          <label class="option-toggle compact">
+            <span>Controincantesimo anche contro i trucchetti</span>
+            <input type="checkbox" data-reaction="counterspellCantrips" />
           </label>
           <label class="option-toggle compact">
             <span>Per i personaggi dei giocatori</span>
             <input type="checkbox" data-reaction="actors.pcs" />
           </label>
           <label class="option-toggle compact">
-            <span>Per i mostri e le altre creature</span>
+            <span>Per i mostri e le altre creature (Parata, Schivata Prodigiosa e reazioni a un colpo lette dallo statblock importato)</span>
             <input type="checkbox" data-reaction="actors.npcs" />
+          </label>
+          <label class="option-toggle compact">
+            <span>Mostra allo schermo dei giocatori le reazioni dei PG, senza pulsanti (profilo Tavolo; nel profilo Online le vede sempre il giocatore del PG)</span>
+            <input type="checkbox" data-reaction="screen" />
           </label>
           <div class="option-field reaction-muted">
             <span>Reazioni silenziate («Non chiedere più»)</span>

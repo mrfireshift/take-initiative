@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/ui-typography.css" />
     <link rel="stylesheet" href="/popover-glass.css" />
     <link rel="stylesheet" href="/spell-unified-panel.css" />
+    <link rel="stylesheet" href="/reaction-prompt.css" />
   </head>
   <body class="unified-panel-body">
     <main
@@ -28,6 +29,9 @@
         </button>
       </header>
       <div id="spell-unified-panel-root" class="unified-panel-scroll" tabindex="-1"></div>
+      <div id="spell-unified-reaction-prompt" class="reaction-prompt reaction-prompt-floating" hidden></div>
+      <div id="spell-unified-reaction-wait" class="reaction-prompt reaction-prompt-floating" role="status" aria-live="polite" hidden></div>
+      <div id="spell-unified-damage-reactions" class="reaction-prompt damage-reactions reaction-prompt-floating" hidden></div>
     </main>
     <script type="module" src="/src/spell-unified-panel.js"></script>
   </body>

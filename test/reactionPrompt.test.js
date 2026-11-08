@@ -45,7 +45,10 @@ test("the candidates of a phase: before (Shield, Absorb Elements), after (Hellis
   assert.equal(before[1].variant, "fuoco");
   const after = reactionPromptCandidates({ event: hitEvents("mage"), items, state }, "after");
   assert.deepEqual(after.map((candidate) => candidate.reactionId), ["hellish-rebuke"]);
-  assert.deepEqual(reactionPromptCandidates({ event: hitEvents("rogue"), items, state }, "before"), [], "Uncanny Dodge waits for R3b");
+  const [dodge] = reactionPromptCandidates({ event: hitEvents("rogue"), items, state }, "before");
+  assert.equal(dodge.reactionId, "uncanny-dodge");
+  assert.equal(dodge.flow, "modifier", "lot R3b: a line on the draft");
+  assert.deepEqual(reactionPromptCandidates({ event: hitEvents("rogue"), items, state, skip: [dodge.key] }, "before"), [], "already on the draft");
   assert.deepEqual(reactionPromptCandidates({ event: null, items, state }, "before"), []);
 });
 
@@ -96,7 +99,7 @@ test("Usa runs the console's flow and closes; Registra counts as Ignora; the not
   assert.doesNotMatch(textOf(box), /Registra senza usarla/u);
   prompt.update({ event: null, items, state, draftKey: "d3" });
   assert.equal(box.hidden, false, "still there while the next attack has no outcome");
-  prompt.update({ event: hitEvents("rogue"), items, state, draftKey: "d3" });
+  prompt.update({ event: [{ ...base, trigger: "miss", targetIds: ["mage"] }], items, state, draftKey: "d3" });
   assert.equal(box.hidden, true, "the GM moved on");
 });
 
@@ -132,4 +135,122 @@ test("the local options: under «reactions», the rest of the document kept", as
   await option.mute("n1abc", "shield", false);
   assert.deepEqual(option.read().muted, [], "↺");
   assert.equal(seen.muted.length, 0, "the subscribers follow");
+});
+
+// Lot R2: Counterspell when a creature casts from the spell panel.
+const { counterspellPopoverUrl } = await import("../src/counterspellLauncher.js");
+const { sceneUnitToMeters } = await import("../src/reactionSceneContext.js");
+
+test("a spell cast: Counterspell and Magic-User's Nemesis within 18 m, Spell Thief only on its target (R2, R2b)", () => {
+  const shaman = creature("shaman", { attitude: "enemy" }, "Sciamano");
+  const counter = creature("wiz", { initiativeCard: { spellbook: { spellIds: ["counterspell"] } } }, "Lia");
+  const ranger = creature("ranger", { initiativeCard: { characterBuild: [{ classId: "ranger", level: 11, subclassId: "ranger-uccisore-di-mostri" }],
+    classFeaturesConfigured: true, enabledClassFeatureIds: ["ranger-uccisore-di-mostri-nemesi-degli-incantatori"], spellSaveDC: 15 } }, "Kai");
+  const thief = creature("thief", { initiativeCard: { characterBuild: [{ classId: "ladro", level: 17, subclassId: "ladro-mistificatore-arcano" }],
+    classFeaturesConfigured: true, enabledClassFeatureIds: ["ladro-mistificatore-arcano-ladro-di-incantesimi"], spellSaveDC: 16 } }, "Vex");
+  const scene = [shaman, counter, ranger, thief];
+  const castState = { round: 1, current: 0, order: ["shaman", "wiz", "ranger", "thief"] };
+  const event = { trigger: "spell-cast", casterId: "shaman", spellId: "fireball", spellName: "Palla di fuoco", spellLevel: 3 };
+  const list = reactionPromptCandidates({ event, items: scene, state: castState, distance: () => 12 }, "before");
+  assert.deepEqual(list.map((candidate) => candidate.reactionId), ["magic-users-nemesis", "counterspell"], "Kai, then Lia; Vex is not a target");
+  const counterspell = list.find((candidate) => candidate.reactionId === "counterspell");
+  assert.deepEqual(counterspell.targetIds, ["shaman"]);
+  assert.match(reactionPromptEffectText(counterspell), /automatico fino al livello dello slot/u);
+  assert.equal(reactionPromptEffectText(list[0], scene), "TS Saggezza CD 15: se lo fallisce, l'incantesimo fallisce e lo slot è perso");
+  const onThief = reactionPromptCandidates({ event: { ...event, spellTargetIds: ["thief"] }, items: scene, state: castState, distance: () => 12 }, "before");
+  const stolen = onThief.find((candidate) => candidate.reactionId === "spell-thief");
+  assert.equal(stolen.featureId, "ladro-mistificatore-arcano-ladro-di-incantesimi");
+  assert.match(reactionPromptEffectText(stolen, scene), /CD 16: se lo fallisce, non ha effetto sul ladro, che lo ruba/u);
+  assert.deepEqual(reactionPromptCandidates({ event: { ...event, spellLevel: 0 }, items: scene, state: castState, distance: () => 12 }, "before")
+    .map((candidate) => candidate.reactionId), ["magic-users-nemesis"], "Counterspell not on a cantrip, by default");
+});
+
+// Lot R3a: the class features that change the outcome, on the reactor or on an ally within reach.
+const { useReactionFeature } = await import("../src/reactionFeatureRuntime.js");
+const { reactionDistanceFunction } = await import("../src/reactionSceneContext.js");
+
+test("R3a: a bonus to the AC says which rolls miss; on an ally only within its meters; a critical made a hit", () => {
+  const paladin = creature("pal", { initiativeCard: { characterBuild: [{ classId: "paladino", level: 15, subclassId: "paladino-giuramento-di-gloria" }],
+    classFeaturesConfigured: true, enabledClassFeatureIds: ["paladino-giuramento-di-gloria-difesa-gloriosa"], abilityModifiers: { cha: 4 } } }, "Ser");
+  const ally = creature("ally", { initiativeCard: { armorClass: 14 } }, "Bram");
+  const scene = [orc, paladin, ally];
+  const glory = { round: 1, current: 0, order: ["orc", "pal", "ally"] };
+  const near = reactionPromptCandidates({ event: hitEvents("ally"), items: scene, state: glory, distance: () => 3 }, "before");
+  assert.deepEqual(near.map((candidate) => candidate.reactionId), ["glorious-defense"]);
+  assert.equal(reactionPromptEffectText(near[0], scene), "+ Car alla CA su Bram · CA 14 → 18: un tiro da 14 a 17 diventa Mancato");
+  assert.deepEqual(reactionPromptCandidates({ event: hitEvents("ally"), items: scene, state: glory, distance: () => 6 }, "before"), [], "beyond 3 m");
+  assert.deepEqual(reactionPromptCandidates({ event: hitEvents("ally"), items: scene, state: glory }, "before"), [], "no distance yet");
+
+  const cleric = creature("cleric", { initiativeCard: { characterBuild: [{ classId: "chierico", level: 6, subclassId: "chierico-dominio-della-tomba" }],
+    classFeaturesConfigured: true, enabledClassFeatureIds: ["chierico-dominio-della-tomba-sentinella-alla-porta-della-morte"] } }, "Ilse");
+  const tomb = { round: 1, current: 0, order: ["orc", "cleric", "ally"] };
+  const critical = hitEvents("ally").map((event) => ({ ...event, critical: true }));
+  const [sentinel] = reactionPromptCandidates({ event: critical, items: [orc, cleric, ally], state: tomb, distance: () => 6 }, "before");
+  assert.equal(sentinel.reactionId, "sentinel-at-deaths-door");
+  assert.equal(reactionPromptEffectText(sentinel), "Critico → colpo normale su Bram: Usa segna Colpito al posto di Critico");
+  assert.deepEqual(reactionPromptCandidates({ event: hitEvents("ally"), items: [orc, cleric, ally], state: tomb, distance: () => 6 }, "before"), [],
+    "not on an ordinary hit");
+});
+
+test("R2b, R3a: Usa on a class feature spends its resource with the reaction, or the reaction alone", async () => {
+  const calls = [];
+  const runtime = {
+    adjustClassFeatureResource: async (...args) => { calls.push(["adjust", ...args]); },
+    useClassFeatureReaction: async (args) => { calls.push(["reaction", args]); },
+  };
+  assert.equal((await useReactionFeature({ sourceId: "pal", featureId: "paladino-giuramento-di-gloria-difesa-gloriosa", runtime })).ok, true);
+  assert.equal((await useReactionFeature({ sourceId: "cleric", featureId: "chierico-dominio-della-tomba-sentinella-alla-porta-della-morte", runtime })).ok, true);
+  assert.deepEqual(calls, [
+    ["adjust", "pal", "paladino-giuramento-di-gloria-difesa-gloriosa-usi", { delta: -1 }, { featureId: "paladino-giuramento-di-gloria-difesa-gloriosa" }],
+    ["reaction", { sourceId: "cleric", featureId: "chierico-dominio-della-tomba-sentinella-alla-porta-della-morte" }],
+  ]);
+  const failing = { useClassFeatureReaction: async () => { throw new Error("Reazione già usata."); } };
+  assert.deepEqual(await useReactionFeature({ sourceId: "c", featureId: "chierico-dominio-della-tomba-sentinella-alla-porta-della-morte", runtime: failing }),
+    { ok: false, message: "Reazione già usata." });
+  assert.equal((await useReactionFeature({ sourceId: "c", featureId: "nope", runtime })).ok, false);
+  assert.equal(typeof reactionDistanceFunction({ dpi: 150, scale: { parsed: { multiplier: 5, unit: "ft" } } }), "function");
+});
+
+test("the prompt's hint is the window's: Registra in the consoles, Lancia in the spell panel", () => {
+  const box = new FakeNode(createDocument(), "div");
+  const prompt = createReactionPrompt(box, { documentRef: box.ownerDocument, option: fakeOption(), onUse: async () => {},
+    ignoreHint: "Premi di nuovo il pulsante per lanciare senza reazione." });
+  prompt.update({ event: hitEvents("mage"), items, state, draftKey: "d1" });
+  assert.match(textOf(box), /Premi di nuovo il pulsante/u);
+  assert.doesNotMatch(textOf(box), /Registra senza usarla/u);
+});
+
+test("Counterspell's popup filled in from the prompt; the scene's feet in meters", () => {
+  const url = new URL(counterspellPopoverUrl({ sourceId: "wiz", targetId: "shaman", spellId: "fireball", spellLevel: 3, requestId: "r1" }), "http://x");
+  assert.deepEqual(Object.fromEntries(url.searchParams), { source: "wiz", target: "shaman", spell: "fireball", spellLevel: "3", request: "r1" });
+  assert.equal(new URL(counterspellPopoverUrl({ sourceId: "wiz", spellLevel: 0 }), "http://x").searchParams.get("spellLevel"), "0", "a cantrip");
+  assert.equal(new URL(counterspellPopoverUrl({ sourceId: "wiz" }), "http://x").search, "?source=wiz", "as before, without a prompt");
+  assert.equal(sceneUnitToMeters("ft"), 0.3);
+  assert.equal(sceneUnitToMeters("m"), 1);
+});
+
+// Lot R3c: the reactions after the damage and after a miss, notices once Registra is applied.
+test("R3c: after a miss, Riposte opens an attack off turn against the attacker; after a hit, Wrath of the Storm", () => {
+  const fighter = creature("dars", { initiativeCard: { characterBuild: [{ classId: "guerriero", level: 5, subclassId: "guerriero-maestro-di-battaglia" }],
+    classFeaturesConfigured: true, enabledClassFeatureIds: ["guerriero-maestro-di-battaglia-manovre-replica"] } }, "Dars");
+  const fightState = { round: 1, current: 0, order: ["orc", "dars"] };
+  const miss = [{ ...base, trigger: "miss", targetIds: ["dars"] }];
+  assert.deepEqual(reactionPromptCandidates({ event: miss, items: [orc, fighter], state: fightState }, "before"), [], "nothing stops Registra");
+  const [riposte] = reactionPromptCandidates({ event: miss, items: [orc, fighter], state: fightState }, "after");
+  assert.equal(riposte.reactionId, "riposte");
+  assert.equal(riposte.flow, "off-turn-attack");
+  assert.deepEqual(riposte.targetIds, ["orc"]);
+  assert.deepEqual(reactionPromptCandidates({ event: [{ ...miss[0], range: "ranged" }], items: [orc, fighter], state: fightState }, "after"), [],
+    "a ranged miss");
+  assert.deepEqual(reactionPromptCandidates({ event: miss, items: [orc, fighter], state: fightState, options: { triggers: { miss: false } } }, "after"), [],
+    "the miss switch");
+
+  const cleric = creature("ilse", { initiativeCard: { characterBuild: [{ classId: "chierico", level: 1, subclassId: "chierico-dominio-della-tempesta" }],
+    classFeaturesConfigured: true, enabledClassFeatureIds: ["chierico-dominio-della-tempesta-collera-della-tempesta"] } }, "Ilse");
+  const stormState = { round: 1, current: 0, order: ["orc", "ilse"] };
+  const [wrath] = reactionPromptCandidates({ event: hitEvents("ilse"), items: [orc, cleric], state: stormState }, "after");
+  assert.equal(wrath.reactionId, "wrath-of-the-storm");
+  assert.equal(wrath.flow, "use-feature");
+  assert.deepEqual(reactionPromptCandidates({ event: hitEvents("ilse"), items: [orc, cleric], state: stormState, distance: () => 6 }, "after"), [],
+    "the attacker beyond 1.5 m");
 });

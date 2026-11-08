@@ -42,7 +42,9 @@ import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionP
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
 import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageShortNotice, mirrorImageState } from "./mirrorImageCore.js";
 import { renderAttackReactions } from "./attackReactionsView.js";
-import { createReactionPrompt } from "./reactionPromptView.js";
+import { createReactionPrompt, reactionPromptEffectText } from "./reactionPromptView.js";
+import { reactionTriggerEntry } from "./reactionTriggerCatalog.js";
+import { loadMonsterReactions, loadReactionSceneGrid } from "./reactionSceneContext.js";
 import { pcBreathAreaRuleId, pcMonsterAreaRuleId } from "./pcAttackBreathId.js";
 import "./popoverDrag.js";
 import { perfBootPage } from "./perfProbe.js";
@@ -77,6 +79,8 @@ function emptyDraft(action,targetId=null,spellId="",attackMode="") {
   return {targetId,spellId,attackMode,modeAmount:"",outcome:"",onlyOutcome:false,amounts:Object.fromEntries(components.map(component=>[component.id,""])),ignored:[],reapplied:[],
     riders:{},activations:{},extras:[],woven:{spellId:"",amount:"",secondaryTargetId:"",secondaryAmount:""},
     area:{members:{},proposalKey:""},attackInstanceId:newAttackId(),
+    // Avvisi di reazione, lot R3b: the target's reactions to this damage, added by the prompt's Usa.
+    damageReactions:[],
     // A leveled attack spell (lotto L4): the cast this registration belongs to, its slot, the type picked, matching d8.
     spell:{castId:newCastId(),slotLevel:null,pact:false,damageType:"",doubles:false,fresh:false}};
 }
@@ -359,6 +363,20 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const reactionsBox=$("pc-attack-reactions");
   // Avvisi di reazione (lot R1): the prompt above Registra; its Usa is the reactions' own flow (castTargetReaction).
   const reactionPrompt=createReactionPrompt($("pc-attack-reaction-prompt"),{documentRef,onUse:candidate=>useReactionPrompt(candidate)});
+  // Lot R3a: the distance between two creatures, read once from the grid, for a reaction on an ally within a few meters.
+  let reactionDistance=null;
+  if($("pc-attack-reaction-prompt")) void loadReactionSceneGrid(api).then(distance=>{reactionDistance=distance;reactionPrompt.update(reactionPromptContext());}).catch(()=>{});
+  // Lot R4: the monsters' reactions from their stat blocks (only with the "Mostri" switch on), read again on refresh.
+  let reactionMonsters={},reactionMonstersSignature="";
+  function loadReactionMonsters() {
+    if(!$("pc-attack-reaction-prompt")) return;
+    void loadMonsterReactions(api).then(map=>{
+      const signature=JSON.stringify(map);
+      if(signature===reactionMonstersSignature) return;
+      reactionMonstersSignature=signature;reactionMonsters=map;reactionPrompt.update(reactionPromptContext());
+    }).catch(()=>{});
+  }
+  loadReactionMonsters();
   let reactionsBusy=false;
   const targetById=id=>presentation?.targets.find(item=>item.id===id) || null;
   // Any tracked creature, the attacker included (temporary hit points, Bursting Arrow's creatures).
@@ -401,8 +419,30 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       amounts:draft?.amounts,ignoredDefenses:draft?.ignored,riders:chosenRiders(draft),extras:chosenExtras(draft),turnState:presentation?.turnState,
       weaponCantrip:chosenWeaponCantrip(draft),secondaryItem:targetById(secondaryTargetId()),activations:chosenActivations(draft),
       tempHpItems:presentation?[presentation.item,...presentation.targets]:[],attackMode:draft?.attackMode || "",modeAmount:draft?.modeAmount ?? "",
-      burstItems:presentation?[presentation.item,...presentation.targets]:[],hitEffect:draft?.hitEffect || null,reappliedDefenses:draft?.reapplied || []});
+      burstItems:presentation?[presentation.item,...presentation.targets]:[],hitEffect:draft?.hitEffect || null,reappliedDefenses:draft?.reapplied || [],
+      damageReactions:activeDamageReactions().map(damageReactionRequest)});
   }
+  // Avvisi di reazione, lot R3b: the target's reactions to this damage, lines on the draft (Usa writes nothing). They
+  // count only for the target they were added for and an outcome with damage; Registra spends their reaction and resource
+  // in the attack's own command (pcAttackExecution.js).
+  function activeDamageReactions() {
+    const rows=Array.isArray(draft?.damageReactions)?draft.damageReactions:[];
+    // Lot R3b-4: an area's creatures with a save outcome, each with its own lines.
+    if(draft && isArea()) {
+      const damaged=new Set(areaMembers().filter(member=>["failed","passed"].includes(member.outcome)).map(member=>member.item.id));
+      return rows.filter(row=>damaged.has(row.targetId));
+    }
+    if(!draft || !draft.targetId || !draft.outcome || draft.outcome==="miss") return [];
+    return rows.filter(row=>row.targetId===draft.targetId);
+  }
+  const damageReactionRequest=row=>({reactionId:row.reactionId,reactorId:row.reactorId,reactorName:row.reactorName,featureId:row.featureId,targetId:row.targetId,
+    ...(row.amount!==""?{amount:Number(row.amount)}:{}),...(row.slotLevel!==""?{slotLevel:Number(row.slotLevel)}:{})});
+  // A reduction asks the amount rolled at the table; Canzone di Difesa the slot's level.
+  const damageReactionMissing=row=>{
+    const effect=reactionTriggerEntry(row.reactionId)?.effect || {};
+    if(Number.isInteger(effect.perSlotLevel)) return row.slotLevel==="";
+    return effect.kind==="reduce" && row.amount==="";
+  };
   // 3C: an area attack (area cantrip, Piercing Arrow): the creatures ticked with their save outcomes, one damage roll.
   const isArea=()=>!!resolved()?.area;
   const areaRiders=()=>Object.entries(draft?.riders || {}).filter(([,rider])=>rider.on).map(([id,rider])=>({id,type:rider.type,amount:rider.amount}));
@@ -411,7 +451,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function areaPreview() {
     return pcAttackAreaPreview({action:presentation?.action,spellId:draft?.spellId,attackMode:draft?.attackMode || "",sourceItem:presentation?.item,
       members:areaMembers(),amounts:draft?.amounts,riders:areaRiders(),extras:(draft?.extras || []).map(extra=>({...extra})),
-      modeAmount:draft?.modeAmount ?? "",turnState:presentation?.turnState});
+      modeAmount:draft?.modeAmount ?? "",turnState:presentation?.turnState,damageReactions:activeDamageReactions().map(damageReactionRequest)});
   }
   const modeOptions=()=>pcAttackModeOptions({action:presentation?.action,sourceItem:presentation?.item,turnState:presentation?.turnState});
   // The second creature of this attack: Green-Flame Blade's, or an activation's (Sweeping Attack, Slashing Flourish…).
@@ -1922,21 +1962,87 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // Avvisi di reazione (lot R1): the draft's events as the reactions under the target read them (one target, an outcome that
   // allows a reaction); a hit is also a damage. The prompt shows the reactions of the lots wired, and writes nothing.
   function reactionPromptEvent() {
+    // Lot R3b-4: an area attack, the creatures with a save outcome (a save, no attack roll).
+    if(presentation && draft && !launching() && isArea()) {
+      const targetIds=areaMembers().filter(member=>["failed","passed"].includes(member.outcome)).map(member=>member.item.id);
+      if(!targetIds.length) return null;
+      const attack=resolved();
+      return [{trigger:"damage",attackerId:presentation.item?.id || sourceId,targetIds,range:attack?.range==="melee"?"melee":attack?.range==="ranged"?"ranged":"",
+        attackRoll:false,critical:false,damageTypes:(attack?.components || []).map(component=>component.type)}];
+    }
     if(!presentation || !draft || launching() || isArea() || !draft.targetId || !draft.outcome) return null;
     const outcome=draft.outcome,hit=outcome==="hit" || outcome==="critical";
-    if(!hit && outcome!=="failed" && outcome!=="passed") return null;
+    if(!hit && outcome!=="failed" && outcome!=="passed" && outcome!=="miss") return null;
     const attack=resolved(),range=attack?.range==="melee"?"melee":attack?.range==="ranged"?"ranged":"";
     const base={attackerId:presentation.item?.id || sourceId,targetIds:[draft.targetId],range,attackRoll:pcAttackOutcomesFor(attack).includes("hit"),
       critical:outcome==="critical",damageTypes:(typedAttack()?.components || []).map(component=>component.type)};
+    // Lot R3c: a miss allows the reactions after it (Riposte), shown once Registra is applied.
+    if(outcome==="miss") return [{...base,trigger:"miss"}];
     return [...(hit?[{...base,trigger:"hit"}]:[]),{...base,trigger:"damage"}];
   }
   function reactionPromptContext() {
     return {event:reactionPromptEvent(),items:[...(presentation?.targets || []),...(presentation?.item?[presentation.item]:[])],
-      state:presentation?.turnState || null,draftKey:draft?.attackInstanceId || ""};
+      state:presentation?.turnState || null,draftKey:draft?.attackInstanceId || "",distance:reactionDistance,
+      skip:(draft?.damageReactions || []).map(row=>row.key),monsterReactions:reactionMonsters};
   }
   async function useReactionPrompt(candidate) {
+    if(candidate.flow==="modifier") return addDamageReaction(candidate);
+    if(candidate.flow==="activate-feature") return activateReactionFeature(candidate);
+    if(candidate.flow==="off-turn-attack") return useReactionPromptAttack(candidate);
+    if(candidate.flow==="use-feature" || (candidate.flow==="note" && candidate.featureId)) return useReactionPromptFeature(candidate);
     await castTargetReaction({spellId:candidate.spellId,direct:candidate.flow==="cast-spell",variant:candidate.variant || "",
       targetIds:candidate.targetIds || [],casterId:candidate.reactorId});
+  }
+  // Lot R3b: a damage reaction becomes a line on the draft; nothing is written until Registra.
+  function addDamageReaction(candidate) {
+    if(!draft) return;
+    draft.damageReactions=Array.isArray(draft.damageReactions)?draft.damageReactions:[];
+    if(!draft.damageReactions.some(row=>row.key===candidate.key)) draft.damageReactions.push({key:candidate.key,reactionId:candidate.reactionId,
+      reactorId:candidate.reactorId,reactorName:candidate.reactorName,featureId:candidate.featureId,label:candidate.label,
+      targetId:candidate.protectedId || draft.targetId,protectedName:candidate.protectedName || "",amount:"",slotLevel:""});
+    damageReactionsSignature="";renderState();
+    const row=draft.damageReactions.find(entry=>entry.key===candidate.key);
+    setStatus(`${candidate.label} di ${candidate.reactorName}: ${damageReactionMissing(row)?"scrivi la riduzione sotto il danno; ":""}Registra spende la reazione.`,"ok");
+    damageReactionsBox?.querySelector?.("input,select")?.focus?.();
+  }
+  // Lot R3b, Tomb of Levistus (decision E6): the feature's own activation, before Registra (its temporary hit points and
+  // vulnerability); the console reads the target again.
+  async function activateReactionFeature(candidate) {
+    if(reactionsBusy) return;
+    reactionsBusy=true;renderTargetReactions();
+    try {
+      const {activateClassFeature}=await import("./classFeatureRuntime.js");
+      await activateClassFeature({sourceId:candidate.reactorId,featureId:candidate.featureId});
+      setStatus(`${candidate.reactorName} · ${candidate.label}: attivata. ${candidate.rule}`,"ok");
+    } catch(error) {setStatus(String(error?.message || error),"error");}
+    finally {reactionsBusy=false;renderTargetReactions();scheduleRefresh();}
+  }
+  // Lot R3c: an attack with the reaction (Riposte, Retaliation, Giant Killer): the attacker selected on the map, the
+  // console passes to the reacting creature off turn, as "⇄ Agisci con" does; the attack registered spends the reaction.
+  async function useReactionPromptAttack(candidate) {
+    if(busy || launchBusy) return;
+    const attackerId=(candidate.targetIds || [])[0];
+    if(attackerId) await Promise.resolve(api.player?.select?.([attackerId],true)).catch(()=>{});
+    switchActor(candidate.reactorId,candidate.reactorName,{offTurn:true});
+  }
+  // Lot R3a: a class feature that changes the outcome (a bonus to the AC, a critical made a hit, the attacker's reroll):
+  // its use and the reaction through the existing flows (reactionFeatureRuntime.js); the GM changes the outcome, except
+  // Sentinel at Death's Door, which makes the critical a hit here.
+  async function useReactionPromptFeature(candidate) {
+    if(reactionsBusy) return;
+    reactionsBusy=true;renderTargetReactions();
+    try {
+      const {useReactionFeature}=await import("./reactionFeatureRuntime.js");
+      const result=await useReactionFeature({sourceId:candidate.reactorId,featureId:candidate.featureId,
+        monster:candidate.source==="monster",label:candidate.label});
+      if(!result.ok){setStatus(result.message,"error");return;}
+      const downgrade=reactionTriggerEntry(candidate.reactionId)?.effect?.kind==="downgrade-critical" && draft?.outcome==="critical";
+      if(downgrade){draft.outcome="hit";renderOutcomes();renderDamage();updateWoven();updateRiders();updateActivations();renderState();}
+      // After the damage or the miss (lot R3c): the rule, its dice and save are rolled at the table.
+      const said=downgrade?"Il critico diventa Colpito.":candidate.timing==="after"?candidate.rule:`${reactionPromptEffectText(candidate,reactionPromptContext().items)}.`;
+      setStatus(`${candidate.reactorName} · ${candidate.label}: reazione segnata. ${said}`,"ok");
+    } catch(error) {setStatus(String(error?.message || error),"error");}
+    finally {reactionsBusy=false;renderTargetReactions();scheduleRefresh();}
   }
   async function castTargetReaction(offer) {
     const targetId=offer.casterId || draft?.targetId;
@@ -2141,12 +2247,52 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     label.append(box,node("span","Usa la reazione (attacco di opportunità)"));
     reactionRow.replaceChildren(label);
   }
+  const damageReactionsBox=$("pc-attack-damage-reactions");
+  let damageReactionsSignature="";
+  function renderDamageReactions() {
+    if(!damageReactionsBox) return;
+    const rows=activeDamageReactions();
+    damageReactionsBox.hidden=!rows.length;
+    const signature=JSON.stringify([rows.map(row=>row.key),busy]);
+    // Rebuilt only when the lines change: an amount being typed keeps its caret.
+    if(signature===damageReactionsSignature) return;
+    damageReactionsSignature=signature;
+    const lines=rows.map(row=>{
+      const entry=reactionTriggerEntry(row.reactionId),effect=entry?.effect || {};
+      const line=node("div","","damage-reaction");
+      // On another creature (an ally, or a creature of an area): whose damage it changes.
+      const on=row.protectedName && row.protectedName!==row.reactorName?` su ${row.protectedName}`:"";
+      const label=node("span",`${row.label} di ${row.reactorName}${on}`,"damage-reaction-label");label.title=entry?.rule || "";
+      line.append(label);
+      if(effect.kind==="halve") line.append(node("span","danno dimezzato","damage-reaction-effect"));
+      else if(effect.kind==="resistance") line.append(node("span",effect.acBonusDice?"resistenza, se colpisce lo stesso":"resistenza a questo danno","damage-reaction-effect"));
+      else if(Number.isInteger(effect.perSlotLevel)) {
+        const select=node("select");select.setAttribute("aria-label",`Slot speso per ${row.label}`);select.disabled=busy;
+        select.append(...[["","Slot"],...[1,2,3,4,5,6,7,8,9].map(level=>[String(level),`${level}° (−${level*effect.perSlotLevel})`])].map(([value,text])=>{const option=node("option",text);option.value=value;return option;}));
+        select.value=row.slotLevel;
+        select.addEventListener("change",()=>{row.slotLevel=select.value;renderState();});
+        line.append(select);
+      } else {
+        const input=node("input");input.type="number";input.min="0";input.inputMode="numeric";input.value=row.amount;input.disabled=busy;
+        input.placeholder=String(entry?.short || "").replace(/^−\s*/u,"");input.setAttribute("aria-label",`Riduzione di ${row.label}`);
+        input.addEventListener("input",()=>{row.amount=input.value.trim();renderState();});
+        line.append(node("span","−","damage-reaction-effect"),input);
+      }
+      const remove=node("button","✕","damage-reaction-remove");remove.type="button";remove.disabled=busy;
+      remove.title="Togli la reazione: niente viene speso";remove.setAttribute("aria-label",remove.title);
+      remove.addEventListener("click",()=>{draft.damageReactions=(draft.damageReactions || []).filter(other=>other.key!==row.key);damageReactionsSignature="";renderState();});
+      line.append(remove);
+      return line;
+    });
+    damageReactionsBox.replaceChildren(...(lines.length?[node("span","Reazioni al danno","damage-reactions-caption")]:[]),...lines);
+  }
   function renderState() {
     // As after a click on the outcome, once the fields can take it; only inside a panel already in use: opening on its own,
     // the console must not take the keyboard away from the map.
     if(focusOnlyOutcome && !busy){focusOnlyOutcome=false;if(documentRef.hasFocus?.())focusDamage();}
     renderReaction();
     renderTargetReactions();
+    renderDamageReactions();
     // The hit effect follows the outcome, which a click changes without a full render (fase 5, lotto 4).
     renderHitEffect();
     // ✦ Magica follows the card and the busy state, without rebuilding the damage rows (lotto M5).
@@ -2344,6 +2490,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     }
   }
   async function refresh(operation) {
+    loadReactionMonsters();
     const asked=actionId,askedSource=sourceId;
     const loaded=await runtime.getPcAttackPresentation(askedSource,asked);
     const traits=await monsterTraitEntries(loaded?.item);
@@ -2581,7 +2728,14 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const view=areaPreview();
       if(!view.ready) throw new Error(view.blocker);
       const attack=resolved();
+      // Lot R3b-4: the reactions of the area's creatures; a reduction without its amount is not registered.
+      const areaReactions=activeDamageReactions();
+      const missingAreaReaction=areaReactions.find(damageReactionMissing);
+      if(missingAreaReaction) throw new Error(`Scrivi ${Number.isInteger(reactionTriggerEntry(missingAreaReaction.reactionId)?.effect?.perSlotLevel)?"lo slot":"la riduzione"} di ${missingAreaReaction.label} (${missingAreaReaction.reactorName}), o toglila.`);
+      const areaPromptContext=reactionPromptContext();
+      reactionPrompt.dismiss();
       const result=await runtime.executePcAttackArea({sourceId,actionId,expectedAction:presentation.action,
+        ...(areaReactions.length?{damageReactions:areaReactions.map(damageReactionRequest)}:{}),
         ...(draft.spellId?{spellId:draft.spellId}:{}),...(draft.attackMode?{attackMode:draft.attackMode,modeAmount:Number(draft.modeAmount)}:{}),
         members:areaMembers().map(member=>({targetId:member.item.id,outcome:member.outcome})),
         componentAmounts:Object.fromEntries(Object.entries(draft.amounts).map(([id,value])=>[id,Number(value)])),
@@ -2597,6 +2751,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       draft=emptyDraft(presentation.action,null,draft.spellId,draft.attackMode);
       await refresh(operation);
       render();
+      // The reactions after the damage (Hellish Rebuke), on the creatures read again.
+      if(lifecycle.isCurrent(operation)) reactionPrompt.showAfter({...areaPromptContext,items:reactionPromptContext().items,state:presentation?.turnState || null});
       return;
     }
     const view=preview();
@@ -2622,7 +2778,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       ...(chosenActivations(draft).some(activation=>activation.burstTargetIds?.length)?{expectedBurstDefenses:Object.fromEntries(
         chosenActivations(draft).flatMap(activation=>activation.burstTargetIds || []).map(id=>[id,damageDefensesForItem(creatureById(id),META_KEY)]))}:{}),
       ...(useReaction && attackReaction()?.used===false?{useReaction:true}:{}),
+      ...(activeDamageReactions().length?{damageReactions:activeDamageReactions().map(damageReactionRequest)}:{}),
       attackInstanceId:draft.attackInstanceId,sceneIdentity:presentation.sceneIdentity};
+    // Lot R3b: a reduction without its amount (or Canzone di Difesa without its slot) is not registered.
+    const missingReaction=activeDamageReactions().find(damageReactionMissing);
+    if(missingReaction) throw new Error(`Scrivi ${Number.isInteger(reactionTriggerEntry(missingReaction.reactionId)?.effect?.perSlotLevel)?"lo slot":"la riduzione"} di ${missingReaction.label} (${missingReaction.reactorName}), o toglila.`);
     // A smite without a slot left: the GM decides before the commit.
     const exhausted=pcAttackSmiteSlotPlans(presentation.item,request.riders).filter(entry=>entry.plan.exhausted);
     // The first registration of a leveled spell spends its slot: the same question when none is left.

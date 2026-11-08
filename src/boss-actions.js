@@ -28,7 +28,9 @@ import "./popoverDrag.js";
 import { BOSS_ACTIONS_CONSOLE_CHANNEL } from "./bossActionsLauncher.js";
 import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageShortNotice, mirrorImageState } from "./mirrorImageCore.js";
 import { renderAttackReactions } from "./attackReactionsView.js";
-import { createReactionPrompt } from "./reactionPromptView.js";
+import { createReactionPrompt, reactionPromptEffectText } from "./reactionPromptView.js";
+import { reactionTriggerEntry } from "./reactionTriggerCatalog.js";
+import { loadMonsterReactions, loadReactionSceneGrid } from "./reactionSceneContext.js";
 import { hasReactionUsed } from "./reactionTrackerCore.js";
 import { perfBootPage } from "./perfProbe.js";
 
@@ -92,8 +94,30 @@ export function bootBossActions(documentRef=document, overrides={}) {
   // Avvisi di reazione (lot R1): the prompt above Registra, with the initiative state the scene says (the combat, the order).
   let turnState=null;
   const promptKeys=new WeakMap();
-  const bossReactionPrompt=createReactionPrompt($("boss-reaction-prompt"),{documentRef,onUse:candidate=>castTargetReaction({spellId:candidate.spellId,
-    direct:candidate.flow==="cast-spell",variant:candidate.variant || "",targetIds:candidate.targetIds || [],casterId:candidate.reactorId})});
+  const bossReactionPrompt=createReactionPrompt($("boss-reaction-prompt"),{documentRef,onUse:candidate=>candidate.flow==="modifier"
+    ?addBossDamageReaction(candidate)
+    :candidate.flow==="activate-feature"
+    ?activateBossReactionFeature(candidate)
+    :candidate.flow==="off-turn-attack"
+    ?useBossReactionAttack(candidate)
+    :candidate.flow==="use-feature" || (candidate.flow==="note" && candidate.featureId)
+    ?useBossReactionFeature(candidate)
+    :castTargetReaction({spellId:candidate.spellId,direct:candidate.flow==="cast-spell",variant:candidate.variant || "",targetIds:candidate.targetIds || [],
+      casterId:candidate.reactorId})});
+  // Lot R3a: the distance between two creatures, read once from the grid, for a reaction on an ally within a few meters.
+  let reactionDistance=null;
+  if($("boss-reaction-prompt")) void loadReactionSceneGrid(api).then(distance=>{reactionDistance=distance;bossReactionPrompt.update(bossReactionPromptContext());}).catch(()=>{});
+  // Lot R4: the monsters' reactions from their stat blocks (only with the "Mostri" switch on), read again on refresh.
+  let reactionMonsters={},reactionMonstersSignature="";
+  function loadReactionMonsters() {
+    if(!$("boss-reaction-prompt")) return;
+    void loadMonsterReactions(api).then(map=>{
+      const signature=JSON.stringify(map);
+      if(signature===reactionMonstersSignature) return;
+      reactionMonstersSignature=signature;reactionMonsters=map;bossReactionPrompt.update(bossReactionPromptContext());
+    }).catch(()=>{});
+  }
+  loadReactionMonsters();
   const node=(tag,text="",className="")=>{const element=documentRef.createElement(tag);element.textContent=bossMetricText(text);if(className)element.className=className;return element;};
   // The stat block's own words, as printed.
   const printed=(text,className="")=>{const element=node("pre","",className);element.textContent=text;return element;};
@@ -339,7 +363,78 @@ export function bootBossActions(documentRef=document, overrides={}) {
   // Meteor Swarm: an inner-scoped component reaches only the creatures kept "within" a drawn point.
   const componentsFor=id=>bossActionDamageComponents(draft.action).filter(component=>!component.scope || (draft.innerIds || []).includes(id));
   function defendedDamage(id,outcome) {
-    return bossDefendedDamage(componentsFor(id),amountsFor(id),outcome,defensesOf(id),ignoredFor(id),markReadyFor(id),evasionUsedFor(id));
+    return bossDefendedDamage(componentsFor(id),amountsFor(id),outcome,defensesOf(id),ignoredFor(id),markReadyFor(id),evasionUsedFor(id),
+      id?activeBossDamageReactions().filter(row=>row.targetId===id).map(bossDamageReactionRequest):[]);
+  }
+  // Lot R3b-4: a group save with damage (not an attack group): the creatures with a save outcome.
+  const groupSaveDamage=()=>draft?.kind==="group-save" && !attackGroup() && draft.action?.execution?.kind==="save-damage";
+  const groupDamagedIds=()=>groupSaveDamage()?(draft.targetIds || []).filter(id=>["failed","passed"].includes(draft.outcomes?.[id])):[];
+  // Avvisi di reazione, lot R3b: the target's reactions to this damage, lines on the draft (Usa writes nothing). They count
+  // only for the target they were added for and an outcome with damage; Registra spends their reaction and resource in the
+  // action's own command (bossActionExecution.js).
+  function activeBossDamageReactions() {
+    if(groupSaveDamage()) {
+      const damaged=new Set(groupDamagedIds());
+      return (Array.isArray(draft.damageReactions)?draft.damageReactions:[]).filter(row=>damaged.has(row.targetId));
+    }
+    if(!draft || !["attack-damage","save-damage"].includes(draft.kind) || !draft.targetId) return [];
+    const outcome=outcomeChoice();
+    if(!outcome || outcome==="miss") return [];
+    return (Array.isArray(draft.damageReactions)?draft.damageReactions:[]).filter(row=>row.targetId===draft.targetId);
+  }
+  const bossDamageReactionRequest=row=>({reactionId:row.reactionId,reactorId:row.reactorId,reactorName:row.reactorName,featureId:row.featureId,targetId:row.targetId,
+    ...(row.amount!==""?{amount:Number(row.amount)}:{}),...(row.slotLevel!==""?{slotLevel:Number(row.slotLevel)}:{})});
+  const bossDamageReactionMissing=row=>{
+    const effect=reactionTriggerEntry(row.reactionId)?.effect || {};
+    if(Number.isInteger(effect.perSlotLevel)) return row.slotLevel==="";
+    return effect.kind==="reduce" && row.amount==="";
+  };
+  // The totals after a reaction line changes; a group also redraws each creature's amount (lot R3b-4).
+  function refreshBossDamageView() {
+    if(draft?.kind==="group-save"){renderGroupTargets();renderGroupState();}
+    else renderDraftState();
+  }
+  function renderBossDamageReactions() {
+    // The damage card, or a group's form (lot R3b-4).
+    const card=resolution.querySelector?.("#boss-damage-card") || resolution.querySelector?.("#boss-action-form");
+    let box=resolution.querySelector?.("#boss-damage-reactions");
+    if(!box && card){box=node("div","","damage-reactions");box.id="boss-damage-reactions";card.appendChild(box);}
+    if(!box) return;
+    const rows=activeBossDamageReactions();
+    box.hidden=!rows.length;
+    // Rebuilt only when the lines change: an amount being typed keeps its caret.
+    const signature=JSON.stringify([rows.map(row=>row.key),busy]);
+    if(box.dataset.signature===signature) return;
+    box.dataset.signature=signature;
+    const lines=rows.map(row=>{
+      const entry=reactionTriggerEntry(row.reactionId),effect=entry?.effect || {};
+      const line=node("div","","damage-reaction");
+      const on=row.protectedName && row.protectedName!==row.reactorName?` su ${row.protectedName}`:"";
+      const label=node("span",`${row.label} di ${row.reactorName}${on}`,"damage-reaction-label");label.title=entry?.rule || "";
+      line.appendChild(label);
+      if(effect.kind==="halve") line.appendChild(node("span","danno dimezzato","damage-reaction-effect"));
+      else if(effect.kind==="resistance") line.appendChild(node("span",effect.acBonusDice?"resistenza, se colpisce lo stesso":"resistenza a questo danno","damage-reaction-effect"));
+      else if(Number.isInteger(effect.perSlotLevel)) {
+        const select=node("select");select.setAttribute("aria-label",`Slot speso per ${row.label}`);select.disabled=busy;
+        for(const [value,text] of [["","Slot"],...[1,2,3,4,5,6,7,8,9].map(level=>[String(level),`${level}° (−${level*effect.perSlotLevel})`])]) {
+          const option=node("option",text);option.value=value;select.appendChild(option);
+        }
+        select.value=row.slotLevel;
+        select.addEventListener("change",()=>{row.slotLevel=select.value;persistDraft();refreshBossDamageView();});
+        line.appendChild(select);
+      } else {
+        const input=node("input");input.type="number";input.min="0";input.inputMode="numeric";input.value=row.amount;input.disabled=busy;
+        input.placeholder=String(entry?.short || "").replace(/^−\s*/u,"");input.setAttribute("aria-label",`Riduzione di ${row.label}`);
+        input.addEventListener("input",()=>{row.amount=input.value.trim();persistDraft();refreshBossDamageView();});
+        line.append(node("span","−","damage-reaction-effect"),input);
+      }
+      const remove=button("✕","damage-reaction-remove");remove.disabled=busy;
+      remove.title="Togli la reazione: niente viene speso";remove.setAttribute("aria-label",remove.title);
+      remove.addEventListener("click",()=>{draft.damageReactions=(draft.damageReactions || []).filter(other=>other.key!==row.key);persistDraft();renderBossDamageReactions();refreshBossDamageView();});
+      line.appendChild(remove);
+      return line;
+    });
+    box.replaceChildren(...(lines.length?[node("span","Reazioni al danno","damage-reactions-caption")]:[]),...lines);
   }
   // What this target's defenses did to the damage, beside the same total (defendedDamage).
   function defenseCountsFor(id,outcome) {
@@ -772,20 +867,85 @@ export function bootBossActions(documentRef=document, overrides={}) {
   let reactionsBusy=false;
   // Avvisi di reazione (lot R1): the draft's events as the reactions under the target read them; a hit is also a damage.
   function bossReactionPromptEvent() {
+    // Lot R3b-4: a group save with damage, on the creatures with a save outcome.
+    if(draft && view==="resolve" && groupSaveDamage()) {
+      const targetIds=groupDamagedIds();
+      return targetIds.length?[{trigger:"damage",attackerId:presentation?.item?.id || sourceId,targetIds,range:"",attackRoll:false,critical:false,
+        damageTypes:bossActionDamageComponents(draft.action).map(component=>component.type)}]:null;
+    }
     if(!draft || view!=="resolve" || !["attack-damage","save-damage"].includes(draft.kind) || !draft.targetId) return null;
     const outcome=outcomeChoice(),hit=outcome==="hit" || outcome==="critical";
-    if(!hit && outcome!=="failed" && outcome!=="passed") return null;
+    if(!hit && outcome!=="failed" && outcome!=="passed" && outcome!=="miss") return null;
     const mode=draft.mode || draft.action.execution?.attack?.modes?.[0] || "";
     const base={attackerId:presentation?.item?.id || sourceId,targetIds:[draft.targetId],range:mode==="melee"?"melee":mode==="ranged"?"ranged":"",
       attackRoll:draft.kind==="attack-damage",critical:outcome==="critical",damageTypes:bossActionDamageComponents(draft.action).map(component=>component.type)};
+    // Lot R3c: a miss allows the reactions after it (Riposte), shown once Registra is applied.
+    if(outcome==="miss") return [{...base,trigger:"miss"}];
     return [...(hit?[{...base,trigger:"hit"}]:[]),{...base,trigger:"damage"}];
   }
   function bossReactionPromptContext() {
     if(draft && !promptKeys.has(draft)) promptKeys.set(draft,`${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`);
-    return {event:bossReactionPromptEvent(),items:[...targets,...(presentation?.item?[presentation.item]:[])],state:turnState,draftKey:draft?promptKeys.get(draft):""};
+    return {event:bossReactionPromptEvent(),items:[...targets,...(presentation?.item?[presentation.item]:[])],state:turnState,draftKey:draft?promptKeys.get(draft):"",
+      distance:reactionDistance,skip:(draft?.damageReactions || []).map(row=>row.key),monsterReactions:reactionMonsters};
+  }
+  // Lot R3b: a damage reaction becomes a line on the draft; nothing is written until Registra.
+  function addBossDamageReaction(candidate) {
+    if(!draft) return;
+    draft.damageReactions=Array.isArray(draft.damageReactions)?draft.damageReactions:[];
+    if(!draft.damageReactions.some(row=>row.key===candidate.key)) draft.damageReactions.push({key:candidate.key,reactionId:candidate.reactionId,
+      reactorId:candidate.reactorId,reactorName:candidate.reactorName,featureId:candidate.featureId,label:candidate.label,
+      targetId:candidate.protectedId || draft.targetId,protectedName:candidate.protectedName || "",amount:"",slotLevel:""});
+    persistDraft();renderBossDamageReactions();refreshBossDamageView();
+    const row=draft.damageReactions.find(entry=>entry.key===candidate.key);
+    setStatus(`${candidate.label} di ${candidate.reactorName}: ${bossDamageReactionMissing(row)?"scrivi la riduzione sotto il danno; ":""}Registra spende la reazione.`);
+    resolution.querySelector?.("#boss-damage-reactions input, #boss-damage-reactions select")?.focus?.();
+  }
+  // Lot R3b, Tomb of Levistus (decision E6): the feature's own activation, before Registra.
+  async function activateBossReactionFeature(candidate) {
+    if(reactionsBusy) return;
+    reactionsBusy=true;renderBossTargetReactions();
+    try {
+      const {activateClassFeature}=await import("./classFeatureRuntime.js");
+      await activateClassFeature({sourceId:candidate.reactorId,featureId:candidate.featureId});
+      targets=bossActionTargets(await api.scene.items.getItems(),sourceId);
+      setStatus(`${candidate.reactorName} · ${candidate.label}: attivata. ${candidate.rule}`);
+    } catch(error) {setStatus(String(error?.message || error));}
+    finally {reactionsBusy=false;renderTargetBox();renderDecisions();}
+  }
+  // Lot R3c: an attack with the reaction against the boss (Riposte, Retaliation, Giant Killer): the boss selected on the
+  // map, the attack console of the reacting character (off turn: the attack registered spends the reaction).
+  async function useBossReactionAttack(candidate) {
+    const attackerId=(candidate.targetIds || [])[0];
+    try {
+      if(attackerId) await Promise.resolve(api.player?.select?.([attackerId],true)).catch(()=>{});
+      const {openPcAttackConsoleForActor}=await import("./pcAttackLauncher.js");
+      await openPcAttackConsoleForActor(candidate.reactorId);
+      setStatus(`${candidate.reactorName} · ${candidate.label}: nella console attacchi, fuori turno.`,"ok");
+    } catch(error) {setStatus(String(error?.message || error),"error");}
+  }
+  // Lot R3a: a class feature that changes the outcome: its use and the reaction through the existing flows
+  // (reactionFeatureRuntime.js); the GM changes the outcome, except Sentinel at Death's Door, which makes the critical a hit.
+  async function useBossReactionFeature(candidate) {
+    if(reactionsBusy) return;
+    reactionsBusy=true;renderBossTargetReactions();
+    try {
+      const {useReactionFeature}=await import("./reactionFeatureRuntime.js");
+      const result=await useReactionFeature({sourceId:candidate.reactorId,featureId:candidate.featureId,
+        monster:candidate.source==="monster",label:candidate.label});
+      if(!result.ok){setStatus(result.message,"error");return;}
+      const downgrade=reactionTriggerEntry(candidate.reactionId)?.effect?.kind==="downgrade-critical" && outcomeChoice()==="critical";
+      if(downgrade && draft){draft.critical=false;lockDraft();persistDraft();}
+      targets=bossActionTargets(await api.scene.items.getItems(),sourceId);
+      // After the damage or the miss (lot R3c): the rule, its dice and save are rolled at the table.
+      const said=downgrade?"Il critico diventa Colpito.":candidate.timing==="after"?candidate.rule
+        :`${reactionPromptEffectText(candidate,[...targets,...(presentation?.item?[presentation.item]:[])])}.`;
+      setStatus(`${candidate.reactorName} · ${candidate.label}: reazione segnata. ${said}`,"ok");
+    } catch(error) {setStatus(String(error?.message || error),"error");}
+    finally {reactionsBusy=false;renderTargetBox();renderDecisions();}
   }
   function renderBossTargetReactions() {
     bossReactionPrompt.update(bossReactionPromptContext());
+    renderBossDamageReactions();
     const box=resolution.querySelector?.("#boss-target-reactions");
     if(!box || !draft) return;
     const target=targetById(draft.targetId),execution=draft.action.execution;
@@ -1605,6 +1765,9 @@ export function bootBossActions(documentRef=document, overrides={}) {
   }
   function renderGroupState() {
     if(!draft) return;
+    // Avvisi di reazione, lot R3b-4: the prompt and the reactions' lines of a group save with damage.
+    bossReactionPrompt.update(bossReactionPromptContext());
+    renderBossDamageReactions();
     let sharedControls=$("boss-shared-hp");
     if(!sharedControls){sharedControls=node("div","","muted");sharedControls.id="boss-shared-hp";resolution.appendChild(sharedControls);}
     const sharedEntries=draft.targetIds.map(id=>({item:targetById(id),amount:groupRowDamage(draft.outcomes[id],id)}))
@@ -1937,10 +2100,18 @@ export function bootBossActions(documentRef=document, overrides={}) {
       outcomes:frozen.outcomes,componentAmounts:frozen.amounts,manualConfirmed:frozen.manualConfirmed===true,area:frozen.area,
       areas:frozen.areas,innerIds:frozen.innerIds,targetAmounts:frozen.targetAmounts});
     if(!validation.ok){setStatus(validation.error);return;}
+    // Lot R3b-4: the reactions of the group's creatures; a reduction without its amount is not registered.
+    const groupReactions=activeBossDamageReactions();
+    const missingGroupReaction=groupReactions.find(bossDamageReactionMissing);
+    if(missingGroupReaction){setStatus(`Scrivi ${Number.isInteger(reactionTriggerEntry(missingGroupReaction.reactionId)?.effect?.perSlotLevel)?"lo slot":"la riduzione"} di ${missingGroupReaction.label} (${missingGroupReaction.reactorName}), o toglila.`);return;}
+    const groupReactionsRequest=groupReactions.map(bossDamageReactionRequest);
+    const groupPromptContext=bossReactionPromptContext();
+    bossReactionPrompt.dismiss();
     const active=draft;
     return commitPerform(async operation=>{
       active.attempted=true;active.locked=true;persistDraft();
       const result=await runtime.executeBossAction({...validation.value,ignoredDefenses:frozen.ignoredDefenses,
+        ...(groupReactionsRequest.length?{damageReactions:groupReactionsRequest}:{}),
         sharedHp:active.sharedHp || {},
         expectedDefenses:frozen.expectedDefenses,...(active.action.execution.onPassed?.immunity?{expectedImmuneIds:frozen.expectedImmuneIds}:{}),
         expectedMarkedIds:frozen.expectedMarkedIds,...(evasionAppliesTo(active.action.execution)?{expectedEvasionIds:frozen.expectedEvasionIds}:{}),
@@ -1950,6 +2121,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
       showUndo(result);
       if(draft===active)closeDraft({persist:false});
       await refresh(operation);
+      // The reactions after the damage (Hellish Rebuke), on the creatures read again.
+      if(lifecycle.isCurrent(operation))bossReactionPrompt.showAfter({...groupPromptContext,items:[...targets,...(presentation?.item?[presentation.item]:[])],state:turnState});
     });
   }
   function submitDraft() {
@@ -1962,6 +2135,11 @@ export function bootBossActions(documentRef=document, overrides={}) {
       mode:frozen.mode || draft.action.execution.attack?.modes?.[0] || "",outcome:frozen.outcome,manualConfirmed:frozen.manualConfirmed===true,
       componentAmounts:frozen.amounts,rider:frozen.rider,teleport:frozen.teleport,critical:frozen.critical});
     if(!validation.ok){setStatus(validation.error);return;}
+    // Lot R3b: a reduction without its amount (or Canzone di Difesa without its slot) is not registered.
+    const damageReactions=activeBossDamageReactions();
+    const missingReaction=damageReactions.find(bossDamageReactionMissing);
+    if(missingReaction){setStatus(`Scrivi ${Number.isInteger(reactionTriggerEntry(missingReaction.reactionId)?.effect?.perSlotLevel)?"lo slot":"la riduzione"} di ${missingReaction.label} (${missingReaction.reactorName}), o toglila.`);return;}
+    const damageReactionsRequest=damageReactions.map(bossDamageReactionRequest);
     const active=draft;
     // Avvisi di reazione: Registra with the prompt open counts as Ignora (decision D2); the event, for the notice after it.
     const promptContext=bossReactionPromptContext();
@@ -1969,6 +2147,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     return commitPerform(async operation=>{
       active.attempted=true;active.locked=true;persistDraft();
       const result=await runtime.executeBossAction({...validation.value,ignoredDefenses:ignoredFor(frozen.targetId),
+        ...(damageReactionsRequest.length?{damageReactions:damageReactionsRequest}:{}),
         expectedDefenses:frozen.defenses,expectedMarkedIds:frozen.marked?[frozen.targetId]:[],
         ...(evasionAppliesTo(active.action.execution)?{expectedEvasion:frozen.evasion}:{}),...active.binding});
       if(!lifecycle.isCurrent(operation))return;
@@ -2050,6 +2229,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
   function unmountLiveUpdates() {unsubscribers.splice(0).forEach(unsubscribe=>{try{unsubscribe();}catch{}});}
 
   async function refresh(operation,{preserveResolution=false}={}) {
+    loadReactionMonsters();
     const previous=presentation;
     // Every item is read while the presentation is: one round trip less, and the bindings below reuse the same list.
     const itemsRead=Promise.resolve(api.scene.items.getItems());

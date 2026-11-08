@@ -132,7 +132,7 @@ test("class features: enabled on the sheet, the level reached, the resource left
   const [dodge] = run(hitOn("rogue"), [orc, rogue(5)]).candidates;
   assert.equal(dodge.reactionId, "uncanny-dodge");
   assert.equal(dodge.featureId, "ladro-schivata-prodigiosa");
-  assert.equal(dodge.flow, "use-feature");
+  assert.equal(dodge.flow, "modifier", "a line on the draft (lot R3b)");
   assert.equal(dodge.lot, "R3b");
   assert.deepEqual(ids(run(hitOn("rogue"), [orc, rogue(4)])), [], "before the 5th level");
 
@@ -214,8 +214,8 @@ test("the opportunity attack: off by default, then every hostile creature whose 
 
 test("the options: defaults, switches, muted per creature and reaction", () => {
   assert.deepEqual(normalizeReactionPromptOptions(undefined), {
-    enabled: true, triggers: { hit: true, damage: true, miss: false, spellCast: true, move: false },
-    actors: { pcs: true, npcs: false }, counterspellCantrips: false, muted: [],
+    enabled: true, triggers: { hit: true, damage: true, miss: true, spellCast: true, move: false },
+    actors: { pcs: true, npcs: false }, counterspellCantrips: false, screen: false, muted: [],
   });
   assert.equal(REACTION_PROMPT_DEFAULTS.triggers.hit, true);
   const mage = creature("mage", book(["shield"]), "Mira");

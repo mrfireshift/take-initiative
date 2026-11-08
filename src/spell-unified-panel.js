@@ -51,7 +51,14 @@ import { planSpellCastCost, spellSlotChoices } from "./spellSlotSpendCore.js";
 import { planSpeciesSpellCost, speciesSpellCast } from "./speciesInnateSpellCore.js";
 import { planSpellReactionSpend } from "./spellReactionCore.js";
 import { isCounterspell } from "./counterspellCore.js";
-import { openCounterspellPopover } from "./counterspellLauncher.js";
+import { COUNTERSPELL_RESULT_CHANNEL, openCounterspellPopover } from "./counterspellLauncher.js";
+import { createReactionPrompt, reactionPromptCandidates, reactionPromptEffectText } from "./reactionPromptView.js";
+import { loadMonsterReactions, loadReactionSceneContext } from "./reactionSceneContext.js";
+import { planReactionFeatureSpend, useReactionFeature } from "./reactionFeatureRuntime.js";
+import { reactionTriggerEntry } from "./reactionTriggerCatalog.js";
+import { spellPanelDamageTypes } from "./spellDamageDefenseCore.js";
+import { MAGIC_MISSILE_SPELL_ID } from "./magicMissileCore.js";
+import { PRISMATIC_SPRAY_SPELL_ID } from "./prismaticSprayRules.js";
 import { sanitizeQuickActions } from "./quickActionsCore.js";
 import {
   buildSpellCatalogEntries,
@@ -624,13 +631,25 @@ export function bootSpellUnifiedPanel(
     return Number.isInteger(dc) && dc > 0 ? dc : null;
   };
 
+  // Avvisi di reazione, lot R3b-5: the reactions to the cast's damage the GM added with Usa (Spirit Shield, Dampen
+  // Elements...), lines above Lancia. The session keeps only its own fields: they live here, with the cast they belong
+  // to (castDamageReactionsKey), and reach the preview and the command beside the session.
+  let castDamageReactions = [];
+  let castDamageReactionsKey = "";
+  const castDamageReactionRequest = (row) => ({ reactionId: row.reactionId, reactorId: row.reactorId, reactorName: row.reactorName,
+    featureId: row.featureId, targetId: row.targetId,
+    ...(row.amount !== "" ? { amount: Number(row.amount) } : {}), ...(row.slotLevel !== "" ? { slotLevel: Number(row.slotLevel) } : {}) });
+  const sessionWithDamageReactions = (session) => (castDamageReactions.length
+    ? { ...session, damageReactions: castDamageReactions.map(castDamageReactionRequest) }
+    : session);
+
   const render = () => {
     if (destroyed) return null;
     const assumedSaveOutcome = state.contract?.spell?.id === state.assumedSaveSpellId ? state.assumedSaveOutcome : "";
     state.session = withAssumedSaveOutcomes(state.session, state.contract, assumedSaveOutcome);
     const model = buildUnifiedPanelViewModel({
       contract: state.contract,
-      session: state.session,
+      session: sessionWithDamageReactions(state.session),
       assumedSaveOutcome,
       catalogEntries: state.catalogEntries,
       catalogState: {
@@ -649,6 +668,7 @@ export function bootSpellUnifiedPanel(
     decorateSpellSlotControls(model);
     state.model = model;
     renderSpellUnifiedPanel(documentRef, root, model, callbacks);
+    syncCastReaction();
     if (state.focusCatalog) {
       const input = root.querySelector("[role=combobox]");
       input?.focus();
@@ -1987,8 +2007,19 @@ export function bootSpellUnifiedPanel(
       || state.session.commitState.state === "committing") return;
     const operation = captureSceneOperation("spell-panel-area-commit");
     if (!sceneLifecycle.isCurrent(operation)) return;
+    // Avvisi di reazione, lot R3b-5: a reduction without its amount is not cast.
+    const damageReactions = activeCastDamageReactions();
+    const missingReaction = damageReactions.find(castDamageReactionMissing);
+    if (missingReaction) {
+      const slot = Number.isInteger(reactionTriggerEntry(missingReaction.reactionId)?.effect?.perSlotLevel);
+      patchSession({ feedback: { state: "error",
+        message: `Scrivi ${slot ? "lo slot" : "la riduzione"} di ${missingReaction.label} (${missingReaction.reactorName}), o toglila.` } },
+      { clearFeedback: false });
+      return;
+    }
     let ownerSceneContext = null;
     let slotSpend = null;
+    let reactionSpend = { operations: [], reactorIds: [] };
     commitPreparing = true;
     try {
       if (!runtimeOverrides.areaExecutor) {
@@ -2008,6 +2039,16 @@ export function bootSpellUnifiedPanel(
       }
       if (!await confirmConcentrationReplacement(operation)) return;
       slotSpend = await prepareSpellSlotSpend(operation);
+      // The reactors' reaction and resource, read again now, in the cast's own command (decision E3).
+      if (slotSpend && damageReactions.length) {
+        const spend = await castDamageReactionSpend(operation, damageReactions);
+        if (!sceneLifecycle.isCurrent(operation)) return;
+        if (!spend.ok) {
+          patchSession({ feedback: { state: "error", message: spend.message } }, { clearFeedback: false });
+          return;
+        }
+        reactionSpend = spend;
+      }
     } finally {
       commitPreparing = false;
     }
@@ -2015,7 +2056,7 @@ export function bootSpellUnifiedPanel(
     state.committing = true;
     const runtime = {
       ...areaRuntime(operation, ownerSceneContext),
-      extraOperations: slotSpend.extraOperations,
+      extraOperations: [...slotSpend.extraOperations, ...reactionSpend.operations],
       castCost: slotSpend.spellCost,
     };
     const sceneEpoch = operation.epoch;
@@ -2028,7 +2069,9 @@ export function bootSpellUnifiedPanel(
     try {
       const result = await executeSpellUnifiedArea({
         contract: state.contract,
-        session: sessionAtSpentSlot(slotSpend),
+        session: damageReactions.length
+          ? { ...sessionAtSpentSlot(slotSpend), damageReactions: damageReactions.map(castDamageReactionRequest) }
+          : sessionAtSpentSlot(slotSpend),
         source: {
           sceneEpoch,
           commandId: operation.operationId,
@@ -2075,8 +2118,11 @@ export function bootSpellUnifiedPanel(
             ...(Array.isArray(result.notes) ? result.notes : [])].join(" "),
           },
         });
+        // The reactions are spent with the cast: their lines go, and the reactors' labels show the reaction used.
+        if (damageReactions.length) castDamageReactions = [];
         state.revision += 1;
         render();
+        if (reactionSpend.reactorIds.length) void Promise.resolve(refreshConditionLabels(reactionSpend.reactorIds)).catch(() => {});
         await refreshScene();
         return;
       }
@@ -2931,6 +2977,8 @@ export function bootSpellUnifiedPanel(
     unsubscribeItems?.();
     unsubscribeInitiativeState?.();
     unsubscribePopup?.();
+    unsubscribeCounterspellResult?.();
+    castReactionPrompt.destroy();
     unsubscribeSelection = null;
     unsubscribeItems = null;
     unsubscribeInitiativeState = null;
@@ -2980,6 +3028,417 @@ export function bootSpellUnifiedPanel(
     render();
   };
 
+  // Avvisi di reazione, lot R2 (docs/STUDIO_AVVISI_REAZIONE.md): before a cast, the creatures that can counter it. The
+  // first Lancia stops and shows who, with what and why; Lancia again casts without the reaction (decision D2). Usa
+  // opens Counterspell's popup filled in; its result comes back here: countered, the cast does not start (the popup
+  // already spends the countered caster's slot); not countered or closed, Lancia casts. Nothing is written here.
+  const reactionBox = documentRef.getElementById("spell-unified-reaction-prompt");
+  const reactionWait = documentRef.getElementById("spell-unified-reaction-wait");
+  const idleCastReaction = () => ({ key: "", phase: "", requestId: "", label: "" });
+  let castReaction = idleCastReaction();
+  let castReactionAttempt = 0;
+  let castReactionChecking = false;
+  const castReactionKey = () => JSON.stringify([
+    state.session?.casterId || "", state.contract?.spell?.id || "", state.session?.slotLevel ?? null,
+  ]);
+  const castSpellLevel = () => {
+    const spell = state.contract?.spell || {};
+    if (Number(spell.level) === 0) return 0;
+    const slot = Number(state.session?.slotLevel);
+    if (Number.isInteger(slot) && slot > 0) return slot;
+    return Number.isInteger(Number(spell.level)) ? Number(spell.level) : null;
+  };
+  // The spell's Italian name, from the catalog: the contract's spell carries its id.
+  const castSpellName = () => {
+    const spell = state.contract?.spell || {};
+    return String(getSpellDefinition(spell.id)?.displayName || spell.displayName || spell.name || "").trim();
+  };
+  // Above the fixed Lancia row, whatever its height.
+  const damageReactionsBox = documentRef.getElementById("spell-unified-damage-reactions");
+  const placeReactionBoxes = () => {
+    const footer = root.querySelector?.(".unified-review-footer");
+    const base = Math.max(56, Number(footer?.offsetHeight) || 64) + 8;
+    const lines = damageReactionsBox && !damageReactionsBox.hidden ? (Number(damageReactionsBox.offsetHeight) || 0) + 6 : 0;
+    if (damageReactionsBox?.style) damageReactionsBox.style.bottom = `${base}px`;
+    if (reactionBox?.style) reactionBox.style.bottom = `${base + lines}px`;
+    if (reactionWait?.style) reactionWait.style.bottom = `${base + lines}px`;
+  };
+  const hideReactionWait = () => {
+    if (!reactionWait) return;
+    reactionWait.hidden = true;
+    reactionWait.replaceChildren();
+  };
+  // Lot R2b, Magic-User's Nemesis: the caster failed its save, the spell fails and what it costs is spent all the same
+  // (prepareSpellSlotSpend, as the cast would), in a command of its own with its History entry. { ok, message }.
+  const spendFailedCast = async (reactor) => {
+    const operation = captureSceneOperation("spell-panel-failed-cast");
+    const spend = await prepareSpellSlotSpend(operation);
+    if (!sceneLifecycle.isCurrent(operation)) return { ok: false, message: "Scena cambiata: riprova." };
+    if (!spend?.extraOperations?.length) return { ok: true, message: "niente da spendere" };
+    const label = `${castSpellName() || "Incantesimo"}: fallisce (${reactor.label})`;
+    const result = await runEffectsMutation(spend.extraOperations, {
+      kind: "spell-failed", label, targetIds: [state.session?.casterId || ""],
+      history: { kind: "spell-failed", label, payload: { reaction: { id: reactor.reactionId, reactorId: reactor.id } } },
+    });
+    requireAppliedEffectsMutation(result);
+    return { ok: true, message: spend.spellCost ? `speso: ${spend.spellCost}` : "costo speso" };
+  };
+  // Lot R2b, Spell Thief: the caster failed its save, the spell has no effect on the thief, who steals it (a spell of
+  // the 1st level or higher; a cantrip is only denied): the feature's own flow, with its use and the reaction.
+  const stealCastSpell = async (reactor) => {
+    const spell = state.contract?.spell || {};
+    try {
+      const { activateClassFeature } = await import("./classFeatureRuntime.js");
+      await activateClassFeature({ sourceId: reactor.id, featureId: reactor.featureId, targetIds: [state.session?.casterId || ""],
+        spellId: spell.id || "", spellName: castSpellName(), spellMode: Number(spell.level) >= 1 ? "steal" : "deny",
+        spellLevelConfirmed: true });
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, message: String(error?.message || error || "Ladro di Incantesimi non registrato.") };
+    }
+  };
+  // outcome: "countered", "failed" or "closed" from Counterspell's popup; "proceed-now" from Prosegui; lot R2b:
+  // "nemesis-failed" and "nemesis-passed" (Magic-User's Nemesis), "thief-failed" and "thief-passed" (Spell Thief).
+  const settleCastReaction = async (outcome, requestId = castReaction.requestId) => {
+    if (castReaction.phase !== "waiting" || !requestId || requestId !== castReaction.requestId || castReaction.settling) return;
+    const spellName = castSpellName() || "l'incantesimo";
+    const reactor = castReaction.reactor || {};
+    if (outcome === "nemesis-failed" || outcome === "thief-failed" || outcome === "thief-passed") {
+      castReaction = { ...castReaction, settling: true };
+      const result = outcome === "nemesis-failed" ? await spendFailedCast(reactor)
+        : outcome === "thief-failed" ? await stealCastSpell(reactor)
+          : await useReactionFeature({ sourceId: reactor.id, featureId: reactor.featureId });
+      castReaction = { ...castReaction, settling: false };
+      if (!result.ok) {
+        patchSession({ feedback: { state: "error", message: result.message } }, { clearFeedback: false });
+        return;
+      }
+      hideReactionWait();
+      if (outcome === "nemesis-failed") {
+        castReaction = { ...castReaction, phase: "cancelled" };
+        patchSession({ feedback: { state: "info",
+          message: `${spellName} fallisce per la ${reactor.label} (${result.message}): il lancio non parte. Premi di nuovo il pulsante solo per lanciarlo comunque.` } },
+        { clearFeedback: false });
+        return;
+      }
+      castReaction = { ...castReaction, phase: "proceed" };
+      if (outcome === "thief-failed") {
+        const targets = () => (Array.isArray(state.session?.targetIds) ? state.session.targetIds : []);
+        if (targets().includes(reactor.id)) await callbacks.onTargetToggle?.(reactor.id, false);
+        // An area already placed keeps its creatures locked: the GM takes the thief out (Modifica bersagli).
+        const stillTargeted = targets().includes(reactor.id);
+        patchSession({ feedback: { state: "info", message: stillTargeted
+          ? `${reactor.name} non subisce ${spellName} e lo ruba: toglilo dai bersagli (Modifica bersagli), poi premi di nuovo il pulsante.`
+          : targets().length
+            ? `${reactor.name} non subisce ${spellName} e lo ruba: premi di nuovo il pulsante per lanciarlo sugli altri bersagli.`
+            : `${reactor.name} non subisce ${spellName} e lo ruba: non resta nessun bersaglio.` } }, { clearFeedback: false });
+        return;
+      }
+      patchSession({ feedback: { state: "info",
+        message: `${reactor.label}: TS superato, reazione e uso segnati. Premi di nuovo il pulsante per lanciare ${spellName}.` } },
+      { clearFeedback: false });
+      return;
+    }
+    hideReactionWait();
+    if (outcome === "nemesis-passed") {
+      castReaction = { ...castReaction, phase: "proceed" };
+      patchSession({ feedback: { state: "info", message: `${reactor.label}: TS superato. Premi di nuovo il pulsante per lanciare ${spellName}.` } },
+        { clearFeedback: false });
+      return;
+    }
+    if (outcome === "countered") {
+      castReaction = { ...castReaction, phase: "cancelled" };
+      patchSession({ feedback: { state: "info",
+        message: `${spellName}: annullato dal ${castReaction.label}, il lancio non parte. Premi di nuovo il pulsante solo per lanciarlo comunque.` } },
+      { clearFeedback: false });
+      return;
+    }
+    castReaction = { ...castReaction, phase: "proceed" };
+    if (outcome === "proceed-now") {
+      void commit();
+      return;
+    }
+    patchSession({ feedback: { state: "info", message: outcome === "failed"
+      ? `Il Controincantesimo non ha annullato ${spellName}: premi di nuovo il pulsante per lanciarlo.`
+      : `Controincantesimo chiuso senza lancio: premi di nuovo il pulsante per lanciare ${spellName}.` } }, { clearFeedback: false });
+  };
+  const COUNTERSPELL_WAIT_BUTTONS = [["Annullato: non lanciare", "countered"], ["Prosegui", "proceed-now", "reaction-prompt-use"]];
+  const showReactionWait = (message, buttons = COUNTERSPELL_WAIT_BUTTONS) => {
+    if (!reactionWait) return;
+    const text = documentRef.createElement("span");
+    text.className = "reaction-prompt-why";
+    text.textContent = message;
+    const button = (label, outcome, className = "") => {
+      const node = documentRef.createElement("button");
+      node.type = "button";
+      node.className = `reaction-prompt-button${className ? ` ${className}` : ""}`;
+      node.textContent = label;
+      node.dataset.reactionWait = outcome;
+      node.addEventListener("click", () => { void settleCastReaction(outcome); });
+      return node;
+    };
+    const foot = documentRef.createElement("div");
+    foot.className = "reaction-prompt-foot";
+    foot.append(...buttons.map(([label, outcome, className]) => button(label, outcome, className)));
+    reactionWait.replaceChildren(text, foot);
+    reactionWait.hidden = false;
+    placeReactionBoxes();
+  };
+  const useCastReaction = async (candidate) => {
+    if (candidate?.flow === "modifier") return addCastDamageReaction(candidate);
+    if (candidate?.flow === "activate-feature") return activateCastReactionFeature(candidate);
+    // Lot R4: a monster's reaction (a Parry, a reaction after a hit): its "Reazione usata"; the GM changes the outcome.
+    if (candidate?.source === "monster") {
+      const used = await useReactionFeature({ sourceId: candidate.reactorId, monster: true, label: candidate.label });
+      patchSession({ feedback: { state: used.ok ? "success" : "error",
+        message: used.ok ? `${candidate.reactorName} · ${candidate.label}: reazione segnata. ${reactionPromptEffectText(candidate, castReactionItems)}.` : used.message } },
+      { clearFeedback: false });
+      return;
+    }
+    const casterName = state.casters.find((item) => item.id === state.session?.casterId)?.name || "Il lanciatore";
+    const spellName = castSpellName() || "l'incantesimo";
+    const requestFor = (kind) => `${kind}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
+    const reactor = { id: candidate?.reactorId || "", name: candidate?.reactorName || "", featureId: candidate?.featureId || "",
+      reactionId: candidate?.reactionId || "", label: `${candidate?.label || "Reazione"} di ${candidate?.reactorName || ""}` };
+    // Lot R2b, Magic-User's Nemesis: its use and the reaction now; the save at the table decides the cast.
+    if (candidate?.reactionId === "magic-users-nemesis") {
+      const used = await useReactionFeature({ sourceId: reactor.id, featureId: reactor.featureId });
+      if (!used.ok) {
+        patchSession({ feedback: { state: "error", message: used.message } }, { clearFeedback: false });
+        return;
+      }
+      castReaction = { ...castReaction, phase: "waiting", requestId: requestFor("nemesis"), label: reactor.label, reactor };
+      showReactionWait(`${reactor.label}: ${casterName} tira il ${reactionPromptEffectText(candidate, castReactionItems)}.`,
+        [["TS fallito: fallisce", "nemesis-failed"], ["TS superato: prosegui", "nemesis-passed", "reaction-prompt-use"]]);
+      return;
+    }
+    // Lot R2b, Spell Thief: the save first; its use and the reaction with the outcome.
+    if (candidate?.reactionId === "spell-thief") {
+      castReaction = { ...castReaction, phase: "waiting", requestId: requestFor("thief"), label: reactor.label, reactor };
+      showReactionWait(`${reactor.label}: ${casterName} tira il ${reactionPromptEffectText(candidate, castReactionItems)}.`,
+        [["TS fallito: lo ruba", "thief-failed"], ["TS superato: prosegui", "thief-passed", "reaction-prompt-use"]]);
+      return;
+    }
+    if (candidate?.flow !== "counterspell") return;
+    const requestId = `counterspell:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
+    castReaction = { ...castReaction, phase: "waiting", requestId, label: `Controincantesimo di ${candidate.reactorName}` };
+    await openCounterspellPopover({ sourceId: candidate.reactorId, targetId: state.session?.casterId || "",
+      spellId: state.contract?.spell?.id || "", spellLevel: castSpellLevel(), requestId });
+    showReactionWait(`In attesa del Controincantesimo di ${candidate.reactorName}: il lancio parte solo se non annulla.`);
+  };
+  let castReactionItems = [];
+  const castReactionPrompt = createReactionPrompt(reactionBox, {
+    documentRef, buttonClass: "reaction-prompt-button", ignoreHint: "Premi di nuovo il pulsante per lanciare senza reazione.",
+    onUse: (candidate) => useCastReaction(candidate), onRender: (shown) => { if (shown) placeReactionBoxes(); },
+  });
+  const unsubscribeCounterspellResult = reactionBox
+    ? (runtimeOverrides.broadcast || OBR.broadcast)?.onMessage?.(COUNTERSPELL_RESULT_CHANNEL,
+      (event) => { void settleCastReaction(event?.data?.outcome, event?.data?.requestId); }) || null
+    : null;
+  // Another caster, spell or slot in the panel: the prompt of the old cast goes, with its reactions to the damage.
+  function syncCastReaction() {
+    // A render before this block has run (the boot) has nothing to sync.
+    try {
+      if (castDamageReactions.length && castDamageReactionsKey !== castReactionKey()) castDamageReactions = [];
+      renderCastDamageReactions();
+      if (!castReaction.key || castReaction.key === castReactionKey()) return;
+      castReaction = idleCastReaction();
+      castReactionPrompt.update({ event: null });
+      hideReactionWait();
+    } catch {}
+  }
+
+  // Lot R3b-5: the creatures this cast damages (the panel's preview), with their outcome: none before the damage is
+  // written; Magic Missile (its darts) and Prismatic Spray (its rays) count their damage on their own.
+  const castDamageTargets = () => {
+    if (!usesPersistentCastAdapter()) return [];
+    const spellId = state.contract?.spell?.id || "";
+    if ([MAGIC_MISSILE_SPELL_ID, PRISMATIC_SPRAY_SPELL_ID].includes(spellId)) return [];
+    const preview = state.model?.effects?.preview;
+    if (!preview?.visible || !preview.valid || preview.mode !== "damage") return [];
+    const candidates = new Map((state.model?.targets?.candidates || []).map((candidate) => [candidate.key, candidate]));
+    return (preview.targets || [])
+      .filter((target) => target.change && !target.pendingOutcome && !["zero", "immune"].includes(target.factor))
+      .map((target) => ({ id: target.key, outcome: String(candidates.get(target.key)?.outcome?.value || "").toLowerCase() }));
+  };
+  // The events of the damage: one for a save (no attack roll), one per creature for an attack (its own critical).
+  const castDamageEvents = () => {
+    const targets = castDamageTargets();
+    if (!targets.length) return [];
+    const base = { trigger: "damage", attackerId: state.session?.casterId || "", range: "",
+      damageTypes: spellPanelDamageTypes(state.contract?.spell?.id, state.session?.triggerRuntime) };
+    if (!["attack", "attack-and-save"].includes(state.model?.targets?.outcomes?.mode)) {
+      return [{ ...base, targetIds: targets.map((target) => target.id), attackRoll: false, critical: false }];
+    }
+    return targets.flatMap((target) => {
+      const event = { ...base, targetIds: [target.id], attackRoll: true, critical: target.outcome === "critical" };
+      return [{ ...event, trigger: "hit" }, event];
+    });
+  };
+  // What the panel can do with Usa: Counterspell, Magic-User's Nemesis, Spell Thief, a damage reaction, a feature.
+  const castPromptHandles = (candidate) => ["counterspell", "modifier", "activate-feature"].includes(candidate?.flow)
+    || ["magic-users-nemesis", "spell-thief"].includes(candidate?.reactionId) || candidate?.source === "monster";
+  const activeCastDamageReactions = () => {
+    if (castDamageReactionsKey !== castReactionKey()) return [];
+    const damaged = new Set(castDamageTargets().map((target) => target.id));
+    return castDamageReactions.filter((row) => damaged.has(row.targetId));
+  };
+  // A reduction asks the amount rolled at the table; Song of Defense the slot's level.
+  const castDamageReactionMissing = (row) => {
+    const effect = reactionTriggerEntry(row.reactionId)?.effect || {};
+    if (Number.isInteger(effect.perSlotLevel)) return row.slotLevel === "";
+    return effect.kind === "reduce" && row.amount === "";
+  };
+  let castReactionContext = null;
+  const refreshCastPrompt = () => {
+    if (!castReactionContext) return;
+    castReactionPrompt.update({ ...castReactionContext,
+      skip: [...castReactionContext.skip, ...castDamageReactions.map((row) => row.key)] });
+  };
+  function addCastDamageReaction(candidate) {
+    if (castDamageReactionsKey !== castReactionKey()) castDamageReactions = [];
+    castDamageReactionsKey = castReactionKey();
+    if (!castDamageReactions.some((row) => row.key === candidate.key)) castDamageReactions.push({ key: candidate.key,
+      reactionId: candidate.reactionId, reactorId: candidate.reactorId, reactorName: candidate.reactorName,
+      featureId: candidate.featureId, label: candidate.label, targetId: candidate.protectedId || candidate.targetIds?.[0] || "",
+      protectedName: candidate.protectedName || "", amount: "", slotLevel: "" });
+    damageReactionsSignature = "";
+    refreshCastPrompt();
+    state.revision += 1;
+    render();
+  }
+  async function activateCastReactionFeature(candidate) {
+    try {
+      const { activateClassFeature } = await import("./classFeatureRuntime.js");
+      await activateClassFeature({ sourceId: candidate.reactorId, featureId: candidate.featureId });
+      patchSession({ feedback: { state: "success", message: `${candidate.reactorName} · ${candidate.label}: attivata. ${candidate.rule || ""}`.trim() } },
+        { clearFeedback: false });
+    } catch (error) {
+      patchSession({ feedback: { state: "error", message: String(error?.message || error) } }, { clearFeedback: false });
+    }
+  }
+  // The reactors read again now: their reaction and resource as operations of the cast (reactionFeatureRuntime.js).
+  async function castDamageReactionSpend(operation, reactions) {
+    const context = await loadReactionSceneContext(runtimeOverrides.obr || OBR);
+    const operations = [], reactorIds = [];
+    for (const reaction of reactions.map(castDamageReactionRequest)) {
+      const reactorItem = context.items.find((item) => item.id === reaction.reactorId) || null;
+      const spend = planReactionFeatureSpend({ reactorItem, reaction, initiativeState: context.state,
+        operationId: `${operation.operationId}:${reaction.reactorId}:${reaction.reactionId}` });
+      if (!spend.ok) return { ok: false, message: spend.message, operations: [], reactorIds: [] };
+      operations.push(...spend.operations);
+      if (spend.operations.length) reactorIds.push(reactorItem.id);
+    }
+    return { ok: true, operations, reactorIds };
+  }
+  // The lines above Lancia, rebuilt only when they change: an amount being typed keeps its caret.
+  let damageReactionsSignature = "";
+  function renderCastDamageReactions() {
+    if (!damageReactionsBox) return;
+    const rows = activeCastDamageReactions();
+    const busy = state.committing === true;
+    const signature = JSON.stringify([rows.map((row) => row.key), busy]);
+    if (signature === damageReactionsSignature) return;
+    damageReactionsSignature = signature;
+    const node = (tag, text = "", className = "") => {
+      const element = documentRef.createElement(tag);
+      if (text) element.textContent = text;
+      if (className) element.className = className;
+      return element;
+    };
+    const update = () => { state.revision += 1; render(); };
+    const lines = rows.map((row) => {
+      const entry = reactionTriggerEntry(row.reactionId), effect = entry?.effect || {};
+      const line = node("div", "", "damage-reaction");
+      const on = row.protectedName && row.protectedName !== row.reactorName ? ` su ${row.protectedName}` : "";
+      const label = node("span", `${row.label} di ${row.reactorName}${on}`, "damage-reaction-label");
+      label.title = entry?.rule || "";
+      line.append(label);
+      if (effect.kind === "halve") line.append(node("span", "danno dimezzato", "damage-reaction-effect"));
+      else if (effect.kind === "resistance") line.append(node("span", effect.acBonusDice ? "resistenza, se colpisce lo stesso" : "resistenza a questo danno", "damage-reaction-effect"));
+      else if (Number.isInteger(effect.perSlotLevel)) {
+        const select = node("select");
+        select.setAttribute("aria-label", `Slot speso per ${row.label}`);
+        select.disabled = busy;
+        select.append(...[["", "Slot"], ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => [String(level), `${level}° (−${level * effect.perSlotLevel})`])]
+          .map(([value, text]) => { const option = node("option", text); option.value = value; return option; }));
+        select.value = row.slotLevel;
+        select.addEventListener("change", () => { row.slotLevel = select.value; update(); });
+        line.append(select);
+      } else {
+        const input = node("input");
+        input.type = "number"; input.min = "0"; input.inputMode = "numeric"; input.value = row.amount; input.disabled = busy;
+        input.placeholder = String(entry?.short || "").replace(/^−\s*/u, "");
+        input.setAttribute("aria-label", `Riduzione di ${row.label}`);
+        input.addEventListener("input", () => { row.amount = input.value.trim(); update(); });
+        line.append(node("span", "−", "damage-reaction-effect"), input);
+      }
+      const remove = node("button", "✕", "damage-reaction-remove");
+      remove.type = "button"; remove.disabled = busy;
+      remove.title = "Togli la reazione: niente viene speso";
+      remove.setAttribute("aria-label", remove.title);
+      remove.addEventListener("click", () => {
+        castDamageReactions = castDamageReactions.filter((other) => other.key !== row.key);
+        damageReactionsSignature = "";
+        refreshCastPrompt();
+        update();
+      });
+      line.append(remove);
+      return line;
+    });
+    damageReactionsBox.replaceChildren(...(lines.length ? [node("span", "Reazioni al danno", "damage-reactions-caption")] : []), ...lines);
+    damageReactionsBox.hidden = !lines.length;
+    placeReactionBoxes();
+  }
+  // Synchronous, so that a double click never casts twice (L4): "go" casts now (no prompt here, or the prompt is
+  // answered: Lancia again counts as Ignora), "stop" waits for the check in progress, "check" reads the scene.
+  const castReactionStep = () => {
+    if (!reactionBox) return "go";
+    if (castReactionChecking) return "stop";
+    if (castReaction.key === castReactionKey() && castReaction.phase) {
+      castReactionPrompt.dismiss();
+      castReactionPrompt.update({ event: null });
+      hideReactionWait();
+      castReaction = idleCastReaction();
+      return "go";
+    }
+    castReaction = idleCastReaction();
+    hideReactionWait();
+    castReactionChecking = true;
+    return "check";
+  };
+  // true: the cast waits (the prompt is open). Called after castReactionStep said "check".
+  const castReactionGate = async () => {
+    const key = castReactionKey();
+    try {
+      const obr = runtimeOverrides.obr || OBR;
+      // Lot R4: the monsters' reactions from their stat blocks, only with the "Mostri" switch on.
+      const [scene, monsterReactions] = await Promise.all([loadReactionSceneContext(obr), loadMonsterReactions(obr).catch(() => ({}))]);
+      const context = { ...scene, monsterReactions };
+      castReactionItems = context.items;
+      const spell = state.contract?.spell || {};
+      // Lot R3b-5 (decision F2): the reactions to the cast's damage in the same prompt, at the same click.
+      const event = [{ trigger: "spell-cast", casterId: state.session?.casterId || "", spellId: spell.id || "",
+        spellName: castSpellName(), spellLevel: castSpellLevel(),
+        spellTargetIds: Array.isArray(state.session?.targetIds) ? state.session.targetIds : [] }, ...castDamageEvents()];
+      const skip = reactionPromptCandidates({ ...context, event }).filter((candidate) => !castPromptHandles(candidate))
+        .map((candidate) => candidate.key);
+      castReactionContext = { ...context, draftKey: `${key}|${++castReactionAttempt}`, event, skip };
+      castReactionPrompt.update({ ...castReactionContext,
+        skip: [...skip, ...activeCastDamageReactions().map((row) => row.key)] });
+    } catch (error) {
+      console.warn("[spell-panel] reaction prompts:", error?.message || error);
+      return false;
+    } finally {
+      castReactionChecking = false;
+    }
+    if (!castReactionPrompt.current().length) return false;
+    castReaction = { ...idleCastReaction(), key, phase: "asked" };
+    patchSession({ feedback: { state: "info",
+      message: "Una creatura può reagire al lancio: premi di nuovo il pulsante per lanciare senza reazione." } }, { clearFeedback: false });
+    return true;
+  };
+
   const commit = async () => {
     if (!sceneAvailable()
       || commitPreparing
@@ -3016,6 +3475,15 @@ export function bootSpellUnifiedPanel(
         feedback: { state: "info", message: "Controincantesimo: scegli nel popup cosa viene annullato." },
       }, { clearFeedback: false });
       return;
+    }
+    // Avvisi di reazione, lot R2: who can counter this cast, before anything is written.
+    if (actionId === "apply") {
+      const step = castReactionStep();
+      if (step === "stop") return;
+      if (step === "check") {
+        if (await castReactionGate()) return;
+        if (!sceneLifecycle.isCurrent(operation)) return;
+      }
     }
     if (usesPersistentCastAdapter()) {
       await commitArea();

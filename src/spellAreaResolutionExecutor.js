@@ -66,6 +66,7 @@ import {
   planHpBranchBeforeDamage,
 } from "./hpBranchSpellRules.js";
 import { spellUndeadTemporaryHpAmount } from "./spellTemporaryHpRules.js";
+import { spellDamageWithReactions } from "./damageReactionCore.js";
 import {
   magicalDamageDefensesForItem,
   spellDamageAfterDefense,
@@ -528,17 +529,28 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
       const defense = mode === QUICK_HP_MODES.DAMAGE && !noDamage && !parts
         ? spellDamageDefenseApplied(spellHpDefenseRows(hp, spell, item))
         : null;
+      // Avvisi di reazione, lot R3b-5: this creature's reactions to the damage (Spirit Shield, Dampen Elements...), as the
+      // panel's preview counts them; the reactors' reaction and resource are in the command's extra operations.
+      const reactionTypes = Array.isArray(hp?.damageTypes) ? hp.damageTypes : spellDamageTypes(spell?.id);
+      const reacted = mode !== QUICK_HP_MODES.DAMAGE || noDamage ? null : spellDamageWithReactions({
+        parts: spellHpDamageParts(hp) || [{ type: reactionTypes[0], amount }],
+        factor: factorName,
+        defenseFor: (type) => (!spellHpDamageParts(hp) && reactionTypes.length > 1 ? null : spellDamageDefenseApplied(spellDamageDefenseRows({
+          types: [type], defenses: magicalDamageDefensesForItem(item, META_KEY), ignoredTypes: hp?.ignoredDefenses?.[targetId] }))),
+        reactions: (Array.isArray(hp?.damageReactions) ? hp.damageReactions : []).filter((row) => row?.targetId === targetId),
+      });
+      const reactionRecords = reacted ? reacted.records.map((record) => ({ id: targetId, ...record })) : [];
       const scaledChange = calculateQuickHPChange({
         mode,
-        value: noDamage ? 0 : parts ? parts.after : defense ? spellDamageAfterDefense(amount, factorName, defense) : amount,
-        factor: defense || parts ? QUICK_HP_FACTORS.FULL : factorName,
+        value: noDamage ? 0 : reacted ? reacted.value : parts ? parts.after : defense ? spellDamageAfterDefense(amount, factorName, defense) : amount,
+        factor: defense || parts || reacted ? QUICK_HP_FACTORS.FULL : factorName,
         hp: itemMeta(item).hp,
         hpMax: itemMeta(item).hpMax,
         tempHp: itemMeta(item).tempHp,
         deathSaveDamage: takesDeathSaveDamage(itemMeta(item)),
       });
       // The factor stays the outcome's: the log says "half" for a passed save, and the defense on its own line.
-      const areaChange = defense || parts ? { ...scaledChange, factor: factorName } : scaledChange;
+      const areaChange = defense || parts || reacted ? { ...scaledChange, factor: factorName } : scaledChange;
       // A cast's own hit on its primary target (Ice Knife's shard): its outcome, then its defense, as the panel's preview.
       const primaryHit = spellCastPrimaryHit(spell?.id);
       const primaryTarget = mode === QUICK_HP_MODES.DAMAGE && targetId === primaryTargetId;
@@ -553,7 +565,7 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
           })
           : primaryAmount;
       if (!primaryTarget || primaryValue <= 0) {
-        return { item, change: areaChange, outcome };
+        return { item, change: areaChange, outcome, ...(reactionRecords.length ? { reactionRecords } : {}) };
       }
       const primaryChange = calculateQuickHPChange({
         mode,
@@ -597,6 +609,7 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
           areaRequested: combinedChange.requested,
           areaFactor: areaChange.factor,
         },
+        ...(reactionRecords.length ? { reactionRecords } : {}),
       };
     })
     .filter((entry) => entry.change.changed || resolveSharedHpGroup(allItems, entry.item.id).memberIds?.length > 1);
@@ -2438,6 +2451,8 @@ async function buildPlan(command, runtime) {
     ...(bossActionUse ? [casterId] : []),
     // The spell slot spent with the cast: the caster's entry keeps the History even when the area is empty.
     ...(Array.isArray(runtime.extraOperations) && runtime.extraOperations.length && casterId ? [casterId] : []),
+    // Lot R3b-5: the creatures that reacted to the damage (their reaction and resource), for the Undo.
+    ...(Array.isArray(command?.hp?.damageReactions) ? command.hp.damageReactions.map((row) => text(row?.reactorId)).filter(Boolean) : []),
     ...(command?.source?.kind === "prepared-resolution" && casterId ? [casterId] : []),
     // Concentration lives on the caster: when every target saves, it is all the cast changes, and it needs its Undo.
     // Only the History's snapshot: the caster is no target of the spell, in the combat log either.
@@ -2491,7 +2506,7 @@ async function buildPlan(command, runtime) {
     prismaticSprayPlan: resolution.prismaticSpray || null,
     // CAP-CLEANSE: what the GM still has to do (Dispel Magic's spells above its limit, a construct Heal leaves).
     zoneResourceSideEffects: zoneResource?.sideEffects || [],
-    reactionRecords: reactionHp.records,
+    reactionRecords: [...reactionHp.records, ...entries.flatMap((entry) => entry.reactionRecords || [])],
     notes: [
       ...(cleanse?.notes || []),
       ...(stabilize?.notes || []),
