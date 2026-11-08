@@ -2,8 +2,16 @@
 
 Data: 8 novembre 2026. Stato: **studio, decisioni D1–D12 approvate dall'utente
 l'8 novembre come raccomandate** (§7). R0 e R1 fatti l'8 novembre (§6.1,
-§6.2): R0 in `b89f4e68`, R1 in `9f0f6505`, non ancora nel bundle né
-pushati. Prossimo passo: R2. Base: `main` =
+§6.2): R0 in `b89f4e68`, R1 in `9f0f6505`, bundle `ea62af15`, pushati l'8
+novembre con la CI verde. R2, R2b, R3a e R3c fatti l'8 novembre (§6.3–§6.6,
+non committati). R3b (R3b-1, R3b-2, R3b-3) e R3b-4 (aree delle console)
+fatti l'8 novembre (§6.8, §6.9, non committati). R3b-5 (pannello incantesimi)
+fatto l'8 novembre con F1–F3 approvate (§6.10, §6.11, non committato). R4
+(mostri) fatto l'8 novembre con G1–G5 approvate (§6.12, §6.13, non
+committato). R6 (schermo dei giocatori e online) fatto l'8 novembre con
+H1–H5 approvate (§6.14, §6.15, non committato). R5 (movimento) fatto l'8
+novembre con J1–J5 approvate (§6.16, §6.17, non committato): tutti i lotti
+sono fatti. Base: `main` =
 `origin/main` a `5d994f10`, produzione su Render a `c38801f3`.
 
 Richiesta dell'utente (08/11): estendere le reazioni oltre la riduzione del
@@ -592,6 +600,776 @@ un flusso: Scudo, Assorbire elementi (prima) e Intimorire infernale (dopo).
       L'unica differenza nel codice è una lettura in più dei metadata della
       scena nella console Boss, a ogni aggiornamento, per conoscere l'ordine
       d'iniziativa.
+
+### 6.3 R2, fatto l'8 novembre
+
+Il Controincantesimo quando una creatura lancia dal **pannello incantesimi**.
+
+- **Quando compare.** Alla prima pressione del pulsante che lancia
+  (`apply`: «Lancia», «Applica a N bersagli»), prima di qualunque
+  scrittura. Compare se un nemico (un nemico contro un PG o un alleato) entro
+  18 m ha Controincantesimo, la reazione libera e uno slot dal 3°. Un
+  trucchetto lo fa scattare solo con l'interruttore (D10). Le distanze sono
+  quelle del popup del Controincantesimo (`measureItems`, gittata a cerchio),
+  in metri (`src/reactionSceneContext.js`).
+- **Cosa dice.** «Goblin lancia Blocca persone (2°).», poi «Mira ·
+  Controincantesimo — Contrasta: automatico fino al livello dello slot, oltre
+  prova CD 10 + livello», con Usa, Non chiedere più, Ignora e «Premi di nuovo
+  il pulsante per lanciare senza reazione.». Lo stesso modulo delle console,
+  con un fondo pieno perché galleggia sopra la lista dei bersagli
+  (`public/reaction-prompt.css`, ora comune alle tre finestre).
+- **Fermata morbida (D2).** Premere di nuovo il pulsante vale come Ignora e
+  lancia come oggi.
+- **Usa** apre `counterspell.html` già compilato: chi lancia (`target`),
+  l'incantesimo (`spell`), il livello (`spellLevel`) e la richiesta
+  (`request`). Il pannello mostra «In attesa del Controincantesimo di Mira»
+  con «Annullato: non lanciare» e «Prosegui». Quando il popup lancia, rimanda
+  il risultato con un broadcast LOCAL (`COUNTERSPELL_RESULT_CHANNEL`):
+  - **annullato**: il lancio non parte; lo slot perso lo scrive già il
+    Controincantesimo;
+  - **non annullato**, o popup chiuso: il pannello chiede di premere di nuovo
+    il pulsante.
+- **Nessuna scrittura nuova.** Un lancio annullato non parte; uno che
+  prosegue è quello di oggi. Il controllo è sincrono quando non serve
+  aspettare, così un doppio clic lancia una volta sola (il test L4 l'ha
+  trovato).
+- **Limite.** Nel pannello gli esiti dei tiri salvezza si segnano prima del
+  pulsante, quindi il popup arriva dopo. Se l'incantesimo viene annullato,
+  gli esiti segnati non servono.
+- **Rimandati a R2b** (fatto, §6.4): Nemesi degli Incantatori e Ladro di
+  Incantesimi. Restano fuori il menu 🪄 e la console attacchi (D10).
+- **Opzioni.** Due interruttori nuovi: «Quando una creatura lancia un
+  incantesimo dal pannello (Controincantesimo)» e «Controincantesimo anche
+  contro i trucchetti».
+- **File.**
+  - nuovi `src/reactionSceneContext.js` e `public/reaction-prompt.css`;
+  - `src/spell-unified-panel.js` (`castReactionStep`, `castReactionGate`,
+    attesa e risultato, in `commit` dopo il ramo del Controincantesimo) e
+    `spell-unified-panel.html`;
+  - `src/counterspellLauncher.js` e `src/counterspell.js` (parametri e
+    risultato);
+  - `src/reactionPromptView.js` (`ignoreHint`, `onRender`, lotto R2) e
+    `src/reactionTriggerCatalog.js` (R2b);
+  - `options-modal.html`, `pc-attack.html`, `boss-actions.html`,
+    `public/console-panel.css` (lo stile passa al foglio comune);
+  - `test/reactionPrompt.test.js`: 3 test in più.
+- **Prove al banco**, su una copia del progetto con un server mio. Goblin
+  lancia Blocca persone su Mira, che ha Controincantesimo:
+  - compare il popup; «Usa» apre il Controincantesimo già compilato
+    (annullamento automatico) e il pannello aspetta. Lanciato il
+    Controincantesimo, Mira ha «Reazione usata», niente Paralizzato, e il
+    pannello dice che il lancio non parte;
+  - in un giro nuovo, premere di nuovo il pulsante lancia: Mira è
+    Paralizzata;
+  - con l'interruttore spento, il primo clic lancia subito.
+
+### 6.4 R2b, fatto l'8 novembre
+
+Nemesi degli Incantatori (Uccisore di Mostri 11) e Ladro di Incantesimi
+(Mistificatore Arcano 17), allo stesso momento del Controincantesimo.
+
+- **Nemesi degli Incantatori.** Compare se il ranger ha l'uso e la reazione
+  e il lanciatore è un nemico entro 18 m. Il testo dice «TS Saggezza CD 15:
+  se lo fallisce, l'incantesimo fallisce e lo slot è perso» (la CD è quella
+  della scheda). **Usa** spende l'uso e la reazione con il flusso della scheda
+  (`adjustClassFeatureResource`), poi il pannello mostra «TS fallito:
+  fallisce» e «TS superato: prosegui».
+  - **TS fallito:** il lancio non parte e il lanciatore spende quello che il
+    lancio avrebbe speso (lo slot, o l'uso dell'azione rapida), con lo stesso
+    calcolo del pannello (`prepareSpellSlotSpend`). Lo spende in un comando
+    suo, con la voce «Blocca persone: fallisce (Nemesi degli Incantatori di
+    Mira)» nella Cronologia; un mostro senza slot non spende niente.
+  - **TS superato:** il pannello chiede di premere di nuovo il pulsante.
+- **Ladro di Incantesimi.** Compare solo se il ladro è tra i bersagli
+  dell'incantesimo. **Usa** mostra prima il TS («TS di caratteristica da
+  incantatore CD 16: se lo fallisce, non ha effetto sul ladro, che lo
+  ruba»). Poi:
+  - **TS fallito: lo ruba.** Il flusso della capacità
+    (`activateClassFeature`, modalità «ruba», o «nega» per un trucchetto)
+    spende l'uso e la reazione e mette sul lanciatore il promemoria
+    «Incantesimo rubato». Il ladro esce dai bersagli; se l'area è già
+    piazzata, il pannello chiede di toglierlo con Modifica bersagli;
+  - **TS superato:** l'uso e la reazione si spendono lo stesso, poi il
+    pulsante.
+- **Scritture nuove:** solo lo slot del lancio fallito, in un comando con la
+  sua voce e il suo Annulla. Nessun PF.
+- **File:** `src/spell-unified-panel.js` (`spendFailedCast`,
+  `stealCastSpell`, gli esiti nuovi di `settleCastReaction`), il nuovo
+  `src/reactionFeatureRuntime.js`, i testi in `src/reactionPromptView.js`.
+- **Banco:**
+  - Goblin (mago di 5°) lancia Blocca persone su Mira. «Usa» su Nemesi segna
+    reazione e uso (1 → 0); «TS fallito» toglie lo slot di 2° (3 → 2), Mira
+    non è Paralizzata e il lancio non parte;
+  - Goblin lancia su Sera. «Usa» sul Ladro, poi «TS fallito: lo ruba»: Sera ha
+    reazione e uso segnati, esce dai bersagli e il Goblin ha il promemoria
+    «Incantesimo rubato: Blocca persone».
+
+### 6.5 R3a, fatto l'8 novembre
+
+Le capacità dei PG che **cambiano l'esito** di un colpo, nelle due console,
+nel popup sopra Registra: Coda, Deviazione Arcana, Difesa Gloriosa, Manovra
+Protettrice (la parte della CA), Sentinella alla Porta della Morte, Armatura
+dei Sortilegi e Scudo Runico.
+
+- **Usa** passa da `src/reactionFeatureRuntime.js`: una capacità con una
+  risorsa ne spende un uso con la reazione (`adjustClassFeatureResource`),
+  una senza risorsa segna solo la reazione (`useClassFeatureReaction`).
+  Sono i flussi che il plugin ha già.
+- **L'esito lo cambia il GM**, perché la console non conosce il tiro. Il
+  testo gli dà la finestra: «Ser · Difesa Gloriosa — + Car alla CA su Bram ·
+  CA 14 → 18: un tiro da 14 a 17 diventa Mancato». Per un bonus fatto di
+  dadi (Coda, Manovra Protettrice) dice di tirare il dado.
+- **Un'eccezione:** con la Sentinella alla Porta della Morte, Usa trasforma
+  da sé il Critico in Colpito nella bozza. Il cambio è certo e non scrive
+  niente sul token.
+- **Sugli alleati:** le distanze vengono dalla griglia, lette una volta
+  all'apertura della console (`loadReactionSceneGrid`). Finché non sono
+  lette, le reazioni su un alleato non compaiono.
+- **Nessuna scrittura nuova:** risorsa e reazione passano dai comandi che
+  esistono già. Nessun PF.
+- **Banco:**
+  - Goblin colpisce Mira, con accanto Dars paladino della Gloria (Car +4):
+    compare la Difesa Gloriosa con CA 14 → 18. «Usa» segna la reazione di
+    Dars e un uso (4 → 3);
+  - Dars chierico della Tomba e un Critico su Mira: «Usa» sulla Sentinella
+    rimette Colpito.
+
+### 6.6 R3c, fatto l'8 novembre
+
+Gli avvisi **dopo** il danno e **dopo un attacco mancato**, nelle due console,
+quando Registra è applicato.
+
+- **Il mancato.** Scegliere Mancato non ferma niente. Registrato l'attacco,
+  compaiono le reazioni dopo il mancato: Replica (mischia), Opporsi alla
+  Marea, Andatura Ondeggiante, Uccisore di Giganti. Dal lotto R3c
+  l'interruttore «Quando un attacco manca» è **acceso di base**: D3 lo
+  teneva spento solo finché le sue reazioni non erano collegate.
+- **Dopo il colpo o il danno:** Ritorsione (Berserker, attaccante entro
+  1,5 m), Collera della Tempesta (entro 1,5 m), Furia della Tempesta (in
+  mischia), Tempesta Furibonda (con l'Ira), Fuga Velata e Intimorire i
+  Violenti (su un alleato), accanto a Intimorire infernale di R1.
+- **Usa, attacco con la reazione** (Replica, Ritorsione, Uccisore di
+  Giganti). L'attaccante viene selezionato sulla mappa e:
+  - nella console attacchi, la console passa alla creatura che reagisce,
+    fuori turno, come «⇄ Agisci con»;
+  - dalla console Boss si apre la console attacchi del PG.
+
+  In entrambi i casi il bersaglio è l'attaccante e la casella «Usa la
+  reazione» è spuntata: è l'attacco registrato a spendere la reazione.
+- **Usa, capacità** (Collera della Tempesta, Furia della Tempesta, Tempesta
+  Furibonda, Fuga Velata, Intimorire i Violenti, Opporsi alla Marea,
+  Andatura Ondeggiante). Passa da `useReactionFeature` di R3a: un uso con la
+  reazione, o la reazione sola. La riga di stato ripete la regola. I dadi, il
+  TS e i danni restano al tavolo, con gli strumenti di sempre.
+- **Nessuna scrittura nuova**, nessun PF.
+- **Limiti:**
+  - Uccisore di Giganti non controlla la taglia dell'attaccante (Grande o
+    più), che il testo ricorda;
+  - la casella della console dice «attacco di opportunità» anche per una
+    Replica.
+- **Banco:**
+  - Goblin manca Dars, maestro di battaglia: nessuna fermata. Dopo Registra
+    compare «Dars · Replica»; «Usa» porta la console su Dars fuori turno,
+    con il goblin come bersaglio e la reazione spuntata;
+  - Goblin colpisce Mira, chierica della Tempesta, a 1,5 m: dopo Registra,
+    «Usa» su Collera della Tempesta segna la reazione e scrive la regola;
+  - Auril manca Dars nella console Boss: «Usa» su Replica apre la console
+    attacchi di Dars, fuori turno, con Auril come bersaglio.
+
+### 6.7 R3b, piano (8 novembre; E1–E8 approvate come raccomandate)
+
+R3b è l'unico lotto che **scrive i PF**. Come chiede `AGENTS.md`, qui c'è il
+piano esatto con i rischi; il codice parte solo dopo il via sulle decisioni
+E1–E8.
+
+**Cosa copre.** Le reazioni dei PG che cambiano il danno di un attacco a
+**bersaglio singolo**, nella console attacchi e nella console Boss:
+
+| Reazione | Effetto sul danno | Che cosa scrive il GM |
+| --- | --- | --- |
+| Schivata Prodigiosa | dimezzato | niente |
+| Parata (Maestro di Battaglia) | − importo (dado di superiorità + Des) | l'importo |
+| Deviare Proiettili | − importo (1d10 + Des + livello) | l'importo |
+| Campo Protettivo | − importo (dado psionico + Int) | l'importo |
+| Spiriti Protettori | − importo (2d6, 3d6, 4d6) | l'importo |
+| Spirale Guardiana | − importo (1d8, 2d8) | l'importo |
+| Corpo del Sé Astrale | − importo, solo su acido, freddo, fuoco, forza, fulmine e tuono | l'importo |
+| Parole Taglienti | − importo (dado di Ispirazione) | l'importo |
+| Canzone di Difesa | − 5 × livello dello slot speso | il livello dello slot (E4) |
+| Difesa Spettrale, Dispersione Brulicante | resistenza a questo danno | niente |
+| Mitigare Elementi | resistenza a questo danno elementale | niente |
+| Manovra Protettrice | resistenza se colpisce lo stesso (E7) | niente |
+
+La **Tomba di Levistus** non è un modificatore: la capacità ha già il suo
+flusso (`activateClassFeature`: pill, PF temporanei, vulnerabilità al
+fuoco). Usa la attiva prima di Registra e la console rilegge il bersaglio,
+come oggi con Assorbire elementi (E6).
+
+**Come funziona per il GM.** Il popup sopra Registra mostra la reazione
+come gli altri. **Usa non scrive niente:** aggiunge alla bozza una riga
+«Reazioni al danno», sotto il danno, per esempio «Schivata Prodigiosa di
+Vex: danno dimezzato ✕» oppure «Parata di Dars: − [  ] (d8 + Des) ✕».
+L'anteprima del totale tiene già conto della riga. **Registra** scrive in
+**un solo comando**:
+
+- il danno ridotto;
+- la «Reazione usata» di chi reagisce;
+- la sua risorsa: dado, uso o slot.
+
+Un **Annulla** rimette tutto. Con ✕ il GM toglie la riga prima di
+registrare, senza spendere niente.
+
+**Il codice, punto per punto:**
+
+1. **Un modulo puro nuovo**, `src/damageReactionCore.js`, con
+   `applyDamageReactions({ components, inputs, factor, defenses, reactions })`.
+   Restituisce importi, fattore e difese da usare, più le righe «perché».
+   L'ordine è quello di E1:
+   - dimezzare (il fattore `full` diventa `half`, come fa già l'Elusione);
+   - sottrarre le riduzioni dagli importi;
+   - aggiungere le resistenze di questo danno alle difese.
+
+   Una resistenza che c'è già non raddoppia; resistenza più vulnerabilità
+   resta «Res. e Vuln.» (lotto M6).
+2. **`defendedComponents`** (`src/bossActionExecutionCore.js`, condivisa
+   dalle due console) prende un'opzione in più, `reactions`, e la applica
+   **dopo** il controllo delle difese attese. Così il controllo «le difese
+   sono cambiate» resta uguale. Senza `reactions` il risultato è identico a
+   oggi, byte per byte: lo verifica un test.
+3. **Le anteprime** chiamano lo stesso modulo: `pcAttackPreview`
+   (`src/pcAttackCore.js`), `bossDefendedDamage` e `bossDefenseCounts`
+   (`src/bossActionsViewCore.js`). Anteprima e commit fanno lo stesso
+   conto.
+4. **Il piano dell'attacco** (`buildPcAttackMutation` e il ramo
+   `attack-damage` del piano Boss) passa le reazioni a `defendedComponents`
+   per il **solo bersaglio**: le seconde creature e le esplosioni restano
+   come oggi. Il resto non cambia: `calculateQuickHPChange` sul totale
+   ridotto, poi PF temporanei, TS contro la morte e concentrazione. Nel
+   coordinatore Interdizione alla morte e Vincolo di interdizione lavorano
+   già sul danno ridotto.
+5. **Il runtime** (`executePcAttack`, `executeBossAction`) rilegge chi
+   reagisce **al commit**, come fa già `spendAttackReaction`. Controlla tre
+   cose:
+   - la capacità è ancora attiva sulla scheda;
+   - la reazione è ancora libera (se no: «Dars ha già usato la reazione:
+     togli la riga»);
+   - la risorsa c'è ancora.
+
+   Poi aggiunge al piano le operazioni che esistono già: `condition:add`
+   della «Reazione usata» (`planReactionSpend`) e
+   `class-feature:adjust-resource` per il dado, l'uso o lo slot. È la stessa
+   operazione che usa `adjustClassFeatureResource`; la costruisce una
+   funzione pura nuova in `src/reactionFeatureRuntime.js`. Le richieste
+   entrano nella `decisionKey`, così un nuovo tentativo dopo una risposta
+   persa non spende due volte.
+6. **La Cronologia e il registro.** Le righe «perché» («Schivata Prodigiosa
+   di Vex: danno dimezzato», «Parata di Dars: −7») vanno in
+   `payload.damageReactions`. Il registro dei combattimenti
+   (`combatLogPresentationCore.js`) legge quella chiave accanto a
+   `payload.reactions`. `history.js` non si tocca (E5).
+7. **La console.** `pc-attack.js` e `boss-actions.js`, nei blocchi delle
+   reazioni:
+   - `damageReactions` nella bozza;
+   - la riga con l'importo e ✕;
+   - l'anteprima;
+   - la richiesta di Registra.
+
+   Una bozza nuova (l'attacco dopo) parte senza righe. Il popup, per le
+   voci con `flow: "modifier"`, chiama la bozza invece di un flusso che
+   scrive.
+
+**Rischi, come chiede `AGENTS.md`:**
+
+| Area | Rischio | Come si evita |
+| --- | --- | --- |
+| PF (`meta.hp`, `meta.hpMax`, `meta.tempHp`) | Un conto sbagliato scrive PF sbagliati. | Un solo modulo puro per anteprima e commit, con i test sui casi delle regole: dimezzato con resistenza, riduzione più grande del danno (mai sotto 0), riduzione solo su alcuni tipi, critico, PF temporanei, 0 PF e TS contro la morte. Senza reazioni il conto è identico a oggi (test byte per byte su `defendedComponents`). |
+| Barre PF | Nessuno: derivano da `meta.hp`. | — |
+| Metadata | Nessun campo nuovo sul token. La risorsa e la reazione passano dalle operazioni che esistono già. | — |
+| Cronologia | Una voce, un Annulla. La chiave nuova `damageReactions` non sostituisce `reactions`. | Test sull'Annulla con la reazione e la risorsa tornate indietro (sul modello di `test/reactionHpIntegration.test.js`). |
+| Stato vecchio | La reazione o la risorsa usate altrove tra l'Usa e Registra. | Rilette al commit: il commit si ferma con il motivo, senza scrivere niente. |
+| Doppio invio | Un nuovo tentativo dopo una risposta persa. | La `decisionKey` contiene le reazioni: il secondo invio restituisce il primo risultato. |
+| Turno, ordine, id virtuali | Nessuno: chi reagisce è un token vero, letto per id. | — |
+| `initiativeList.js` | Non si tocca. | — |
+
+**Sottolotti.**
+
+- **R3b-1:** il modulo puro e i test, nessuna interfaccia.
+- **R3b-2:** la console attacchi (bozza, righe, anteprima, runtime, registro).
+- **R3b-3:** la console Boss, sullo stesso modello.
+- **R3b-4**, più avanti: le **aree** (console ad area, TS di gruppo Boss,
+  pannello incantesimi). Ci arrivano Mitigare Elementi, Spiriti Protettori e
+  Campo Protettivo, che in un'area proteggono una creatura per volta.
+
+**Decisioni E1–E8.** La raccomandazione è nella colonna di destra.
+
+| # | Domanda | Possibilità | Raccomandazione |
+| --- | --- | --- | --- |
+| **E1** | In che ordine si applicano dimezzare, sottrarre e resistenza? | (a) dimezzare, poi sottrarre, poi resistenze e vulnerabilità; (b) sottrarre prima di dimezzare | **(a)**: le resistenze per ultime come dice il PHB. Tra dimezzare e sottrarre l'ordine lo sceglie chi subisce il danno (Sage Advice), e (a) è il più favorevole: lo si fissa una volta per tutte. |
+| **E2** | Una riduzione su un attacco di più tipi: da dove si toglie? | (a) dai componenti nell'ordine in cui la console li mostra (l'arma per prima), solo dai tipi ammessi; (b) dal tipo con più danno | **(a)**: è quello che il GM vede. |
+| **E3** | Reazione e risorsa di chi reagisce | nel comando dell'attacco (D7, già approvata), rilette al commit | **Confermata.** |
+| **E4** | Canzone di Difesa | (a) nella riga il GM sceglie il livello dello slot; si spende nel comando e riduce 5 × livello; (b) resta fuori | **(a)**: lo slot è una risorsa come le altre (`class-feature:adjust-resource`). |
+| **E5** | Le righe «perché» nel registro | (a) chiave nuova `payload.damageReactions`, letta dal registro; (b) unire a `payload.reactions` toccando `history.js` | **(a)**: `history.js` non si tocca. |
+| **E6** | Tomba di Levistus | (a) il suo flusso (`activateClassFeature`) prima di Registra; (b) un modificatore | **(a)**: c'è già tutto (pill, PF temporanei, vulnerabilità). |
+| **E7** | Manovra Protettrice | (a) passa a R3b: Usa aggiunge la resistenza alla bozza e segna la reazione nel comando; il +1d8 alla CA il GM lo usa per l'esito; (b) resta in R3a, solo reazione | **(a)**: è una reazione sola con due effetti. In R3a, una volta segnata la reazione, la resistenza non si potrebbe più offrire. |
+| **E8** | Le aree e il pannello incantesimi | in R3b-4, dopo | **Dopo**: il bersaglio singolo copre i casi più frequenti al tavolo. |
+
+**Prove previste:**
+
+- test puri sul modulo (ogni effetto, gli ordini, i limiti);
+- test di integrazione con coordinatore, Cronologia e Annulla veri, come
+  CAP-REACTION lotto 2;
+- banco nelle due console, con il tracker in vista compatta ed espansa:
+  Schivata Prodigiosa, Parata con l'importo, Difesa Spettrale contro un
+  danno con resistenza, una riduzione più grande del danno, l'Annulla;
+- suite completa e build in una copia pulita.
+
+### 6.8 R3b, fatto l'8 novembre (R3b-1, R3b-2, R3b-3)
+
+Il piano della §6.7, con E1–E8 approvate, applicato così:
+
+- **R3b-1, il calcolo.** `src/damageReactionCore.js`
+  (`adjustForDamageReactions`, `normalizeDamageReactions`,
+  `defenseWithReactionResistance`). `defendedComponents` prende l'opzione
+  `reactions` dopo il controllo delle difese attese; `bossDefendedDamage`,
+  usata dalle anteprime delle due console, prende lo stesso parametro.
+  Senza reazioni il risultato è identico a prima: lo verifica un test.
+- **R3b-2, la console attacchi.**
+  - Usa aggiunge la riga «Reazioni al danno» nella scheda del danno, con
+    l'importo o lo slot da scrivere e ✕, e l'anteprima la conta.
+  - Registra manda le righe. Il runtime (`spendDamageReactions`) rilegge chi
+    reagisce e aggiunge «Reazione usata» e la risorsa
+    (`planReactionFeatureSpend` in `src/reactionFeatureRuntime.js`).
+  - Il piano scrive il danno ridotto e la riga in `payload.damageReactions`,
+    che il registro dei combattimenti legge.
+  - Una riga vale solo per il bersaglio per cui è stata aggiunta e solo con
+    un esito che fa danno.
+  - Una riduzione senza importo, o la Canzone di Difesa senza slot, blocca
+    Registra con il motivo.
+- **R3b-3, la console Boss.** Stesso modello (`buildBossActionMutation`,
+  `executeBossAction`). Le etichette di chi reagisce per un altro si
+  aggiornano dopo il commit.
+- **Tomba di Levistus** (E6): Usa la attiva prima di Registra con il suo
+  flusso. **Manovra Protettrice** (E7): passata a R3b come resistenza.
+- **Catalogo:** due flussi nuovi, `modifier` e `activate-feature`.
+  Le voci di R3b ora sono nel popup (`REACTION_PROMPT_LOTS`). Una reazione
+  già messa nella bozza non viene riproposta (`skip`).
+- **Test:**
+  - `test/damageReactions.test.js`: 5 test sul calcolo;
+  - `test/damageReactionIntegration.test.js`: 5 test con coordinatore,
+    Cronologia e Annulla veri. Coprono Schivata Prodigiosa, Parata con il
+    dado di superiorità, la reazione già usata che ferma il commit, un
+    attacco senza reazioni identico a prima e la riga nel registro;
+  - suite completa 5885, build e controllo degli incantesimi verdi, in una
+    copia pulita.
+- **Banco:**
+  - console attacchi, tracker in vista espansa: il goblin colpisce Mira,
+    ladra di 5°. Usa su Schivata Prodigiosa porta l'anteprima da 11 a 5
+    (PF 45 → 40). Registra scrive 40 PF e la reazione; Annulla rimette 45 e
+    la reazione;
+  - console Boss, tracker in vista compatta: Icekiss su Dars, maestro di
+    battaglia. Parata con 9: anteprima da 25 a 16, perché 18 taglienti − 9 =
+    9, più 7 di freddo (E2). Registra: PF 60 → 44, reazione e un dado di
+    superiorità (4 → 3); Annulla rimette tutto.
+- **Resta, R3b-4:** le aree (console ad area, TS di gruppo Boss, pannello
+  incantesimi).
+
+### 6.9 R3b-4, fatto l'8 novembre (aree delle console)
+
+Le reazioni al danno sulle aree delle **due console**, con lo stesso calcolo e
+lo stesso comando di R3b, una creatura per volta:
+
+- **Console attacchi ad area** (trucchetti e soffi ad area, Freccia
+  Perforante, azioni ad area dei mostri). Il popup guarda le creature
+  spuntate con un esito di TS, senza tiro per colpire. Ogni riga dice su chi
+  vale («Campo Protettivo di Dars su Mira») e conta solo per quella
+  creatura, nell'anteprima e nel comando (`pcAttackAreaPreview`,
+  `buildPcAttackAreaMutation`, `executePcAttackArea`).
+- **Console Boss, TS di gruppo con danno** (Soffio della Lunga Notte, Hand
+  Slam, Meteor Swarm). Il popup è nello stato del gruppo. L'importo di ogni
+  creatura e il totale si aggiornano mentre il GM scrive la riduzione
+  (`buildBossActionGroupMutation`, `spendBossDamageReactions` condivisa con
+  il bersaglio singolo).
+- Dopo Registra, anche sulle aree compaiono gli avvisi «dopo» (Intimorire
+  infernale).
+- **Fuori:** il gruppo d'attacco della console Boss, che è un'azione di un
+  solo boss.
+- **Test:** un'area nel test d'integrazione: Campo Protettivo su una
+  creatura, l'altra come prima, un Annulla per tutto. Suite completa 5887,
+  build e controllo degli incantesimi verdi in una copia pulita.
+- **Banco:**
+  - console attacchi: il goblin lancia Turbine di Spade su Mira e Dars.
+    Campo Protettivo di Dars su Mira con 4: Mira −6, Dars −10, reazione e un
+    uso di Dars spesi;
+  - console Boss: Soffio della Lunga Notte su Mira, Campo Protettivo di Dars
+    con 5. La riga e il totale scendono da 46 a 41; Registra porta Mira da
+    45 a 4 PF; Annulla rimette tutto, compresa la pill Accecato.
+
+  Qui il banco ha trovato un difetto, corretto: nel gruppo l'importo sulla
+  riga della creatura non si aggiornava (`refreshBossDamageView`).
+
+### 6.10 R3b-5, piano (pannello incantesimi; F1–F3 approvate l'8 novembre)
+
+Il pannello incantesimi calcola il danno con un **sistema suo**:
+`spellDamageDefenseCore.js` (`spellDamagePartsAfterDefense`,
+`spellDamageAfterDefense`), usato in 18 punti di 8 file. Lo usano il
+lancio ad area, le azioni degli incantesimi attivi, i promemoria, la Palla di
+fuoco ritardata e l'anteprima per bersaglio del pannello. Le console invece
+usano `defendedComponents`. Portare lì le reazioni al danno vuol dire:
+
+1. un'opzione `reactions` in `spellDamagePartsAfterDefense`, con il calcolo
+   di `damageReactionCore.js` (l'ordine E1 vale anche qui);
+2. il popup «danno» nel pannello, allo stesso clic del Controincantesimo
+   (R2), sui bersagli con un esito;
+3. le righe per creatura sotto la riga del bersaglio
+   (`spellUnifiedPanelEffectsView.js`);
+4. la spesa di chi reagisce nel comando del lancio
+   (`spellApplicationExecutor.js`, `spellAreaResolutionExecutor.js`). Il
+   danno lì passa da `applyAreaReactionHp`, accanto al Vincolo di
+   interdizione.
+
+**Rischio:** alto. È una seconda strada che scrive i PF, con più punti di
+ingresso (lancio, azioni attive, promemoria) e un'anteprima diversa. Va
+fatta a parte, con il suo test d'integrazione.
+
+| # | Domanda | Raccomandazione |
+| --- | --- | --- |
+| **F1** | Farlo? | **Sì, ma solo per il lancio dal pannello** (aree e bersagli singoli). Le azioni degli incantesimi attivi (Raggio lunare, Muro di fuoco) e i promemoria dopo: lì il danno arriva a ogni turno, con il suo TS. |
+| **F2** | Quando chiedere? | **Allo stesso clic del Controincantesimo:** una sola fermata per il lancio, con le reazioni «incantesimo lanciato» e «danno» nello stesso popup. |
+| **F3** | Le reazioni che non riguardano il danno (Schivata Prodigiosa e Parata) | **Escluse da sole:** il catalogo le lega a un attacco con tiro o in mischia, quindi non compaiono su un TS. |
+
+### 6.11 R3b-5, fatto l'8 novembre (pannello incantesimi)
+
+Le reazioni al danno sul **lancio dal pannello**, secondo F1–F3:
+
+- **Quando (F2).** Al primo clic su Lancia, lo stesso popup del
+  Controincantesimo mostra anche chi può reagire al danno. Guarda le creature
+  che l'anteprima del pannello dà come danneggiate. Su un TS c'è un solo
+  evento senza tiro per colpire; su un attacco c'è un evento per creatura,
+  con il suo critico. Il popup mostra solo quello che il pannello sa fare con
+  Usa:
+  - Controincantesimo, Nemesi e Ladro di Incantesimi (R2, R2b);
+  - le reazioni al danno, che diventano righe;
+  - le capacità con un loro flusso (Tomba di Levistus).
+- **Righe.** Usa aggiunge una riga sopra Lancia («Campo Protettivo di Dars su
+  Mira», importo, slot o ✕); il popup sale sopra le righe. L'anteprima di
+  ogni creatura conta la sua riga (`hpPreviewFor`).
+- **Calcolo.** Le righe stanno accanto alla sessione del pannello, che tiene
+  solo i suoi campi. Arrivano all'anteprima e al comando
+  (`hp.damageReactions`, solo sui bersagli del lancio). L'esecutore delle
+  aree (`hpEntries`) usa lo stesso calcolo dell'anteprima:
+  `spellDamageWithReactions` in `damageReactionCore.js`, che segue l'ordine
+  E1 e conta ogni tipo con la sua difesa, anche con due tipi di danno.
+- **Spesa (E3).** Reazione e risorsa di chi reagisce vengono rilette al
+  momento del lancio, nelle operazioni del lancio stesso. Un solo Annulla
+  rimette tutto. Le righe del registro di combattimento dicono perché.
+- **Fuori:**
+  - Dardo incantato e Spruzzo prismatico, che contano il danno a modo loro;
+  - il secondo colpo di Coltello di ghiaccio;
+  - il danno iniziale della strada «ciclo di vita» del pannello (incantesimi
+    senza zona né segnalini);
+  - le azioni degli incantesimi attivi e i promemoria (F1);
+  - Assorbire Elementi e Scudo nel pannello: il loro Usa apre un lancio, che
+    dal pannello non c'è. Lì restano a mano.
+- **Test:**
+  - quattro casi puri del calcolo;
+  - un'anteprima con tre esiti;
+  - un test d'integrazione: comando, Campo Protettivo con un Annulla, TS
+    superato, nessuna reazione, registro.
+
+  Suite completa 5897, build e controllo degli incantesimi verdi in una copia
+  pulita.
+- **Banco** (vista espansa e compatta): Sera lancia Frantumare su Mira e
+  Dars.
+  - Al primo clic compare Campo Protettivo per entrambi. Con Usa su Mira e 4,
+    l'anteprima di Mira passa da 45 → 33 a 45 → 37.
+  - Il lancio porta Mira a 37 e Dars a 48; Dars ha «Reazione usata» e un dado
+    psionico in meno.
+  - Annulla rimette tutto.
+  - Ignorato il popup, il lancio resta com'era.
+- **Da sapere:** l'intestazione del popup su un'area nomina solo il primo
+  bersaglio («Danno di Sera a Dars»), come nelle aree delle console. Ogni
+  riga dice comunque su chi vale.
+
+### 6.12 R4, piano (reazioni dei mostri; G1–G5 approvate l'8 novembre)
+
+**Dove sono le reazioni dei mostri.** Solo nello statblock completo che il GM
+ha importato da 5eTools, salvato nel suo browser
+(`monsterStatblockTextLoader.js`, sezione «Reactions»). Oggi diventano voci
+di sola lettura nella scheda Capacità (`pcAttackMonsterTraitsCore.js`). Uno
+statblock incollato a mano è un blocco unico, senza sezioni. Sulla scheda
+del token non c'è niente.
+
+**Il piano:**
+
+1. **Lettura.** Un modulo puro, `monsterReactionParseCore.js`, legge il
+   testo inglese di ogni voce «Reactions» e riconosce tre forme:
+   - **+N CA** («adds 2 to its AC against one melee attack that would hit
+     it», la Parata di cavalieri, gladiatori, capitani): innesco Colpito,
+     prima; solo in mischia se il testo dice «melee»;
+   - **dimezza** («halves the damage that it takes from an attack that hits
+     it», la Schivata Prodigiosa dei mostri): innesco Colpito, prima;
+   - **colpito o mancato** («when a creature … hits it / misses it with an
+     attack»): solo un avviso con il testo, dopo.
+
+   Tutto il resto resta nella scheda Capacità, come oggi.
+2. **Catalogo.** Tre voci generiche nuove con la fonte «M»:
+   `monster-parry`, `monster-halve` e `monster-note`. L'importo della CA
+   viene dal testo letto, non dal catalogo. Il motore dei candidati
+   (`reactionCandidates`) riceve le reazioni lette in
+   `context.monsterReactions` ({ id del token: [...] }) e le tratta come le
+   altre: reazione libera, creatura in grado di agire, filtri.
+3. **Caricamento.** Le due console e il pannello leggono lo statblock delle
+   creature non PG coinvolte nell'evento, una volta per mostro, e solo con
+   l'interruttore «Mostri» acceso (spento di base, D3). Il caricamento è
+   asincrono; il motore resta puro.
+4. **Usa:**
+   - **+N CA:** spende la reazione del mostro («Reazione usata»); il GM
+     cambia l'esito. È come R3a: il popup dice con quali tiri l'attacco
+     manca.
+   - **Dimezza:** diventa una riga «Reazioni al danno» (R3b, R3b-4, R3b-5).
+     La spesa nel comando dell'attacco ha un ramo «mostro»: solo la
+     reazione, niente risorse (`planReactionFeatureSpend`).
+   - **Avviso:** nessun Usa, solo Ignora.
+
+**Rischio:** medio. Il «dimezza» scrive i PF, ma dalla strada già provata di
+R3b. Il resto è lettura del testo e popup. A mostri spenti (il default) non
+cambia niente.
+
+| # | Domanda | Raccomandazione |
+| --- | --- | --- |
+| **G1** | Quali forme leggere? | **Le tre sopra** (D11 a). Niente inneschi a testo libero. |
+| **G2** | Statblock 2024 («Trigger: … Response: …») | **Letti quando il mostro è 2024.** Entra solo con l'opzione «Statblock 2024» già esistente (spenta di base): niente secondo interruttore. |
+| **G3** | Statblock incollato a mano (un blocco unico) | **Cercare la riga «Reactions» e leggere le voci sotto**, fino alla sezione dopo. Se non c'è, niente. |
+| **G4** | Reazioni dei profili Boss (categoria `reaction`) | **Fuori.** Oggi sono meccaniche di un solo boss, con un innesco sui PF (niente funzioni per un solo mostro). |
+| **G5** | Gli alleati non PG (un PNG alleato con Parata) | **Come i mostri:** stesso interruttore «Mostri», perché sono del GM. |
+
+### 6.13 R4, fatto l'8 novembre (reazioni dei mostri)
+
+Secondo il piano della §6.12, con G1–G5 come raccomandate:
+
+- **Lettura** (`src/monsterReactionParseCore.js`, puro):
+  - le tre forme di G1, con la stessa lettura per il formato 2024 (G2);
+  - uno statblock incollato si legge dalla riga «Reactions» alla sezione
+    dopo (G3).
+- **Catalogo.** Quattro voci con la fonte `monster` (lotto R4):
+  - `monster-parry`: Parata, +N CA, solo in mischia se il testo lo dice;
+  - `monster-halve`: Schivata Prodigiosa, danno dimezzato;
+  - `monster-note-hit` e `monster-note-miss`: avvisi dopo il colpo e
+    dopo il mancato, con il nome e il testo dello statblock.
+- **Candidati.** `reactionCandidates` riceve `monsterReactions` e propone
+  una voce solo se lo statblock la contiene. Vale l'interruttore «Mostri»
+  delle Opzioni, spento di base: è lo stesso per i PNG alleati (G5), e la
+  sua etichetta ora dice che cosa legge.
+- **Caricamento** (`loadMonsterReactions` in `reactionSceneContext.js`):
+  - le due console lo fanno all'apertura e a ogni aggiornamento, il pannello
+    al clic su Lancia;
+  - legge solo le creature non PG nell'ordine d'iniziativa;
+  - a interruttore spento non carica niente, nemmeno il codice degli
+    statblock.
+- **Usa:**
+  - Parata e gli avvisi segnano solo «Reazione usata» del mostro
+    (`useReactionFeature` con `monster`), in un comando suo;
+  - Schivata Prodigiosa diventa una riga «Reazioni al danno».
+    `planReactionFeatureSpend` ha un ramo «mostro»: solo la reazione, mai
+    una risorsa.
+- **Fuori (G4):** le reazioni dei profili Boss.
+- **Test:**
+  - `test/monsterReactions.test.js`, 7 test: lettura 2014 e 2024,
+    statblock incollato, candidati con l'interruttore, mischia, avvisi,
+    spesa;
+  - un caso d'integrazione: Schivata Prodigiosa di un mostro con Annulla.
+
+  Suite completa 5904, build e controllo degli incantesimi verdi in una copia
+  pulita.
+- **Banco** (vista espansa e compatta): il Goblin A con lo statblock di un
+  cavaliere (Parata e Schivata Prodigiosa) e l'interruttore «Mostri» acceso.
+  Dars lo colpisce con la spada lunga.
+  - Il popup mostra «Parata · +2 CA · CA 18 → 20: un tiro da 18 a 19
+    diventa Mancato» e «Schivata Prodigiosa · Danno dimezzato».
+  - Usa su Schivata Prodigiosa: 11 danni diventano 5 (PF 52 → 47), con
+    «Reazione usata».
+  - Usa su Parata: la reazione è segnata, e il GM segna Mancato senza danni.
+  - A interruttore spento il popup non compare.
+
+### 6.14 R6, piano (schermo dei giocatori e online; H1–H5 approvate l'8 novembre)
+
+Oggi il popup vive solo nelle finestre del GM: le due console e il pannello
+incantesimi. R6 lo porta ai client dei giocatori, con D1 (b) e D9 (a) già
+approvate. Si divide in due parti:
+
+- **R6a, profilo Tavolo:** una scheda di sola lettura sullo schermo HDMI.
+- **R6b, profilo Online:** il popup al proprietario del PG, con Usa e Ignora.
+  La risposta arriva al GM, che conferma.
+
+**Il piano:**
+
+1. **Canale.** Un broadcast nuovo, `…/reaction-prompt`. Lo manda il popup
+   del GM (`createReactionPrompt`) quando compare o cambia
+   (`show`) e quando si chiude (`clear`). Così valgono da soli le due
+   console e il pannello. Parte solo con l'opzione accesa (Tavolo) o nel
+   profilo Online. Contiene **solo le righe dei PG**: le reazioni dei mostri
+   non lasciano mai il client del GM (D1). Il nome dell'attaccante compare
+   solo se il suo token è visibile; altrimenti «una creatura».
+2. **Host dei giocatori.** `reactionPromptHost.js`, montato in
+   `background.js` accanto all'host dei dadi, solo sui client non GM. Apre
+   un popover piccolo, `reaction-notice.html`, con il vetro viola del popup
+   e un id suo: non tocca l'avviso di turno. Si chiude con `clear`, o da
+   solo dopo 60 secondi.
+3. **Online.** Ogni riga porta i giocatori del PG (`assignedPlayer`, poi
+   `createdUserId`, come `noticeReachesPlayer`). Il proprietario vede Usa
+   e Ignora; la risposta torna al GM sullo stesso canale (`answer`).
+4. **Il GM.** La risposta segna la riga nel suo popup: «Mira: Usa» con il
+   pulsante Usa evidenziato e il fuoco, così Invio conferma. «Mira: ignora»
+   resta solo un'indicazione. Niente parte da solo (D9): scrive sempre e solo
+   il client del GM.
+
+**Rischio:** medio-basso. Nessun PF, nessun metadata, niente sul turno: solo
+broadcast e un popover nuovo sui client dei giocatori. Il rischio è
+d'interfaccia: un popover in più sullo schermo del tavolo, che va provato
+anche ruotato.
+
+| # | Domanda | Raccomandazione |
+| --- | --- | --- |
+| **H1** | Dove compare sullo schermo dei giocatori? | **Un popover piccolo suo, in basso al centro**, separato dall'avviso di turno: l'avviso di turno ha già una coda e un ciclo di vita fragili. |
+| **H2** | Che cosa ci arriva? | **Le reazioni dei PG, sia «prima» sia «dopo»** (Scudo, Intimorire infernale), con chi, che cosa e perché. Mai quelle dei mostri. |
+| **H3** | Online: chi vede la riga? | **Solo il proprietario del PG**, con Usa e Ignora. Gli altri giocatori niente. |
+| **H4** | Interruttori | **Tavolo:** «Mostra allo schermo dei giocatori» negli Avvisi di reazione, spento di base (D1). **Online:** acceso con l'interruttore generale, perché è il senso di D9. |
+| **H5** | Che cosa fa l'Usa del giocatore dal GM? | **Evidenzia l'Usa della riga e gli dà il fuoco:** Invio o un clic conferma. L'Ignora del giocatore è solo un'indicazione: Registra o Lancia vale comunque come Ignora. |
+
+### 6.15 R6, fatto l'8 novembre (schermo dei giocatori e online)
+
+Secondo il piano della §6.14, con H1–H5 come raccomandate:
+
+- **Nucleo** (`src/reactionNoticeCore.js`, puro):
+  - il messaggio `show` porta solo le righe dei PG, con i loro giocatori
+    (`assignedPlayer`, poi `createdUserId`), e mai una reazione di un
+    mostro;
+  - il nome di un attaccante col token nascosto diventa «una creatura»;
+  - `clear` e `answer` vengono controllati prima di essere letti;
+  - le righe di uno schermo: al Tavolo tutte, di sola lettura; Online solo
+    quelle del giocatore, con i pulsanti.
+- **Mittente** (`src/reactionNoticeBroadcast.js`): il popup del GM
+  (`createReactionPrompt`) lo carica alla prima riga mostrata. Manda:
+  - al Tavolo solo con la nuova opzione «Mostra allo schermo dei giocatori»
+    (`screen`, spenta di base);
+  - Online sempre, leggendo il profilo della stanza.
+
+  Lo stesso contenuto parte una volta sola. Quando il popup si chiude (Ignora,
+  Registra, Lancia, console chiusa) parte `clear`.
+- **Host** (`src/reactionNoticeHost.js`), montato in `background.js`
+  accanto ai dadi, solo sui client non GM. Apre il popover
+  `reaction-notice.html` in basso al centro, con un id suo, e lo chiude con
+  `clear` o dopo 60 secondi.
+- **Risposta.** L'Usa del giocatore scrive «Anna: Usa» sulla riga del GM,
+  evidenzia il suo Usa e gli dà il fuoco. «Anna: ignora» è solo
+  un'indicazione. Scrive soltanto il GM.
+- **Test:** `test/reactionNotice.test.js` (4 test: messaggio, schermi,
+  mittente, risposte nel popup del GM). Suite completa 5908, build e
+  controllo degli incantesimi verdi in una copia pulita.
+- **Banco** (un solo client simulato: l'host del giocatore montato con il
+  ruolo PLAYER). Il Goblin attacca Mira, che ha Scudo:
+  - Tavolo con l'opzione accesa: la scheda di sola lettura compare. Ignora o
+    Registra del GM la chiudono. Provato in vista espansa e compatta.
+  - Online, con Mira del giocatore: la scheda ha Usa e Ignora. Usa manda
+    «Inviato al GM», e nel popup del GM la riga dice «…: Usa», con l'Usa
+    acceso e a fuoco.
+  - Un giocatore che non ha il PG non vede niente.
+- **Da provare in stanza:**
+  - la posizione del popover sullo schermo vero, anche ruotato: al banco
+    l'ancora in basso non si vede tutta;
+  - due client veri, il GM e il giocatore.
+
+### 6.16 R5, piano (movimento; J1–J5 approvate l'8 novembre)
+
+**Che cosa c'è già.** Sul client del GM, `history.js` trasforma ogni
+spostamento di un token in un **segmento** (posizione di partenza e di
+arrivo). I segmenti non contano i teletrasporti, gli Annulla e gli
+spostamenti scritti dal plugin (`suppressMovementHistory`). Lo Speed Tracker
+li ascolta da `initiativeList.js` (`subscribeMovementSegments`). Con lo
+strumento Movimento i segmenti sono uno per casella. Le azioni dei mostri
+hanno la portata (`reachFeet`). Il catalogo ha già le tre voci di R5:
+Attacco di opportunità, Alone di Spore e Schermagliatore.
+
+**Il piano:**
+
+1. **Osservatore** (`reactionMoveWatcher.js`, nuovo). Si iscrive ai
+   segmenti con **una riga** in `initiativeList.js`, accanto allo Speed
+   Tracker e solo per il GM. Raccoglie i segmenti di uno spostamento e,
+   quando il token si ferma, decide:
+   - chi aveva il token entro la sua portata prima e non più dopo (uscita);
+   - chi ce l'ha ora e prima no (entrata, Alone di Spore).
+
+   Non scrive niente: legge e apre un popup.
+2. **Portata** (`opportunityAttackCore.js`, puro): 1,5 m, oppure la
+   `reachFeet` più lunga tra le azioni in mischia della scheda. Misura
+   in 3D dalla griglia della scena, come le altre distanze.
+3. **Candidati.** Gli eventi `move-leave` e `move-enter` passano dal
+   motore di sempre (`reactionCandidates`): creatura ostile, reazione
+   libera, creatura in grado di agire, opzioni e silenziate.
+4. **Popup.** Un popover del GM a parte (D6), `reaction-move.html`, con
+   lo stesso `createReactionPrompt`, quindi anche verso i giocatori (R6).
+   - **Usa** sull'Attacco di opportunità apre la console attacchi fuori
+     turno della creatura che reagisce, con chi si è mosso come bersaglio:
+     è il flusso di R3c, e Registra spende la reazione.
+   - **Alone di Spore:** un avviso con la sua regola.
+5. **Interruttore:** «Movimento» delle Opzioni, già lì, spento di base (D3).
+
+**Rischio:** medio. Si tocca `initiativeList.js` (una riga) e si ascolta il
+movimento. L'osservatore però non scrive niente e non cambia lo Speed
+Tracker: un errore al suo interno resta chiuso lì.
+
+| # | Domanda | Raccomandazione |
+| --- | --- | --- |
+| **J1** | Quali spostamenti guardare? | **Solo quelli della creatura di turno, nel suo turno.** Gli spostamenti fuori turno sono quasi sempre forzati (spinte) o sistemazioni del GM, e non provocano. Teletrasporti e Annulla sono già esclusi. |
+| **J2** | Come decidere l'uscita? | **Dall'inizio e dalla fine dello spostamento** (fermo il token, un solo popup). Con lo strumento Movimento si guarda anche ogni casella: uscire e rientrare nello stesso trascinamento provoca. |
+| **J3** | Disimpegno | **Il plugin non lo sa** (niente bookkeeping del turno): il popup dice «se non si è disimpegnata». Esclusa da sola la pill «Movimento: no AdO» (Colpo dello Zefiro). |
+| **J4** | Schermagliatore (fine turno vicino) | **Fuori per ora:** serve un aggancio al cambio di turno in `initiativeList.js`, il punto più fragile. Resta nel catalogo. |
+| **J5** | Dove compare il popup | **Un popover del GM in basso a destra**, che si chiude a fine turno o con Ignora. Per i PG arriva anche ai giocatori, con R6. |
+
+### 6.17 R5, fatto l'8 novembre (movimento)
+
+Secondo il piano della §6.16, con J1–J5 come raccomandate:
+
+- **Nucleo** (`src/opportunityAttackCore.js`, puro):
+  - la portata: 1,5 m, oppure la `reachFeet` più lunga tra le azioni in
+    mischia;
+  - l'uscita: dentro a un punto del percorso e fuori a uno successivo;
+  - l'entrata entro 3 m;
+  - la pill del Colpo dello Zefiro, che esclude da sola l'uscita;
+  - la creatura di turno e la chiave del turno.
+
+  La distanza si conta in caselle, come la mischia
+  (`reactionDistanceFunction` con `squares`).
+- **Osservatore** (`src/reactionMoveWatcher.js`). Due righe in
+  `initiativeList.js` (un import e `subscribeMovementSegments` accanto allo
+  Speed Tracker, solo GM). Raccoglie i segmenti di uno spostamento, salta
+  Annulla e teletrasporti, e 0,7 secondi dopo l'ultimo segmento decide. Guarda
+  solo la creatura di turno e solo con «Movimento» acceso. Non scrive niente.
+- **Popover** `reaction-move.html`, in basso a destra. Usa lo stesso popup
+  delle console, quindi le righe dei PG arrivano anche ai giocatori (R6).
+  - Usa sull'Attacco di opportunità seleziona chi si è mosso e apre la
+    console attacchi «Fuori turno» di chi reagisce.
+  - Alone di Spore usa la sua capacità.
+  - Il popover si chiude con Ignora, dopo Usa o al cambio di turno.
+- **Catalogo.** L'Attacco di opportunità dice «se non si è disimpegnata»
+  (J3), e il popup mostra il lotto R5. Lo Schermagliatore resta fuori (J4).
+- **Test:** `test/opportunityAttack.test.js`, 8 test: portata, uscita,
+  percorso per caselle, entrata, Zefiro, turno, motore, lotto. Suite
+  completa 5916, build e controllo degli incantesimi verdi in una copia
+  pulita, dopo le due correzioni del banco.
+- **Banco** (vista espansa e compatta). È il turno di Mira, che va accanto al
+  goblin e poi si allontana:
+  - compare «Mira esce dalla portata · (1) Goblin · Attacco di
+    opportunità»;
+  - Usa apre la console del goblin «Fuori turno», con Mira selezionata;
+  - Dars, che non è di turno, non provoca niente;
+  - il cambio di turno e Ignora chiudono il popover.
+
+  Il banco ha trovato due difetti, corretti:
+  - il lotto R5 mancava tra quelli che il popup mostra;
+  - la pagina leggeva le opzioni prima che fossero caricate.
+- **Da sapere:** un neutrale non reagisce (regola di R0). Il goblin del banco
+  andava segnato «nemico».
 
 Ogni lotto ha i suoi test puri (candidati, filtri, firme) e una prova al banco
 nelle due console. La parte dello schermo dei giocatori (R6a) va provata in
