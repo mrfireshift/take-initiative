@@ -96,3 +96,10 @@ input[type="checkbox"]:disabled { opacity: .45; cursor: not-allowed; }
 [hidden] { display: none !important; }
 @media (max-width: 680px) { .turn-options-grid .option-card { grid-template-columns: minmax(0, 1fr) minmax(150px, 210px); } }
 @media (max-width: 620px) { .option-grid.two, .option-grid.three, .option-grid.four, .player-preview { grid-template-columns: 1fr; } .turn-options-grid .option-card { grid-template-columns: 1fr; } .turn-options-grid .option-field, .turn-options-grid .option-toggle { grid-column: 1; } .option-card-actions.inline { grid-template-columns: 1fr; } .hp-matrix { grid-template-columns: 92px repeat(4, minmax(70px, 1fr)); overflow-x: auto; } .options-toolbar { align-items: flex-start; flex-direction: column; } }
+/* Avvisi di reazione (lot R1): the reactions muted with «Non chiedere più», one row each with its ↺. */
+.option-note { margin: 0 0 6px; color: var(--obrt-muted); font-size: var(--obrt-type-secondary); line-height: 1.3; text-wrap: pretty; }
+.reaction-muted { margin-top: 6px; }
+.reaction-muted-list { display: grid; gap: 3px; }
+.reaction-muted-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; padding: 3px 4px 3px 8px; border: 1px solid var(--obrt-line); border-radius: 8px; background: rgba(15,23,42,.58); color: var(--obrt-text, #fff); font-size: var(--obrt-type-body); font-weight: var(--obrt-weight-medium); }
+.reaction-muted-row button { min-height: 26px; padding: 0 8px; }
+.reaction-muted-empty { margin: 0; color: var(--obrt-muted); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-regular); }

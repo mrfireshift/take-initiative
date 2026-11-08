@@ -192,3 +192,21 @@
 .status[data-kind="ok"]::before { content: "✓"; background: rgba(21, 128, 61, .6); }
 .status[data-kind="warn"]::before { content: "!"; background: rgba(161, 98, 7, .7); }
 .status[data-kind="error"]::before { content: "✕"; background: rgba(185, 28, 28, .7); }
+/* Reaction prompts (avvisi di reazione, lot R1): above Registra, in the reaction's purple over the console's glass. Who can
+   react, with what and why; Usa opens the flow that already exists, Ignora closes it, "Non chiedere più" mutes it. */
+.reaction-prompt { flex: 0 0 auto; display: grid; gap: 4px; margin: var(--obrt-space-md) var(--obrt-space-xl) 0; padding: 7px 10px; border: 1px solid rgba(192, 132, 252, .55); border-radius: var(--obrt-radius-md); background: rgba(88, 28, 135, .42); box-shadow: inset 0 0 0 1px rgba(192, 132, 252, .12), 0 8px 22px rgba(0, 0, 0, .35); }
+.reaction-prompt[hidden] { display: none; }
+.reaction-prompt-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: var(--obrt-type-secondary); line-height: 1.3; }
+.reaction-prompt-tag { flex: 0 0 auto; }
+.reaction-prompt-why { min-width: 0; color: var(--muted); text-wrap: pretty; }
+.reaction-prompt-row { display: flex; align-items: center; gap: 6px; min-height: var(--obrt-hit-min); }
+.reaction-prompt-body { flex: 1 1 auto; min-width: 0; display: grid; gap: 1px; font-size: var(--obrt-type-secondary); line-height: 1.3; }
+.reaction-prompt-effect { color: var(--muted); text-wrap: pretty; }
+.reaction-prompt .mini-button { flex: 0 0 auto; }
+.reaction-prompt-use:not(:disabled) { border-color: rgba(192, 132, 252, .75); background: rgba(126, 34, 206, .55); color: #fff; }
+.reaction-prompt-use:hover:not(:disabled) { background: rgba(147, 51, 234, .7); }
+.reaction-prompt-mute { flex: 0 0 auto; min-height: var(--obrt-hit-min); padding: 0 4px; border: 0; border-radius: var(--obrt-radius-md); background: transparent; color: var(--muted); font-size: var(--obrt-type-caption); white-space: nowrap; cursor: pointer; }
+.reaction-prompt-mute:hover:not(:disabled) { background: var(--obrt-hover); color: #fff; }
+.reaction-prompt-mute:disabled { opacity: .45; cursor: default; }
+.reaction-prompt-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.reaction-prompt-hint { margin-right: auto; color: var(--muted); font-size: var(--obrt-type-caption); }

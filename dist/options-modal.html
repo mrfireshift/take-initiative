@@ -25,27 +25,28 @@
       .panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; position: relative; }
       * { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.55) transparent; }
     </style>
-    <script type="module" crossorigin src="/assets/optionsModal-DilI2K8A.js"></script>
+    <script type="module" crossorigin src="/assets/optionsModal-BK2bt93R.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
     <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
     <link rel="modulepreload" crossorigin href="/assets/popoverDrag--L1JqoSi.js">
     <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
-    <link rel="modulepreload" crossorigin href="/assets/perfProbe-C1nTJK7W.js">
-    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-BOKK9xqL.js">
-    <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-CQyWJrCc.js">
-    <link rel="modulepreload" crossorigin href="/assets/factionRegistry-W3LLj_ff.js">
+    <link rel="modulepreload" crossorigin href="/assets/perfProbe-BO-P3cwU.js">
+    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-BbpRZ_zG.js">
+    <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-DXwTbe8C.js">
+    <link rel="modulepreload" crossorigin href="/assets/factionRegistry-BBFclwAz.js">
     <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-C3HxbaX8.js">
     <link rel="modulepreload" crossorigin href="/assets/fiveToolsArchiveCore-tLcUxIcx.js">
     <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-D27kjyro.js">
-    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-Ycc5H9zz.js">
-    <link rel="modulepreload" crossorigin href="/assets/trackerPopover-C4Vv7SqU.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-CkuvCjOJ.js">
+    <link rel="modulepreload" crossorigin href="/assets/trackerPopover-3tibRahA.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-D9UI-Ijo.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeStyle-BBl-cwqV.js">
     <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-CqH9AKYW.js">
     <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-BmqipeZE.js">
     <link rel="modulepreload" crossorigin href="/assets/sceneEpoch-B8A8dIDk.js">
     <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-gGdnlg7u.js">
-    <link rel="modulepreload" crossorigin href="/assets/buildInfo-DPlfjFSv.js">
+    <link rel="modulepreload" crossorigin href="/assets/buildInfo-B_DpdrqM.js">
+    <link rel="modulepreload" crossorigin href="/assets/reactionPromptOption-BDWSaQgV.js">
   </head>
   <body>
     <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/options-modal">
@@ -126,6 +127,38 @@
             <span>Importa anche i mostri delle regole 2024 (Monster Manual 2025): si giocano con le regole 2014 del plugin</span>
             <input type="checkbox" data-local="fiveTools2024" />
           </label>
+        </section>
+
+        <section class="options-section" aria-labelledby="reaction-prompts-title">
+          <div class="section-heading">
+            <div><h2 id="reaction-prompts-title">Avvisi di reazione</h2></div>
+            <span class="scope-badge local">Questo browser</span>
+          </div>
+          <p class="option-note">Nelle console attacchi e Boss, sopra Registra: chi può reagire, con cosa e perché. Usa apre il lancio di sempre, Ignora chiude; registrare senza usarla vale come Ignora. L'avviso non scrive niente da solo.</p>
+          <label class="option-toggle compact">
+            <span>Mostra gli avvisi di reazione</span>
+            <input type="checkbox" data-reaction="enabled" />
+          </label>
+          <label class="option-toggle compact">
+            <span>Quando un attacco colpisce (Scudo)</span>
+            <input type="checkbox" data-reaction="triggers.hit" />
+          </label>
+          <label class="option-toggle compact">
+            <span>Quando una creatura subisce danni (Assorbire elementi, Intimorire infernale)</span>
+            <input type="checkbox" data-reaction="triggers.damage" />
+          </label>
+          <label class="option-toggle compact">
+            <span>Per i personaggi dei giocatori</span>
+            <input type="checkbox" data-reaction="actors.pcs" />
+          </label>
+          <label class="option-toggle compact">
+            <span>Per i mostri e le altre creature</span>
+            <input type="checkbox" data-reaction="actors.npcs" />
+          </label>
+          <div class="option-field reaction-muted">
+            <span>Reazioni silenziate («Non chiedere più»)</span>
+            <div class="reaction-muted-list" data-reaction-muted></div>
+          </div>
         </section>
 
         <section class="options-section" aria-labelledby="player-title">
