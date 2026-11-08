@@ -143,6 +143,8 @@ promemoria e il Dardo incantato.
 | `passiveMechanics.damageDefensesByOption` | Anima Tempestosa (ambiente), Dono Elementale (tipo di genio) | secondo l'opzione salvata sulla scheda |
 | `passiveMechanics.nonmagicalDamageDefenses` | Avatar della Battaglia, Santo della Forgia in armatura pesante (data per indossata) | contro armi non magiche, come le difese dei mostri |
 | `spellDamageResistance` | Resistenza agli Incantesimi (passiva), Aura di Interdizione (sull'effetto dell'aura) | contro ogni tipo di danno di un incantesimo |
+| `passiveMechanics.conditionImmunities` | Purezza del Corpo, Interdizione della Natura (Avvelenato) | il motore degli effetti non aggiunge mai la condizione |
+| `passiveMechanics.evasion` | Elusione del ladro e del monaco, Difesa del Cacciatore Superiore con l'opzione Elusione (PHB e Revised) | TS su Destrezza che dimezza: niente se superato, metà se fallito |
 
 - **Pill e aure**: una pill `class-feature` si riconosce dal suo `effectId`
   (e dal `choiceId`); il membro di un'aura da `<capacità>:area` e dal nome della
@@ -151,8 +153,14 @@ promemoria e il Dardo incantato.
   della specie, senza scriverle nel profilo; l'editor della scheda propone solo
   quelle scritte a mano.
 - **Contro armi non magiche**: le righe dicono «non magici», gli incantesimi le
-  superano e un'arma magica si toglie con un clic sul chip. Se un'altra fonte
-  dà la stessa resistenza (l'Ira), vale anche contro la magia.
+  superano e un'arma magica pure, con ✦ Magica nella console attacchi (il campo
+  `magical` dell'attacco). Se un'altra fonte dà la stessa resistenza (l'Ira),
+  vale anche contro la magia.
+- **Resistenza e vulnerabilità insieme**: l'unione delle difese
+  (`mergeDamageDefenses`) le tiene entrambe quando vengono da fonti diverse, e
+  `damageDefenseFor` dà `resistance-vulnerability` («Res. e Vuln.»): metà, poi
+  doppio. L'immunità vince sempre; la scheda salvata ha ancora una difesa per
+  tipo (`sanitizeDamageDefenses`).
 - **Danni degli incantesimi**: valgono solo dove il danno è di un incantesimo:
   pannello, aree, promemoria che nominano l'incantesimo, Dardo incantato,
   incantesimi e trucchetti della console attacchi. Un'azione di un mostro

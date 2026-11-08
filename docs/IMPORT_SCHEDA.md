@@ -145,8 +145,8 @@ resistenza «from nonmagical attacks not made with silvered weapons»:
 }
 ```
 
-La difesa vale sempre: per un'arma magica o di quel materiale si ignora dalla
-console, [con un clic](GUIDA_UTENTE.md#console-attacchi-per-i-mostri).
+La difesa vale sempre: un'arma magica la supera con **✦ Magica** nella console,
+un'arma di quel materiale [con un clic](GUIDA_UTENTE.md#console-attacchi-per-i-mostri).
 
 Uno statblock completo:
 
@@ -187,6 +187,7 @@ Uno statblock completo:
 | `onFail` | La condizione di chi fallisce il TS (nome inglese o italiano): `condition`, `also` (fino a due condizioni in più), `duration` (`{ "rounds": 10 }` per un minuto, oppure `{ "until": "turn-end", "anchor": "target" }` per «fino alla fine del suo prossimo turno», `"source"` se è il turno del mostro) e `repeat` (`{ "timing": "turn-end", "ends": true }`: il tiro ripetuto che chiude l'effetto). Con una condizione l'azione può non avere danni. |
 | `immuneHours` | Le ore di immunità a questa azione che dà un successo (`24` per la Presenza terrificante). |
 | `onHit` | Su un attacco: ciò che aggiunge il colpo. `save` (`ability`, `dc`, `half`, `damage` come sopra, `conditions` in inglese o italiano, `duration` e `repeat` come in `onFail`), `grapple` (`{ "escapeDC": 13, "conditions": ["restrained"] }` se resta anche trattenuto), `prone: true`, `pushFeet`, `conditions` e `duration` (fuori dal TS: le condizioni che il colpo dà da sé, con la loro durata, senza tiro ripetuto; per esempio `"conditions": ["poisoned"], "duration": { "until": "turn-start", "anchor": "source" }`). |
+| `magical` | `true` su un attacco con un'arma magica o con un incantesimo: supera le difese ai danni non magici (**✦ Magica** nella console, che la scheda ricorda). Da 5eTools arriva da sé sugli attacchi con arma di un mostro con «weapon attacks are magical» e su ogni attacco con incantesimo. |
 | `damage` | Da 1 a 3 componenti `{ type, formula }`, come gli attacchi della scheda. |
 | `recharge` | Ricarica: `5` per "Ricarica 5–6". Dopo l'uso la console scrive «usata»; non blocca mai: se al tavolo si ricarica, si usa di nuovo. |
 | `uses` | Usi al giorno (`3` o `"3/giorno"`): finiti gli usi la console blocca l'azione; tornano con il riposo lungo. |

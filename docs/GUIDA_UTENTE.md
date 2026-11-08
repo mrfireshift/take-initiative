@@ -456,13 +456,26 @@ etichette in più.
 - **Solo contro armi non magiche**: Avatar della Battaglia e Santo della Forgia
   e del Fuoco (in armatura pesante, data per indossata) resistono ai danni
   contundenti, perforanti e taglienti come le difese dei mostri: il chip dice
-  `non magici`, gli incantesimi le superano e un'arma magica si toglie con un clic.
+  `non magici`, gli incantesimi le superano e un'arma magica pure, con ✦ Magica
+  nella console.
 - **Contro gli incantesimi**: Resistenza agli Incantesimi dell'abiuratore e
   l'Aura di Interdizione dimezzano ogni danno di un incantesimo: pannello,
   aree, promemoria degli incantesimi, Dardo incantato e incantesimi della
   console attacchi. Le azioni dei mostri nella console Boss non sono
   incantesimi, anche quando ne portano il nome (Meteor Swarm di Auril): lì
   dimezza a mano.
+- **Resistenza e vulnerabilità insieme**: se due fonti danno resistenza e
+  vulnerabilità allo stesso tipo (un tiefling sotto la Tomba di Levistus),
+  valgono tutte e due, come nel Manuale del Giocatore: prima metà, poi doppio.
+  Il chip lo dice: `Res. e Vuln. fuoco: 11 → 10`. L'immunità vince sempre.
+  Sulla scheda si scrive ancora una difesa per tipo.
+- **Elusione**: il ladro e il monaco dal 7° livello, e il cacciatore che la
+  sceglie come Difesa del Cacciatore Superiore, con un TS su Destrezza che
+  dimezza non subiscono danni se lo superano e la metà se lo falliscono:
+  nelle console, nel pannello incantesimi con le sue aree, nei promemoria
+  delle zone e nelle azioni ⚡. Sulla riga del bersaglio compare «Elusione».
+- **Avvelenato**: Purezza del Corpo e Interdizione della Natura rendono
+  immuni alla condizione: il plugin non la applica mai a quei personaggi.
 
 Per conteggi, adapter, limiti e persistenza consulta
 [Capacità di classe](CAPACITA_CLASSE.md).
@@ -613,13 +626,22 @@ totale, accanto a **Registra** e sempre in vista; nelle aree il danno sta sulla
 riga della creatura (`−30`) e la difesa sotto (`Res. fuoco: 60 → 30`). Anche le difese limitate alle armi
 non magiche, come `Res. taglienti non magici: 10 → 5` nella console attacchi,
 con il materiale nel suggerimento del pulsante, si applicano da sole, perché il
-plugin non sa di che arma si tratta. Per un'arma magica o del materiale giusto, un clic
-sul pulsante con la **✕** la ignora in quell'attacco; all'attacco dopo vale di nuovo. Un
-trucchetto o un incantesimo della console è magico, e queste difese non lo toccano: Frusta
-di Spine fa il danno pieno. Le aree
-della console non hanno il pulsante e la difesa vale sempre: in pratica conta
-solo per la Freccia perforante dell'Arciere arcano e per l'azione ad area di un
-mostro contro un altro mostro. Gli incantesimi fanno il loro conto nel pannello,
+plugin non sa di che arma si tratta. Per un'arma magica accendi **✦ Magica**, dopo i
+dadi della prima riga del danno: la scheda lo ricorda per gli attacchi seguenti, il
+selettore mostra ✦ accanto al nome e la difesa resta in vista, barrata:
+`Res. taglienti non magici · superata (arma magica)`. Un clic la riapplica a quel
+colpo. Spento, l'interruttore ricorda la capacità che può rendere magico l'attacco:
+Colpi Ki Potenziati per i colpi senz'armi, Freccia Magica per gli attacchi a
+distanza, Anima Bestiale per le armi naturali, e Colpo Primordiale, Patto della
+Lama e Tutt'Uno con la Lama su tutti; quale arma sia quella del patto lo sa il
+tavolo. Per un'arma del materiale giusto (d'argento, di adamantio), un clic sul
+pulsante con la **✕** ignora la difesa in quell'attacco; all'attacco dopo vale di
+nuovo. Un trucchetto o un incantesimo della console è magico, e queste difese non
+lo toccano: Frusta di Spine fa il danno pieno. Le aree della console non hanno il
+pulsante: la difesa vale, salvo per un'arma con ✦ Magica (la Freccia perforante da
+un arco magico), e la riga della creatura dice perché non ha contato. Un mostro
+importato da 5eTools con «weapon attacks are magical» ha già ✦ Magica sui suoi
+attacchi con arma; un attacco con incantesimo è sempre magico. Gli incantesimi fanno il loro conto nel pannello,
 con un chip accanto al bersaglio; contro di loro non contano le difese limitate alle
 armi non magiche. Un mostro importato prima di questa versione riceve queste
 difese reimportandolo.
