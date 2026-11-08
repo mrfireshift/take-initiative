@@ -109,6 +109,15 @@
     .component-body { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; column-gap: 6px; }
     .component-title { min-height: var(--obrt-hit-min); display: flex; align-items: center; font-weight: var(--obrt-weight-semibold); line-height: 1.2; overflow-wrap: anywhere; }
     .component-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; line-height: 1.25; }
+    /* ✦ Magica (lotto M5): on the line of the first damage row's dice; pressed, in the blue of a choice. Off, the feature
+       that may make the attack magical, in muted words on a line of its own under them. */
+    .magic-tools { display: contents; }
+    .magic-toggle { min-height: var(--obrt-hit-min); padding: 0 7px; border: 1px solid var(--line); border-radius: var(--obrt-radius-pill); background: transparent; color: var(--muted); font-size: var(--obrt-type-secondary); white-space: nowrap; cursor: pointer; }
+    .magic-toggle:hover:not(:disabled) { background: var(--obrt-hover); }
+    .magic-toggle[aria-pressed="true"] { border-color: rgba(96, 165, 250, .55); background: rgba(37, 99, 235, .28); color: #fff; }
+    .magic-toggle:disabled { opacity: .45; cursor: default; }
+    .magic-hint { flex: 1 1 100%; margin-bottom: 2px; color: var(--muted); font-size: var(--obrt-type-caption); line-height: 1.25; text-wrap: pretty; }
+    .magic-hint[hidden] { display: none; }
     .component-reason { flex: 1 1 100%; color: var(--warn-text); font-size: var(--obrt-type-secondary); line-height: 1.3; text-wrap: pretty; }
     .component-reason:empty { display: none; }
     /* Why a row is off is no warning. */

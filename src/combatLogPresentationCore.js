@@ -915,7 +915,8 @@ function causalityDetailLines(event) {
     }
     // Lot U3b: the defenses that changed a damage component, or that the GM chose to ignore.
     for (const defense of Array.isArray(target.defenses) ? target.defenses : []) {
-      const word = { immunity: "immunità", resistance: "resistenza", vulnerability: "vulnerabilità" }[defense.defense];
+      const word = { immunity: "immunità", resistance: "resistenza", vulnerability: "vulnerabilità",
+        "resistance-vulnerability": "resistenza e vulnerabilità" }[defense.defense];
       if (!word) continue;
       targetLines.push(`${word} (${damageTypeLabel(defense.type)})${defense.ignored ? " ignorata" : ""}`);
     }

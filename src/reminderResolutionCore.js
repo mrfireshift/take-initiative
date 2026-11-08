@@ -28,6 +28,7 @@ import {
   spellDamageDefenseApplied,
   spellDamageDefenseRows,
 } from "./spellDamageDefenseCore.js";
+import { evasionFactor, evasionForItem } from "./damageDefensesCore.js";
 import {
   resolveTurbineSaveChain,
   turbineSizeFromToken,
@@ -968,28 +969,34 @@ export function buildZoneTriggerReminderResolution({
   };
 }
 
-function reminderResolutionDamageFactor(resolution, outcome) {
+// evasion: the target has Evasion (the rogue's, the monk's, the hunter's, a monster's). A Dexterity save that halves the
+// damage then takes nothing on a success and half on a failure.
+function reminderResolutionDamageFactor(resolution, outcome, evasion = false) {
   const damage = resolution?.damage;
   if (!damage) return "zero";
   if (resolution?.mode === "manual-damage") return "full";
   const normalizedOutcome = String(outcome || "").trim().toLowerCase();
-  return normalizedOutcome === REMINDER_OUTCOMES.FAILED
+  const factor = normalizedOutcome === REMINDER_OUTCOMES.FAILED
     ? damage.onFailed
     : normalizedOutcome === REMINDER_OUTCOMES.IMMUNE
       ? damage.onImmune
       : damage.onPassed;
+  const evaded = evasion && damage.onPassed === "half"
+    && String(resolution?.save?.ability || "").trim().toLowerCase() === "dex"
+    && (normalizedOutcome === REMINDER_OUTCOMES.PASSED || normalizedOutcome === REMINDER_OUTCOMES.FAILED);
+  return evaded ? evasionFactor(factor) : factor;
 }
 
-export function reminderResolutionOutcomeNeedsDamage(resolution, outcome) {
-  const factor = reminderResolutionDamageFactor(resolution, outcome);
+export function reminderResolutionOutcomeNeedsDamage(resolution, outcome, evasion = false) {
+  const factor = reminderResolutionDamageFactor(resolution, outcome, evasion);
   return factor === "full" || factor === "half";
 }
 
 // defense: the target's, against this damage (spellDamageDefenseCore.js): after the save, as in the panel.
-export function reminderResolutionDamage(resolution, outcome, roll, defense = null) {
+export function reminderResolutionDamage(resolution, outcome, roll, defense = null, evasion = false) {
   const damage = resolution?.damage;
   if (!damage) return { roll: 0, factor: "zero", amount: 0 };
-  const factor = reminderResolutionDamageFactor(resolution, outcome);
+  const factor = reminderResolutionDamageFactor(resolution, outcome, evasion);
   const numericRoll = Math.max(0, Math.floor(Number(roll) || 0));
   const amount = factor === "full" || factor === "half"
     ? spellDamageAfterDefense(numericRoll, factor, defense)
@@ -1761,8 +1768,9 @@ export function buildReminderResolutionPlan({
       ? null
       : Number(damageRoll))
     : 0;
+  const evasion = evasionForItem(target, META_KEY);
   if (
-    reminderResolutionOutcomeNeedsDamage(resolution, normalizedOutcome)
+    reminderResolutionOutcomeNeedsDamage(resolution, normalizedOutcome, evasion)
     && (normalizedDamageRoll === null
       || !Number.isFinite(normalizedDamageRoll)
       || normalizedDamageRoll < 0)
@@ -1793,6 +1801,7 @@ export function buildReminderResolutionPlan({
     normalizedOutcome,
     normalizedDamageRoll,
     spellDamageDefenseApplied(damageDefenses),
+    evasion,
   );
   const healingRoll = resolution.healing && normalizedOutcome === "apply"
     ? (damageRoll === "" || damageRoll === null || damageRoll === undefined

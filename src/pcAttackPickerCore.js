@@ -53,8 +53,9 @@ export function pcAttackPickerEntries(card, { activeSpellIds = [] } = {}) {
       add(cantrip ? "cantrips" : "spells", action.id, spellId, attackLabel(spellId), { level: cantrip ? 0 : getPcAttackSpell(spellId)?.level ?? null });
     }
   };
+  // A magic weapon (✦ Magica, lotto M5) says so in its entry.
   for (const action of attackActions) {
-    if (!["cantrip", "spell"].includes(action.source?.kind)) add("attacks", action.id, "", action.label || action.id);
+    if (!["cantrip", "spell"].includes(action.source?.kind)) add("attacks", action.id, "", action.label || action.id, action.magical === true ? { magical: true } : {});
   }
   for (const action of pcAttackBreathActionsForCard(profile)) add("attacks", action.id, "", action.label || action.id);
   entries.features = pcAttackFeatureEntries(profile);

@@ -4,7 +4,7 @@
 // panel ready for them.
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
-import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem, damageTypeLabel } from "./damageDefensesCore.js";
+import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem, damageTypeLabel, RESISTANCE_VULNERABILITY } from "./damageDefensesCore.js";
 import { calculateQuickHPChange, QUICK_HP_FACTORS, QUICK_HP_MODES } from "./quickHpCore.js";
 import { takesDeathSaveDamage } from "./deathSaveCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
@@ -27,7 +27,8 @@ export async function applyRetaliationDamage({ attackerId = "", amount = 0, type
   const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.DAMAGE, value: damage, factor: QUICK_HP_FACTORS.FULL,
     hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp, deathSaveDamage: takesDeathSaveDamage(meta) });
   const name = item.name || item.id;
-  const message = `${label}: ${damage} danni da ${damageTypeLabel(type)} a ${name}${defense === "resistance" ? " (resistenza)" : defense === "immunity" ? " (immune)" : ""}.`;
+  const message = `${label}: ${damage} danni da ${damageTypeLabel(type)} a ${name}${defense === "resistance" ? " (resistenza)" : defense === "immunity" ? " (immune)"
+    : defense === "vulnerability" ? " (vulnerabilità)" : defense === RESISTANCE_VULNERABILITY ? " (resistenza e vulnerabilità)" : ""}.`;
   if (!change.changed) return { ok: true, damage, message };
   const commandId = newId();
   const [{ getEffectsMutationSceneContext, requireAppliedEffectsMutation, runEffectsMutation }, { postBossDamage }] = await Promise.all([

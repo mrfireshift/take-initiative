@@ -109,8 +109,9 @@ test("effect defenses join the profile ones without rewriting the profile", () =
   assert.deepEqual(profileDamageDefensesForItem(target, META), { immunities: [], resistances: ["cold"], vulnerabilities: [] });
   assert.deepEqual(damageDefensesForItem(withEffect(creature("x", 10), { immunities: ["cold"] }, { active: false }), META),
     { immunities: [], resistances: [], vulnerabilities: [] }, "an inactive effect grants nothing");
+  // Lotto M6: a resistance and a vulnerability from two sources both stay (halved, then doubled); immunity still wins.
   assert.deepEqual(mergeDamageDefenses({ resistances: ["fire"] }, { vulnerabilities: ["fire", "thunder"] }),
-    { immunities: [], resistances: ["fire"], vulnerabilities: ["thunder"] });
+    { immunities: [], resistances: ["fire"], vulnerabilities: ["fire", "thunder"] });
 });
 
 test("Chromatic Warding: cold immunity from an effect zeroes the boss cold damage and is credited to the effect", () => {

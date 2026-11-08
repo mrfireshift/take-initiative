@@ -12,6 +12,7 @@ import {
 } from "./spellUnifiedPopupProtocol.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { initializePopoverDrag } from "./popoverDrag.js";
+import { evasionFactor, evasionForItem } from "./damageDefensesCore.js";
 import {
   magicalDamageDefensesForItem,
   spellDamageAfterDefense,
@@ -123,9 +124,11 @@ function renderDamageDefenseChips(ids, itemsById, roll) {
       defenses: magicalDamageDefensesForItem(item, META_KEY),
       ignoredTypes: [...(ignoredDefenses.get(id) || [])],
     }).map((row) => {
-      const factor = outcomes[id] === "passed" ? "half" : "full";
-      const before = roll !== null && outcomes[id] ? spellDamageBeforeDefense(roll, factor) : 0;
-      const numbers = roll !== null && outcomes[id]
+      // Evasion (a Dexterity save that halves): nothing on a success, half on a failure, as the executor counts it.
+      const outcomeFactor = outcomes[id] === "passed" ? "half" : "full";
+      const factor = evasionForItem(item, META_KEY) ? evasionFactor(outcomeFactor) : outcomeFactor;
+      const before = roll !== null && outcomes[id] && factor !== "zero" ? spellDamageBeforeDefense(roll, factor) : 0;
+      const numbers = roll !== null && outcomes[id] && factor !== "zero"
         ? { before, after: row.ignored ? before : spellDamageAfterDefense(roll, factor, row.defense) }
         : { before: 0, after: 0 };
       const said = spellDamageDefenseText(row, numbers);

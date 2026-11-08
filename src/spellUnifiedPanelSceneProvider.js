@@ -42,6 +42,7 @@ import { pendingSpellZoneTriggerActivations } from "./spellZoneTriggerCore.js";
 import { turbineSizeFromToken } from "./xanatharTurbineCore.js";
 import { magicMissileTargetGuard } from "./magicMissileCore.js";
 import { magicalDamageDefensesForItem } from "./spellDamageDefenseCore.js";
+import { evasionForItem } from "./damageDefensesCore.js";
 import { blinkSemanticDetail } from "./blinkRules.js";
 import { createSceneMetadataKeyWatcher } from "./sceneMetadataDigest.js";
 import {
@@ -266,6 +267,8 @@ function targetCandidate(item, dpi = 150) {
     magicMissileGuard: magicMissileTargetGuard(item),
     // Against a spell's damage, for the preview of the others.
     damageDefenses: magicalDamageDefensesForItem(item, `${ID}/meta`),
+    // Evasion (the rogue's, the monk's, the hunter's, a monster's): a Dexterity save that halves takes nothing or half.
+    evasion: evasionForItem(item, `${ID}/meta`),
   };
 }
 

@@ -2,12 +2,12 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { pcAttackBreathAction } from "./pcAttackCore.js";
 import { PC_ATTACK_BREATH_PREFIX } from "./pcAttackBreathId.js";
-import { getInitiativeCard } from "./initiativeCards.js";
+import { getInitiativeCard, saveInitiativeCard } from "./initiativeCards.js";
 import { findQuickAction } from "./quickActionsCore.js";
 import { isBossActionCreature } from "./bossActionExecutionCore.js";
 import { bossActionTargets } from "./bossActionsViewCore.js";
 import { postBossDamage, quietReads } from "./bossActionExecution.js";
-import { buildPcAttackAreaMutation, buildPcAttackMutation, buildPcAttackQuiveringPalmMutation, pcAttackAction, pcAttackNearbyIds,
+import { buildPcAttackAreaMutation, buildPcAttackMutation, buildPcAttackQuiveringPalmMutation, pcAttackAction, pcAttackMagicToggleable, pcAttackNearbyIds,
   PC_ATTACK_STATE_FIELD, pcAttackSpellTeleportPlan } from "./pcAttackCore.js";
 import { buildSpellCausality } from "./combatLogCausalityCore.js";
 import { pcAttackPickerDefault, pcAttackPickerEntries } from "./pcAttackPickerCore.js";
@@ -127,7 +127,7 @@ async function projectTempHp({rows,sceneEpoch,isCurrent}) {
 // Same command path as a boss attack: the coordinator commits canonical HP and History, then the
 // existing projections (map HP bar, HP text, hpMemory, concentration and save reminders) run once.
 export function createPcAttackRuntime({
-  api=OBR,getCard=getInitiativeCard,
+  api=OBR,getCard=getInitiativeCard,saveCard=saveInitiativeCard,
   getSceneContext=getEffectsMutationSceneContext,runMutation=runEffectsMutation,
   requireApplied=requireAppliedEffectsMutation,postDamage=postBossDamage,refreshLabels=refreshPillLabels,postTempHp=projectTempHp,
   getEpoch=currentSceneEpoch,isCurrentEpoch=isCurrentSceneEpoch,emitVisual=emitCantripVisual,
@@ -238,7 +238,7 @@ export function createPcAttackRuntime({
         activations:request.activations ?? null,attackMode:request.attackMode || "",modeAmount:request.modeAmount ?? null,
         expectedBurstDefenses:request.expectedBurstDefenses ?? null,castWithoutSlot:request.castWithoutSlot===true,
         useReaction:request.useReaction===true,
-        spellCast:request.spellCast ?? null,hitEffect:request.hitEffect ?? null});
+        spellCast:request.spellCast ?? null,hitEffect:request.hitEffect ?? null,reappliedDefenses:request.reappliedDefenses ?? null});
       let draft=drafts.get(attackInstanceId);
       if(draft && (draft.decisionKey!==decisionKey || draft.options.sceneIdentity!==scope.scene.sceneIdentity))
         throw new Error("Le decisioni o la scena dell'attacco sono cambiate: riapri l'attacco.");
@@ -250,7 +250,7 @@ export function createPcAttackRuntime({
           spellId:request.spellId || "",weaponCantrip:request.weaponCantrip || null,secondaryItem:secondaryItem || null,
           expectedSecondaryDefenses:request.expectedSecondaryDefenses,activations:request.activations || [],tempHpItems,
           attackMode:request.attackMode || "",modeAmount:request.modeAmount ?? null,burstItems,expectedBurstDefenses:request.expectedBurstDefenses || {},
-          spellCast:request.spellCast || null,linkItems,hitEffect:request.hitEffect || null});
+          spellCast:request.spellCast || null,linkItems,hitEffect:request.hitEffect || null,reappliedDefenses:request.reappliedDefenses || []});
         spendSmiteSlots(scope.item,plan,request.castWithoutSlot===true);
         spendSpellCastSlot(scope.item,plan,request.castWithoutSlot===true);
         const reaction=spendAttackReaction(scope.item,plan,scope.turnState,request.useReaction===true);
@@ -560,8 +560,28 @@ export function createPcAttackRuntime({
           attackInstanceId,turnState:scope.turnState});
       });
   }
+  // ✦ Magica (lotto M5): a weapon attack's flag, written on the card as the sheet writes its natural weapons, a partial
+  // save that keeps every other field as stored. A setting of the card, not an event: no History, nothing to undo there.
+  async function setPcAttackActionMagical({sourceId,actionId,magical}={}) {
+    if(busy.has(sourceId)) throw new Error("Registrazione in corso: riprova tra poco.");
+    busy.add(sourceId);
+    try {
+      const scope=await session(sourceId);
+      const actions=Array.isArray(getCard(scope.item)?.quickActions)?getCard(scope.item).quickActions:[];
+      const index=actions.findIndex(action=>action?.id===actionId);
+      if(index<0 || !pcAttackMagicToggleable(actions[index])) throw new Error("Attacco con arma non trovato nella scheda: riapri l'attacco.");
+      const quickActions=actions.map((action,position)=>{
+        if(position!==index) return action;
+        const {magical:_previous,...rest}=action;
+        return magical===true?{...rest,magical:true}:rest;
+      });
+      await saveCard(scope.item.id,scope.item.name,{quickActions},{isCurrent:scope.isCurrent,commandId:scope.scene.commandId,
+        sceneIdentity:scope.scene.sceneIdentity,preserveExhaustion:true});
+      return {magical:magical===true};
+    } finally {busy.delete(sourceId);}
+  }
   return {getPcAttackPresentation,executePcAttack,endQuiveringPalm,executePcAttackArea,getPcAttackNearby,executePcManeuver,endPcGrapple,
-    executePcAttackSpellTeleport};
+    executePcAttackSpellTeleport,setPcAttackActionMagical};
 }
 const runtime=createPcAttackRuntime();
 export const getPcAttackPresentation=(...args)=>runtime.getPcAttackPresentation(...args);

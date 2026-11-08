@@ -17425,7 +17425,10 @@
           "immunities": [
             "poison"
           ]
-        }
+        },
+        "conditionImmunities": [
+          "Avvelenato"
+        ]
       },
       "quickActionEligible": false,
       "targetMode": "self",
@@ -24297,6 +24300,9 @@
       },
       "activation": {
         "primary": "innesco"
+      },
+      "passiveMechanics": {
+        "evasion": true
       },
       "quickActionEligible": false,
       "targetMode": "self",
@@ -31850,6 +31856,9 @@
       "activation": {
         "primary": "passiva"
       },
+      "passiveMechanics": {
+        "evasion": true
+      },
       "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
@@ -31951,7 +31960,10 @@
           "immunities": [
             "poison"
           ]
-        }
+        },
+        "conditionImmunities": [
+          "Avvelenato"
+        ]
       },
       "quickActionEligible": false,
       "targetMode": "self",
@@ -39592,6 +39604,9 @@
       "activation": {
         "primary": "passiva"
       },
+      "passiveMechanics": {
+        "evasion": true
+      },
       "optionGroup": "ranger-cacciatore-difesa-del-cacciatore-superiore",
       "quickActionEligible": false,
       "targetMode": "self",
@@ -41814,6 +41829,9 @@
       },
       "activation": {
         "primary": "innesco"
+      },
+      "passiveMechanics": {
+        "evasion": true
       },
       "optionGroup": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore",
       "quickActionEligible": false,

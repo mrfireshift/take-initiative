@@ -76,6 +76,7 @@ import {
   spellDamagePartsDefenses,
   spellDamageTypes,
 } from "./spellDamageDefenseCore.js";
+import { evasionFactor, evasionForItem } from "./damageDefensesCore.js";
 import { planStabilizeTarget, returnFromDeathCondition, STABILIZE_SPELL_ID_SET } from "./stabilizeSpellRules.js";
 import { spellEffectConditionOptions } from "./spellEffectCore.js";
 import {
@@ -86,6 +87,8 @@ import {
   spellCastPrimaryHit,
   spellCastPrimaryHitAmount,
   spellCastPrimaryHitTypes,
+  spellCastSaveAbility,
+  spellSaveDamageFactor,
 } from "./spellCastResolutionRules.js";
 import {
   resolveTurbineTargetChains,
@@ -486,6 +489,12 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
   const mode = hp.mode === "heal" || AREA_HEALING_SPELL_ID_SET.has(text(spell?.id))
     ? QUICK_HP_MODES.HEAL
     : QUICK_HP_MODES.DAMAGE;
+  // Evasion: a Dexterity save that halves the damage takes nothing on a success and half on a failure, for the creature
+  // that has it now, as the panel's preview counts it (spellUnifiedPanelViewCore.js).
+  // The save: the zone's or the command's, else the spell's (spellCastSaveAbility), as the panel shows it.
+  const saveAbility = text(command?.outcomes?.save?.ability || spellCastSaveAbility(spell?.id)).toLowerCase();
+  const evasionSave = mode === QUICK_HP_MODES.DAMAGE && saveAbility === "dex"
+    && (spellSaveDamageFactor(spell?.id, "passed") || QUICK_HP_FACTORS.HALF) === QUICK_HP_FACTORS.HALF;
   return (Array.isArray(items) ? items : [])
     .filter(trackedHP)
     .map((item) => {
@@ -497,10 +506,13 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
         return { item, outcome, change: calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: undeadTempHp,
           hp: itemMeta(item).hp, hpMax: itemMeta(item).hpMax, tempHp: itemMeta(item).tempHp }) };
       }
-      const zeroDamage = hp.outcomeFactors?.[targetId] === "zero";
+      const evasion = evasionSave && (outcome === SAVE_SPELL_OUTCOMES.PASSED || outcome === SAVE_SPELL_OUTCOMES.FAILED)
+        && evasionForItem(item, META_KEY);
+      const outcomeFactor = evasion ? evasionFactor(normalizeFactor(hp.outcomeFactors?.[targetId])) : hp.outcomeFactors?.[targetId];
+      const zeroDamage = outcomeFactor === "zero";
       const factorName = zeroDamage
         ? QUICK_HP_FACTORS.FULL
-        : normalizeFactor(hp.outcomeFactors?.[targetId]);
+        : normalizeFactor(outcomeFactor);
       const noDamage = zeroDamage || outcome === SAVE_SPELL_OUTCOMES.IMMUNE;
       // Two types in one damage (hp.parts): each part after the save and its own defense, then the sum, as the panel's
       // preview counts it. One damage all the same: one concentration save, one death save failure.

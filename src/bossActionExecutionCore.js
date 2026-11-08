@@ -5,7 +5,7 @@ import { createMonsterActionContext } from "./monsterActionContextCore.js";
 import { bossActionUsageAvailability, consumeBossActionUsage, bossActionUsageSummary } from "./bossActionUsageCore.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
-import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem, profileDamageDefensesForItem, sanitizeDamageDefenses,
+import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem, mergeDamageDefenses, profileDamageDefensesForItem,
   EVASION_DEFENSE, evasionAppliesTo, evasionFactor, evasionForItem, withSpellDamageResistance } from "./damageDefensesCore.js";
 
 export const BOSS_ACTION_STATE_FIELD = "bossActionState";
@@ -212,13 +212,14 @@ export function defendedComponents(components, inputs, factor, targetItem, ignor
   { spell = false } = {}) {
   const profileDefenses = damageDefensesForItem(targetItem, META_KEY);
   const ownProfileDefenses = profileDamageDefensesForItem(targetItem, META_KEY);
-  if (expectedDefenses !== undefined && JSON.stringify(sanitizeDamageDefenses(expectedDefenses)) !== JSON.stringify(profileDefenses))
+  // Cleaned as the effective defenses are: a resistance and a vulnerability to the same type both stay (lotto M6).
+  if (expectedDefenses !== undefined && JSON.stringify(mergeDamageDefenses(expectedDefenses)) !== JSON.stringify(profileDefenses))
     throw new Error(`Le difese ai danni di ${targetItem.name || targetItem.id} sono cambiate: riapri l’azione.`);
   // A boss mark changes only this resolution's cold defense; the Actor Profile is never rewritten.
   const marks = marked ? bossMarkedDefenses(profileDefenses) : profileDefenses;
   const defenses = spell ? withSpellDamageResistance(marks, targetItem, META_KEY) : marks;
   const ignored = new Set(Array.isArray(ignoredTypes) ? ignoredTypes : []);
-  return components.map((component) => {
+  const pieces = components.map((component) => {
     const inputAmount = inputs[component.id];
     if (factor === "zero") return {...clone(component),inputAmount,factor,defense:null,amount:0};
     const profileDefense = damageDefenseFor(defenses, component.type);
@@ -230,6 +231,23 @@ export function defendedComponents(components, inputs, factor, targetItem, ignor
       ...(profileDefense ? {defenseSource,...(defense ? {} : {defenseIgnored:profileDefense})} : {}),...markRule,
       amount:componentDamageAfterDefense(inputAmount,factor,defense)};
   });
+  if (factor === "zero") return pieces;
+  // The damage of a type is summed before the save and the defense (7 + 3 slashing resisted: 5, as bossDefendedDamage
+  // previews): the points the pieces lose to the rounding go back to the type's first piece, so the log adds up to it.
+  const types = new Map();
+  pieces.forEach((piece, index) => {
+    const input = Number(piece.inputAmount);
+    if (!Number.isFinite(input)) return;
+    const total = types.get(piece.type) || { first: index, input: 0, amount: 0, defense: piece.defense };
+    total.input += input;
+    total.amount += piece.amount;
+    types.set(piece.type, total);
+  });
+  for (const total of types.values()) {
+    const extra = componentDamageAfterDefense(total.input, factor, total.defense) - total.amount;
+    if (extra) pieces[total.first] = { ...pieces[total.first], amount: pieces[total.first].amount + extra };
+  }
+  return pieces;
 }
 
 // ---- boss marks (Mark of the Frostmaiden) ----

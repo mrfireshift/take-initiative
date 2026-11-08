@@ -185,6 +185,9 @@ function monsterAttackFieldsOf(value, save = attackSaveOf(value)) {
     ...(recharge !== null ? { recharge } : {}),
     ...(uses !== null ? { uses } : {}),
     ...(note ? { note } : {}),
+    // A magic weapon (lotto M5), a character's or a monster's: it gets through the defenses against nonmagical attacks.
+    // Switched in the attack console (✦ Magica), stored only when on; never on a save action.
+    ...(!save && value?.magical === true ? { magical: true } : {}),
   };
 }
 

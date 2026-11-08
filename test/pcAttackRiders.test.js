@@ -28,8 +28,9 @@ test("a rogue's Sneak Attack: dice for its level and the weapon's damage type", 
 test("a rider is a typed component with its own defenses, counted for the turn the GM saw", () => {
   const defenses = { resistances: ["piercing"], immunities: [], vulnerabilities: [] };
   const result = plan({ targetItem: ghoul({ initiativeCard: { damageDefenses: defenses } }), expectedDefenses: defenses, riders: [sneak] });
-  assert.deepEqual(result.damageComponents.map((c) => [c.id, c.type, c.amount, c.source.kind]), [["c1", "piercing", 3, "weapon"], ["r:ladro-attacco-furtivo", "piercing", 5, "class-feature"]]);
-  assert.equal(result.change.afterHP, 22);
+  // The piercing is summed before the resistance (7 + 11 = 18 → 9, not 3 + 5): the rounding's point goes to the weapon.
+  assert.deepEqual(result.damageComponents.map((c) => [c.id, c.type, c.amount, c.source.kind]), [["c1", "piercing", 4, "weapon"], ["r:ladro-attacco-furtivo", "piercing", 5, "class-feature"]]);
+  assert.equal(result.change.afterHP, 21);
   const state = result.options.metadataPatches[0].fields[PC_ATTACK_STATE_FIELD].value;
   assert.deepEqual(state.riderUses, [{ riderId: "ladro-attacco-furtivo", turnKey: state.lastAttack.turnKey }]);
   assert.deepEqual(result.options.sceneMetadataPreconditions.map((entry) => [entry.field, entry.value]), [["round", 2], ["current", 0]]);

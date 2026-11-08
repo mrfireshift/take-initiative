@@ -9,7 +9,7 @@ import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAtta
   pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction, pcAttackOutcomesFor, pcAttackSaveLabel, pcAttackDamageFactor,
   pcAttackCantripPillLabels, pcAttackWeaponCantripOptions, pcAttackActionWeaponCantripIds, pcAttackQuiveringPalm,
   pcAttackModeOptions, pcAttackAreaPreview, pcAttackAreaRowDamage, pcAttackActionPanelCantripIds, pcAttackSpellIds, pcAttackWithSpellType, pcAttackOpenSpellCast,
-  pcAttackMonsterAreaNote, pcAttackMonsterTags, pcAttackSpellBonusTags } from "./pcAttackCore.js";
+  pcAttackMonsterAreaNote, pcAttackMonsterTags, pcAttackSpellBonusTags, pcAttackMagicToggleable, pcAttackMagicHint, pcAttackDefenseText } from "./pcAttackCore.js";
 import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileCore.js";
 import { PC_ATTACK_MONSTER_GROUP_TITLES, pcAttackMonsterTraitEntries } from "./pcAttackMonsterTraitsCore.js";
 import { monsterStatblockTextRef } from "./monsterStatblockTextCore.js";
@@ -72,7 +72,8 @@ async function defaultPcAttackUndo(entryId,{epoch}) {
 // attackMode: an arrow that replaces the attack roll (Seeking, Piercing); area: the creatures of an area attack.
 function emptyDraft(action,targetId=null,spellId="",attackMode="") {
   const components=pcAttackResolvedAction(action,spellId,attackMode)?.components || [];
-  return {targetId,spellId,attackMode,modeAmount:"",outcome:"",onlyOutcome:false,amounts:Object.fromEntries(components.map(component=>[component.id,""])),ignored:[],
+  // reapplied: a magic weapon's struck-through defenses the GM applies again to this hit (lotto M5).
+  return {targetId,spellId,attackMode,modeAmount:"",outcome:"",onlyOutcome:false,amounts:Object.fromEntries(components.map(component=>[component.id,""])),ignored:[],reapplied:[],
     riders:{},activations:{},extras:[],woven:{spellId:"",amount:"",secondaryTargetId:"",secondaryAmount:""},
     area:{members:{},proposalKey:""},attackInstanceId:newAttackId(),
     // A leveled attack spell (lotto L4): the cast this registration belongs to, its slot, the type picked, matching d8.
@@ -397,7 +398,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       amounts:draft?.amounts,ignoredDefenses:draft?.ignored,riders:chosenRiders(draft),extras:chosenExtras(draft),turnState:presentation?.turnState,
       weaponCantrip:chosenWeaponCantrip(draft),secondaryItem:targetById(secondaryTargetId()),activations:chosenActivations(draft),
       tempHpItems:presentation?[presentation.item,...presentation.targets]:[],attackMode:draft?.attackMode || "",modeAmount:draft?.modeAmount ?? "",
-      burstItems:presentation?[presentation.item,...presentation.targets]:[],hitEffect:draft?.hitEffect || null});
+      burstItems:presentation?[presentation.item,...presentation.targets]:[],hitEffect:draft?.hitEffect || null,reappliedDefenses:draft?.reapplied || []});
   }
   // 3C: an area attack (area cantrip, Piercing Arrow): the creatures ticked with their save outcomes, one damage roll.
   const isArea=()=>!!resolved()?.area;
@@ -1100,7 +1101,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       && !!pcAttackOpenSpellCast({sourceItem:presentation.item,spellId:entry.spellId,turnState:presentation.turnState});
     // In the cantrips and spells tabs «Console» marks what the console resolves, ★ the favourites (as the 🪄 menu); the
     // select names the casting time too. No emoji in the panel's rows (decision D3 of its audit).
-    const label=entry=>[entry.pinned?"★ ":"",plainLabel(entry.label),
+    // ✦ after a magic weapon's name (lotto M5).
+    const entryName=entry=>`${plainLabel(entry.label)}${entry.magical?" ✦":""}`;
+    const label=entry=>[entry.pinned?"★ ":"",entryName(entry),
       entry.spellId && castingTimeLabel(entry.spellId)?` · ${capitalized(castingTimeLabel(entry.spellId))}`:"",
       entry.tab!=="attacks" && entry.mode==="attack"?" · Console":"",inProgress(entry)?" · in corso":""].join("");
     if(["cantrips","spells"].includes(current.tab) && !spellbookSpellReferenceLoaded()) {
@@ -1178,7 +1181,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       // The menu's entries, the list's rows: the name on the left, the cost and marks on the right.
       if(pickerMenu) pickerMenu.replaceChildren(...(asList?[]:inTab.map(entry=>{
         const row=node("button","","picker-row");row.type="button";row.dataset.pickerKey=entry.key;row.title=label(entry);
-        row.append(node("span",`${entry.pinned?"★ ":""}${plainLabel(entry.label)}`,"picker-row-name"),...rowCells(entry));
+        row.append(node("span",`${entry.pinned?"★ ":""}${entryName(entry)}`,"picker-row-name"),...rowCells(entry));
         row.addEventListener("click",()=>{setMenuOpen(false,{focus:true});chooseEntry((presentation?.picker || []).find(item=>item.key===entry.key));});
         return row;
       })));
@@ -1217,7 +1220,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       if(!asDropdown) setMenuOpen(false);
       else {
         pickerNamesRange=!!entryRange(current);
-        dropdownButton.replaceChildren(node("span",`${current.pinned?"★ ":""}${plainLabel(current.label)}`,"picker-row-name"),node("span",entryRange(current),"picker-row-range"),...rowCells(current),node("span","","picker-dropdown-caret"));
+        dropdownButton.replaceChildren(node("span",`${current.pinned?"★ ":""}${entryName(current)}`,"picker-row-name"),node("span",entryRange(current),"picker-row-range"),...rowCells(current),node("span","","picker-dropdown-caret"));
         dropdownButton.title=label(current);dropdownButton.disabled=busy;
         if(busy) setMenuOpen(false);
         for(const row of pickerMenu?.querySelectorAll("button") || []){row.setAttribute("aria-pressed",String(row.dataset.pickerKey===current.key));row.disabled=busy;}
@@ -2012,12 +2015,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const attack=typedAttack();
     // A spell with several types (Chromatic Orb): until one is picked, its damage has no type to name.
     const untyped=!!attack?.spell?.types && !attack.spell.types.includes(draft.spell.damageType);
-    damage.replaceChildren(...(attack?.components || []).map(component=>{
+    damage.replaceChildren(...(attack?.components || []).map((component,index)=>{
       const body=node("div","","component-body");
       const typeName=untyped?"Danno":typeLabel(component.type);
       // A cantrip's dice follow the character level; a weapon shows the formula written in its quick action.
       const meta=node("div","","component-meta");meta.dataset.damageMeta=component.id;
-      body.append(node("span",typeName,"component-title"),meta);
+      body.append(node("span",typeName,"component-title"),meta,...(index===0 && pcAttackMagicToggleable(presentation?.action)?[magicTools()]:[]));
       const input=amountInput(draft.amounts[component.id] ?? "",untyped?"Danni":`Danni ${damageTypeLabel(component.type)}`);input.dataset.damageInput=component.id;
       // No damage to enter on a miss or a passed save (half on a passed save with Potent Cantrip).
       input.disabled=busy || !!draft.outcome && pcAttackDamageFactor(attack,draft.outcome,attackerCard())==="zero";
@@ -2025,6 +2028,42 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       return componentRow(null,body,input);
     }),...(attack?.mode?[modeRow(attack)]:[]));
     updateDamageMeta();
+    updateMagicToggle();
+  }
+  // ✦ Magica (lotto M5): on a weapon attack, after the dice of its first damage row; pressed, the card remembers it for the
+  // next attacks. Off, the feature that may make this one magical says so beside it. Patched in place by updateMagicToggle.
+  function magicTools() {
+    const box=node("span","","magic-tools");box.dataset.magicTools="1";
+    const button=node("button","✦ Magica","magic-toggle");button.type="button";button.dataset.magicToggle="1";
+    button.addEventListener("click",()=>void toggleMagical());
+    const hint=node("span","","magic-hint");hint.dataset.magicHint="1";hint.hidden=true;
+    box.append(button,hint);
+    return box;
+  }
+  function updateMagicToggle() {
+    const button=damage?.querySelector?.('[data-magic-toggle="1"]'),hint=damage?.querySelector?.('[data-magic-hint="1"]');
+    if(!button) return;
+    const on=presentation?.action?.magical===true;
+    button.setAttribute("aria-pressed",String(on));
+    button.disabled=busy || invalidated;
+    button.title=on?"Arma magica: supera le difese ai danni non magici. La scheda lo ricorda; clic per toglierlo."
+      :"Arma magica? Clic per segnarla: la scheda lo ricorda per i prossimi attacchi.";
+    const text=on?"":pcAttackMagicHint(presentation?.action,attackerCard());
+    if(hint){hint.textContent=text;hint.hidden=!text;}
+  }
+  // The card is written at once (a partial save, as the sheet's): the attack in progress keeps its decisions, and every
+  // defense the weapon now gets through starts struck through.
+  async function toggleMagical() {
+    const action=presentation?.action;
+    if(!action || !pcAttackMagicToggleable(action)) return;
+    const magical=action.magical!==true;
+    await perform(async operation=>{
+      await runtime.setPcAttackActionMagical({sourceId,actionId:action.id,magical});
+      if(!lifecycle.isCurrent(operation)) return;
+      if(draft) draft.reapplied=[];
+      setStatus(magical?`${action.label}: arma magica, la scheda lo ricorda.`:`${action.label}: arma non magica.`,"ok");
+      await refresh(operation);
+    });
   }
   // The arrow's extra die (Seeking, Piercing): a row of its own under the weapon's.
   function modeRow(attack) {
@@ -2087,6 +2126,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     renderTargetReactions();
     // The hit effect follows the outcome, which a click changes without a full render (fase 5, lotto 4).
     renderHitEffect();
+    // ✦ Magica follows the card and the busy state, without rebuilding the damage rows (lotto M5).
+    updateMagicToggle();
     if(isArea()) return renderAreaState();
     // On a miss the section stays only for the activations used on the roll (a bonus to hit); the extras need a hit,
     // or a passed save that still halves an arrow's damage.
@@ -2105,13 +2146,22 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const view=preview();
     // In the fixed row, under the total it explains: each defense with what it did to the damage typed. A monster's save on
     // the hit counts in the total and cannot be ignored here: its defense is only said.
+    // A magic weapon's (lotto M5): struck through with the reason, a click applies it again to this hit only.
+    const magicOffered=pcAttackMagicToggleable(presentation?.action);
     defensesBox.replaceChildren(...view.defenses.map(row=>{
-      const chip=node("button",damageDefenseCount({...row,...(view.defenseCounts || []).find(entry=>entry.type===row.type),short:true}),"defense-chip");chip.type="button";
+      const chip=node("button",pcAttackDefenseText({...row,...(view.defenseCounts || []).find(entry=>entry.type===row.type),short:true}),"defense-chip");chip.type="button";
       chip.setAttribute("aria-pressed",String(!row.ignored));
-      chip.title=row.ignored?"Difesa ignorata: clic per applicarla":row.nonmagical?`Vale solo contro danni ${row.nonmagical}: con un'arma che la supera, clic per ignorarla in questo attacco`:"Clic per ignorarla in questo attacco";
+      chip.title=row.magic?(row.ignored?"Superata dall'arma magica: clic per applicarla a questo colpo":"Applicata a questo colpo nonostante l'arma magica: clic per toglierla")
+        :row.ignored?"Difesa ignorata: clic per applicarla"
+        :row.nonmagical?`Vale solo contro danni ${row.nonmagical}: ${magicOffered?"per un'arma magica accendi ✦ Magica; ":""}con un'arma che la supera, clic per ignorarla in questo attacco`
+        :"Clic per ignorarla in questo attacco";
       chip.disabled=busy;
       chip.addEventListener("click",()=>{
-        draft.ignored=row.ignored?draft.ignored.filter(type=>type!==row.type):[...draft.ignored,row.type];renderState();
+        if(row.magic) {
+          draft.reapplied=row.ignored?[...new Set([...(draft.reapplied || []),row.type])]:(draft.reapplied || []).filter(type=>type!==row.type);
+          if(row.ignored) draft.ignored=draft.ignored.filter(type=>type!==row.type);
+        } else draft.ignored=row.ignored?draft.ignored.filter(type=>type!==row.type):[...draft.ignored,row.type];
+        renderState();
       });
       return chip;
     }),...(view.hitEffectCounts || []).map(row=>node("small",damageDefenseCount(row),"defense-note")));
@@ -2284,8 +2334,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(loaded.actionId) actionId=loaded.actionId;
     // An actor without attacks: only its spells, no attack form.
     if(!loaded.action){presentation=loaded;draft=null;requestedSpellId="";render();return;}
-    // A changed definition (components edited in the card) starts a new attack.
-    const sameAction=JSON.stringify(loaded.action)===JSON.stringify(presentation?.action);
+    // A changed definition (components edited in the card) starts a new attack; ✦ Magica alone keeps it (lotto M5).
+    const definition=action=>{const {magical:_magical,...rest}=action || {};return JSON.stringify(rest);};
+    const sameAction=!!presentation?.action && definition(loaded.action)===definition(presentation.action);
     presentation=loaded;
     const fresh=!draft || !sameAction || switched;
     const wanted=requestedSpellId || loaded.spellId || "";
@@ -2368,7 +2419,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     lifecycle.dispose();
   }
 
-  function chooseTarget() {draft.targetId=targetSelect.value || null;draft.ignored=[];renderLive();renderMirrorImage();}
+  function chooseTarget() {draft.targetId=targetSelect.value || null;draft.ignored=[];draft.reapplied=[];renderLive();renderMirrorImage();}
   targetSelect.addEventListener("change",chooseTarget);
   // Another cantrip: other damage (fresh amount), range and notes; the target, outcome and extras stay.
   function selectSpell(spellId) {
@@ -2531,7 +2582,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       ?{saveOutcome:draft.hitEffect.saveOutcome,amounts:Object.fromEntries(Object.entries(draft.hitEffect.amounts).filter(([,value])=>value!=="").map(([id,value])=>[id,Number(value)]))}:null;
     const request={sourceId,actionId,targetId:draft.targetId,outcome:draft.outcome,...(hitEffect?{hitEffect}:{}),
       componentAmounts:draft.outcome==="miss"?{}:Object.fromEntries(Object.entries(draft.amounts).map(([id,value])=>[id,Number(value)])),
-      ignoredDefenses:[...draft.ignored],expectedDefenses:view.profileDefenses,expectedAction:presentation.action,
+      ignoredDefenses:[...draft.ignored],reappliedDefenses:[...(draft.reapplied || [])],expectedDefenses:view.profileDefenses,expectedAction:presentation.action,
       riders:chosenRiders(draft).map(rider=>({...rider,amount:Number(rider.amount)})),
       extras:chosenExtras(draft).map(extra=>({...extra,amount:Number(extra.amount),label:String(extra.label || "").trim()})),
       activations:chosenActivations(draft).map(activation=>({...activation,...(activation.amount!==undefined?{amount:Number(activation.amount)}:{}),

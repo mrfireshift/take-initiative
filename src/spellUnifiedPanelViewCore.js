@@ -19,6 +19,7 @@ import {
   spellDamagePartsAfterDefense,
   spellPanelDamageTypes,
 } from "./spellDamageDefenseCore.js";
+import { evasionFactor, RESISTANCE_VULNERABILITY } from "./damageDefensesCore.js";
 import { spellTargetMatchesFilters } from "./spellsPanelTargetPicker.js";
 import {
   spellTargetContextConditionMatches,
@@ -315,6 +316,7 @@ function normalizeTargetCandidates(
       sharedHpSourceId: asText(candidate?.sharedHpSourceId),
       ...(candidate?.magicMissileGuard ? { magicMissileGuard: clone(candidate.magicMissileGuard) } : {}),
       ...(candidate?.damageDefenses ? { damageDefenses: clone(candidate.damageDefenses) } : {}),
+      ...(candidate?.evasion === true ? { evasion: true } : {}),
       turbineSize: asText(candidate?.turbineSize) || null,
       layer: asText(candidate?.layer) || null,
       isCreature: candidate?.isCreature === true || asText(candidate?.layer) === "CHARACTER",
@@ -454,6 +456,10 @@ function hpPreviewFor(
       slotLevel: session?.slotLevel,
     })
     : null;
+  // Evasion: a Dexterity save that halves the damage takes nothing on a success and half on a failure, for a creature that
+  // has it (candidate.evasion), as the commit counts it (spellAreaResolutionExecutor.js).
+  const evasionSave = !isHealing && String(presentation?.outcomes?.save?.ability || "").trim().toLowerCase() === "dex"
+    && (spellSaveDamageFactor(spellId, "passed") || QUICK_HP_FACTORS.HALF) === QUICK_HP_FACTORS.HALF;
 
   preview.targets = (Array.isArray(candidates) ? candidates : [])
     .filter((candidate) => candidate.selected)
@@ -504,7 +510,7 @@ function hpPreviewFor(
       }
       const immune = !isHealing && outcome === "immune";
       const attackMiss = !isHealing && outcomeMode === "attack" && outcome === "miss";
-      const factor = isHealing
+      const outcomeFactor = isHealing
         ? QUICK_HP_FACTORS.FULL
         : attackMiss
           ? "zero"
@@ -513,6 +519,8 @@ function hpPreviewFor(
           : outcome === "passed"
             ? spellSaveDamageFactor(spellId, outcome) || QUICK_HP_FACTORS.HALF
             : QUICK_HP_FACTORS.FULL;
+      const evasion = evasionSave && candidate.evasion === true && (outcome === "passed" || outcome === "failed");
+      const factor = evasion ? evasionFactor(outcomeFactor) : outcomeFactor;
       const noDamage = !isHealing && factor === "zero";
       // Two types in one damage: each part after the save and its own defense, then the sum (spellDamagePartsAfterDefense).
       const parts = partsWritten && !immune && !attackMiss && !noDamage
@@ -567,12 +575,15 @@ function hpPreviewFor(
       return {
         ...base,
         factor: immune ? "immune" : factor,
+        ...(evasion ? { evasion: true } : {}),
         factorLabel: isHealing
           ? "Cura"
           : attackMiss
             ? "Mancato"
           : immune
             ? "Immune"
+            : evasion
+              ? noDamage ? "Elusione: nessun danno" : "Elusione: metà"
             : noDamage
               ? "No danno"
             : factor === QUICK_HP_FACTORS.HALF
@@ -725,7 +736,8 @@ function magicMissileDartsView(allocation, selectedTargets = []) {
         total: darts.damage,
         note: darts.shielded ? "Scudo: nessun danno"
           : darts.defense === "resistance" ? "Resistenza: metà per dardo"
-            : darts.defense === "immunity" ? "Immune" : darts.defense === "vulnerability" ? "Vulnerabile: doppio" : "",
+            : darts.defense === "immunity" ? "Immune" : darts.defense === "vulnerability" ? "Vulnerabile: doppio"
+              : darts.defense === RESISTANCE_VULNERABILITY ? "Resistenza e vulnerabilità: metà, poi doppio, per dardo" : "",
         hpLabel: change ? `${hp} → ${change.afterHP} PF` : "",
       };
     }),

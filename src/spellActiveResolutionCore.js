@@ -766,6 +766,8 @@ export function resolveSpellActiveResolutionDamage({
   roll = 0,
   // The target's defense against this damage (spellDamageDefenseCore.js): "resistance", "immunity" or "vulnerability".
   defense = null,
+  // The target has Evasion (damageDefensesCore.js): a Dexterity save that halves takes nothing on a success, half on a failure.
+  evasion = false,
 } = {}) {
   const rule = actionDamage(action);
   const normalizedOutcome = String(outcome || "").trim();
@@ -783,7 +785,11 @@ export function resolveSpellActiveResolutionDamage({
     && numericRoll >= 0
     && !!rule;
   if (!valid) return { valid: false, errors: Object.freeze(["resolution-damage-input-invalid"]) };
-  const factor = normalizedOutcome === "failed"
+  const evaded = evasion && rule.onSave === "half" && String(action?.save?.ability || "").trim().toLowerCase() === "dex"
+    && (normalizedOutcome === "passed" || normalizedOutcome === "failed");
+  const factor = evaded
+    ? normalizedOutcome === "failed" ? 0.5 : 0
+    : normalizedOutcome === "failed"
     || normalizedOutcome === "hit"
     || normalizedOutcome === "critical"
     ? 1

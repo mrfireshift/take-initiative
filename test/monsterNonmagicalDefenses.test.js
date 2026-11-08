@@ -31,7 +31,7 @@ test("da 5eTools: ogni forma di «armi non magiche» entra, con i materiali che 
   }
   const golem = convert(conditional("immune", "from nonmagical attacks that aren't adamantine"));
   assert.deepEqual([golem.block.damageDefenses.immunities, golem.block.damageDefenses.resistances], [BPS, []]);
-  assert.ok(golem.report.includes("immunità ai danni non magici né di adamantio: contundenti, perforanti, taglienti (per un'arma magica o di quel materiale, ignorala nella console)"));
+  assert.ok(golem.report.includes("immunità ai danni non magici né di adamantio: contundenti, perforanti, taglienti (per un'arma magica, ✦ Magica nella console; per un'arma di quel materiale, ignorala con un clic)"));
   const xorn = convert(conditional("resist", "from nonmagical attacks that aren't adamantine", ["piercing", "slashing"]));
   assert.deepEqual(xorn.block.damageDefenses.nonmagical, ["piercing", "slashing"]);
 });

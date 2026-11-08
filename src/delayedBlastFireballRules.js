@@ -257,6 +257,8 @@ export function buildDelayedBlastFireballTerminalCommand({
     outcomes: {
       required: true,
       byTarget: normalizedOutcomes,
+      // A Dexterity save that halves: Evasion counts in the executor (spellAreaResolutionExecutor.js).
+      save: { ability: "dex" },
     },
     hp: {
       required: false,

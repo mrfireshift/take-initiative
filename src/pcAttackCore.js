@@ -21,8 +21,8 @@ import { bossDefendedDamage, bossDefenseCounts } from "./bossActionsViewCore.js"
 import { getSpellDefinition, getSpellEffects, getSpellSummaryParts } from "./spells-srd.js";
 import { catalogSpellApplicationOperations } from "./spellLifecycleOperationsCore.js";
 import { spellEffectThemeFor } from "./spellColorCore.js";
-import { actorHasEvasion, damageDefenseCount, damageDefensesForItem, damageTypeLabel, evasionFactor, markNonmagicalDefenses, nonmagicalDefenseMarkerForItem,
-  relevantDamageDefenses, withSpellDamageResistance } from "./damageDefensesCore.js";
+import { actorHasEvasion, creatureConditionImmunities, damageDefenseCount, damageDefenseTag, damageDefensesForItem, damageTypeLabel, evasionFactor,
+  markNonmagicalDefenses, nonmagicalDefenseMarkerForItem, relevantDamageDefenses, withSpellDamageResistance } from "./damageDefensesCore.js";
 import { MONSTER_PROFILE_FIELD } from "./monsterProfileCore.js";
 import { CLASS_FEATURE_RESOURCE_POOL_BY_ID, getClassFeatureDefinition, getClassFeatureResourcePool, getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import {
@@ -79,10 +79,14 @@ export function pcAttackTargetSaveBonus(item, ability) {
   return npc && card.abilityModifiers?.[ability] !== null && card.abilityModifiers?.[ability] !== undefined && Number.isFinite(modifier) ? Math.trunc(modifier) : null;
 }
 
-// The conditions of a monster's action a target is immune to (its monster card's immunities, D3).
+// The conditions of a monster's action a target is immune to (its monster card's immunities, D3), and those of its species
+// and class features (a monk of 10th level is never poisoned), as the effects engine reads them.
 export function pcAttackTargetConditionImmune(item, condition) {
-  const immunities = item?.metadata?.[META_KEY]?.initiativeCard?.[MONSTER_PROFILE_FIELD]?.conditionImmunities;
-  return !!condition && Array.isArray(immunities) && immunities.includes(String(condition).trim().toLocaleLowerCase("it"));
+  const card = item?.metadata?.[META_KEY]?.initiativeCard;
+  const monster = card?.[MONSTER_PROFILE_FIELD]?.conditionImmunities;
+  const wanted = String(condition || "").trim().toLocaleLowerCase("it");
+  return !!wanted && [...(Array.isArray(monster) ? monster : []), ...creatureConditionImmunities(card)]
+    .some((name) => String(name || "").trim().toLocaleLowerCase("it") === wanted);
 }
 
 // Evasion on a monster's Dexterity save that halves (fase 5, lotto 2): a rogue of 7th level, or a monster with the
@@ -1059,10 +1063,49 @@ function extraLabel(value) {
 
 // A spell's damage is magical: a monster's defense against nonmagical weapons does not hold (Thorn Whip's piercing), as in the
 // spell panel. Its types count as ignored from the start, and the console does not offer them.
-function pcAttackMagicIgnoredDefenses(attack, targetItem) {
-  if (!pcAttackSpellDamage(attack)) return [];
+// A magic weapon (the action's magical, ✦ Magica in the console, lotto M5) gets through them too, but the console keeps them
+// in view, struck through: reapplied lists the types the GM applies again to this hit.
+function pcAttackMagicIgnoredDefenses(attack, targetItem, reapplied = []) {
+  const spell = pcAttackSpellDamage(attack);
+  if (!spell && attack?.magical !== true) return [];
   const types = nonmagicalDefenseMarkerForItem(targetItem, META_KEY)?.types;
-  return Array.isArray(types) ? types : [];
+  if (!Array.isArray(types)) return [];
+  const again = new Set(!spell && Array.isArray(reapplied) ? reapplied : []);
+  return types.filter((type) => !again.has(type));
+}
+
+// ✦ Magica (lotto M5): a weapon attack, a character's or a monster's, can be marked magical in the console; a save action,
+// a breath or a spell cannot.
+export function pcAttackMagicToggleable(action) {
+  const attack = pcAttackAction(action);
+  return !!attack && !attack.source && !attack.save;
+}
+// An area of a magic weapon (Piercing Arrow): the same defenses do not count; no chip there to apply one again.
+function pcAttackAreaMagicIgnored(attack, item) {
+  return attack?.magical === true ? pcAttackMagicIgnoredDefenses(attack, item) : [];
+}
+// A defense's words with what it did ("Res. taglienti: 10 → 5"), or, struck through by a magic weapon, why it did not count.
+export function pcAttackDefenseText(row) {
+  return row?.magic && row.ignored ? `${damageDefenseTag(row)} · superata (arma magica)` : damageDefenseCount(row);
+}
+
+// The features that make an actor's attacks magical: while ✦ Magica is off, the console reminds the one that may concern
+// this attack. Never switched by itself: which weapon is the pact's, a kensei's or an arrow made magical, the table knows.
+const PC_ATTACK_UNARMED = /senz['’ ]?armi|senza armi|pugn|calci|arti marziali|unarmed/iu;
+const PC_ATTACK_NATURAL = /morso|artigl|coda|zanne|corna|bite|claw|tail/iu;
+const PC_ATTACK_MAGIC_FEATURES = Object.freeze([
+  Object.freeze({ id: "monaco-colpi-ki-potenziati", hint: "Colpi Ki Potenziati: i colpi senz'armi sono magici", applies: (attack) => PC_ATTACK_UNARMED.test(attack.label) }),
+  Object.freeze({ id: "guerriero-arciere-arcano-freccia-magica", hint: "Freccia Magica: le frecce scoccate con un arco possono esserlo", applies: (attack) => attack.range === "ranged" }),
+  Object.freeze({ id: "barbaro-cammino-della-bestia-anima-bestiale", hint: "Anima Bestiale: le armi naturali sono magiche", applies: (attack) => PC_ATTACK_NATURAL.test(attack.label) }),
+  Object.freeze({ id: "druido-circolo-della-luna-colpo-primordiale", hint: "Colpo Primordiale: in forma bestiale gli attacchi sono magici", applies: () => true }),
+  Object.freeze({ id: "warlock-dono-del-patto-patto-della-lama", hint: "Patto della Lama: l'arma del patto è magica", applies: () => true }),
+  Object.freeze({ id: "monaco-via-del-kensei-tutt-uno-con-la-lama", hint: "Tutt'Uno con la Lama: le armi kensei sono magiche", applies: () => true }),
+]);
+export function pcAttackMagicHint(action, card = {}) {
+  const attack = pcAttackMagicToggleable(action) ? pcAttackAction(action) : null;
+  if (!attack || attack.magical === true) return "";
+  const enabled = new Set(getEnabledClassFeatures(card || {}).map((feature) => feature.id));
+  return PC_ATTACK_MAGIC_FEATURES.find((entry) => enabled.has(entry.id) && entry.applies(attack))?.hint || "";
 }
 
 // A spell's or a cantrip's damage: a resistance to spells (the Aura of Warding) counts on top of the target's defenses. The
@@ -1079,7 +1122,7 @@ function pcAttackDefensesAgainst(attack, defenses, targetItem) {
 export function pcAttackPreview({
   action, spellId = "", sourceItem = null, targetItem = null, outcome = "", amounts = {}, ignoredDefenses = [],
   riders = [], extras = [], turnState = null, weaponCantrip = null, secondaryItem = null, activations = [], tempHpItems = [],
-  attackMode = "", modeAmount = "", burstItems = [], spellCast = null, hitEffect = null,
+  attackMode = "", modeAmount = "", burstItems = [], spellCast = null, hitEffect = null, reappliedDefenses = [],
 } = {}) {
   const resolved = pcAttackResolvedAction(action, spellId, attackMode);
   if (!resolved) return { ready: false, blocker: pcAttackAction(action)
@@ -1121,11 +1164,14 @@ export function pcAttackPreview({
   // A spell with several types (Chromatic Orb): until one is picked no defense applies to its damage, whatever type it holds meanwhile.
   const typedComponents = attack.spell?.types && !attack.spell.types.includes(spellCast?.damageType)
     ? components.filter((component) => component.id !== attack.components[0]?.id) : components;
-  const magicIgnored = pcAttackMagicIgnoredDefenses(attack, targetItem);
-  const heldDefense = (row) => !magicIgnored.includes(row.type);
+  const magicIgnored = pcAttackMagicIgnoredDefenses(attack, targetItem, reappliedDefenses);
+  // A magic weapon's (lotto M5) stay in view, marked magic: struck through, or applied again to this hit. A spell's do not.
+  const magicWeapon = !pcAttackSpellDamage(attack) ? pcAttackMagicIgnoredDefenses(attack, targetItem) : [];
+  const heldDefense = (row) => magicWeapon.includes(row.type) || !magicIgnored.includes(row.type);
+  const magicRow = (row) => (magicWeapon.includes(row.type) ? { ...row, magic: true, ignored: row.ignored === true || magicIgnored.includes(row.type) } : row);
   const appliedIgnored = [...ignoredDefenses, ...magicIgnored];
   const defenses = markNonmagicalDefenses(relevantDamageDefenses(attackDefenses, typedComponents.filter((component) => damageTypeSet.has(component.type)), ignoredDefenses),
-    targetItem?.metadata?.[META_KEY]?.initiativeCard).filter(heldDefense);
+    targetItem?.metadata?.[META_KEY]?.initiativeCard).filter(heldDefense).map(magicRow);
   // Full damage on a hit, a critical or a failed save (the shared helper would halve a "passed" save).
   // A monster's hit effect (fase 5, lotto 4): its save's damage on top, with the target's defenses.
   const hitPlan = targetItem ? pcAttackHitEffectPlan({ attack, outcome, hitEffect, targetItem, sourceItem }) : null;
@@ -1242,6 +1288,7 @@ export function buildPcAttackMutation({
   ignoredDefenses = [], expectedDefenses, turnState = null, riders = [], extras = [], spellId = "",
   weaponCantrip = null, secondaryItem = null, expectedSecondaryDefenses, activations = [], tempHpItems = [],
   attackMode = "", modeAmount = null, burstItems = [], expectedBurstDefenses = {}, spellCast = null, linkItems = [], hitEffect = null,
+  reappliedDefenses = [],
 } = {}) {
   if (!isBossActionCreature(sourceItem) || !isBossActionTargetItem(targetItem))
     throw new Error("Attaccante e bersaglio devono essere token creatura reali.");
@@ -1327,7 +1374,8 @@ export function buildPcAttackMutation({
   const hitPlan = pcAttackHitEffectPlan({ attack, outcome, hitEffect, targetItem, sourceItem, attackInstanceId, turnState });
   if (hitPlan.blocker) throw new Error(hitPlan.blocker);
   // A critical hit keeps the full factor: the totals the GM enters already include the doubled dice.
-  const damageComponents = [...defendedComponents(components, inputs, factor, targetItem, [...ignoredDefenses, ...pcAttackMagicIgnoredDefenses(attack, targetItem)],
+  const damageComponents = [...defendedComponents(components, inputs, factor, targetItem,
+    [...ignoredDefenses, ...pcAttackMagicIgnoredDefenses(attack, targetItem, reappliedDefenses)],
     expectedDefenses, false, { spell: pcAttackSpellDamage(attack) }), ...hitPlan.components];
   const requestedDamage = damageComponents.reduce((sum, component) => sum + component.amount, 0);
   const targetMeta = targetItem.metadata?.[META_KEY] || {};
@@ -1948,14 +1996,16 @@ export function pcAttackAreaPreview({
     const meta = member.item.metadata?.[META_KEY] || {};
     const profileDefenses = damageDefensesForItem(member.item, META_KEY);
     const memberDefenses = pcAttackDefensesAgainst(attack, profileDefenses, member.item);
+    const magicTypes = pcAttackAreaMagicIgnored(attack, member.item);
     const total = member.outcome && factor !== "zero" && amountsReady
-      ? bossDefendedDamage(components, inputs, factor === "half" ? "passed" : "hit", memberDefenses, []) : 0;
+      ? bossDefendedDamage(components, inputs, factor === "half" ? "passed" : "hit", memberDefenses, magicTypes) : 0;
     const hp = Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax)
       ? { before: meta.hp, after: calculateQuickHPChange({ value: total, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp }).afterHP, hpMax: meta.hpMax } : null;
     const conditionImmune = attack.monster?.onFail ? pcAttackTargetConditionImmune(member.item, attack.monster.onFail.condition) : false;
     // Its row says what it takes and why (pcAttackAreaRowDamage), once its outcome and the damage are known.
     const defenseCounts = member.outcome && factor !== "zero" && amountsReady
-      ? markNonmagicalDefenses(bossDefenseCounts(components, inputs, factor === "half" ? "passed" : "hit", memberDefenses, []), meta.initiativeCard) : [];
+      ? markNonmagicalDefenses(bossDefenseCounts(components, inputs, factor === "half" ? "passed" : "hit", memberDefenses, magicTypes), meta.initiativeCard)
+        .map((entry) => (magicTypes.includes(entry.type) ? { ...entry, magic: true } : entry)) : [];
     return { id: member.item.id, name: member.item.name || member.item.id, outcome: member.outcome || "", factor, total, hp, profileDefenses,
       counted: components.length > 0 && !!member.outcome && (factor === "zero" || amountsReady), ...(defenseCounts.length ? { defenseCounts } : {}),
       ...(evasion ? { evasion: true } : {}), ...(conditionImmune ? { conditionImmune: true } : {}) };
@@ -1988,7 +2038,7 @@ export function pcAttackAreaPreview({
 // What a creature of an area takes and why, for its row in the console: null until its outcome and the damage are known.
 export function pcAttackAreaRowDamage(row) {
   if (!row?.counted) return null;
-  return { amount: row.total > 0 ? `−${row.total}` : "0", reason: (row.defenseCounts || []).map((entry) => damageDefenseCount(entry)).join(" · ") };
+  return { amount: row.total > 0 ? `−${row.total}` : "0", reason: (row.defenseCounts || []).map((entry) => pcAttackDefenseText(entry)).join(" · ") };
 }
 
 export function buildPcAttackAreaMutation({
@@ -2050,8 +2100,8 @@ export function buildPcAttackAreaMutation({
       throw new Error(`${member.item.name || member.item.id} non ha PF canonici validi.`);
     const evasion = pcAttackTargetEvasion(attack, member.item);
     const factor = areaFactor(attack, member.outcome, card, evasion);
-    const damageComponents = defendedComponents(components, inputs, factor, member.item, [], expectedDefenses?.[member.item.id], false,
-      { spell: pcAttackSpellDamage(attack) });
+    const damageComponents = defendedComponents(components, inputs, factor, member.item, pcAttackAreaMagicIgnored(attack, member.item),
+      expectedDefenses?.[member.item.id], false, { spell: pcAttackSpellDamage(attack) });
     const requested = damageComponents.reduce((sum, component) => sum + component.amount, 0);
     return { item: member.item, meta, outcome: member.outcome, factor, damageComponents, evasion,
       conditionImmune: attack.monster?.onFail ? pcAttackTargetConditionImmune(member.item, attack.monster.onFail.condition) : false,

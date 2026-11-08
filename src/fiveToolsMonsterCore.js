@@ -106,7 +106,7 @@ const ATTACK = /^\{@atk ([a-z,]+)\} \{@hit (-?\d+)\} to hit(?: \([^)]*\))?[,.] (
 // A few spell the feet out ("reach 5 feet") or drop the dot ("reach 5 ft or range 20/60 ft.").
 const ATTACK_2024 = /^\{@atkr ([mr,]+)\} \{@hit (-?\d+)\}(?: to hit)?(?: \([^)]*\))?,? (?:reach (\d+) (?:ft\.?|feet)(?: or range (\d+)(?:\/(\d+))? (?:ft\.?|feet))?|range (\d+)(?:\/(\d+))? (?:ft\.?|feet)).*?\{@h\}(.*)$/;
 
-function attackAction(name, text, extra) {
+function attackAction(name, text, extra, { magicWeapons = false } = {}) {
   const match = text.match(ATTACK) || text.match(ATTACK_2024);
   if (!match) return null;
   const [, codes, bonus, reach, meleeRange, meleeLong, range, long, printed] = match;
@@ -115,8 +115,13 @@ function attackAction(name, text, extra) {
   const ranged = !reach;
   const normal = Number(range || meleeRange) || null;
   const longRange = Number(long || meleeLong) || null;
+  // Magical (lotto M5, ✦ Magica in the console): a spell attack ("ms", "rs"), or a weapon attack ("mw", "rw") of a monster
+  // whose weapon attacks are magical. The 2024 codes ("m", "r") say neither.
+  const kinds = codes.split(",");
+  const magical = kinds.some((code) => code.endsWith("s")) || (magicWeapons && kinds.some((code) => code.endsWith("w")));
   const base = { name, attack: { bonus: Number(bonus), type: ranged || !codes.includes("m") ? "ranged" : "melee",
-    ...(reach ? { reach: Number(reach) } : {}), ...(normal ? { range: { normal, ...(longRange ? { long: longRange } : {}) } } : {}) }, ...extra };
+    ...(reach ? { reach: Number(reach) } : {}), ...(normal ? { range: { normal, ...(longRange ? { long: longRange } : {}) } } : {}) },
+    ...(magical ? { magical: true } : {}), ...extra };
   // "9 (2d6 + 2) piercing damage in melee or 5 (1d6 + 2) piercing damage at range": two actions.
   const split = hit.match(new RegExp(`^(?:${DAMAGE}) in melee or (?:${DAMAGE}) at range\\.?(.*)$`));
   if (split && reach && normal) {
@@ -253,7 +258,8 @@ function saveAction(name, text, extra) {
 
 // One 5eTools action: zero, one or two stat block actions (a thrown weapon with two damages), each with its status:
 // "full" (registered as printed), "partial" (a save or condition on the hit, left in the note), "manual" (the table's).
-export function fiveToolsActions(action, { suffix = "" } = {}) {
+// magicWeapons: the monster's weapon attacks are magical (a trait says so: Magic Weapons, Angelic Weapons).
+export function fiveToolsActions(action, { suffix = "", magicWeapons = false } = {}) {
   const rawName = String(action?.name || "");
   const recharge = rawName.match(/\{@recharge(?: (\d))?\}/);
   const perDay = rawName.match(/\((\d+)\/Day(?:[^)]*)?\)/i);
@@ -261,10 +267,10 @@ export function fiveToolsActions(action, { suffix = "" } = {}) {
   const extra = { ...(recharge ? { recharge: Number(recharge[1] || 6) } : {}), ...(perDay ? { uses: Number(perDay[1]) } : {}) };
   const list = (Array.isArray(action?.entries) ? action.entries : []).find((entry) => entry?.type === "list" && entry.items?.every((item) => item?.name));
   // "Breath Weapons": one action for each breath, the same recharge.
-  if (list) return list.items.flatMap((item) => fiveToolsActions({ name: item.name, entries: [entriesText(item.entry ?? item.entries)] })
+  if (list) return list.items.flatMap((item) => fiveToolsActions({ name: item.name, entries: [entriesText(item.entry ?? item.entries)] }, { magicWeapons })
     .map((entry) => ({ ...entry, ...extra })));
   const text = entriesText(action?.entries);
-  return attackAction(name, text, extra) || saveAction(name, text, extra) || [{ name, status: "manual", text }];
+  return attackAction(name, text, extra, { magicWeapons }) || saveAction(name, text, extra) || [{ name, status: "manual", text }];
 }
 
 const NONMAGICAL_DEFENSE_TYPES = new Set(["bludgeoning", "piercing", "slashing"]);
@@ -292,7 +298,7 @@ function defenses(list, field, report, nonmagical) {
         plain.push(...types);
         nonmagical.types.push(...types);
         nonmagical.except.push(...onlyNonmagical.except);
-        report.push(`${DEFENSE_FIELD_LABELS[field]} ai danni ${nonmagicalDefenseText(onlyNonmagical.except)}: ${types.map(damageTypeLabel).join(", ")} (per un'arma magica${onlyNonmagical.except.length ? " o di quel materiale" : ""}, ignorala nella console)`);
+        report.push(`${DEFENSE_FIELD_LABELS[field]} ai danni ${nonmagicalDefenseText(onlyNonmagical.except)}: ${types.map(damageTypeLabel).join(", ")} (per un'arma magica, ✦ Magica nella console${onlyNonmagical.except.length ? "; per un'arma di quel materiale, ignorala con un clic" : ""})`);
       } else if (types.length) report.push(`${DEFENSE_FIELD_LABELS[field]} condizionale non importata: ${types.join(", ")}${note ? ` (${note})` : ""}`);
       else if (entry.special) report.push(`difesa speciale: ${fiveToolsPlainText(entry.special)}`);
     }
@@ -692,13 +698,15 @@ export function fiveToolsMonsterToStatblock(input, { pool = [], allow2024 = fals
   const actions = [];
   const counts = { full: 0, partial: 0, manual: 0 };
   let multiattack = "";
+  // "The pit fiend's weapon attacks are magical." (Magic Weapons, Angelic Weapons): its weapon attacks are marked so.
+  const magicWeapons = (Array.isArray(monster.trait) ? monster.trait : []).some((trait) => /\bweapon attacks are magical\b/i.test(entriesText(trait?.entries)));
   for (const [list, suffix] of [[monster.action, ""], [monster.bonus, " (bonus action)"]]) {
     for (const action of Array.isArray(list) ? list : []) {
       if (/^Multiattack/i.test(String(action?.name || ""))) {
         multiattack = note(entriesText(action.entries));
         continue;
       }
-      for (const entry of fiveToolsActions(action, { suffix })) {
+      for (const entry of fiveToolsActions(action, { suffix, magicWeapons })) {
         counts[entry.status] += 1;
         if (entry.status === "manual") report.push(`da gestire al tavolo: ${entry.name}`);
         else if (entry.status === "partial") report.push(`${entry.name}: il tiro salvezza o la condizione al colpo resta nella nota`);
@@ -708,6 +716,8 @@ export function fiveToolsMonsterToStatblock(input, { pool = [], allow2024 = fals
       }
     }
   }
+  const magicNames = actions.filter((entry) => entry.magical).map((entry) => entry.name);
+  if (magicNames.length) report.push(`attacchi magici, già segnati ✦ nella console: ${magicNames.join(", ")}`);
   const ac = Array.isArray(monster.ac) ? monster.ac[0] : monster.ac;
   const armorClass = typeof ac === "number" ? ac : Number(ac?.ac) || null;
   const walk = typeof monster.speed?.walk === "object" ? monster.speed.walk.number : monster.speed?.walk;

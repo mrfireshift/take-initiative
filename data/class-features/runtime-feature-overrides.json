@@ -1742,6 +1742,7 @@
       "quickActionEligible": false
     },
     "ladro-elusione": {
+      "passiveMechanics": { "evasion": true },
       "include": true,
       "status": "not-automated",
       "automationLevel": "riferimento",
@@ -2231,6 +2232,7 @@
       "optionGroup": "ranger-revised-conclave-del-cacciatore-multiattacco"
     },
     "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-elusione": {
+      "passiveMechanics": { "evasion": true },
       "include": true,
       "status": "not-automated",
       "automationLevel": "riferimento",
@@ -4208,7 +4210,7 @@
       "quickActionEligible": false
     },
     "druido-circolo-della-terra-interdizione-della-natura": {
-      "passiveMechanics": { "damageDefenses": { "immunities": ["poison"] } },
+      "passiveMechanics": { "damageDefenses": { "immunities": ["poison"] }, "conditionImmunities": ["Avvelenato"] },
       "include": true,
       "status": "not-automated",
       "automationLevel": "riferimento",
@@ -7434,6 +7436,7 @@
       "quickActionEligible": false
     },
     "monaco-elusione": {
+      "passiveMechanics": { "evasion": true },
       "include": true,
       "status": "not-automated",
       "automationLevel": "riferimento",
@@ -7448,7 +7451,7 @@
       "quickActionEligible": false
     },
     "monaco-purezza-del-corpo": {
-      "passiveMechanics": { "damageDefenses": { "immunities": ["poison"] } },
+      "passiveMechanics": { "damageDefenses": { "immunities": ["poison"] }, "conditionImmunities": ["Avvelenato"] },
       "include": true,
       "status": "not-automated",
       "automationLevel": "riferimento",
@@ -9659,6 +9662,7 @@
       "quickActionEligible": false
     },
     "ranger-cacciatore-difesa-del-cacciatore-superiore-elusione": {
+      "passiveMechanics": { "evasion": true },
       "include": true,
       "status": "not-automated",
       "automationLevel": "riferimento",

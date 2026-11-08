@@ -109,5 +109,6 @@ test("the Hill Rune: poison always, and the invoked rune's pill adds the weapons
 test("a card without a class (a monster) gets nothing from the class features", () => {
   assert.equal(classFeaturePassiveDamageDefenses({}), null);
   assert.equal(classFeaturePassiveDamageDefenses({ damageDefenses: { immunities: ["poison"] } }), null);
-  assert.equal(classFeaturePassiveDamageDefenses(card("ladro", 20)), null, "no rogue feature gives a damage defense");
+  assert.deepEqual(sanitizeDamageDefenses(classFeaturePassiveDamageDefenses(card("ladro", 20))), { immunities: [], resistances: [], vulnerabilities: [] },
+    "no rogue feature gives a damage defense (Evasion is not one)");
 });

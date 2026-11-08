@@ -146,7 +146,7 @@ test("difese da armi non magiche importate e segnate, le altre condizionali segn
   assert.deepEqual(block.damageDefenses.resistances, ["fire", "bludgeoning", "piercing", "slashing"]);
   assert.deepEqual(block.damageDefenses.nonmagical, ["bludgeoning", "piercing", "slashing"]);
   assert.equal(block.damageDefenses.nonmagicalExcept, undefined);
-  assert.ok(report.includes("resistenza ai danni non magici: contundenti, perforanti, taglienti (per un'arma magica, ignorala nella console)"));
+  assert.ok(report.includes("resistenza ai danni non magici: contundenti, perforanti, taglienti (per un'arma magica, ✦ Magica nella console)"));
   assert.deepEqual(block.actions.map((action) => action.name), ["Morso rapido (bonus action)"]);
   const inDarkness = fiveToolsMonsterToStatblock(invented({ resist: [{ resist: ["slashing"], note: "from nonmagical attacks while in dim light or darkness", cond: true }] }));
   assert.equal(inDarkness.block.damageDefenses, undefined);

@@ -84,8 +84,9 @@ export function spellPanelDamageTypes(spellId, trigger = null) {
 export function magicalDamageDefensesForItem(item, metaKey, { spell = true } = {}) {
   const all = damageDefensesForItem(item, metaKey);
   const nonmagical = nonmagicalDefenseMarkerForItem(item, metaKey)?.types;
+  // Only a resistance or an immunity holds against nonmagical weapons: a vulnerability to the same type stays (lotto M6).
   const defenses = !Array.isArray(nonmagical) || !nonmagical.length ? all : Object.fromEntries(Object.entries(all)
-    .map(([list, types]) => [list, types.filter((type) => !nonmagical.includes(type))]));
+    .map(([list, types]) => [list, list === "vulnerabilities" ? types : types.filter((type) => !nonmagical.includes(type))]));
   return spell ? withSpellDamageResistance(defenses, item, metaKey) : defenses;
 }
 
@@ -168,6 +169,9 @@ const DEFENSE_HOLDER = Object.freeze({
   resistance: { has: "ha resistenza ai", name: "la resistenza", effect: "dimezzato" },
   immunity: { has: "è immune ai", name: "l'immunità", effect: "azzerato" },
   vulnerability: { has: "è vulnerabile ai", name: "la vulnerabilità", effect: "raddoppiato" },
+  // Two sources, both counted (lotto M6): halved, then doubled. RESISTANCE_VULNERABILITY of damageDefensesCore.js, written out:
+  // the modules import each other, and this table is built while that one may still be loading.
+  "resistance-vulnerability": { has: "ha resistenza e vulnerabilità ai", name: "resistenza e vulnerabilità", effect: "dimezzato e poi raddoppiato", plural: true },
 });
 
 // The chip's words: the same as the consoles, with what the defense did to the damage written.
@@ -184,7 +188,7 @@ export function spellDamageDefenseTitle(row, { name = "La creatura", before = 0,
   if (row.manual) {
     return `${said}, ma questo incantesimo somma due tipi di danno in un solo numero. Il conto resta a te: scrivi il danno già ridotto.`;
   }
-  if (row.ignored) return `${said}: ${holder.name} è ignorata ${where}. Clic per applicarla.`;
+  if (row.ignored) return `${said}: ${holder.name} ${holder.plural ? "sono ignorate" : "è ignorata"} ${where}. Clic per ${holder.plural ? "applicarle" : "applicarla"}.`;
   const effect = before > 0
     ? `${before} ${before === 1 ? "danno diventa" : "danni diventano"} ${after}`
     : `il danno scritto sarà ${holder.effect}, quindi scrivilo intero`;

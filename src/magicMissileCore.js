@@ -1,5 +1,5 @@
 import { ID } from "./constants.js";
-import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem, withSpellDamageResistance } from "./damageDefensesCore.js";
+import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem, RESISTANCE_VULNERABILITY, withSpellDamageResistance } from "./damageDefensesCore.js";
 
 // Magic Missile (PHB 2014): three darts, one more per slot above 1st; each one hits a creature of the caster's
 // choice automatically for 1d4 + 1 force damage, several on the same creature if the caster wants. Each dart is its
@@ -151,7 +151,7 @@ export function magicMissileTargetText({ darts = 0, dartDamages = [], shielded =
   const count = `${darts} ${darts === 1 ? "dardo" : "dardi"}`;
   if (shielded) return `${count} · bloccati da Scudo`;
   const tag = defense === "immunity" ? " (immune)" : defense === "resistance" ? " (resistenza)"
-    : defense === "vulnerability" ? " (vulnerabilità)" : "";
+    : defense === "vulnerability" ? " (vulnerabilità)" : defense === RESISTANCE_VULNERABILITY ? " (resistenza e vulnerabilità)" : "";
   const sum = dartDamages.reduce((total, damage) => total + damage, 0);
   return `${count} · ${dartDamages.join(" + ")}${dartDamages.length > 1 ? ` = ${sum}` : ""}${tag}`;
 }

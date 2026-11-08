@@ -65,7 +65,7 @@ import {
   spellStructureNounWords,
   spellStructureSegmentMiddle,
 } from "./spellStructureCore.js";
-import { DAMAGE_TYPES } from "./damageDefensesCore.js";
+import { DAMAGE_TYPES, evasionForItem } from "./damageDefensesCore.js";
 import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 import { wallOfLightTargetWithinRange } from "./wallOfLightActiveCore.js";
 import {
@@ -1288,17 +1288,19 @@ function subjectDamage(subject) {
   const written = String(subject?.roll ?? "").trim() !== "" && Number.isFinite(Number(subject?.roll));
   if (!subject?.outcome || !written) return null;
   const rows = targetDefenseRows(subject.item, subject.direct ? directHitTypes() : undefined);
-  const resolved = resolvedDamage(subject.outcome, subject.roll, spellDamageDefenseApplied(rows), subject.direct === true);
+  const resolved = resolvedDamage(subject.outcome, subject.roll, spellDamageDefenseApplied(rows), subject.direct === true, subject.item);
   return resolved?.valid ? resolved.amount : null;
 }
 
-// The damage this popup writes, after a defense. A smite's has no save to halve it: only the defense changes it.
-function resolvedDamage(outcome, roll, defense, direct = false) {
+// The damage this popup writes, after a defense. A smite's has no save to halve it: only the defense changes it. item: the
+// creature, for its Evasion against a Dexterity save that halves.
+function resolvedDamage(outcome, roll, defense, direct = false, item = null) {
   if (direct) {
     return resolveSpellActiveResolutionDirectHitDamage({ action: payload.action, slotLevel: payload.slotLevel, outcome, roll, defense });
   }
   if (isPreparedResolution()) return { valid: true, amount: spellDamageAfterDefense(Number(roll), "full", defense) };
-  return resolveSpellActiveResolutionDamage({ action: payload.action, slotLevel: payload.slotLevel, outcome, roll: Number(roll), defense });
+  return resolveSpellActiveResolutionDamage({ action: payload.action, slotLevel: payload.slotLevel, outcome, roll: Number(roll), defense,
+    evasion: evasionForItem(item, META_KEY) });
 }
 
 // The type of that damage: the action's, or a smite's own (spellDamageDefenseCore.js), by the spell's id as the executor reads it.
@@ -2525,7 +2527,7 @@ function renderDamageDefenseChips() {
   const chips = subjects.flatMap(({ item, outcome, roll, direct = false }) => {
     const rows = targetDefenseRows(item, direct ? directHitTypes() : undefined);
     const written = String(roll ?? "").trim() !== "" && Number.isFinite(Number(roll));
-    const resolve = (defense) => (outcome && written ? resolvedDamage(outcome, roll, defense, direct) : null);
+    const resolve = (defense) => (outcome && written ? resolvedDamage(outcome, roll, defense, direct, item) : null);
     return rows.map((row) => {
       const before = resolve(null);
       const after = resolve(row.ignored ? null : row.defense);
@@ -2752,7 +2754,7 @@ function render() {
     const entries = currentTargetItems().filter(item => outcomes.has(item.id)).map(item => {
       const damage = resolveSpellActiveResolutionDamage({ action: payload.action, slotLevel: payload.slotLevel,
         outcome: outcomes.get(item.id), roll: Number($("damage").value),
-        defense: spellDamageDefenseApplied(targetDefenseRows(item)) });
+        defense: spellDamageDefenseApplied(targetDefenseRows(item)), evasion: evasionForItem(item, META_KEY) });
       return { item, change: damage.valid ? calculateQuickHPChange({ mode: "damage", value: damage.amount,
         hp: item.metadata?.[META_KEY]?.hp, hpMax: item.metadata?.[META_KEY]?.hpMax,
         tempHp: item.metadata?.[META_KEY]?.tempHp }) : null };

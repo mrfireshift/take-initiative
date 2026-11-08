@@ -168,6 +168,8 @@ function monsterAttackDraft(entry, label, note, { resolveDamageType, resolveAbil
       ...(bonus !== null ? { attackBonus: bonus } : {}),
       ...(reach !== null ? { reachFeet: reach } : {}),
       ...(normal !== null ? { rangeFeet: { normal, ...(long !== null ? { long } : {}) } } : {}),
+      // A magic weapon or a spell attack (lotto M5): ✦ Magica in the console.
+      ...(entry.magical === true || entry.magica === true ? { magical: true } : {}),
     });
     const onHit = monsterHitEffects(entry.onHit, where, unresolved, { resolveDamageType, resolveAbility });
     if (onHit) fields.onHit = onHit;

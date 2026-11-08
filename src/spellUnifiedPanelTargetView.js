@@ -16,7 +16,8 @@ function targetHPChangeLabel(target) {
   if (!preview || preview.available !== true || preview.afterHP === null) return "";
   // CAP-TEMP, lotto T3e: the temporary hit points are what changes (Negative Energy Flood on an undead).
   if (preview.change?.mode === "temp") return `${preview.change.tempHp} \u2192 ${preview.change.afterTempHp} PF temp.`;
-  return `${preview.beforeHP} \u2192 ${preview.afterHP} PF`;
+  // Evasion: why a passed save takes nothing, or a failed one half.
+  return `${preview.beforeHP} \u2192 ${preview.afterHP} PF${preview.evasion ? " \u00b7 Elusione" : ""}`;
 }
 
 // A defense at work on this target's damage, under its row. The chip says the sum, its tooltip whose defense it is; a click

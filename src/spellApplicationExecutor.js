@@ -53,6 +53,7 @@ import {
   spellDamagePartsDefenses,
   spellDamageTypes,
 } from "./spellDamageDefenseCore.js";
+import { evasionForItem } from "./damageDefensesCore.js";
 import { spellCastHealingDice, spellCastTemporaryHpAmount, spellCastTemporaryHpRule } from "./spellTemporaryHpRules.js";
 import {
   resolveZeroHPUnconsciousAction,
@@ -2032,6 +2033,7 @@ export async function executeSpellActiveResolution({
             outcome,
             roll: action?.resolutionKind === "single-attack" ? entry.damageRoll : damageRoll,
             defense: spellDamageDefenseApplied(defenses),
+            evasion: evasionForItem(item, `${ID}/meta`),
           });
         if (!damage.valid) throw new Error(direct ? "active-resolution-direct-hit-invalid" : "active-resolution-damage-invalid");
         resolutionDamageByTarget.set(targetId, { damage, outcome, defenses });

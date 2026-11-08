@@ -1,9 +1,10 @@
 // Damage-type defenses stored in the Actor Profile (initiativeCard.damageDefenses).
 // Pure data + arithmetic: no SDK, no metadata writes.
 import { scaledQuickHPAmount } from "./quickHpCore.js";
-import { classFeatureEffectPlan, sanitizeCharacterBuild, sanitizeEnabledClassFeatureIds } from "./classFeatureCore.js";
+import { classFeatureEffectPlan, sanitizeCharacterBuild } from "./classFeatureCore.js";
 import { CLASS_FEATURE_BY_ID, CLASS_FEATURES, classFeatureAvailableForBuild, getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import { SPECIES_FIELD, speciesDamageDefenses } from "./speciesTraitCore.js";
+import { speciesConditionImmunities } from "./speciesConditionImmunityCore.js";
 
 export const DAMAGE_DEFENSES_FIELD = "damageDefenses";
 
@@ -29,23 +30,35 @@ const DEFENSE_LISTS = Object.freeze([
   ["resistances", "resistance"],
   ["vulnerabilities", "vulnerability"],
 ]);
-export const DAMAGE_DEFENSE_LABELS = Object.freeze({ immunity: "Imm.", resistance: "Res.", vulnerability: "Vuln." });
+// Resistance and vulnerability to the same type from two sources (a tiefling under the Tomb of Levistus, lotto M6): both
+// count, as the PHB 2014 says, halved and then doubled. Immunity still wins over both.
+export const RESISTANCE_VULNERABILITY = "resistance-vulnerability";
+export const DAMAGE_DEFENSE_LABELS = Object.freeze({ immunity: "Imm.", resistance: "Res.", vulnerability: "Vuln.", [RESISTANCE_VULNERABILITY]: "Res. e Vuln." });
 
 export function damageTypeLabel(type) {
   return DAMAGE_TYPES.find((entry) => entry.id === type)?.label || String(type || "");
 }
 
-export function sanitizeDamageDefenses(value) {
+// both: a type keeps its resistance and its vulnerability together (the defenses a creature has from all its sources);
+// without it, as the sheet stores them, one defense for each type.
+function cleanDamageDefenses(value, { both = false } = {}) {
   const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   const seen = new Set();
   const result = {};
   for (const [list] of DEFENSE_LISTS) {
+    const listed = new Set();
     result[list] = (Array.isArray(source[list]) ? source[list] : [])
       .map((type) => String(type || "").trim().toLowerCase())
-      .filter((type) => TYPE_IDS.has(type) && !seen.has(type) && seen.add(type))
+      .filter((type) => TYPE_IDS.has(type) && !listed.has(type) && listed.add(type)
+        && (!seen.has(type) || (both && list === "vulnerabilities" && !result.immunities.includes(type))))
       .sort((left, right) => DAMAGE_TYPES.findIndex((entry) => entry.id === left) - DAMAGE_TYPES.findIndex((entry) => entry.id === right));
+    for (const type of result[list]) seen.add(type);
   }
   return result;
+}
+
+export function sanitizeDamageDefenses(value) {
+  return cleanDamageDefenses(value);
 }
 
 export function hasDamageDefenses(value) {
@@ -54,8 +67,11 @@ export function hasDamageDefenses(value) {
 }
 
 export function damageDefenseFor(defenses, type) {
-  const clean = sanitizeDamageDefenses(defenses);
-  return DEFENSE_LISTS.find(([list]) => clean[list].includes(type))?.[1] || null;
+  const clean = cleanDamageDefenses(defenses, { both: true });
+  if (clean.immunities.includes(type)) return "immunity";
+  const resisted = clean.resistances.includes(type);
+  const vulnerable = clean.vulnerabilities.includes(type);
+  return resisted && vulnerable ? RESISTANCE_VULNERABILITY : resisted ? "resistance" : vulnerable ? "vulnerability" : null;
 }
 
 // Order follows the 2024 rules: other modifiers (save halving) first, then resistance, then vulnerability.
@@ -65,6 +81,7 @@ export function componentDamageAfterDefense(inputAmount, outcomeFactor, defense)
   if (defense === "immunity") return 0;
   if (defense === "resistance") return scaledQuickHPAmount(afterOutcome, "half");
   if (defense === "vulnerability") return scaledQuickHPAmount(afterOutcome, "double");
+  if (defense === RESISTANCE_VULNERABILITY) return scaledQuickHPAmount(scaledQuickHPAmount(afterOutcome, "half"), "double");
   return afterOutcome;
 }
 
@@ -73,9 +90,11 @@ export function componentDamageAfterDefense(inputAmount, outcomeFactor, defense)
 // on an option the sheet saves (Storm Soul's environment, the genie's kind) is in passiveMechanics.damageDefensesByOption,
 // keyed by the option's feature id. Two more hold only against some damage: nonmagicalDamageDefenses against nonmagical
 // weapons or attacks (Avatar of Battle; Saint of Forge and Fire, its heavy armor taken as worn), and spellDamageResistance
-// against the damage of spells (the Abjurer's Spell Resistance). The catalog is read at call time only: the modules import
-// each other.
-const PASSIVE_DEFENSE_FIELDS = Object.freeze(["damageDefenses", "damageDefensesByOption", "nonmagicalDamageDefenses", "spellDamageResistance"]);
+// against the damage of spells (the Abjurer's Spell Resistance). conditionImmunities are the conditions it keeps away (Purity
+// of Body: Avvelenato), evasion the rogue's, the monk's and the hunter's Evasion. The catalog is read at call time only: the
+// modules import each other.
+const PASSIVE_DEFENSE_FIELDS = Object.freeze(["damageDefenses", "damageDefensesByOption", "nonmagicalDamageDefenses", "spellDamageResistance",
+  "conditionImmunities", "evasion"]);
 let passiveDefenseFeatures = null;
 function classFeaturePassiveProfile(card) {
   const build = sanitizeCharacterBuild(card?.characterBuild);
@@ -93,6 +112,8 @@ function classFeaturePassiveProfile(card) {
     ])),
     nonmagical: mergeDamageDefenses(...features.map((feature) => feature.passiveMechanics.nonmagicalDamageDefenses)),
     spellResistance: features.some((feature) => feature.passiveMechanics.spellDamageResistance === true),
+    conditionImmunities: [...new Set(features.flatMap((feature) => feature.passiveMechanics.conditionImmunities || []))],
+    evasion: features.some((feature) => feature.passiveMechanics.evasion === true),
   };
 }
 export function classFeaturePassiveDamageDefenses(card) {
@@ -100,6 +121,14 @@ export function classFeaturePassiveDamageDefenses(card) {
 }
 export function classFeatureNonmagicalDamageDefenses(card) {
   return classFeaturePassiveProfile(card)?.nonmagical ?? null;
+}
+export function classFeatureConditionImmunities(card) {
+  return classFeaturePassiveProfile(card)?.conditionImmunities ?? [];
+}
+// The conditions a creature is immune to from its card: its species' (a yuan-ti) and its class features' (a monk of 10th
+// level), never written on the card. The effects engine never adds them, whatever their source.
+export function creatureConditionImmunities(card) {
+  return [...new Set([...speciesConditionImmunities(card?.[SPECIES_FIELD]), ...classFeatureConditionImmunities(card)])];
 }
 
 // The Actor Profile's own defenses plus the passive ones of its species (a dragonborn's ancestry resistance) and of its
@@ -170,14 +199,14 @@ export function effectDamageDefensesForItem(item, metaKey) {
     .flatMap((instance) => [instance.mechanics?.[DAMAGE_DEFENSES_FIELD], classFeaturePillDamageDefenses(instance)]));
 }
 
-// Union of several defense sets; sanitizing applies the usual precedence (immunity, resistance, vulnerability).
+// Union of several defense sets: immunity wins; a resistance and a vulnerability to the same type both stay (lotto M6).
 export function mergeDamageDefenses(...sets) {
   const lists = { immunities: [], resistances: [], vulnerabilities: [] };
   for (const set of sets) {
-    const clean = sanitizeDamageDefenses(set);
+    const clean = cleanDamageDefenses(set, { both: true });
     for (const [list] of DEFENSE_LISTS) lists[list].push(...clean[list]);
   }
-  return sanitizeDamageDefenses(lists);
+  return cleanDamageDefenses(lists, { both: true });
 }
 
 // Effective defenses: the Actor Profile plus every active effect. The profile itself is never rewritten.
@@ -194,19 +223,20 @@ export function relevantDamageDefenses(defenses, components = [], ignoredTypes =
     .map((row) => ({ ...row, ignored: ignored.has(row.type) }));
 }
 
-// Evasion is a defense the Actor Profile derives from the class build: the Rogue class feature
-// "ladro-elusione" (7th level, enabled by default; once features are configured, only if enabled).
+// Evasion is a defense the Actor Profile derives from the class build: the class features with passiveMechanics.evasion in
+// the catalog (the rogue's and the monk's Evasion at 7th level, enabled by default; the hunter's Superior Hunter's Defense at
+// 15th, when Evasion is its option), as getEnabledClassFeatures enables them. A monster has it from its card (monster.evasion).
 // It applies to any effect whose DEX save halves the damage: success → no damage, failure → half.
 export const EVASION_DEFENSE = "evasion";
 export const EVASION_FEATURE = Object.freeze({ id: "ladro-elusione", classId: "ladro", minimumLevel: 7 });
 export function actorHasEvasion(card) {
-  const rogue = sanitizeCharacterBuild(card?.characterBuild).find((entry) => entry.classId === EVASION_FEATURE.classId);
-  if (!rogue || rogue.level < EVASION_FEATURE.minimumLevel) return false;
-  return card?.classFeaturesConfigured === true
-    ? sanitizeEnabledClassFeatureIds(card.enabledClassFeatureIds).includes(EVASION_FEATURE.id) : true;
+  return classFeaturePassiveProfile(card)?.evasion === true;
+}
+export function creatureHasEvasion(card) {
+  return actorHasEvasion(card) || card?.monster?.evasion === true;
 }
 export function evasionForItem(item, metaKey) {
-  return actorHasEvasion(item?.metadata?.[metaKey]?.initiativeCard);
+  return creatureHasEvasion(item?.metadata?.[metaKey]?.initiativeCard);
 }
 export function evasionAppliesTo(execution) {
   return execution?.save?.ability === "dex" && execution?.success === "half";
@@ -233,7 +263,7 @@ export function nonmagicalDefenseMarker(card, covering = null) {
   const limited = passive.nonmagical;
   const others = mergeDamageDefenses(card?.[DAMAGE_DEFENSES_FIELD], speciesDamageDefenses(card?.[SPECIES_FIELD]), passive.defenses, covering);
   const types = DEFENSE_LISTS.flatMap(([list]) => limited[list])
-    .filter((type) => !["immunity", "resistance"].includes(damageDefenseFor(others, type)));
+    .filter((type) => !["immunity", "resistance", RESISTANCE_VULNERABILITY].includes(damageDefenseFor(others, type)));
   return types.length ? { types, except: [] } : null;
 }
 export function nonmagicalDefenseMarkerForItem(item, metaKey) {
