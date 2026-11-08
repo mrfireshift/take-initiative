@@ -19,6 +19,9 @@ import { setTrackerLayout } from "./trackerPopover.js";
 import { planPluginDerivedDataCleanup } from "./pluginDataCleanupCore.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { buildInfoLabel } from "./buildInfo.js";
+import { createReactionPromptOption } from "./reactionPromptOption.js";
+import { normalizeReactionPromptOptions } from "./reactionPromptOptionsCore.js";
+import { reactionTriggerEntry } from "./reactionTriggerCatalog.js";
 
 const MODAL_ID = `${ID}/options-modal`;
 // Lot U11 (UX-18): which build the room is running.
@@ -63,6 +66,9 @@ let savedLayout = "classic";
 // only in that scene.
 let draftBaseline = null;
 let draftOperation = null;
+// Avvisi di reazione (lot R1): the GM's own options (options-local, "reactions"), saved with Salva like the others.
+const reactionOption = createReactionPromptOption();
+let reactionDraft = normalizeReactionPromptOptions(undefined);
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -292,7 +298,42 @@ function render() {
         : control.dataset.path === "showDeathSaves" ? "I promemoria sono nascosti ai giocatori" : "Disponibile solo con Contenuto: Completo";
     }
   }
+  renderReactionOptions();
   renderPreview();
+}
+
+// The switches, then the reactions muted with «Non chiedere più», one row each with its ↺ (it takes effect at Salva).
+function renderReactionOptions() {
+  for (const control of document.querySelectorAll("[data-reaction]")) {
+    setControlValue(control, readPath(reactionDraft, control.dataset.reaction));
+    if (control.dataset.reaction !== "enabled") {
+      control.disabled = !reactionDraft.enabled;
+      control.closest(".option-toggle")?.classList.toggle("is-disabled", !reactionDraft.enabled);
+    }
+  }
+  const list = document.querySelector("[data-reaction-muted]");
+  if (!list) return;
+  const rows = reactionDraft.muted.map((row, index) => {
+    const line = document.createElement("div");
+    line.className = "reaction-muted-row";
+    const label = document.createElement("span");
+    label.textContent = `${row.name || "Creatura"} · ${reactionTriggerEntry(row.reaction)?.label || row.reaction}`;
+    const restore = document.createElement("button");
+    restore.type = "button";
+    restore.className = "secondary";
+    restore.dataset.action = "unmute-reaction";
+    restore.dataset.reactionIndex = String(index);
+    restore.textContent = "↺ Chiedi di nuovo";
+    line.append(label, restore);
+    return line;
+  });
+  if (!rows.length) {
+    const empty = document.createElement("p");
+    empty.className = "reaction-muted-empty";
+    empty.textContent = "Nessuna.";
+    rows.push(empty);
+  }
+  list.replaceChildren(...rows);
 }
 
 function closeModal() {
@@ -394,6 +435,7 @@ async function save() {
     await saveOptionsPanelDraft(runtimeOptionsService, requestedDraft, {
       isCurrent: () => sceneLifecycle.isCurrent(operation),
     });
+    await reactionOption.set(reactionDraft);
     if (!sceneLifecycle.isCurrent(operation)) throw new Error("scene-stale-after-options-save");
     draft = await verifyOptionsPanelDraft(runtimeOptionsService, requestedDraft);
     if (!sceneLifecycle.isCurrent(operation)) throw new Error("scene-stale-after-options-verify");
@@ -508,7 +550,14 @@ function bindControls() {
       render();
       return;
     }
-    const action = event.target.closest("[data-action]")?.dataset.action;
+    const actionNode = event.target.closest("[data-action]");
+    const action = actionNode?.dataset.action;
+    if (action === "unmute-reaction") {
+      reactionDraft.muted.splice(Number(actionNode.dataset.reactionIndex), 1);
+      markDirty();
+      render();
+      return;
+    }
     if (action === "close") closeModal();
     if (action === "open-faction-configurator") void openFactionConfigurator();
     if (action === "cleanup-runtime") void cleanRuntimeData();
@@ -536,6 +585,8 @@ function bindControls() {
       } else {
         draft.scene[family] = { mode: "override", value: typedValue(control) };
       }
+    } else if (control.matches("[data-reaction]")) {
+      writePath(reactionDraft, control.dataset.reaction, typedValue(control));
     } else if (control.matches("[data-family]")) {
       const family = control.dataset.family;
       const value = typedValue(control);
@@ -583,6 +634,12 @@ OBR.onReady(async () => {
     draft = normalizeOptionsPanelDraft(runtimeOptionsService.get(selectOptionsPanelModel));
     adoptDraftBaseline();
     savedLayout = draft.local.layout;
+    // The reactions' options: kept while the GM edits, followed otherwise (a «Non chiedere più» from a console).
+    await reactionOption.subscribe((value) => {
+      if (dirty || saving) return;
+      reactionDraft = value;
+      render();
+    }).catch((error) => console.warn("[options-panel] reaction prompts:", error?.message || error));
     runtimeOptionsService.subscribe(selectOptionsPanelModel, (model) => {
       if (dirty || saving) return;
       draft = normalizeOptionsPanelDraft(model);

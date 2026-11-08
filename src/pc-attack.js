@@ -42,6 +42,7 @@ import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionP
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
 import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageShortNotice, mirrorImageState } from "./mirrorImageCore.js";
 import { renderAttackReactions } from "./attackReactionsView.js";
+import { createReactionPrompt } from "./reactionPromptView.js";
 import { pcBreathAreaRuleId, pcMonsterAreaRuleId } from "./pcAttackBreathId.js";
 import "./popoverDrag.js";
 import { perfBootPage } from "./perfProbe.js";
@@ -356,6 +357,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const mirrorBox=$("pc-attack-mirror-image"),mirrorNote=$("pc-attack-mirror-image-note"),mirrorHit=$("pc-attack-mirror-image-hit");
   let mirrorBusy=false;
   const reactionsBox=$("pc-attack-reactions");
+  // Avvisi di reazione (lot R1): the prompt above Registra; its Usa is the reactions' own flow (castTargetReaction).
+  const reactionPrompt=createReactionPrompt($("pc-attack-reaction-prompt"),{documentRef,onUse:candidate=>useReactionPrompt(candidate)});
   let reactionsBusy=false;
   const targetById=id=>presentation?.targets.find(item=>item.id===id) || null;
   // Any tracked creature, the attacker included (temporary hit points, Bursting Arrow's creatures).
@@ -1897,6 +1900,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   });
   // CAP-REACTION: the target's Sanctuary, the retaliation of its shield on a hit, the reactions it can still cast.
   function renderTargetReactions() {
+    reactionPrompt.update(reactionPromptContext());
     if(!reactionsBox) return;
     const attack=typedAttack(),target=!isArea() && draft?.targetId?targetById(draft.targetId):null;
     renderAttackReactions(reactionsBox,{
@@ -1915,8 +1919,27 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     } catch(error) {setStatus(String(error?.message || error),"error");}
     finally {reactionsBusy=false;renderTargetReactions();scheduleRefresh();}
   }
+  // Avvisi di reazione (lot R1): the draft's events as the reactions under the target read them (one target, an outcome that
+  // allows a reaction); a hit is also a damage. The prompt shows the reactions of the lots wired, and writes nothing.
+  function reactionPromptEvent() {
+    if(!presentation || !draft || launching() || isArea() || !draft.targetId || !draft.outcome) return null;
+    const outcome=draft.outcome,hit=outcome==="hit" || outcome==="critical";
+    if(!hit && outcome!=="failed" && outcome!=="passed") return null;
+    const attack=resolved(),range=attack?.range==="melee"?"melee":attack?.range==="ranged"?"ranged":"";
+    const base={attackerId:presentation.item?.id || sourceId,targetIds:[draft.targetId],range,attackRoll:pcAttackOutcomesFor(attack).includes("hit"),
+      critical:outcome==="critical",damageTypes:(typedAttack()?.components || []).map(component=>component.type)};
+    return [...(hit?[{...base,trigger:"hit"}]:[]),{...base,trigger:"damage"}];
+  }
+  function reactionPromptContext() {
+    return {event:reactionPromptEvent(),items:[...(presentation?.targets || []),...(presentation?.item?[presentation.item]:[])],
+      state:presentation?.turnState || null,draftKey:draft?.attackInstanceId || ""};
+  }
+  async function useReactionPrompt(candidate) {
+    await castTargetReaction({spellId:candidate.spellId,direct:candidate.flow==="cast-spell",variant:candidate.variant || "",
+      targetIds:candidate.targetIds || [],casterId:candidate.reactorId});
+  }
   async function castTargetReaction(offer) {
-    const targetId=draft?.targetId;
+    const targetId=offer.casterId || draft?.targetId;
     if(reactionsBusy || !targetId) return;
     reactionsBusy=true;renderTargetReactions();
     try {
@@ -2215,7 +2238,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // Saving or loading: the console says so to assistive technology, Registra in words.
     documentRef.querySelector?.(".glass-shell")?.setAttribute?.("aria-busy",String(busy || launchBusy));
     apply.textContent=committing?"Registro…":"Registra";
-    renderFollow();renderUseSelected();renderReaction();renderTurnBadge();
+    renderFollow();renderUseSelected();renderReaction();renderTurnBadge();reactionPrompt.update(reactionPromptContext());
     if(!presentation || (!draft && !launchBox)){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
     form.hidden=false;
     // A spell that left the book (or a launch view on an entry gone) falls back to the attack, or the first spell.
@@ -2234,7 +2257,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // Selection and scene updates never rebuild the outcome buttons or the amount fields: a click in
   // flight or the caret in a field survives them.
   function renderLive() {
-    renderFollow();renderUseSelected();renderReaction();renderTurnBadge();
+    renderFollow();renderUseSelected();renderReaction();renderTurnBadge();reactionPrompt.update(reactionPromptContext());
     if(!presentation || (!draft && !launchBox)){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
     renderPicker();renderCaster();renderMonster();renderGrapple();
     if(launching()){renderLaunch();return;}
@@ -2412,6 +2435,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function unmountLiveUpdates() {unsubscribers.splice(0).forEach(unsubscribe=>{try{unsubscribe();}catch{}});}
   function destroy() {
     unmountLiveUpdates();
+    reactionPrompt.destroy();
     try{offPing?.();}catch{}
     try{offAutoOpen?.();}catch{}
     offPing=null;offAutoOpen=null;
@@ -2577,6 +2601,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     }
     const view=preview();
     if(!view.ready) throw new Error(view.blocker);
+    // Avvisi di reazione: Registra with the prompt open counts as Ignora (decision D2); the event, for the notice after it.
+    const promptContext=reactionPromptContext();
+    reactionPrompt.dismiss();
     // Freeze every decision before the commit: later selection changes cannot alter this request.
     const hitEffect=resolved()?.onHit && ["hit","critical"].includes(draft.outcome) && draft.hitEffect
       ?{saveOutcome:draft.hitEffect.saveOutcome,amounts:Object.fromEntries(Object.entries(draft.hitEffect.amounts).filter(([,value])=>value!=="").map(([id,value])=>[id,Number(value)]))}:null;
@@ -2624,6 +2651,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     draft=emptyDraft(presentation.action,draft.targetId,draft.spellId,draft.attackMode);
     await refresh(operation);
     render();
+    // The reactions after the damage (Hellish Rebuke), on the creatures read again.
+    if(lifecycle.isCurrent(operation)) reactionPrompt.showAfter({...promptContext,items:reactionPromptContext().items,state:presentation?.turnState || null});
   },{commit:true}));
   function chooseManeuverTarget() {maneuverDraft.targetId=maneuverTarget.value;const entry=currentEntry();if(entry?.mode==="maneuver")renderManeuver(entry);}
   maneuverTarget?.addEventListener("change",chooseManeuverTarget);

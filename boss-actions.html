@@ -12,6 +12,7 @@
     /* What only the Boss console has: its language is console-shell.css's, the same as the attack panel's. */
     /* Riduci: only the header stays, with what is in progress. */
     body[data-minimized="true"] .panel, body[data-minimized="true"] .more-menu, body[data-minimized="true"] .apply-host, body[data-minimized="true"] .status-bar { display: none !important; }
+    body[data-minimized="true"] .reaction-prompt { display: none !important; }
     body:not([data-minimized="true"]) #boss-phase { display: none; }
     .view p { margin: 0; }
     /* The header's ⋯: what is not about the fight. */
@@ -162,6 +163,7 @@
         </div>
       </section>
     </main>
+    <div class="reaction-prompt" id="boss-reaction-prompt" hidden></div>
     <div class="apply-host" id="boss-apply-host"></div>
     <footer class="status-bar"><p class="status" id="boss-status" role="status" aria-live="polite"></p><button class="small" id="boss-undo" type="button" hidden>Annulla</button></footer>
   </div>

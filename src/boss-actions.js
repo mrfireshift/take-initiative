@@ -28,6 +28,7 @@ import "./popoverDrag.js";
 import { BOSS_ACTIONS_CONSOLE_CHANNEL } from "./bossActionsLauncher.js";
 import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageShortNotice, mirrorImageState } from "./mirrorImageCore.js";
 import { renderAttackReactions } from "./attackReactionsView.js";
+import { createReactionPrompt } from "./reactionPromptView.js";
 import { hasReactionUsed } from "./reactionTrackerCore.js";
 import { perfBootPage } from "./perfProbe.js";
 
@@ -88,6 +89,11 @@ export function bootBossActions(documentRef=document, overrides={}) {
   let listTab=readSession(LIST_TAB_STORAGE_KEY)==="passives"?"passives":"actions";
   let refreshing=false,refreshPending=false,refreshTimer=null,liveSignature="",selectionSequence=0;
   const unsubscribers=[];
+  // Avvisi di reazione (lot R1): the prompt above Registra, with the initiative state the scene says (the combat, the order).
+  let turnState=null;
+  const promptKeys=new WeakMap();
+  const bossReactionPrompt=createReactionPrompt($("boss-reaction-prompt"),{documentRef,onUse:candidate=>castTargetReaction({spellId:candidate.spellId,
+    direct:candidate.flow==="cast-spell",variant:candidate.variant || "",targetIds:candidate.targetIds || [],casterId:candidate.reactorId})});
   const node=(tag,text="",className="")=>{const element=documentRef.createElement(tag);element.textContent=bossMetricText(text);if(className)element.className=className;return element;};
   // The stat block's own words, as printed.
   const printed=(text,className="")=>{const element=node("pre","",className);element.textContent=text;return element;};
@@ -738,6 +744,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(draft?.drawing)void cancelArea(draft.drawing).catch(()=>{});
     if(draft?.kind==="seam" && draft.seam && !draft.attempted)void dropSeamDrawing(draft.seam.itemIds);
     draft=null;clear(resolution);clear(applyHost);setView("list");if(persist)persistDraft();else writeSession(draftStorageKey(),null);
+    bossReactionPrompt.update(bossReactionPromptContext());
     renderList();renderHeader();
     if(focusAction && actionId)[...abilities.querySelectorAll("button")].find(row=>row.dataset.actionId===actionId)?.focus?.();
   }
@@ -763,7 +770,22 @@ export function bootBossActions(documentRef=document, overrides={}) {
     renderTargetBox();renderDecisions();persistDraft();
   }
   let reactionsBusy=false;
+  // Avvisi di reazione (lot R1): the draft's events as the reactions under the target read them; a hit is also a damage.
+  function bossReactionPromptEvent() {
+    if(!draft || view!=="resolve" || !["attack-damage","save-damage"].includes(draft.kind) || !draft.targetId) return null;
+    const outcome=outcomeChoice(),hit=outcome==="hit" || outcome==="critical";
+    if(!hit && outcome!=="failed" && outcome!=="passed") return null;
+    const mode=draft.mode || draft.action.execution?.attack?.modes?.[0] || "";
+    const base={attackerId:presentation?.item?.id || sourceId,targetIds:[draft.targetId],range:mode==="melee"?"melee":mode==="ranged"?"ranged":"",
+      attackRoll:draft.kind==="attack-damage",critical:outcome==="critical",damageTypes:bossActionDamageComponents(draft.action).map(component=>component.type)};
+    return [...(hit?[{...base,trigger:"hit"}]:[]),{...base,trigger:"damage"}];
+  }
+  function bossReactionPromptContext() {
+    if(draft && !promptKeys.has(draft)) promptKeys.set(draft,`${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`);
+    return {event:bossReactionPromptEvent(),items:[...targets,...(presentation?.item?[presentation.item]:[])],state:turnState,draftKey:draft?promptKeys.get(draft):""};
+  }
   function renderBossTargetReactions() {
+    bossReactionPrompt.update(bossReactionPromptContext());
     const box=resolution.querySelector?.("#boss-target-reactions");
     if(!box || !draft) return;
     const target=targetById(draft.targetId),execution=draft.action.execution;
@@ -785,7 +807,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     finally {reactionsBusy=false;renderBossTargetReactions();}
   }
   async function castTargetReaction(offer) {
-    const targetId=draft?.targetId;
+    const targetId=offer.casterId || draft?.targetId;
     if(reactionsBusy || !targetId) return;
     reactionsBusy=true;renderBossTargetReactions();
     try {
@@ -1941,6 +1963,9 @@ export function bootBossActions(documentRef=document, overrides={}) {
       componentAmounts:frozen.amounts,rider:frozen.rider,teleport:frozen.teleport,critical:frozen.critical});
     if(!validation.ok){setStatus(validation.error);return;}
     const active=draft;
+    // Avvisi di reazione: Registra with the prompt open counts as Ignora (decision D2); the event, for the notice after it.
+    const promptContext=bossReactionPromptContext();
+    bossReactionPrompt.dismiss();
     return commitPerform(async operation=>{
       active.attempted=true;active.locked=true;persistDraft();
       const result=await runtime.executeBossAction({...validation.value,ignoredDefenses:ignoredFor(frozen.targetId),
@@ -1952,6 +1977,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
       showUndo(result);
       if(draft===active)closeDraft({persist:false});
       await refresh(operation);
+      // The reactions after the damage (Hellish Rebuke), on the creatures read again.
+      if(lifecycle.isCurrent(operation))bossReactionPrompt.showAfter({...promptContext,items:[...targets,...(presentation?.item?[presentation.item]:[])],state:turnState});
     });
   }
 
@@ -2011,6 +2038,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     let turn="";
     if(typeof api.scene?.onMetadataChange==="function")add(api.scene.onMetadataChange(metadata=>{
       const state=metadata?.[STATE_KEY],round=state?.round,next=JSON.stringify([state?.current ?? null,state?.order ?? null]);
+      turnState=state || null;
       const moved=next!==turn;turn=next;
       if(presentation && (round!==presentation.round || (moved && presentation.sequence)))scheduleRefresh();}));
     if(typeof api.scene?.items?.onChange==="function")add(api.scene.items.onChange(items=>{
@@ -2026,8 +2054,11 @@ export function bootBossActions(documentRef=document, overrides={}) {
     // Every item is read while the presentation is: one round trip less, and the bindings below reuse the same list.
     const itemsRead=Promise.resolve(api.scene.items.getItems());
     itemsRead.catch(()=>{});
+    // The initiative state, for the reaction prompts: read with the items, never in the way of the refresh.
+    const metadataRead=Promise.resolve().then(()=>typeof api.scene?.getMetadata==="function"?api.scene.getMetadata():null).catch(()=>null);
     const loaded=await runtime.getBossActionPresentation(sourceId);
     const items=await itemsRead;
+    turnState=(await metadataRead)?.[STATE_KEY] || turnState;
     if(!lifecycle.isCurrent(operation))return;
     if(!isBossActionSourceItem(loaded.item))throw new Error("Seleziona il token reale del boss.");
     const sameDraftBinding=previous?.profile?.profileId===loaded.profile?.profileId
@@ -2148,6 +2179,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
   });
   function destroy() {
     unmountLiveUpdates();
+    bossReactionPrompt.destroy();
     try{offPing?.();}catch{}
     offPing=null;
     if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null;}

@@ -19,6 +19,7 @@
     .switch-row .small { min-width: 0; min-height: var(--obrt-hit-min); overflow: hidden; padding: 2px 8px; color: var(--info-text); font-size: var(--obrt-type-secondary); text-overflow: ellipsis; white-space: nowrap; }
     /* Riduci: only the header stays. */
     body[data-minimized="true"] .panel, body[data-minimized="true"] .more-menu, body[data-minimized="true"] .switch-row, body[data-minimized="true"] .reaction-row, body[data-minimized="true"] .apply-row, body[data-minimized="true"] .status-bar { display: none !important; }
+    body[data-minimized="true"] .reaction-prompt { display: none !important; }
     /* An off-turn action with the creature selected on the map. */
     .use-selected-row { display: flex; min-width: 0; }
     .use-selected { min-width: 0; overflow: hidden; border-color: rgba(96, 165, 250, .45); text-overflow: ellipsis; }
@@ -318,6 +319,7 @@
         </div>
       </section>
     </main>
+    <div class="reaction-prompt" id="pc-attack-reaction-prompt" hidden></div>
     <div class="reaction-row" id="pc-attack-reaction" hidden></div>
     <div class="apply-row" id="pc-attack-apply-row" hidden><div class="defense-chips" id="pc-attack-defenses"></div><span class="total" id="pc-attack-total"></span><button class="apply" id="pc-attack-apply" type="button">Registra</button><button class="apply primary" id="pc-attack-launch-button" type="button" hidden>Lancia</button></div>
     <footer class="status-bar"><p class="status" id="pc-attack-status" role="status" aria-live="polite"></p><button class="small" id="pc-attack-undo" type="button" hidden>Annulla</button></footer>

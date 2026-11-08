@@ -107,6 +107,38 @@
           </label>
         </section>
 
+        <section class="options-section" aria-labelledby="reaction-prompts-title">
+          <div class="section-heading">
+            <div><h2 id="reaction-prompts-title">Avvisi di reazione</h2></div>
+            <span class="scope-badge local">Questo browser</span>
+          </div>
+          <p class="option-note">Nelle console attacchi e Boss, sopra Registra: chi può reagire, con cosa e perché. Usa apre il lancio di sempre, Ignora chiude; registrare senza usarla vale come Ignora. L'avviso non scrive niente da solo.</p>
+          <label class="option-toggle compact">
+            <span>Mostra gli avvisi di reazione</span>
+            <input type="checkbox" data-reaction="enabled" />
+          </label>
+          <label class="option-toggle compact">
+            <span>Quando un attacco colpisce (Scudo)</span>
+            <input type="checkbox" data-reaction="triggers.hit" />
+          </label>
+          <label class="option-toggle compact">
+            <span>Quando una creatura subisce danni (Assorbire elementi, Intimorire infernale)</span>
+            <input type="checkbox" data-reaction="triggers.damage" />
+          </label>
+          <label class="option-toggle compact">
+            <span>Per i personaggi dei giocatori</span>
+            <input type="checkbox" data-reaction="actors.pcs" />
+          </label>
+          <label class="option-toggle compact">
+            <span>Per i mostri e le altre creature</span>
+            <input type="checkbox" data-reaction="actors.npcs" />
+          </label>
+          <div class="option-field reaction-muted">
+            <span>Reazioni silenziate («Non chiedere più»)</span>
+            <div class="reaction-muted-list" data-reaction-muted></div>
+          </div>
+        </section>
+
         <section class="options-section" aria-labelledby="player-title">
           <div class="section-heading">
             <div><h2 id="player-title">Vista giocatori</h2></div>
