@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "version": "1.5.0",
-  "commit": "b1241906854e09c2b98956e7bfaf18e7b674cf7c",
-  "shortCommit": "b1241906854e",
+  "commit": "291aab8708110e8430dac9a6c8f38516be0df34d",
+  "shortCommit": "291aab870811",
   "dirty": false,
-  "sourceDateEpoch": 1794059270,
-  "builtAt": "2026-11-07T13:47:50.000Z"
+  "sourceDateEpoch": 1794142618,
+  "builtAt": "2026-11-08T12:56:58.000Z"
 }
