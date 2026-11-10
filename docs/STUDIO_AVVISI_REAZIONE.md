@@ -1370,6 +1370,48 @@ Secondo il piano della §6.16, con J1–J5 come raccomandate:
   - la pagina leggeva le opzioni prima che fossero caricate.
 - **Da sapere:** un neutrale non reagisce (regola di R0). Il goblin del banco
   andava segnato «nemico».
+- **Correzione dell'8 novembre, dopo il commit.** Nelle Opzioni mancava la
+  casella «Movimento»: l'interruttore c'era ma non si poteva accendere (al
+  banco era acceso via script). Ora c'è: «Quando la creatura di turno si
+  muove». Con Movimento acceso, l'Attacco di opportunità dei mostri compare
+  anche con «Per i mostri» spento: è il caso tipico, e l'interruttore del
+  movimento è già esplicito. Gli altri inneschi dei mostri restano sotto il
+  loro interruttore. Provato al banco dalle Opzioni vere.
+- **Aspetto, su richiesta dell'8 novembre.** Il popover del movimento usa la
+  grafica dei promemoria centrali (`.zone-notice` di `turn-notice.html`):
+  - una card per reazione, con il ritratto di chi reagisce;
+  - l'occhiello «Reazione · Mira esce dalla portata», il titolo «(1) Goblin ·
+    Attacco di opportunità» e la riga «Attacco in mischia · se non si è
+    disimpegnata»;
+  - i pulsanti piccoli Usa, «Non chiedere più» e Ignora;
+  - il fondo viola.
+
+  Sta dove stanno l'avviso di turno e i promemoria: in alto al centro, al 9%
+  dell'altezza, largo 508 px.
+
+  Poi, sfoltita su richiesta dell'utente:
+  - l'occhiello dice solo «Mira esce dalla portata» (il viola dice già
+    «reazione»);
+  - il titolo resta «(1) Goblin · Attacco di opportunità»;
+  - la riga «Attacco in mischia · se non si è disimpegnata» resta nel
+    tooltip della card;
+  - Usa, «Non chiedere più» e Ignora stanno sulla stessa riga, a destra.
+
+  La card è alta 50 px.
+- **Parole Taglienti, correzione dell'8 novembre.** Il testo del PHB
+  sottrae il dado dal **tiro** della creatura. Prima era una riduzione del
+  danno di una creatura sola, tolta dopo il TS. Ora è un effetto suo,
+  `reduce-roll`:
+  - si toglie dal tiro prima del TS e delle resistenze;
+  - vale per tutte le creature colpite dallo stesso tiro
+    (`damageReactionAppliesTo`), nelle aree delle console, nei TS di
+    gruppo della console Boss e nel pannello;
+  - spende una sola reazione e un solo uso di Ispirazione Bardica;
+  - la riga dice «Parole Taglienti di Piumazzo al tiro».
+
+  Banco: il goblin lancia Frantumare con 20 su Mira (TS fallito) e Dars, il
+  bardo (TS superato). Con Parole Taglienti a 4, Mira prende 16 e Dars 8.
+  Sul tiro per colpire resta a mano.
 
 Ogni lotto ha i suoi test puri (candidati, filtri, firme) e una prova al banco
 nelle due console. La parte dello schermo dei giocatori (R6a) va provata in
