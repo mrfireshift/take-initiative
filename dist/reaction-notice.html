@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reazione</title>
+    <link rel="stylesheet" href="/ui-typography.css" />
+    <link rel="stylesheet" href="/reaction-prompt.css" />
+    <style>
+      /* Avvisi di reazione, lot R6: the GM's prompt on a player's screen (reactionNoticeHost.js). No color-scheme on
+         the root: Owlbear would put a black canvas behind the glass. */
+      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent !important; }
+      body { box-sizing: border-box; color: #fff; font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif); font-size: 12px; }
+      .reaction-notice { box-sizing: border-box; height: 100vh; margin: 0; overflow: hidden; background: rgba(46, 16, 74, .97); }
+      .reaction-notice .reaction-prompt-foot { justify-content: flex-start; }
+      .reaction-notice-sent { color: #e9d5ff; font-weight: var(--obrt-weight-bold, 700); }
+    </style>
+    <script type="module" crossorigin src="/assets/reactionNotice-BJ-5_XIL.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
+    <link rel="modulepreload" crossorigin href="/assets/index-Bb_Y0rOR.js">
+    <link rel="modulepreload" crossorigin href="/assets/playerAssignmentCore-BaNWJUpf.js">
+    <link rel="modulepreload" crossorigin href="/assets/reactionNoticeCore-D3Q8iRZb.js">
+  </head>
+  <body>
+    <div id="reaction-notice" class="reaction-prompt reaction-notice" role="group" aria-label="Reazione possibile"></div>
+  </body>
+</html>

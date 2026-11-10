@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reazione al movimento</title>
+    <link rel="stylesheet" href="/ui-typography.css" />
+    <link rel="stylesheet" href="/reaction-prompt.css" />
+    <style>
+      /* Avvisi di reazione, lot R5: the GM's prompt after a movement (reactionMoveWatcher.js), drawn as the centre-screen
+         reminders of turn-notice.html (.zone-notice: portrait, eyebrow, title, small buttons), in the reaction's purple.
+         No color-scheme on the root: Owlbear would put a black canvas behind the glass. */
+      html, body { width: 100%; height: 100%; margin: 0; background: transparent !important; }
+      * { box-sizing: border-box; }
+      body { position: relative; overflow: hidden; color: #fff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      .reaction-move { display: grid; margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+      .reaction-move[hidden] { display: none; }
+      .reaction-move > .reaction-prompt-head, .reaction-move > .reaction-prompt-foot { display: none; }
+      .reaction-card {
+        --accent: #c084fc;
+        --accent-soft: rgba(192, 132, 252, .42);
+        --accent-deep: rgba(88, 28, 135, .95);
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px;
+        width: calc(100% - 8px);
+        min-height: 50px;
+        margin: 4px;
+        padding: 6px 10px 6px 48px;
+        border: 1px solid #080b10;
+        border-radius: 7px;
+        background: linear-gradient(115deg, var(--accent-deep) 0%, rgba(30, 18, 40, .97) 48%, rgba(10, 10, 16, .98) 100%);
+        box-shadow:
+          0 0 0 1px var(--accent),
+          0 0 14px 3px var(--accent-soft),
+          0 10px 30px rgba(0,0,0,.62),
+          inset 0 0 0 1px rgba(255,255,255,.12),
+          inset 0 -18px 30px rgba(0,0,0,.22);
+      }
+      .reaction-card::before { position: absolute; inset: 4px 6px; border: 1px solid rgba(255,255,255,.10); border-radius: 3px; content: ""; pointer-events: none; }
+      .reaction-card-portrait {
+        position: absolute; top: 9px; left: 8px; width: 33px; height: 33px; overflow: hidden;
+        border: 2px solid #080b10; border-radius: 50%; background: rgba(4,7,11,.96);
+        box-shadow: 0 0 0 2px var(--accent), 0 0 10px 2px var(--accent-soft), inset 0 0 0 1px rgba(255,255,255,.18);
+      }
+      .reaction-card-portrait img { width: 100%; height: 100%; display: block; object-fit: cover; }
+      .reaction-card-fallback {
+        width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+        background: radial-gradient(circle at 35% 30%, var(--accent-deep), #090d13 72%);
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif); font-size: 15px; font-weight: 800; text-shadow: 0 2px 4px #000;
+      }
+      .reaction-card-copy { position: relative; min-width: 0; z-index: 1; }
+      .reaction-card-eyebrow {
+        margin-bottom: 2px; color: var(--accent); font-size: var(--obrt-type-micro, 10px); font-weight: 800;
+        letter-spacing: .6px; line-height: 1.15; text-transform: uppercase;
+      }
+      .reaction-card-eyebrow span { color: rgba(255, 255, 255, .68); font-weight: 700; }
+      .reaction-card-title {
+        margin: 0; overflow: hidden; font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
+        font-size: clamp(13px, 2.5vw, 14.5px); font-weight: 800; line-height: 1.15; text-overflow: ellipsis;
+        text-shadow: 0 1px 3px rgba(0,0,0,.9); white-space: nowrap;
+      }
+      .reaction-card-subtitle { margin-top: 1px; overflow: hidden; color: rgba(255, 255, 255, .82); font-size: var(--obrt-type-micro, 10px); font-weight: 700; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+      .reaction-card-actions { position: relative; display: flex; flex-wrap: nowrap; align-items: center; gap: 3px; z-index: 2; }
+      .reaction-card-actions button {
+        min-height: 24px; padding: 2px 6px; border: 1px solid rgba(255,255,255,.26); border-radius: 4px;
+        background: rgba(4, 8, 13, .82); color: #fff; font: 700 10px/1 system-ui, sans-serif; cursor: pointer;
+      }
+      .reaction-card-actions button:hover:not(:disabled),
+      .reaction-card-actions button.reaction-prompt-use { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 30%, rgba(4,8,13,.88)); }
+      .reaction-card-actions button.reaction-prompt-mute { min-height: 24px; color: rgba(255, 255, 255, .62); background: transparent; border-color: transparent; }
+      .reaction-card-actions button:disabled { cursor: default; opacity: var(--obrt-btn-disabled-opacity, .48); }
+      .reaction-card-actions .reaction-card-ignore { margin-left: 4px; }
+      .reaction-move-status { margin: 0 8px; color: #e9d5ff; font-size: var(--obrt-type-micro, 10px); font-weight: 800; }
+      .reaction-move-status[data-state="error"] { color: #fca5a5; }
+    </style>
+    <script type="module" crossorigin src="/assets/reactionMove-DnWKltGm.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
+    <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
+    <link rel="modulepreload" crossorigin href="/assets/index-Bb_Y0rOR.js">
+    <link rel="modulepreload" crossorigin href="/assets/opportunityAttackCore-mC2cH03d.js">
+    <link rel="modulepreload" crossorigin href="/assets/quickHpCore-B-UpYtUG.js">
+    <link rel="modulepreload" crossorigin href="/assets/distance3dCore-Bt5E3JNv.js">
+    <link rel="modulepreload" crossorigin href="/assets/effectSaveReminderCore-Tzyr_VGX.js">
+    <link rel="modulepreload" crossorigin href="/assets/reactionTrackerCore-BJT9N7Ta.js">
+    <link rel="modulepreload" crossorigin href="/assets/effectLabelCore-BVOJN7Do.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-BuJxbU64.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-BmqipeZE.js">
+    <link rel="modulepreload" crossorigin href="/assets/spells-srd-Bokd2j5O.js">
+    <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-YUCDRsll.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellbookCore--eb2uiEm.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellbookCatalog-CtSy3Iq_.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellSlotSpendCore-RRdU29-S.js">
+    <link rel="modulepreload" crossorigin href="/assets/roomMetadataBudget-Dhmti3v9.js">
+    <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-BzTu5VWf.js">
+    <link rel="modulepreload" crossorigin href="/assets/speedCheckCore-BCfPg9NS.js">
+    <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-naj-_iUJ.js">
+    <link rel="modulepreload" crossorigin href="/assets/playerAssignmentCore-BaNWJUpf.js">
+    <link rel="modulepreload" crossorigin href="/assets/playerAssignmentMemoryCore-C5j7Rkzu.js">
+    <link rel="modulepreload" crossorigin href="/assets/reactionTriggerCatalog-Cqu4qVX-.js">
+    <link rel="modulepreload" crossorigin href="/assets/fiveToolsArchiveCore-tLcUxIcx.js">
+    <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-D27kjyro.js">
+    <link rel="modulepreload" crossorigin href="/assets/reactionPromptOption-EjWkUuXh.js">
+    <link rel="modulepreload" crossorigin href="/assets/reactionNoticeCore-D3Q8iRZb.js">
+    <link rel="modulepreload" crossorigin href="/assets/reactionPromptView-DO0RN-6g.js">
+  </head>
+  <body>
+    <div id="reaction-move" class="reaction-prompt reaction-move" hidden></div>
+    <p id="reaction-move-status" class="reaction-move-status" role="status" aria-live="polite" hidden></p>
+  </body>
+</html>
