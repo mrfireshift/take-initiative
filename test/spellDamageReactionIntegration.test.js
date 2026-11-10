@@ -244,11 +244,21 @@ const field = (targetId, amount) => ({ reactionId: "protective-field", reactorId
   featureId: "guerriero-guerriero-psionico-potere-psionico-campo-protettivo", targetId, amount });
 
 // As the panel's commit does it: the reactors' spend read from the scene, in the cast's extra operations.
+// An area's placement, confirmed, as the panel sends it (test/spellAreaResolutionExecutor.test.js).
+function placementFor(contract, spellId, targetIds) {
+  const descriptor = contract.presentation?.placement;
+  if (!descriptor?.ruleId || descriptor.policy === "automatic") return null;
+  return { status: "confirmed", confirmed: true, ruleId: descriptor.ruleId, spellId, casterId: CASTER, targetLocked: true, targetIds,
+    preview: { type: "circle", start: { x: 0, y: 0 }, end: { x: 150, y: 0 }, gridOrigin: { x: 0, y: 0 }, dpi: 150, targetIds, targetLocked: true } };
+}
+
 async function cast(spellId, slotLevel, outcomes, { amount, damageReactions = [], status = "applied" } = {}) {
   const contract = buildSpellUnifiedPanelContract({ spellId, phase: "cast", castContext: { slotLevel } });
   const targetIds = Object.keys(outcomes);
+  const placement = placementFor(contract, spellId, targetIds);
   const command = buildSpellAreaResolutionCommand({
     contract, spellId, phase: "cast", casterId: CASTER, slotLevel, targetIds, outcomes,
+    ...(placement ? { placement, targetLocked: true, candidateTargetIds: targetIds } : {}),
     ...(amount !== undefined ? { hpAmount: amount } : {}),
     damageReactions,
     validateSpatial: false,
@@ -331,4 +341,28 @@ test("the combat log says why: the reaction's line on the target's HP", async ()
   const lines = buildCombatLogPresentation({}, [combatEventFromHistoryEntry(entry, { round: 1 })])
     .events[0].details.flatMap((section) => section.lines);
   assert.ok(lines.some((line) => line.includes("Campo Protettivo di Dars: −6")), lines.join("\n"));
+});
+
+// Cutting Words: one line on the roll, every creature of the cast pays it, before the save; the bard's reaction and
+// one Bardic Inspiration once.
+test("Cutting Words on a two-creature cast: the roll reduced for both, before the halving; one reaction and one die", async () => {
+  const bard = { characterBuild: [{ classId: "bardo", level: 5, subclassId: "bardo-collegio-della-sapienza" }], classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["bardo-collegio-della-sapienza-parole-taglienti"], abilityModifiers: { cha: 3 } };
+  await resetScene([token(CASTER, 30, 30, { attitude: "enemy" }), token("vex", 30, 30, { attitude: "pc" }), token("mira", 30, 30, { attitude: "pc" }),
+    token("bard", 30, 30, { attitude: "pc", initiativeCard: bard })]);
+  const words = { reactionId: "cutting-words", reactorId: "bard", reactorName: "Piumazzo", featureId: "bardo-collegio-della-sapienza-parole-taglienti",
+    targetId: "vex", amount: 4 };
+  await cast("fireball", 3, { vex: "failed", mira: "passed" }, { amount: 20, damageReactions: [words] });
+  assert.equal(meta("vex").hp, 30 - 16, "20 − 4");
+  assert.equal(meta("mira").hp, 30 - 8, "(20 − 4) / 2");
+  assert.deepEqual(pills("bard"), ["Reazione usata"]);
+  const inspiration = Object.values(meta("bard").classFeatureState?.resources || {});
+  assert.equal(inspiration.length, 1, "one pool spent");
+  assert.equal(inspiration[0].current, inspiration[0].maximum - 1, "one Bardic Inspiration");
+  await undoLast();
+  assert.equal(meta("vex").hp, 30);
+  assert.equal(meta("mira").hp, 30);
+  assert.deepEqual(pills("bard"), []);
+  assert.ok(Object.values(meta("bard").classFeatureState?.resources || {}).every((pool) => pool.current === undefined || pool.current === pool.maximum),
+    "the die is back");
 });

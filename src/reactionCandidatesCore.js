@@ -250,8 +250,11 @@ export function reactionCandidates(event, { items = [], state = null, options = 
   const targets = value.targetIds.map((id) => byId.get(id)).filter(Boolean);
   const origin = value.trigger === "spell-cast" ? value.casterId : value.trigger.startsWith("move") || value.trigger === "turn-end-near"
     ? value.moverId : value.attackerId;
+  // Movement (lot R5): its own switch already says so, and the usual case is a monster's Opportunity Attack on a
+  // character: the other creatures react even with their switch off.
+  const movement = value.trigger.startsWith("move") || value.trigger === "turn-end-near";
   const reactors = [...byId.values()].filter((item) => order.has(baseId(item.id)) && baseId(item.id) !== origin
-    && (isPlayerCharacter(item) ? opts.actors.pcs : opts.actors.npcs) && creatureCanReact(item));
+    && (isPlayerCharacter(item) ? opts.actors.pcs : opts.actors.npcs || movement) && creatureCanReact(item));
 
   for (const entry of reactionTriggerEntriesFor(value.trigger)) {
     if (entry.id === "counterspell" && value.spellLevel === 0 && !opts.counterspellCantrips) continue;

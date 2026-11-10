@@ -153,8 +153,8 @@ export const REACTION_TRIGGER_CATALOG = Object.freeze([
     rule: "Subisce danni: 10 PF temporanei per livello da warlock che assorbono questo danno; vulnerabile al fuoco e incapacitato fino alla fine del suo prossimo turno." }),
   feature({ id: "cutting-words", label: "Parole Taglienti", featureIds: ["bardo-collegio-della-sapienza-parole-taglienti"],
     triggers: ["damage"], timing: "before", protects: "other", attackerRangeMeters: 18, lot: "R3b", flow: "modifier",
-    effect: { kind: "reduce", dice: "bardic" }, short: "− dado di Ispirazione",
-    rule: "Una creatura entro 18 m tira i danni: il dado di Ispirazione Bardica li riduce (anche un tiro per colpire o una prova)." }),
+    effect: { kind: "reduce-roll", dice: "bardic" }, short: "− dado di Ispirazione al tiro",
+    rule: "Una creatura entro 18 m tira i danni: il dado di Ispirazione Bardica si sottrae dal tiro, quindi da tutte le creature che il tiro colpisce, prima del TS (anche un tiro per colpire o una prova: lì resta a mano)." }),
 
   // C. After the damage: notices.
   spell({ id: "hellish-rebuke", label: "Intimorire infernale", spellId: "hellish-rebuke", slotLevel: 1, triggers: ["damage"],

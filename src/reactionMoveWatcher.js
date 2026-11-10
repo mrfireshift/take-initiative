@@ -13,7 +13,9 @@ import { reactionPromptCandidates } from "./reactionPromptView.js";
 export const REACTION_MOVE_POPOVER_ID = `${ID}/reaction-move`;
 const STATE_KEY = `${ID}/state`;
 const SETTLE_MS = 700;
-const POPOVER_WIDTH = 400;
+// As the turn notice and its reminders (turnNoticeHost.js): a 500 px card, 4 px of frame, top centre at 9% of the height.
+const POPOVER_WIDTH = 508;
+const TOP_RATIO = 0.09;
 
 const pending = new Map();
 let optionStore = null;
@@ -28,9 +30,9 @@ function readOptions() {
   return optionsReady.then(() => options);
 }
 
-// The popover's height for its rows (header, a row each, footer).
+// The popover's height for its cards (one per reaction, as the reminders' cards) and the status line.
 export function reactionMovePopoverHeight(rowCount) {
-  return 52 + Math.max(1, Math.min(6, Math.floor(Number(rowCount) || 1))) * 44 + 34;
+  return Math.max(1, Math.min(6, Math.floor(Number(rowCount) || 1))) * 58 + 20;
 }
 
 async function settle(itemId) {
@@ -58,12 +60,12 @@ async function settle(itemId) {
   await OBR.popover.open({
     id: REACTION_MOVE_POPOVER_ID,
     url: `/reaction-move.html?${query}`,
-    width: POPOVER_WIDTH,
+    width: Math.min(POPOVER_WIDTH, Math.max(320, (Number(width) || 1200) - 32)),
     height: reactionMovePopoverHeight(candidates.length),
     anchorReference: "POSITION",
-    anchorPosition: { left: (Number(width) || 1200) - 16, top: (Number(height) || 800) - 16 },
-    anchorOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" },
-    transformOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" },
+    anchorPosition: { left: (Number(width) || 1200) / 2, top: Math.max(8, Math.round((Number(height) || 800) * TOP_RATIO) - 4) },
+    anchorOrigin: { horizontal: "CENTER", vertical: "TOP" },
+    transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
     hidePaper: true,
     disableClickAway: true,
     marginThreshold: 8,

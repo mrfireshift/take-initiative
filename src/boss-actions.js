@@ -30,6 +30,7 @@ import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageShortNoti
 import { renderAttackReactions } from "./attackReactionsView.js";
 import { createReactionPrompt, reactionPromptEffectText } from "./reactionPromptView.js";
 import { reactionTriggerEntry } from "./reactionTriggerCatalog.js";
+import { damageReactionAppliesTo, isDamageRollReaction } from "./damageReactionCore.js";
 import { loadMonsterReactions, loadReactionSceneGrid } from "./reactionSceneContext.js";
 import { hasReactionUsed } from "./reactionTrackerCore.js";
 import { perfBootPage } from "./perfProbe.js";
@@ -364,7 +365,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
   const componentsFor=id=>bossActionDamageComponents(draft.action).filter(component=>!component.scope || (draft.innerIds || []).includes(id));
   function defendedDamage(id,outcome) {
     return bossDefendedDamage(componentsFor(id),amountsFor(id),outcome,defensesOf(id),ignoredFor(id),markReadyFor(id),evasionUsedFor(id),
-      id?activeBossDamageReactions().filter(row=>row.targetId===id).map(bossDamageReactionRequest):[]);
+      id?activeBossDamageReactions().filter(row=>damageReactionAppliesTo(row,id)).map(bossDamageReactionRequest):[]);
   }
   // Lot R3b-4: a group save with damage (not an attack group): the creatures with a save outcome.
   const groupSaveDamage=()=>draft?.kind==="group-save" && !attackGroup() && draft.action?.execution?.kind==="save-damage";
@@ -375,7 +376,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
   function activeBossDamageReactions() {
     if(groupSaveDamage()) {
       const damaged=new Set(groupDamagedIds());
-      return (Array.isArray(draft.damageReactions)?draft.damageReactions:[]).filter(row=>damaged.has(row.targetId));
+      // A reduction of the roll (Cutting Words) counts for every creature of the roll.
+      return (Array.isArray(draft.damageReactions)?draft.damageReactions:[]).filter(row=>isDamageRollReaction(row)?damaged.size>0:damaged.has(row.targetId));
     }
     if(!draft || !["attack-damage","save-damage"].includes(draft.kind) || !draft.targetId) return [];
     const outcome=outcomeChoice();
@@ -387,7 +389,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
   const bossDamageReactionMissing=row=>{
     const effect=reactionTriggerEntry(row.reactionId)?.effect || {};
     if(Number.isInteger(effect.perSlotLevel)) return row.slotLevel==="";
-    return effect.kind==="reduce" && row.amount==="";
+    return ["reduce","reduce-roll"].includes(effect.kind) && row.amount==="";
   };
   // The totals after a reaction line changes; a group also redraws each creature's amount (lot R3b-4).
   function refreshBossDamageView() {
@@ -409,7 +411,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const lines=rows.map(row=>{
       const entry=reactionTriggerEntry(row.reactionId),effect=entry?.effect || {};
       const line=node("div","","damage-reaction");
-      const on=row.protectedName && row.protectedName!==row.reactorName?` su ${row.protectedName}`:"";
+      const on=isDamageRollReaction(row)?" al tiro":row.protectedName && row.protectedName!==row.reactorName?` su ${row.protectedName}`:"";
       const label=node("span",`${row.label} di ${row.reactorName}${on}`,"damage-reaction-label");label.title=entry?.rule || "";
       line.appendChild(label);
       if(effect.kind==="halve") line.appendChild(node("span","danno dimezzato","damage-reaction-effect"));

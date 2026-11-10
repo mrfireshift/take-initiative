@@ -125,3 +125,16 @@ test("spell damage in two parts: a reduction from the first part, each type with
     defenseFor: (type) => (type === "radiant" ? "resistance" : null), reactions: [field] });
   assert.equal(result.value, 4, "fire 4 to 0, radiant 10 less the last 1 is 9, resisted is 4");
 });
+
+// Cutting Words (PHB 2014): the bardic die is subtracted from the creature's roll, so before the save halves it.
+test("Cutting Words: a reduction of the roll, before the halving; its record says so", async () => {
+  const { adjustForDamageReactions, damageReactionAppliesTo, spellDamageWithReactions } = await import("../src/damageReactionCore.js");
+  const words = { reactionId: "cutting-words", reactorId: "bard", reactorName: "Piumazzo", amount: 4, targetId: "karmakar" };
+  const result = adjustForDamageReactions({ components: [{ id: "c1", type: "fire" }], inputs: { c1: 20 }, factor: "half", reactions: [words] });
+  assert.equal(result.inputs.c1, 8, "(20 − 4) / 2, not 20 / 2 − 4");
+  assert.deepEqual(result.records.map((record) => record.text), ["Parole Taglienti di Piumazzo: −4 al tiro"]);
+  assert.equal(damageReactionAppliesTo(words, "anyanca"), true, "every creature of the roll");
+  assert.equal(damageReactionAppliesTo({ reactionId: "protective-field", targetId: "karmakar" }, "anyanca"), false, "a creature's own reduction stays its own");
+  assert.equal(spellDamageWithReactions({ parts: [{ type: "fire", amount: 32 }], factor: "half", defenseFor: () => "resistance", reactions: [words] }).value, 7,
+    "(32 − 4) / 2 = 14, resisted 7");
+});

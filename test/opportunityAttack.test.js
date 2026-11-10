@@ -85,3 +85,13 @@ test("the prompt shows the movement's lot (R5)", async () => {
   const { REACTION_PROMPT_LOTS } = await import("../src/reactionPromptView.js");
   assert.ok(REACTION_PROMPT_LOTS.includes("R5"));
 });
+
+test("Movimento on: a monster's Opportunity Attack on a character, even with the other creatures' switch off", () => {
+  const items = [goblin, { ...mira, position: { x: 3, y: 0 } }];
+  const state = { round: 1, current: 1, order: ["goblin", "mira"] };
+  const event = { trigger: "move-leave", moverId: "mira", reactorIds: ["goblin"] };
+  const options = { triggers: { move: true }, actors: { pcs: true, npcs: false } };
+  assert.deepEqual(reactionCandidates(event, { items, state, options }).candidates.map((candidate) => candidate.reactionId), ["opportunity-attack"]);
+  const hit = { trigger: "hit", attackerId: "mira", targetIds: ["goblin"], range: "melee", attackRoll: true };
+  assert.deepEqual(reactionCandidates(hit, { items, state, options }).candidates, [], "the other triggers keep the switch");
+});

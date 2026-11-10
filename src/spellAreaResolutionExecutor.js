@@ -66,7 +66,7 @@ import {
   planHpBranchBeforeDamage,
 } from "./hpBranchSpellRules.js";
 import { spellUndeadTemporaryHpAmount } from "./spellTemporaryHpRules.js";
-import { spellDamageWithReactions } from "./damageReactionCore.js";
+import { damageReactionAppliesTo, spellDamageWithReactions } from "./damageReactionCore.js";
 import {
   magicalDamageDefensesForItem,
   spellDamageAfterDefense,
@@ -537,7 +537,7 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
         factor: factorName,
         defenseFor: (type) => (!spellHpDamageParts(hp) && reactionTypes.length > 1 ? null : spellDamageDefenseApplied(spellDamageDefenseRows({
           types: [type], defenses: magicalDamageDefensesForItem(item, META_KEY), ignoredTypes: hp?.ignoredDefenses?.[targetId] }))),
-        reactions: (Array.isArray(hp?.damageReactions) ? hp.damageReactions : []).filter((row) => row?.targetId === targetId),
+        reactions: (Array.isArray(hp?.damageReactions) ? hp.damageReactions : []).filter((row) => damageReactionAppliesTo(row, targetId)),
       });
       const reactionRecords = reacted ? reacted.records.map((record) => ({ id: targetId, ...record })) : [];
       const scaledChange = calculateQuickHPChange({

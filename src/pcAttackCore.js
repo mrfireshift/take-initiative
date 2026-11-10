@@ -7,7 +7,7 @@
 // its save and its pill, committed with the attack.
 import { ID } from "./constants.js";
 import { calculateQuickHPChange, QUICK_HP_MODES } from "./quickHpCore.js";
-import { adjustForDamageReactions } from "./damageReactionCore.js";
+import { adjustForDamageReactions, damageReactionAppliesTo } from "./damageReactionCore.js";
 import { takesDeathSaveDamage } from "./deathSaveCore.js";
 import { spellCasterHealingChange } from "./spellDamageHealingCore.js";
 import { sanitizeQuickAction, sanitizeQuickActions, QUICK_ACTION_ATTACK_DAMAGE_TYPES, QUICK_ACTION_VERSION, quickActionRechargeState,
@@ -2013,7 +2013,7 @@ export function pcAttackAreaPreview({
     const profileDefenses = damageDefensesForItem(member.item, META_KEY);
     const memberDefenses = pcAttackDefensesAgainst(attack, profileDefenses, member.item);
     const magicTypes = pcAttackAreaMagicIgnored(attack, member.item);
-    const memberReactions = (Array.isArray(damageReactions) ? damageReactions : []).filter((reaction) => reaction?.targetId === member.item.id);
+    const memberReactions = (Array.isArray(damageReactions) ? damageReactions : []).filter((reaction) => damageReactionAppliesTo(reaction, member.item.id));
     const total = member.outcome && factor !== "zero" && amountsReady
       ? bossDefendedDamage(components, inputs, factor === "half" ? "passed" : "hit", memberDefenses, magicTypes, false, false, memberReactions) : 0;
     const hp = Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax)
@@ -2121,7 +2121,7 @@ export function buildPcAttackAreaMutation({
     const evasion = pcAttackTargetEvasion(attack, member.item);
     const factor = areaFactor(attack, member.outcome, card, evasion);
     const memberReactions = factor === "zero" ? []
-      : (Array.isArray(damageReactions) ? damageReactions : []).filter((reaction) => reaction?.targetId === member.item.id);
+      : (Array.isArray(damageReactions) ? damageReactions : []).filter((reaction) => damageReactionAppliesTo(reaction, member.item.id));
     const damageComponents = defendedComponents(components, inputs, factor, member.item, pcAttackAreaMagicIgnored(attack, member.item),
       expectedDefenses?.[member.item.id], false, { spell: pcAttackSpellDamage(attack), reactions: memberReactions });
     const requested = damageComponents.reduce((sum, component) => sum + component.amount, 0);

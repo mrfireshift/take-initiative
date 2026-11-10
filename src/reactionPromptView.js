@@ -68,6 +68,7 @@ export function reactionPromptEffectText(candidate, items = []) {
     const dc = Math.floor(Number(cardOf(items, candidate.reactorId).spellSaveDC));
     return `TS di caratteristica da incantatore${Number.isInteger(dc) && dc > 0 ? ` CD ${dc}` : ""}: se lo fallisce, non ha effetto sul ladro, che lo ruba`;
   }
+  if (effect.kind === "reduce-roll") return short;
   return `${short}${onAlly}`;
 }
 

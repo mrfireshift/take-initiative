@@ -7,6 +7,8 @@
 // vulnerability after every other modifier. Halving and reductions follow the damage of each type, as the defenses do:
 // the points a piece loses to the rounding go back to the type's first piece. A reduction leaves the components in the
 // order the console shows them, only from the types it covers (decision E2), never below 0.
+// A reduction of the roll (Cutting Words: "subtract the number rolled from the creature's roll") comes before all of
+// them, the outcome's halving included, and is the same for every creature the roll damages (damageReactionAppliesTo).
 import { componentDamageAfterDefense, RESISTANCE_VULNERABILITY } from "./damageDefensesCore.js";
 import { reactionTriggerEntry } from "./reactionTriggerCatalog.js";
 
@@ -14,12 +16,21 @@ const text = (value, limit = 120) => String(value ?? "").trim().slice(0, limit);
 const halfDown = (value) => Math.floor(Math.max(0, Number(value) || 0) / 2);
 
 // The effect kinds a damage reaction may have in the catalog.
-export const DAMAGE_REACTION_KINDS = Object.freeze(["halve", "reduce", "resistance"]);
+export const DAMAGE_REACTION_KINDS = Object.freeze(["halve", "reduce", "reduce-roll", "resistance"]);
+
+// A reduction of the damage roll, not of one creature's damage (Cutting Words).
+export const isDamageRollReaction = (reaction) => reactionTriggerEntry(reaction?.reactionId)?.effect?.kind === "reduce-roll";
+
+// Whether a line of the draft counts for this creature: its own target, or every creature of the roll for a reduction
+// of the roll.
+export function damageReactionAppliesTo(reaction, targetId) {
+  return !!reaction && (isDamageRollReaction(reaction) || String(reaction.targetId ?? "") === String(targetId ?? ""));
+}
 
 // Canzone di Difesa (decision E4): 5 points for each level of the slot spent.
 export function damageReactionAmount(reaction) {
   const entry = reactionTriggerEntry(reaction?.reactionId);
-  if (entry?.effect?.kind !== "reduce") return 0;
+  if (!["reduce", "reduce-roll"].includes(entry?.effect?.kind)) return 0;
   if (Number.isInteger(entry.effect.perSlotLevel)) {
     const level = Math.floor(Number(reaction?.slotLevel));
     return Number.isInteger(level) && level >= 1 && level <= 9 ? level * entry.effect.perSlotLevel : 0;
@@ -45,7 +56,7 @@ export function normalizeDamageReactions(reactions) {
     list.push({
       reactionId: entry.id, reactorId, reactorName: text(value?.reactorName, 80) || "Creatura", featureId: text(value?.featureId, 220),
       kind, label: entry.label, types,
-      ...(kind === "reduce" ? { amount: damageReactionAmount(value) } : {}),
+      ...(kind === "reduce" || kind === "reduce-roll" ? { amount: damageReactionAmount(value) } : {}),
       ...(Number.isInteger(entry.effect.perSlotLevel) ? { slotLevel: Math.floor(Number(value?.slotLevel)) || null } : {}),
     });
   }
@@ -88,8 +99,24 @@ export function adjustForDamageReactions({ components = [], inputs = {}, factor 
   if (!list.length || factor === "zero") return { active: false, inputs, factor, resistanceTypes: [], records: [] };
   const rows = (Array.isArray(components) ? components : []).filter((component) => component?.id);
   let adjusted = { ...inputs };
-  if (factor === "half") adjusted = halveByType(rows, adjusted);
   const records = [];
+  // The roll first (Cutting Words): what the creature rolled, before the save halves it.
+  for (const reaction of list.filter((entry) => entry.kind === "reduce-roll")) {
+    let left = reaction.amount;
+    let taken = 0;
+    for (const component of rows) {
+      if (left <= 0) break;
+      const input = Number(adjusted[component.id]);
+      if (!Number.isFinite(input) || input <= 0) continue;
+      const take = Math.min(input, left);
+      adjusted[component.id] = input - take;
+      left -= take;
+      taken += take;
+    }
+    records.push({ reactionId: reaction.reactionId, reactorId: reaction.reactorId, amount: taken,
+      text: `${reaction.label} di ${reaction.reactorName}: −${taken} al tiro` });
+  }
+  if (factor === "half") adjusted = halveByType(rows, adjusted);
   for (const reaction of list.filter((entry) => entry.kind === "halve")) {
     adjusted = halveByType(rows, adjusted);
     records.push({ reactionId: reaction.reactionId, reactorId: reaction.reactorId, text: `${reaction.label} di ${reaction.reactorName}: danno dimezzato` });

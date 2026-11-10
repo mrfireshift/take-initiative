@@ -56,6 +56,7 @@ import { createReactionPrompt, reactionPromptCandidates, reactionPromptEffectTex
 import { loadMonsterReactions, loadReactionSceneContext } from "./reactionSceneContext.js";
 import { planReactionFeatureSpend, useReactionFeature } from "./reactionFeatureRuntime.js";
 import { reactionTriggerEntry } from "./reactionTriggerCatalog.js";
+import { isDamageRollReaction } from "./damageReactionCore.js";
 import { spellPanelDamageTypes } from "./spellDamageDefenseCore.js";
 import { MAGIC_MISSILE_SPELL_ID } from "./magicMissileCore.js";
 import { PRISMATIC_SPRAY_SPELL_ID } from "./prismaticSprayRules.js";
@@ -3281,13 +3282,14 @@ export function bootSpellUnifiedPanel(
   const activeCastDamageReactions = () => {
     if (castDamageReactionsKey !== castReactionKey()) return [];
     const damaged = new Set(castDamageTargets().map((target) => target.id));
-    return castDamageReactions.filter((row) => damaged.has(row.targetId));
+    // A reduction of the roll (Cutting Words) counts while the roll damages someone.
+    return castDamageReactions.filter((row) => (isDamageRollReaction(row) ? damaged.size > 0 : damaged.has(row.targetId)));
   };
   // A reduction asks the amount rolled at the table; Song of Defense the slot's level.
   const castDamageReactionMissing = (row) => {
     const effect = reactionTriggerEntry(row.reactionId)?.effect || {};
     if (Number.isInteger(effect.perSlotLevel)) return row.slotLevel === "";
-    return effect.kind === "reduce" && row.amount === "";
+    return ["reduce", "reduce-roll"].includes(effect.kind) && row.amount === "";
   };
   let castReactionContext = null;
   const refreshCastPrompt = () => {
@@ -3350,7 +3352,7 @@ export function bootSpellUnifiedPanel(
     const lines = rows.map((row) => {
       const entry = reactionTriggerEntry(row.reactionId), effect = entry?.effect || {};
       const line = node("div", "", "damage-reaction");
-      const on = row.protectedName && row.protectedName !== row.reactorName ? ` su ${row.protectedName}` : "";
+      const on = isDamageRollReaction(row) ? " al tiro" : row.protectedName && row.protectedName !== row.reactorName ? ` su ${row.protectedName}` : "";
       const label = node("span", `${row.label} di ${row.reactorName}${on}`, "damage-reaction-label");
       label.title = entry?.rule || "";
       line.append(label);

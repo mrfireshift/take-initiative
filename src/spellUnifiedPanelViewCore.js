@@ -8,7 +8,7 @@ import { spellCastTemporaryHpHint, spellCastTemporaryHpRollRange, spellCastTempo
 import { ID } from "./constants.js";
 import { buildSharedHpPreview } from "./sharedHpViewCore.js";
 import { PRISMATIC_SPRAY_SPELL_ID, prismaticSprayDamageRays } from "./prismaticSprayRules.js";
-import { spellDamageWithReactions } from "./damageReactionCore.js";
+import { damageReactionAppliesTo, spellDamageWithReactions } from "./damageReactionCore.js";
 import {
   spellActionDamageTypes,
   spellDamageAfterDefense,
@@ -547,7 +547,7 @@ function hpPreviewFor(
         factor,
         defenseFor: (type) => (!partsWritten && reactionTypes.length > 1 ? null : spellDamageDefenseApplied(spellDamageDefenseRows({
           types: [type], defenses: candidate.damageDefenses, ignoredTypes: session?.ignoredDefenses?.[candidate.key] }))),
-        reactions: (Array.isArray(session?.damageReactions) ? session.damageReactions : []).filter((row) => row?.targetId === candidate.key),
+        reactions: (Array.isArray(session?.damageReactions) ? session.damageReactions : []).filter((row) => damageReactionAppliesTo(row, candidate.key)),
       });
       let change = calculateQuickHPChange({
         mode,

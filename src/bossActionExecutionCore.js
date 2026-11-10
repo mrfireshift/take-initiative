@@ -7,7 +7,7 @@ import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem, mergeDamageDefenses, profileDamageDefensesForItem,
   EVASION_DEFENSE, evasionAppliesTo, evasionFactor, evasionForItem, withSpellDamageResistance } from "./damageDefensesCore.js";
-import { adjustForDamageReactions, defenseWithReactionResistance } from "./damageReactionCore.js";
+import { adjustForDamageReactions, damageReactionAppliesTo, defenseWithReactionResistance } from "./damageReactionCore.js";
 
 export const BOSS_ACTION_STATE_FIELD = "bossActionState";
 // The seam drawing kept on the map (Cucitura del Non-Luogo): { sourceId, actionInstanceId } of its boss and use.
@@ -698,7 +698,7 @@ export function buildBossActionGroupMutation({
     const outcome = outcomes[target.id];
     const immune = immuneIds.has(target.id);
     const factor = factorFor(target);
-    const targetReactions = (Array.isArray(damageReactions) ? damageReactions : []).filter((reaction) => reaction?.targetId === target.id);
+    const targetReactions = (Array.isArray(damageReactions) ? damageReactions : []).filter((reaction) => damageReactionAppliesTo(reaction, target.id));
     const damageComponents = defendedComponents(componentsFor(target),inputs,factor,target,ignoredDefenses?.[target.id] || [],
       expectedDefenses === undefined ? undefined : expectedDefenses?.[target.id] || {},markedIds.includes(target.id),{reactions:targetReactions});
     if (targetReactions.length) groupReactionRecords.push(...adjustForDamageReactions({components:componentsFor(target),inputs,factor,reactions:targetReactions})

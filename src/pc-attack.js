@@ -44,6 +44,7 @@ import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageShortNoti
 import { renderAttackReactions } from "./attackReactionsView.js";
 import { createReactionPrompt, reactionPromptEffectText } from "./reactionPromptView.js";
 import { reactionTriggerEntry } from "./reactionTriggerCatalog.js";
+import { isDamageRollReaction } from "./damageReactionCore.js";
 import { loadMonsterReactions, loadReactionSceneGrid } from "./reactionSceneContext.js";
 import { pcBreathAreaRuleId, pcMonsterAreaRuleId } from "./pcAttackBreathId.js";
 import "./popoverDrag.js";
@@ -430,7 +431,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // Lot R3b-4: an area's creatures with a save outcome, each with its own lines.
     if(draft && isArea()) {
       const damaged=new Set(areaMembers().filter(member=>["failed","passed"].includes(member.outcome)).map(member=>member.item.id));
-      return rows.filter(row=>damaged.has(row.targetId));
+      // A reduction of the roll (Cutting Words) counts for every creature of the roll.
+      return rows.filter(row=>isDamageRollReaction(row)?damaged.size>0:damaged.has(row.targetId));
     }
     if(!draft || !draft.targetId || !draft.outcome || draft.outcome==="miss") return [];
     return rows.filter(row=>row.targetId===draft.targetId);
@@ -441,7 +443,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const damageReactionMissing=row=>{
     const effect=reactionTriggerEntry(row.reactionId)?.effect || {};
     if(Number.isInteger(effect.perSlotLevel)) return row.slotLevel==="";
-    return effect.kind==="reduce" && row.amount==="";
+    return ["reduce","reduce-roll"].includes(effect.kind) && row.amount==="";
   };
   // 3C: an area attack (area cantrip, Piercing Arrow): the creatures ticked with their save outcomes, one damage roll.
   const isArea=()=>!!resolved()?.area;
@@ -2261,7 +2263,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const entry=reactionTriggerEntry(row.reactionId),effect=entry?.effect || {};
       const line=node("div","","damage-reaction");
       // On another creature (an ally, or a creature of an area): whose damage it changes.
-      const on=row.protectedName && row.protectedName!==row.reactorName?` su ${row.protectedName}`:"";
+      const on=isDamageRollReaction(row)?" al tiro":row.protectedName && row.protectedName!==row.reactorName?` su ${row.protectedName}`:"";
       const label=node("span",`${row.label} di ${row.reactorName}${on}`,"damage-reaction-label");label.title=entry?.rule || "";
       line.append(label);
       if(effect.kind==="halve") line.append(node("span","danno dimezzato","damage-reaction-effect"));
