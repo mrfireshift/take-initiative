@@ -125,7 +125,7 @@ Antipatia/simpatia hanno i loro trigger d'ingresso e di inizio turno.
 Tempesta di ghiaccio e Scossa tellurica lasciano una zona di terreno
 difficile dopo il TS del lancio, anche quando la Tempesta la lancia il boss
 Auril. Bagliore solare e Drago illusorio ripetono la linea e il soffio con
-un'azione attiva, come Invocare il fulmine.
+un'azione attiva, come Invocare il fulmine (il drago, dall'11 novembre, da una pedina: CAP-ORIGIN).
 
 Con il lotto L4 la console attacchi dei PG registra anche sette incantesimi
 d'attacco di livello (`src/pcAttackSpellCatalog.js`): Infliggi ferite, Dardo
@@ -229,6 +229,34 @@ una barra PF: due figli `bar` e `bar-fill` con `attachedTo` sul pezzo e senza re
 membership e trigger li saltano; `validateChildZoneContainment` li lascia passare prima di guardare
 l'area. Ogni pezzo e ogni residuo ha il suo `gridOrigin`, l'angolo di griglia più vicino al suo
 inizio: `buildArea` cerca le caselle solo attorno all'angolo.
+
+CAP-ORIGIN (11 novembre). Le azioni che non partono dal caster. Rampicante Afferrante e Segugio
+fedele sono pedine (`SPELL_BOARD_TOKEN_RULES`, una casella entro 9 m, `movementMeters: 0`) con
+le loro azioni del ⚡ misurate dalla pedina (`rangeOrigin: "root"`): la Frusta `single-save`
+senza danno, con `failureNotice` accanto al pulsante del popup, e il Morso `single-attack` con
+economia `gm`. I promemoria di turno (`TURN_PROMPT_SPELLS`, `ownerContext: "boardToken"`) le
+propongono; il Segugio ha un `leash` di 30 m: `spellTurnPromptRequests` riceve `distanceMeters`
+(dal controller, solo con un segugio sulla mappa) e mostra il morso entro i 30 m, il congedo
+oltre. Il Soffio del Drago non è un'azione del ⚡: `src/spellGrantedActionsCore.js` costruisce
+dalla pill di chi soffia un'azione con TS nella forma di quella di un mostro (`save`, `saveDC`
+del caster, `area` cono da 15 ft con `origin: "self"`, `saveHalf`), con id `spell-grant:<istanza>`,
+che la console attacchi elenca in Attacchi (`grantedActions` di `pcAttackPickerEntries`) e
+ricostruisce all'esecuzione. L'energia è la scelta del lancio (`castContext.choice`). La Sfera
+congelante è una fase preparata con `immediateCast`: «Scaglia subito» è la fase `cast` di
+sempre, «Trattieni il globo» la `prepare`, e la risoluzione dalla pill passa da
+`SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS` come Simbolo. Per una risoluzione preparata di una regola
+`instant` senza concentrazione l'esecutore aggiunge `spell:remove-instance` della pill preparata
+nello stesso comando. La Consegna del globo è un'azione di catalogo con `holder: true`: riscrive la
+pill del caster con `spell:upsert` (`castContext.holder`, il riepilogo ricalcolato con «In mano a»,
+`expectedCastContext` come guardia), senza spostarla. Il Drago illusorio è una pedina Enorme (`spaceCells: 3`, `speedCheck`) con un
+`castTargeting` dopo la posa: è passato da `AREA_SAVE_SPELL_IDS` a `MULTI_TARGET_SAVE_SPELL_IDS`, e
+il TS su Saggezza del lancio va ai nemici spuntati. La sua scelta del lancio è il tipo del soffio
+(`AREA_SAVE_RULE_CHOICES` con `summaryLabel`, che l'esecutore d'area tiene in `castContext.choice`).
+Il ⚡ del soffio dichiara `placementOrigin: "root"`: il popup chiede la sagoma con la pedina come
+origine e `validateSaveArea` misura da lei; `damageTypeByChoice` scrive nel payload il tipo scelto,
+così popup, difese ed esecutore lo leggono come quello di ogni altra azione. Chi ha scoperto
+l'illusione ha l'effetto `illusory-dragon-discerned` legato all'istanza (`saveAdvantageEffectId`),
+che il popup scrive nella sua riga.
 
 CAP-MULTIAREA è la regola generale delle aree multiple di un lancio: la regola
 d'area dichiara `placement.multiArea` (`count`, `minCount`, `adjacency: "side"`,
@@ -657,6 +685,9 @@ automaticamente.
 | Spada arcana | Movimento 6 m, portata 1,5 m, 3d10 forza | Concentrazione |
 | Lama del Disastro | Movimento 9 m, portata 1,5 m, due attacchi da 4d12 | Critico 18–20 e attraversamento barriere |
 | Mano arcana | Movimento 18 m, portata 1,5 m | CA 20, PF propri, quattro modalità e bersaglio associato |
+| Rampicante Afferrante | Ferma, frusta entro 9 m | Concentrazione, `Azione Bonus` nella mini-card |
+| Segugio fedele | Fermo, morso entro 1,5 m, 4d8 perforanti | 8 ore senza concentrazione, congedo oltre 30 m dal caster |
+| Drago illusorio | Enorme, movimento 18 m, soffio a cono di 18 m dal suo spazio | Concentrazione, tipo scelto al lancio, immune a tutto |
 
 Creazione, aggiornamenti di Mano arcana, terminazione, cronologia e Undo usano
 la mutazione coordinata. Se una pedina viene cancellata accidentalmente, la
@@ -724,6 +755,10 @@ attive per 26 definizioni.
 | Spada arcana | Riferimento attacco sulla pedina |
 | Lama del Disastro | Riferimento dei due attacchi sulla pedina |
 | Mano arcana | Interposta, Possente, Afferra/Stritola, Pugno |
+| Rampicante Afferrante | Frusta (TS Destrezza dal rampicante) |
+| Segugio fedele | Morso a inizio turno; Congeda il segugio |
+| Sfera congelante | Lancia il globo (fase preparata); Consegna il globo |
+| Drago illusorio | Soffio dalla pedina; Ha scoperto l'illusione |
 
 Per Sguardo penetrante, i bersagli già usati vengono ricordati e Nauseato
 genera il proprio reminder di fine turno.

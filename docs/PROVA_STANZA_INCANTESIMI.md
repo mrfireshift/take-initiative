@@ -177,3 +177,20 @@ Al banco hanno girato tutti e tre, ma il banco non disegna le zone: qui si guard
 - [ ] **Soffitto:** ⚡ **Soffitto**: il bersaglio è già quello sulla colonna. Con il danno, `Trattenuto` e `Azione: prova For o Des`. Riaperto, il ⚡ non trova più nessuno.
 - [ ] **Danneggia colonna:** una colonna a 0 PF sparisce e lascia le macerie, 3 metri attorno. Le macerie si vedono ma non rallentano il movimento: il costo lo conti a mano.
 - [ ] **Termina:** con Termina spariscono colonne e macerie, `Sulla colonna` e `Trattenuto`.
+
+## 13. Azioni da un altro punto (CAP-ORIGIN)
+
+Al banco hanno girato tutti e quattro, compresi il congedo oltre 30 m e Annulla del globo. Qui si guarda come appaiono le due pedine nuove sulla mappa vera, la console di un giocatore con il Soffio e la misura dei 30 m su una mappa vera.
+
+- [ ] **Rampicante:** lancialo al 4° livello: **Posiziona token** entro 9 m, e sulla mappa compare la pedina con l'immagine del rampicante, centrata sulla casella. Sotto la card del caster la mini-card `Rampicante afferrante` dice `(Azione Bonus)`.
+- [ ] **Frusta:** subito dopo il lancio si apre il popup `Frusta` sulla pedina. Il menu dei bersagli elenca solo chi sta entro 9 m dal rampicante. Con `Fallito` accanto al pulsante compare `Trascinala di 6 m in linea retta verso il rampicante: il token lo sposti tu`; **Applica** non cambia i PF. Al turno dopo del caster il popup torna da solo.
+- [ ] **Segugio:** lancialo accanto a un goblin: pedina con l'immagine del segugio, pill `Segugio fedele` senza `C`. Nel turno del lancio non succede niente; al turno dopo del caster il popup `Morso` sulla pedina, `Attacco · 1,5 m dal segugio`, senza la riga dell'azione. Con `Colpito` e 18 il goblin perde 18 PF.
+- [ ] **Guinzaglio:** porta il caster a più di 30 m dal segugio e passa al suo turno: invece del morso compare `Sei a più di 30 m dal segugio: l'incantesimo finisce.` con **Congeda il segugio**, che toglie pill e pedina. Annulla le rimette.
+- [ ] **Soffio del Drago:** lancialo su un PG con **Fuoco** al 3° livello: la sua pill dice `Soffio: fuoco`. Nella sua console attacchi, sotto Attacchi, `Soffio del Drago (fuoco)`: `Cono di 4,5 m · TS Destrezza (CD del caster) · metà se superato`, danno `Fuoco · 4d6`. Il cono parte dal PG; registrato, chi supera prende metà. Quando il caster perde la concentrazione, la voce sparisce dalla console.
+- [ ] **Globo trattenuto:** **Sfera congelante**, **Fase: Trattieni il globo**, il pulsante dice `Trattieni il globo`: nessuna area, la pill `Globo di Otiluke / 10d6 freddo` sul caster con `Esplode al round N`, dieci round dopo quello del lancio.
+- [ ] **Consegna il globo:** seleziona un PG e premi il ⚡ **Consegna il globo**: la pill resta sul caster e nei suoi dettagli compare `In mano a: …`. Consegnandolo di nuovo al caster la riga sparisce; Annulla torna indietro di una consegna.
+- [ ] **Lancia il globo:** ⚡ **Lancia il globo** sulla pill: il pannello passa all'area con il TS su Costituzione, la sfera di 18 m si posa dove si rompe il globo, anche con il caster dentro. Registrati gli esiti, la pill sparisce; Annulla la rimette in mano. **Scaglia subito** resta il lancio di prima.
+- [ ] **Drago illusorio:** lancialo all'8° livello con **Necrotici**: la pedina enorme del drago (3×3) si posa entro 36 m, con l'immagine centrata. Poi spunta due nemici: TS su Saggezza, chi fallisce è `Spaventato` con il promemoria `TS solo senza linea di vista`. La pill del caster dice `Soffio: necrotici` e ha la `C`.
+- [ ] **Soffio:** il popup `Soffio` si apre sulla pedina già nel turno del lancio. **Posiziona area**: il cono di 18 m parte dal bordo del drago, non dal caster; un cono che parte lontano dal drago viene rifiutato. `Necrotici · 7d6`; un non morto con immunità ai necrotici mostra `Immune`.
+- [ ] **Movimento:** trascina la pedina: il conteggio della velocità segue i 18 m del drago nel turno del caster, come per la Mano arcana.
+- [ ] **Illusione scoperta:** seleziona un PG, ⚡ **Ha scoperto l'illusione**: il PG ha la pill `Vede oltre il drago`; al soffio dopo la sua riga dice `· vantaggio`. Termina toglie pedina, pill e `Vede oltre il drago`.

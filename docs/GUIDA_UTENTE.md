@@ -213,9 +213,8 @@ quel personaggio.
   **Necrotici**, e la seconda casella ne prende il nome. Colpo infuocato agli slot alti
   dice sotto le caselle quanti d6 aggiungere, al fuoco o ai radiosi, dove vuoi tu.
 - Il conto resta a te, e il danno va scritto già ridotto, quando il plugin non conosce
-  il tipo: Guardiani spirituali (radiosi o necrotici), il Soffio di Drago illusorio
-  (scelto al lancio), Evoca raffica ed Evoca pioggia di armi (quello dell'arma). Qui non
-  compare nessun chip.
+  il tipo: Guardiani spirituali (radiosi o necrotici), Evoca raffica ed Evoca pioggia di
+  armi (quello dell'arma). Qui non compare nessun chip.
 - Protezione dai veleni al lancio toglie anche **Avvelenato**: una sola volta se
   la creatura ne ha più d'uno, perché neutralizza un veleno solo, e il plugin
   sceglie il primo in elenco. Nulla se «Applica condizioni dell'incantesimo» è
@@ -939,6 +938,44 @@ Gli incantesimi, uno per uno:
   restano finché non le distruggi o non premi Termina. Una colonna a 0 PF lascia le
   **macerie**, 3 metri attorno: sono disegnate sulla mappa, ma il costo del terreno
   difficile lo conti tu. Altezza delle colonne ed elevazione dei token restano al tavolo.
+
+Cinque incantesimi agiscono da un punto che non è il caster:
+
+- **Rampicante Afferrante**: il lancio posa la pedina del rampicante entro 9 m. Il ⚡ **Frusta** è
+  pronto già al lancio e poi, come azione bonus, a ogni turno del caster, quando te lo propone il
+  promemoria: scegli una creatura entro 9 m dal rampicante e il suo TS su Destrezza. Se fallisce,
+  accanto al pulsante leggi di trascinarla di 6 m in linea retta verso il rampicante: il token lo
+  sposti tu. Nessun danno.
+- **Segugio fedele**: il lancio posa la pedina del segugio entro 9 m, visibile a tutti; dura 8 ore
+  e non chiede concentrazione. Dal turno successivo, a ogni inizio turno del caster il promemoria
+  propone il **Morso**: una creatura ostile entro 1,5 m dal segugio, l'attacco tirato al tavolo
+  (modificatore da incantatore + competenza del caster) e, se colpisce, 4d8 perforanti. Non costa
+  azioni. Se a inizio turno il caster è a più di 30 m dal segugio, il promemoria propone invece
+  **Congeda il segugio**: l'incantesimo è finito. Lo stesso congedo è nel ⚡. L'abbaio lo gestisci tu.
+- **Soffio del Drago**: al lancio scegli l'energia, e la pill della creatura toccata la dice
+  («Soffio: fuoco»). Il soffio lo usa lei, con la sua azione: nella sua **console attacchi**, sotto
+  Attacchi, trovi **Soffio del Drago (fuoco)**, con il cono di 4,5 m che parte dal suo token, il TS
+  su Destrezza con la CD del caster e i dadi dello slot. Sparisce quando finisce la concentrazione.
+  Se il caster non ha la CD sulla scheda, il soffio resta al tavolo.
+- **Sfera congelante**: nel pannello compare la **Fase**. **Scaglia subito** è il lancio di sempre;
+  **Trattieni il globo** mette sul caster la pill del globo, senza scadenza, con il round in cui
+  esplode da solo. Quando il globo viene lanciato, o esplode, premi **Lancia il globo** nel ⚡ della
+  pill: posizioni la sfera di 18 m dove si rompe e registri gli esiti, come per Simbolo. Chi lo
+  lancia è sempre dentro la sfera. La pill sparisce e Annulla la rimette. Quando il globo passa di
+  mano, seleziona chi lo riceve e premi il ⚡ **Consegna il globo**: la pill resta sul caster e dice
+  «In mano a: Mira»; consegnandolo di nuovo al caster la riga sparisce. La gittata di 12 m da chi lo
+  tiene, il globo posato e il ghiaccio sull'acqua restano al tavolo.
+- **Drago illusorio**: al lancio scegli il tipo del soffio (acido, freddo, fuoco, fulmine,
+  necrotici o veleno) e posi la pedina del drago, enorme, entro 36 m. Poi spunti i nemici che lo
+  vedono e registri il loro TS su Saggezza: chi fallisce è Spaventato per 1 minuto, con il
+  promemoria del TS a fine turno quando non lo vede più. La pill del caster dice il tipo
+  («Soffio: necrotici»). Il popup **Soffio** si apre sulla pedina già nel turno del lancio e poi a
+  ogni turno del caster: sposti il drago fino a 18 m (il conteggio della velocità li segue), poi
+  posizioni il cono di 18 m, che parte dal bordo del drago, e registri i TS su Intelligenza; i 7d6
+  sono del tipo scelto, con le resistenze di ognuno. Se il caster sta nel cono, lo prende anche
+  lui. Quando una creatura supera la prova di Indagare per smascherare il drago, premi il ⚡
+  **Ha scoperto l'illusione** con lei selezionata: nel popup del soffio la sua riga dice
+  «vantaggio». La linea di vista resta a te.
 
 ### Azioni dalla pill sulla card
 

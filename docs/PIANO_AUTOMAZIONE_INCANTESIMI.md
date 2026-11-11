@@ -12,7 +12,7 @@ li aggiorna con il lavoro di ottobre e risponde a due domande:
 
 La seconda è risolta (sezione 2). La prima è un piano a lotti: i lotti L1–L4
 sono fatti (sezioni 5.1 e 5.2), L5+ procede una capacità per volta (sezione 5.3,
-CAP-LINK, CAP-HP-BRANCH, CAP-CLEANSE, CAP-RESOURCE, CAP-REACTION, CAP-TEMP, CAP-STABILIZE, CAP-TERRAIN, CAP-MULTIAREA, CAP-TELEPORT e CAP-STRUCTURE fatte, con tre capacità singole). Chi lavora a
+CAP-LINK, CAP-HP-BRANCH, CAP-CLEANSE, CAP-RESOURCE, CAP-REACTION, CAP-TEMP, CAP-STABILIZE, CAP-TERRAIN, CAP-MULTIAREA, CAP-TELEPORT, CAP-STRUCTURE e CAP-ORIGIN fatte, con tre capacità singole). Chi lavora a
 un lotto parte dalle note pratiche della sezione 8.
 
 Il perimetro è quello di sempre: un **tracker assistito**. Dadi, linea di
@@ -33,10 +33,10 @@ conferma.
 | Da verificare | 2 | Testo o perimetro delle regole mancanti. |
 | **Totale** | **477** | **Tutti lanciabili dal libro, dalle azioni rapide e dal pannello, con il loro slot.** |
 
-Il lavoro di automazione residuo è di **28 incantesimi** (16 + 12) più i 2 da
+Il lavoro di automazione residuo è di **24 incantesimi** (12 + 12) più i 2 da
 verificare, contro i 152 di settembre: nel frattempo la console attacchi ha
 chiuso 17 trucchetti, Prigione Mentale è stata completata, i lotti L1–L4
-hanno chiuso altri 50 incantesimi, CAP-LINK altri 8, CAP-HP-BRANCH altri 5, CAP-CLEANSE altri 4, CAP-RESOURCE altri 5, CAP-REACTION altri 6, CAP-TEMP altri 5, CAP-STABILIZE altri 6, tre capacità singole altri 3, CAP-TERRAIN altri 4, CAP-MULTIAREA altri 2, CAP-TELEPORT altri 4 e CAP-STRUCTURE altri 3.
+hanno chiuso altri 50 incantesimi, CAP-LINK altri 8, CAP-HP-BRANCH altri 5, CAP-CLEANSE altri 4, CAP-RESOURCE altri 5, CAP-REACTION altri 6, CAP-TEMP altri 5, CAP-STABILIZE altri 6, tre capacità singole altri 3, CAP-TERRAIN altri 4, CAP-MULTIAREA altri 2, CAP-TELEPORT altri 4, CAP-STRUCTURE altri 3 e CAP-ORIGIN altri 4.
 
 Ordine consigliato, dal più sicuro al più costoso:
 
@@ -46,7 +46,7 @@ Ordine consigliato, dal più sicuro al più costoso:
 | L2 ✓ | 14 | Cure, TS con danno, condizioni che finiscono al danno, TS ripetuti (fatto il 22 ottobre) | Sì, dal comando ad area esistente |
 | L3 ✓ | 12 | Zone e aree persistenti, due azioni ad area ripetibili (fatto il 22 ottobre) | Sì, dai percorsi di zona e azioni attive esistenti |
 | L4 ✓ | 7 | Incantesimi d'attacco nella console attacchi, con il loro slot (fatto il 22 ottobre) | Sì, dalla console attacchi; Tocco del vampiro cura il caster |
-| L5+ | 16 | Una capacità condivisa per volta (sezione 5.3); CAP-LINK fatta il 22 ottobre, CAP-HP-BRANCH e CAP-CLEANSE il 23, CAP-RESOURCE e il lotto 1 di CAP-REACTION il 28, il lotto 2 il 31, CAP-TEMP tra il 31 ottobre e il 3 novembre, CAP-STABILIZE, tre capacità singole e CAP-TERRAIN il 3 novembre, CAP-MULTIAREA, Minuscole meteore e CAP-TELEPORT il 6 novembre, CAP-STRUCTURE il 7 | Spesso |
+| L5+ | 12 | Una capacità condivisa per volta (sezione 5.3); CAP-LINK fatta il 22 ottobre, CAP-HP-BRANCH e CAP-CLEANSE il 23, CAP-RESOURCE e il lotto 1 di CAP-REACTION il 28, il lotto 2 il 31, CAP-TEMP tra il 31 ottobre e il 3 novembre, CAP-STABILIZE, tre capacità singole e CAP-TERRAIN il 3 novembre, CAP-MULTIAREA, Minuscole meteore e CAP-TELEPORT il 6 novembre, CAP-STRUCTURE il 7, CAP-ORIGIN l'11 | Spesso |
 
 ## 2. Registrare il lancio di qualunque incantesimo (fatto)
 
@@ -226,8 +226,8 @@ a mano per Controllare venti, sono ora un elenco di dati
   salta le creature che non sono dei tipi scelti.
 - Bagliore solare («Nuova linea»: TS Costituzione, 6d8 radiosi, Accecato) e
   Drago illusorio («Soffio» con l'azione bonus: TS Intelligenza, 7d6) hanno
-  l'azione ripetibile e il promemoria di inizio turno. Il tipo del soffio è
-  quello scelto al lancio, che l'azione non conosce: lo indica il GM.
+  l'azione ripetibile e il promemoria di inizio turno. Dall'11 novembre il drago
+  è una pedina e il tipo del soffio quello scelto al lancio (CAP-ORIGIN, O6).
 - Tempesta di ghiaccio e Scossa tellurica sono zone: il TS e il danno del
   lancio, poi il terreno difficile fino alla fine del prossimo turno del
   caster (Tempesta) o finché non viene sgomberato (Scossa). Anche il boss
@@ -311,7 +311,7 @@ Una capacità per volta, con i suoi test di contratto, poi la famiglia.
 | CAP-TERRAIN ✓ (4 di 6) | 6 (4) | Modalità di terreno: Crescita vegetale, Muro d'acqua, Trasmutare roccia, Simbolo, tutti fatti; Parlare con i vegetali è tra i tracciati e Boschetto druidico tra i su misura (decisione T6) | Medio |
 | CAP-STABILIZE ✓ | 6 (6) | Stabilizzare, riportare a 1 PF, penalità che scendono ai riposi: Salvare i morenti, Rinascita, Rianimare morti, Reincarnazione, Resurrezione, Resurrezione pura, tutti fatti | Alto: HP |
 | CAP-TELEPORT ✓ | 4 (4) | Teletrasporto attivo o composito: Passo del tuono, Passo remoto, Portale arcano, Colpo del Vento d'Acciaio (in console), tutti fatti | Alto |
-| CAP-ORIGIN | 4 (3) | Azione da un'origine diversa dal caster: Sfera congelante, Soffio del drago, Rampicante afferrante, Segugio fedele | Medio |
+| CAP-ORIGIN ✓ | 4 (4) | Azione da un'origine diversa dal caster: Sfera congelante, Soffio del drago, Rampicante afferrante, Segugio fedele, tutti fatti | Medio |
 | CAP-MULTIAREA ✓ | 2 (2) | Più aree in un lancio, ogni creatura una volta: Tempesta di fuoco, Sciame di meteore, tutti fatti; Minuscole meteore non ne ha bisogno (ogni meteora è un'esplosione a sé) ed è in CAP-RESOURCE | Medio |
 | CAP-STRUCTURE ✓ | 3 (3) | Segmenti con PF e crollo: Muro di ghiaccio, Muro di pietra, Ossa della terra, tutti fatti | Alto |
 | CAP-SEQUENCE | 2 (2) | Effetto che cambia a ogni round: Tempesta di vendetta, Tsunami | Medio |
@@ -745,6 +745,60 @@ ghiaccio, le creature racchiuse, la permanenza del Muro di pietra dopo 10 minuti
 
 Test: `test/capStructure.test.js`.
 
+**CAP-ORIGIN, fatta l'11 novembre.** Studio e decisioni D1–D9 del 10 novembre, approvate
+«come consigli», in quattro lotti. Le azioni che non partono dal caster sono di due tipi: da
+una cosa sulla mappa (il segugio, il rampicante), che il motore misura già dalla radice
+(`rangeOrigin: "root"`), e da un'altra creatura che usa la sua azione (il Soffio, il globo).
+
+- **Rampicante Afferrante (O1).** Una pedina di una casella entro 9 m (`spellBoardTokenCore.js`,
+  con l'immagine data dall'utente), concentrazione. ⚡ «Frusta», disponibile già al lancio e poi
+  come azione bonus a ogni turno del caster, anche dal promemoria: TS Destrezza di una creatura
+  entro 9 m dal rampicante, nessun danno. Se fallisce, accanto al pulsante del popup compare
+  «Trascinala di 6 m in linea retta verso il rampicante: il token lo sposti tu» (`failureNotice`,
+  D6: ogni spinta resta a mano).
+- **Segugio fedele (O2).** Una pedina di una casella entro 9 m, 8 ore senza concentrazione, visibile
+  a tutti (D4). A ogni inizio turno del caster, dal turno dopo il lancio, il promemoria «Morso»:
+  un attacco tirato al tavolo contro una creatura entro 1,5 m dal segugio, 4d8 perforanti, senza
+  costo d'azione (economia `gm`). Se a inizio turno il caster è a più di 30 m dal segugio, il
+  promemoria offre «Congeda il segugio» al posto del morso (D5, `leash` nel registro dei promemoria,
+  misurato solo quando il promemoria si calcola); lo stesso congedo è nel ⚡. L'abbaio resta al
+  tavolo. Il testo italiano diceva «Piccola o inferiore»: ora «Piccola o superiore», come il
+  manuale (D9).
+- **Soffio del Drago (O3).** L'energia si sceglie al lancio (acido, freddo, fuoco, fulmine,
+  veleno) e la pill di chi soffia la dice («Soffio: fuoco»). Il soffio è un'azione della creatura
+  toccata: compare in «Attacchi» nella sua console attacchi (D1), costruita al volo dalla pill
+  (`src/spellGrantedActionsCore.js`) come un'azione con TS di un mostro: cono di 4,5 m dal suo
+  token, TS Destrezza con la CD del caster scritta al lancio, 3d6 (+1d6 per slot sopra il 2°),
+  metà se superato, con le difese dei bersagli. Conta anche per l'apertura della console nel suo
+  turno. Senza la CD del caster il soffio resta al tavolo.
+- **Sfera congelante (O4).** Al lancio due fasi: «Scaglia subito», il lancio di sempre, e
+  «Trattieni il globo» (`immediateCast` in `spellCastPhaseCore.js`). Il globo è una pill sul
+  caster senza scadenza, con il round in cui esplode («Esplode al round 12», D8: niente
+  detonazione automatica). Il suo ⚡ «Lancia il globo» apre nel pannello la sfera di 18 m, come
+  il glifo di Simbolo: TS Costituzione, 10d6 freddo (+1d6 per slot sopra il 6°), anche su chi
+  lancia, che è sempre dentro; la pill si chiude nello stesso comando e Annulla la rimette in mano.
+  Il lancio sta nel ⚡ e non nella console perché la console non mette mai l'attaccante nella sua
+  area, mentre il globo lo prende sempre. Il ⚡ «Consegna il globo» (D7, deciso l'11 novembre)
+  scrive chi lo tiene sulla pill del caster («In mano a: Mira», `castContext.holder`) senza
+  spostarla, perché l'esplosione cerca il globo sul caster; restituito al caster, la riga sparisce.
+- **Drago illusorio (O6).** Studio dell'11 novembre, D1–D7 approvate, con l'immagine data
+  dall'utente. Il drago è una pedina Enorme di 3×3 caselle entro 36 m, che occupa il suo spazio e
+  si muove di 18 m nel turno del caster, contati come quelli della Mano arcana; non vola, non ha
+  PF né CA. Al lancio si sceglie il tipo del soffio (le sei energie del testo, al posto della
+  vecchia variante «Spaventato / solo danno») e, dopo aver posato il drago, il GM spunta i nemici
+  che lo vedono: TS Saggezza, Spaventato per 1 minuto con il promemoria a fine turno senza linea
+  di vista. Il ⚡ «Soffio», anche nel turno del lancio e dal promemoria sulla pedina, disegna il
+  cono di 18 m dal bordo del drago (`placementOrigin: "root"`, D4): TS Intelligenza, 7d6 del tipo
+  scelto con le difese, il caster compreso se è nel cono. Il ⚡ «Ha scoperto l'illusione» dà a una
+  creatura «Vede oltre il drago», e nel popup del soffio la sua riga dice «vantaggio» (D6).
+
+Rimasti fuori: la gittata di 12 m da chi tiene il globo, il globo posato,
+il ghiaccio sull'acqua, l'abbaio del segugio, il trascinamento automatico, un mostro alleato senza
+CD del caster che soffia; del drago, la linea di vista, la prova di Indagare e il soffio a metà
+movimento (il GM sposta la pedina, soffia e finisce il movimento).
+
+Test: `test/capOrigin.test.js` e, per il globo con la Cronologia vera, `test/spellSlotSpendUndo.test.js`.
+
 L'ordine consigliato resta quello dell'audit (LINK, HP-BRANCH, CLEANSE,
 RESOURCE), con CAP-ATTACK sostituita dalla console attacchi (L4). Le capacità
 che toccano gli HP (HP-BRANCH, REACTION, TEMP, MAXHP, STABILIZE) vanno
@@ -939,7 +993,7 @@ lotto. Gli incantesimi senza lavoro residuo sono elencati per livello.
 
 Nessuno: i lotti L1–L3 li hanno chiusi tutti il 22 ottobre.
 
-### Dopo una capacità condivisa (16)
+### Dopo una capacità condivisa (12)
 
 Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi la famiglia si completa con i dati.
 
@@ -947,17 +1001,13 @@ Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi l
 | --- | --- | --- | --- |
 | Aiuto (`aid`) | 2° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
 | Calmare emozioni (`calm-emotions`) | 2° | CAP-SUPPRESSION: sospendere condizioni senza toglierle. | L5+ |
-| Soffio del Drago (`xanathar-soffio-del-drago`) | 2° | CAP-ORIGIN: azione da un'origine diversa dal caster. | L5+ |
 | Trasferimento di Vita (`xanathar-trasferimento-di-vita`) | 3° | CAP-RELATION: danno al caster, cura doppia al bersaglio. | L5+ |
-| Rampicante Afferrante (`phb2014-rampicante-afferrante`) | 4° | CAP-ORIGIN: azione da un'origine diversa dal caster. | L5+ |
-| Segugio fedele (`faithful-hound`) | 4° | CAP-ORIGIN: azione da un'origine diversa dal caster. | L5+ |
 | Sfera Acquea (`xanathar-sfera-acquea`) | 4° | CAP-CARRIAGE: creature trasportate ed espulse dalla zona. | L5+ |
 | Costrizione (`geas`) | 5° | CAP-CALENDAR: limiti per giorno o riposo. | L5+ |
 | Dissolvi il bene e il male (`dispel-evil-and-good`) | 5° | CAP-CLEANSE: scegliere un effetto attivo e terminarlo. | L5+ |
 | Ristorare superiore (`greater-restoration`) | 5° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
 | Banchetto degli eroi (`heroes-feast`) | 6° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
 | Ferire (`harm`) | 6° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
-| Sfera congelante (`freezing-sphere`) | 6° | CAP-ORIGIN: globo conservato e detonazione differita. | L5+ |
 | Tsunami (`phb2014-tsunami`) | 8° | CAP-SEQUENCE: effetto che cambia a ogni round. | L5+ |
 | Guarigione di massa (`mass-heal`) | 9° | CAP-ALLOCATION + CAP-CLEANSE: 700 PF da ripartire. | L5+ |
 | Tempesta di vendetta (`storm-of-vengeance`) | 9° | CAP-SEQUENCE: effetto che cambia a ogni round. | L5+ |
@@ -990,17 +1040,17 @@ Mancano testo o perimetro delle regole.
 | Manto del Crociato (`legacy-crusaders-mantle`) | 3° | Regole da verificare prima di decidere. | — |
 | Imprigionare (`imprisonment`) | 9° | Regole da verificare prima di decidere. | — |
 
-### Automatizzati (302)
+### Automatizzati (306)
 
 Lancio e risoluzione assistiti dal pannello, dalla console ad area o dalla console attacchi.
 
 - **Trucchetti**: Amicizia, Beffa crudele, Colpo accurato, Creare Falò, Dardo di fuoco, Deflagrazione occulta, Ferocia Primordiale, Fiamma sacra, Fiotto acido, Frusta di Spine, Guida, Infestazione, Interdizione alle Lame, Lama Roboante, Lama Verdefiamma, Lenza Elettrizzante, Morsa del Gelo, Parola Radiosa, Produrre fiamma, Raggio di gelo, Resistenza, Rintocco dei Morti, Rombo di Tuono, Salvare i morenti, Scheggia della Mente, Spruzzo velenoso, Stretta folgorante, Tocco gelido, Turbine di Spade.
 - **1° livello**: Amicizia con gli animali, Anatema, Armatura di Agathys, Armatura magica, Assorbire Elementi (reazione), Bacche benefiche, Benedizione, Braccia di Hadar, Catapulta, Cerimonia (R), Charme su persone, Colpo dello Zefiro, Colpo Intrappolante, Coltello di Ghiaccio, Comando, Cura ferite, Dardo di Caos, Dardo incantato, Dardo Stregato, Dardo tracciante, Duello Obbligato, Eroismo, Favore divino, Globo Cromatico, Incuti Paura, Infliggi ferite, Intimorire infernale (reazione), Intralciare, Legame con le Bestie, Luminescenza, Mani brucianti, Marchio del cacciatore, Miscela Caustica di Tasha, Nube di nebbia, Onda tonante, Parola guaritrice, Passo veloce, Protezione dal bene e dal male, Punizione Collerica, Punizione Incandescente, Punizione Tonante, Raffica di Spine, Raggio di Infermità, Risata incontenibile, Ritirata rapida, Saltare, Santuario, Scossa Tellurica, Scudo (reazione), Scudo della fede, Sonno, Sortilegio, Spruzzo colorato, Sussurri Dissonanti, Trabocchetto, Unto, Vita falsata.
-- **2° livello**: Aculeo Mentale, Allucinazione di Forza, Alterare sé stesso, Arma magica, Arma spirituale, Bagliore lunare, Blocca persone, Caratteristica potenziata, Cecità/sordità, Cordone di Frecce, Corona di Follia, Crescita di spine, Diavoletto di Polvere, Estasiare, Folata di vento, Frantumare, Freccia acida, Immagine speculare, Ingrandire/ridurre, Invisibilità, Levitazione, Movimenti del ragno, Nube di Pugnali, Oscurità, Passare senza tracce, Passo velato, Pelle coriacea, Percezione delle Bestie (R), Pirotecnica, Preghiera di guarigione, Protezione dai veleni, Punizione Marchiante, Raggio di affaticamento, Raggio rovente, Ragnatela, Riscaldare il metallo, Ristorare inferiore, Sciame di Palle di Neve di Snilloc, Scudiscio Mentale di Tasha, Sfera infuocata, Sfocatura, Silenzio (R), Spirito Guaritore, Stretta della Terra di Maximilian, Suggestione, Vampa di Aganazzar, Vento di Interdizione, Vincolo della Terra, Vincolo di interdizione, Zona di verità.
+- **2° livello**: Aculeo Mentale, Allucinazione di Forza, Alterare sé stesso, Arma magica, Arma spirituale, Bagliore lunare, Blocca persone, Caratteristica potenziata, Cecità/sordità, Cordone di Frecce, Corona di Follia, Crescita di spine, Diavoletto di Polvere, Estasiare, Folata di vento, Frantumare, Freccia acida, Immagine speculare, Ingrandire/ridurre, Invisibilità, Levitazione, Movimenti del ragno, Nube di Pugnali, Oscurità, Passare senza tracce, Passo velato, Pelle coriacea, Percezione delle Bestie (R), Pirotecnica, Preghiera di guarigione, Protezione dai veleni, Punizione Marchiante, Raggio di affaticamento, Raggio rovente, Ragnatela, Riscaldare il metallo, Ristorare inferiore, Sciame di Palle di Neve di Snilloc, Scudiscio Mentale di Tasha, Sfera infuocata, Sfocatura, Silenzio (R), Soffio del Drago, Spirito Guaritore, Stretta della Terra di Maximilian, Suggestione, Vampa di Aganazzar, Vento di Interdizione, Vincolo della Terra, Vincolo di interdizione, Zona di verità.
 - **3° livello**: Arma Elementale, Aura di Vitalità, Cerchio magico, Crescita vegetale, Dissolvi magie, Eruzione Terrestre, Evoca Raffica, Fame di Hadar, Faro di speranza, Forma gassosa, Fortezza della Mente, Frecce Infuocate, Freccia Folgorante, Fulmine, Guardiani spirituali, Intermittenza, Invocare il fulmine, Lentezza, Luce diurna, Minuscole Meteore di Melf, Morte Apparente (R), Muro d'Acqua, Muro di Sabbia, Muro di vento, Nemici in Abbondanza, Nube maleodorante, Onda di Marea, Palla di fuoco, Parola guaritrice di massa, Passo del Tuono, Paura, Protezione dall'energia, Punizione Accecante, Rinascita, Scagliare maledizione, Sonnellino, Sudario Spirituale, Tempesta di nevischio, Tocco del vampiro, Trama ipnotica, Velocità, Volare.
-- **4° livello**: Allucinazione mortale, Anatema Elementale, Aura di Purezza, Aura di Vita, Charme sui Mostri, Compulsione, Confusione, Controllare acqua, Dominare bestie, Esilio, Fulgore Nauseante, Guardiano della fede, Guardiano della Natura, Inaridire, Interdizione alla morte, Invisibilità superiore, Libertà di movimento, Muro di fuoco, Ombra di Moil, Pelle di pietra, Porta dimensionale, Punizione Demoralizzante, Scudo di fuoco, Sfera al Vetriolo, Sfera della Tempesta, Sfera elastica, Tempesta di ghiaccio, Tentacoli neri.
+- **4° livello**: Allucinazione mortale, Anatema Elementale, Aura di Purezza, Aura di Vita, Charme sui Mostri, Compulsione, Confusione, Controllare acqua, Dominare bestie, Esilio, Fulgore Nauseante, Guardiano della fede, Guardiano della Natura, Inaridire, Interdizione alla morte, Invisibilità superiore, Libertà di movimento, Muro di fuoco, Ombra di Moil, Pelle di pietra, Porta dimensionale, Punizione Demoralizzante, Rampicante Afferrante, Scudo di fuoco, Segugio fedele, Sfera al Vetriolo, Sfera della Tempesta, Sfera elastica, Tempesta di ghiaccio, Tentacoli neri.
 - **5° livello**: Abilità Potenziata, Alba, Animare oggetti, Arma Sacra, Blocca mostri, Cerchio di Potere, Collera della Natura, Colpo del Vento d'Acciaio, Colpo infuocato, Cono di freddo, Contagio, Controllare Venti, Cura ferite di massa, Debilitazione, Dominare persona, Evoca Pioggia di Armi, Flusso di Energia Negativa, Guscio anti-vita, Immolazione, Maelstrom, Mano arcana, Muro di forza, Muro di Luce, Muro di pietra, Nube mortale, Onda Distruttiva, Passo Remoto, Piaga degli insetti, Punizione Esiliante, Reincarnazione, Rianimare morti, Risveglio, Santificare, Scossa Sinaptica, Telecinesi, Trasmutare Roccia.
-- **6° livello**: Abito Ultraterreno di Tasha, Bagliore solare, Barriera di lame, Camminare nel vento, Carne in pietra, Catena di fulmini, Cerchio di morte, Danza irresistibile, Disintegrazione, Globo di invulnerabilità, Guarigione, Interdizione Primordiale, Investitura del Ghiaccio, Investitura del Vento, Investitura della Fiamma, Investitura della Pietra, Muro di ghiaccio, Muro di spine, Ossa della Terra, Portale Arcano, Prigione Mentale, Proibizione (R), Sguardo penetrante, Suggestione di massa, Trasformazione di Tenser.
+- **6° livello**: Abito Ultraterreno di Tasha, Bagliore solare, Barriera di lame, Camminare nel vento, Carne in pietra, Catena di fulmini, Cerchio di morte, Danza irresistibile, Disintegrazione, Globo di invulnerabilità, Guarigione, Interdizione Primordiale, Investitura del Ghiaccio, Investitura del Vento, Investitura della Fiamma, Investitura della Pietra, Muro di ghiaccio, Muro di spine, Ossa della Terra, Portale Arcano, Prigione Mentale, Proibizione (R), Sfera congelante, Sguardo penetrante, Suggestione di massa, Trasformazione di Tenser.
 - **7° livello**: Corona di Stelle, Dito della morte, Gabbia di forza, Palla di fuoco ritardata, Parola del Potere Dolore, Parola divina, Resurrezione, Rigenerazione, Simbolo, Spada arcana, Spruzzo prismatico, Tempesta di fuoco, Turbine.
 - **8° livello**: Antipatia/simpatia, Aura sacra, Dominare mostri, Drago Illusorio, Esplosione solare, Labirinto, Nube incendiaria, Orrido Avvizzimento di Abi-Dalzim, Oscurità della Follia, Parola del potere stordire, Regressione mentale, Terremoto.
 - **9° livello**: Fatale, Invulnerabilità, Lama del Disastro, Muro prismatico, Parola del Potere Guarire, Parola del potere uccidere, Previsione, Resurrezione pura, Sciame di meteore, Urlo Psichico.
