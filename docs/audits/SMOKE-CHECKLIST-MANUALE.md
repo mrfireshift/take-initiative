@@ -1,5 +1,7 @@
 # Smoke test manuale — checklist
 
+> Le prove ancora da fare sono tutte nella lista unica [PROVE_IN_STANZA.md](../PROVE_IN_STANZA.md): si spunta lì. Questo file resta come dettaglio.
+
 Questa checklist copre ciò che l'[audit funzionale di ottobre 2026](FUNCTIONAL-AUDIT-2026-10.md)
 **non ha potuto verificare o correggere con certezza**. La suite automatica e
 l'harness con SDK simulato non coprono:

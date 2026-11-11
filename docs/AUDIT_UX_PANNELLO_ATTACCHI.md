@@ -1,5 +1,7 @@
 # Audit UX e UI del pannello attacchi
 
+> Le prove ancora da fare sono tutte nella lista unica [PROVE_IN_STANZA.md](PROVE_IN_STANZA.md): si spunta lì. Questo file resta come dettaglio.
+
 Micro-audit del 04/11/2026 su `pc-attack.html` e `src/pc-attack.js`, chiesto dall'utente perché il pannello si stava riempiendo di informazioni senza gerarchia, disallineate e poco comprensibili. Schermate e proposte disegnate: [pagina dell'audit](https://claude.ai/artifact/6PEkHKtRhiHN6F64hYPBPV).
 
 Restano fermi i colori del costo in stile Baldur's Gate, il rosso solo per il danno e niente conteggi sui tab, già decisi dall'utente.

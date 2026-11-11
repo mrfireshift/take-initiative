@@ -1,5 +1,7 @@
 # Prova in stanza: audit UX di sistema
 
+> Le prove ancora da fare sono tutte nella lista unica [PROVE_IN_STANZA.md](PROVE_IN_STANZA.md): si spunta lì. Questo file resta come dettaglio.
+
 Controlli a mano dei lotti dell'[audit UX](AUDIT_UX_SISTEMA.md) fatti il 31/10 (da `b701a175` a `846ea590`), prima del bundle di produzione. Ogni controllo del tracker va fatto **in vista estesa e in vista compatta**. Dove serve, si guarda anche lo schermo del tavolo.
 
 ## Preparazione

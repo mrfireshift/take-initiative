@@ -1,5 +1,7 @@
 # Giro in OBR prima della 1.5.0 — checklist combinata
 
+> Le prove ancora da fare sono tutte nella lista unica [PROVE_IN_STANZA.md](../PROVE_IN_STANZA.md): si spunta lì. Questo file resta come dettaglio.
+
 Lotto 7.4 del [piano di polishing](../PIANO_POLISHING_UI.md). Un solo elenco per il giro manuale in una stanza Owlbear Rodeo reale prima del rilascio. Mette insieme:
 
 - **A.** i flussi nuovi o cambiati nelle fasi 3–6, che l'anteprima ha verificato solo con l'SDK simulato;

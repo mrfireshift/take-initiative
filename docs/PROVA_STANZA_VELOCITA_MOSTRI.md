@@ -1,5 +1,7 @@
 # Prova in stanza: velocità dei mostri, dimensione del token e difese
 
+> Le prove ancora da fare sono tutte nella lista unica [PROVE_IN_STANZA.md](PROVE_IN_STANZA.md): si spunta lì. Questo file resta come dettaglio.
+
 Controlli a mano del [piano velocità dei mostri](PIANO_VELOCITA_MOSTRI.md), della [dimensione del token](GUIDA_UTENTE.md#console-attacchi-per-i-mostri) e delle difese contro le armi non magiche, prima del bundle di produzione. Ogni controllo del tracker va fatto **in vista estesa e in vista compatta**.
 
 Il banco non può provare due cose, che qui contano più delle altre:

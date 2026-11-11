@@ -1012,8 +1012,13 @@ con il contatore quando c'è («2/3 duplicati»):
   registra prima;
 - un'azione che chiede una creatura (Sposta il marchio) la prende dalla
   selezione sulla mappa: seleziona il token, poi premi;
-- un'azione con una scelta o una zona da spostare (Cambia direzione) porta il
-  segno **›** e apre il pannello incantesimi già sull'azione;
+- un'azione che sposta o gira una zona (**Sposta la sfera**, **Cambia direzione**)
+  parte subito sulla mappa, senza aprire il pannello: il menu dice cosa fare,
+  trascini l'area (il suo centro segue il puntatore a caselle intere e resta
+  disegnata dove arriverà) e
+  confermi con la ✓ della barra dello strumento; la ✕ o Esc annullano;
+- un'azione con una scelta porta il segno **›** e apre il pannello incantesimi già
+  sull'azione;
 - **Apri nel pannello** porta al pannello incantesimi per tutto il resto.
 
 Il clic sulla pill apre sempre la scheda nell'Enciclopedia DM, il clic destro
@@ -1347,9 +1352,11 @@ propria sorgente.
 
 La **Sfera acquea** porta con sé chi trattiene. Al lancio, chi fallisce il TS su
 Forza è Trattenuto e ripete il TS alla fine di ogni suo turno; quando l'incantesimo
-finisce, cade Prono. Per spostarla premi il ⚡ **Sposta la sfera** (un'azione, fino a
-9 m in linea retta): le creature trattenute si spostano con lei, e Annulla le riporta
-tutte indietro. Chi si trova dove la sfera si ferma fa il TS e, se fallisce, entra
+finisce, cade Prono. La sfera va posata sulla mappa: senza, il pannello non applica il
+lancio. Per spostarla premi il ⚡ della pill del caster e **Sposta la sfera** (un'azione,
+fino a 9 m in linea retta): trascina sulla mappa, da dove vuoi: il centro della sfera segue
+il puntatore a caselle intere e la sfera resta disegnata dove arriverà, e conferma con la ✓ **Conferma movimento** della barra
+dello strumento (la ✕ o Esc annullano). Le creature trattenute si spostano con lei, e Annulla le riporta tutte indietro. Chi si trova dove la sfera si ferma fa il TS e, se fallisce, entra
 nella sfera. La sfera tiene quattro creature Medie o più piccole, oppure una Grande,
 lette dalla misura del token; un'Enorme o più grande supera il TS da sola. Se ne entra
 una di troppo, una creatura già dentro, scelta a caso, cade fuori Prona: la posi tu

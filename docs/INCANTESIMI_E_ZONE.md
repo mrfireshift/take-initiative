@@ -631,7 +631,15 @@ linea retta. Il movimento della zona dichiara `carriedEffectIds:
 ["watery-sphere-restrained"]`, così lo `static-zone:move` sposta nello stesso
 aggiornamento la radice e le creature che la sfera trattiene. È una sola voce di
 Cronologia con un solo Annulla, e le creature trasportate non scrivono voci
-«Movimento». Trascinata a mano, la sfera si sposta da sola.
+«Movimento». Trascinata a mano, la sfera si sposta da sola. Lo spostamento si conferma
+con la stessa ✓ dello strumento delle aree, che durante un movimento si chiama «Conferma
+movimento» (la ✕, «Annulla movimento»). La posa della sfera è obbligatoria
+(`placementOptional: false`), e il record del caster resta anche quando le creature
+trattenute hanno il loro: la sua pill porta il ⚡. Il ⚡ avvia lo spostamento senza aprire il
+pannello, come Cambia direzione di Folata di Vento (`spellActionRunsDirectly`). Lo
+strumento porta il centro della sfera sotto il puntatore, da qualunque punto parta il
+trascinamento, a caselle intere ed entro i 9 m (`snappedSpellZoneMovementDelta`), e l'anteprima resta sulla mappa dopo il rilascio fino
+a ✓ o ✕.
 
 - **Urto**: il trigger `watery-sphere-save-on-ram` (ingresso al movimento dell'area)
   usa `failureAutomation: "spell-save"`. Chi fallisce riceve lo stesso Trattenuto del

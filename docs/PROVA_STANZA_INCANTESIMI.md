@@ -1,5 +1,7 @@
 # Prova in stanza: incantesimi e popup
 
+> Le prove ancora da fare sono tutte nella lista unica [PROVE_IN_STANZA.md](PROVE_IN_STANZA.md): si spunta lì. Questo file resta come dettaglio.
+
 Un giro solo al tavolo per tre liste:
 - **P5** del [piano di polishing degli incantesimi](PIANO_POLISH_INCANTESIMI.md);
 - le prove in stanza dell'[audit dei popup viola](AUDIT_UX_POPUP_VIOLA.md): da V1 a V11, il trascinamento, F1, la tela nera di Fazioni e Aspetto area, Freccia Folgorante e Critico;
@@ -205,7 +207,8 @@ Al banco sono passati tutti e tre: Trasferimento di vita e Guarigione di massa d
 - [ ] **Guarigione di massa:** tre PG feriti, uno a 0 PF e accecato. Sotto `PF da ripartire` le caselle vuote mostrano in grigio i PF che mancano, e il contatore dice `PF assegnati N/700`. Scrivi 2 su un PG a cui ne mancano 4: riceve 2. Applicato: tutti curati, l'accecato non lo è più, e chi era a 0 PF si rialza.
 - [ ] **Oltre i 700:** scrivi 400 su due creature a cui ne mancano più di 400: il contatore diventa rosso con `oltre i 700`, e applicando il pannello rifiuta.
 - [ ] **Sfera acquea:** lanciala su due goblin che falliscono il TS: `Trattenuto` con `TS For a fine turno` (non più `Azione: prova For`). A fine turno di un goblin il promemoria del TS su Forza.
-- [ ] **Sposta la sfera:** nel ⚡ della pill, **Sposta la sfera**: lo strumento vero la sposta in linea retta, fino a 9 m. I due goblin si spostano con lei, e in Cronologia c'è solo `Sposta zona: Sfera Acquea`. Annulla riporta indietro sfera e goblin.
+- [ ] **Sposta la sfera:** il pannello chiede **Posiziona area** prima del lancio. Poi la pill del caster dice `Sfera Acquea (10)` con ⚡ e ×, anche con i goblin dentro: ⚡, **Sposta la sfera** (senza `›`: il pannello non si apre, il menu dice cosa fare). Comincia a trascinare anche lontano dalla sfera: il suo centro segue il puntatore e scatta a caselle intere, l'etichetta dice per esempio `4,5 / 9 m` e oltre i 9 m si ferma. Al rilascio l'anteprima resta dove arriverà; la ✓ **Conferma movimento** la sposta, la ✕ o Esc lasciano tutto com'è e il menu dice `Annullato.` Prova in vista compatta ed espansa.
+- [ ] **Cambia direzione:** con Folata di vento attiva, il ⚡ della pill ha **Cambia direzione** senza `›`: parte subito sulla mappa, scegli la nuova direzione e premi ✓; nessun pannello. I due goblin si spostano con lei, e in Cronologia c'è solo `Sposta zona: Sfera Acquea`. Annulla riporta indietro sfera e goblin.
 - [ ] **Urto:** spostala su un terzo goblin: il suo TS su Forza; se fallisce entra nella sfera con lo stesso `Trattenuto`, e al passo dopo si sposta anche lui.
 - [ ] **Piena:** con quattro creature dentro, spostala su una quinta che fallisce: una di quelle già dentro, a caso, perde `Trattenuto` ed è `Prona` (`È caduto dalla sfera, che era piena`); la posi tu entro 1,5 m. Un ogre (2×2) da solo riempie la sfera; un gigante (3×3) supera il TS da solo.
 - [ ] **Fine:** Termina o perdi la concentrazione: chi era dentro cade `Prono` dove si trova.

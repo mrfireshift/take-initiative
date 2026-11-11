@@ -1,5 +1,7 @@
 # Prova in stanza: lotti di fluidità
 
+> Le prove ancora da fare sono tutte nella lista unica [PROVE_IN_STANZA.md](PROVE_IN_STANZA.md): si spunta lì. Questo file resta come dettaglio.
+
 Verifica guidata dei lotti del [piano fluidità](PIANO_REFACTORING_FLUIDITA.md), da fare in una room vera con la build locale. Lo script è `src/fluidityRoomCheck.js`. Fa da solo i controlli che si possono misurare, rimette turno e PF com'erano e salva i risultati in `perf-runs/`. Resta a te solo quello che si giudica a occhio (fine pagina).
 
 ## Preparazione
