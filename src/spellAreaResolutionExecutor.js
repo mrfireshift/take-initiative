@@ -2120,13 +2120,16 @@ async function buildPlan(command, runtime) {
       operation?.type === "spell:upsert"
       && text(operation.instanceId) === spellInstanceId
     ));
+    // A zone that carries the creatures it holds (Watery Sphere, CAP-CARRIAGE) keeps its record on the caster even when
+    // they carry theirs: the caster's pill has the ⚡ that moves it, with the creatures in it.
+    const carriesCreatures = (placementRule?.zonePolicy?.movement?.carriedEffectIds?.length || 0) > 0;
     const ownerOperation = staticSpellZoneOwnerOperation({
       rule: placementRule,
       spell,
       instanceId: spellInstanceId,
       casterId,
       appliedAt,
-      trackConcentration: spell.concentration === true && !hasTrackedSpellInstance,
+      trackConcentration: spell.concentration === true && (!hasTrackedSpellInstance || carriesCreatures),
       ruleChoice: placementRuleChoice,
       slotLevel: command?.spell?.slotLevel,
       turns: getSpellDurationTurns(spell, command?.spell?.castContext),

@@ -77,6 +77,30 @@ export function spellZoneMovementDistanceMeters(
     * multiplier * unitMeters;
 }
 
+// The step of a zone the area tool moves (Watery Sphere's Sposta la sfera, CAP-CARRIAGE): whole squares, so the zone
+// stays on the grid it was placed on, and no further than its movement allows, along the line of the drag. A rounded
+// step that would pass the limit is cut to the squares within it.
+export function snappedSpellZoneMovementDelta(delta, {
+  dpi = 1,
+  scale = {},
+  maximumMeters = null,
+} = {}) {
+  const raw = point(delta);
+  const cell = Number(dpi);
+  if (!raw || !Number.isFinite(cell) || cell <= 0) return { x: 0, y: 0 };
+  const { multiplier, unitMeters } = scaleParts(scale);
+  const metersPerPixel = (multiplier * unitMeters) / cell;
+  const maximum = Number(maximumMeters);
+  const limit = Number.isFinite(maximum) && maximum > 0 ? maximum / metersPerPixel : Infinity;
+  const length = Math.hypot(raw.x, raw.y);
+  const factor = length > limit ? limit / length : 1;
+  const along = { x: raw.x * factor, y: raw.y * factor };
+  const square = (value, round) => round(value / cell) * cell + 0;
+  const rounded = { x: square(along.x, Math.round), y: square(along.y, Math.round) };
+  if (Math.hypot(rounded.x, rounded.y) <= limit + EPSILON) return rounded;
+  return { x: square(along.x, Math.trunc), y: square(along.y, Math.trunc) };
+}
+
 function movementRule(rule) {
   return normalizeSpellZoneMovement(rule?.zonePolicy?.movement);
 }

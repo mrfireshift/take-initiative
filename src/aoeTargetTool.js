@@ -51,6 +51,7 @@ import {
   validateChildZoneContainment,
 } from "./spellChildZoneCore.js";
 import {
+  snappedSpellZoneMovementDelta,
   spellZoneMovementDistanceMeters,
 } from "./spellZoneMovementCore.js";
 import { spellAreaStyle } from "./spellAreaStyleCore.js";
@@ -584,6 +585,8 @@ async function closeSpellZoneMovement(status, {
   const runtime = spellMovementSession;
   if (!runtime) return;
   cancelDrag();
+  runtime.previewInteraction?.[1]?.();
+  runtime.previewInteraction = null;
   spellMovementSession = null;
   await setSpellMovementToolState(false);
   await sendSpellPlacementResult({
@@ -853,6 +856,11 @@ async function beginSpellZoneMovement(data) {
     zoneItemId,
     zoneItem,
     initialPosition: point(zoneItem.position),
+    // The point the pointer carries: the zone's center (its circle's, else its shape's), not where the drag starts.
+    zoneCenter: (() => {
+      const area = translatedZoneArea(zoneItem);
+      return area ? point(areaLabelPosition(area)) : null;
+    })(),
     contactTargetId: String(data?.contactTargetId || "").trim(),
     movementChoice: String(data?.movementChoice || "").trim(),
     sceneEpoch: Number.isFinite(Number(data?.sceneEpoch))
@@ -1295,9 +1303,16 @@ function renderBoardTokenPlacement(state) {
 function proposedMovementPosition(state) {
   const runtime = spellMovementSession;
   if (!runtime?.initialPosition || !state?.rawStart || !state?.rawEnd) return null;
+  // The zone's center follows the pointer, wherever the drag starts, by whole squares within the zone's movement
+  // (snappedSpellZoneMovementDelta): it stays on the grid it was placed on.
+  const anchor = runtime.zoneCenter || state.rawStart;
+  const delta = snappedSpellZoneMovementDelta(
+    { x: state.rawEnd.x - anchor.x, y: state.rawEnd.y - anchor.y },
+    { dpi: runtime.dpi, scale: runtime.scale, maximumMeters: runtime.rule?.zonePolicy?.movement?.maximumMeters },
+  );
   return {
-    x: runtime.initialPosition.x + state.rawEnd.x - state.rawStart.x,
-    y: runtime.initialPosition.y + state.rawEnd.y - state.rawStart.y,
+    x: runtime.initialPosition.x + delta.x,
+    y: runtime.initialPosition.y + delta.y,
   };
 }
 
@@ -2003,7 +2018,11 @@ function finishMovementDrag(state) {
   if (activeDrag !== state || state.finishing || !state.ready || !runtime) return;
   state.finishing = true;
   const area = renderMovementDrag(state);
-  state.interaction?.[1]?.();
+  // The preview stays where the zone would go until ✓ or ✕ (closeSpellZoneMovement), as a placement's sagoma does.
+  runtime.previewInteraction?.[1]?.();
+  runtime.previewInteraction = area && state.proposedPosition ? state.interaction : null;
+  if (!runtime.previewInteraction) state.interaction?.[1]?.();
+  state.interaction = null;
   activeDrag = null;
   if (!area || !state.proposedPosition) return;
   runtime.preview = {
@@ -2057,6 +2076,10 @@ function startDrag(type, event) {
   const pointer = point(event?.pointerPosition);
   if (!pointer) return;
   if (spellMovementSession) {
+    // A new drag replaces the preview left by the previous one: the ✓ waits for this one.
+    spellMovementSession.previewInteraction?.[1]?.();
+    spellMovementSession.previewInteraction = null;
+    spellMovementSession.preview = null;
     const state = {
       movement: true,
       rawStart: pointer,
@@ -2393,6 +2416,8 @@ OBR.onReady(async () => {
     icons: [{ icon: "/aoe-style.svg", label: "Aspetto area", filter: { activeTools: [TOOL_ID], roles: ["GM"] } }],
     onClick: () => void openStyleSettings(),
   });
+  // The same ✓ and ✕ confirm and cancel a zone's movement (CAP-CARRIAGE: Watery Sphere's ⚡ Sposta la sfera), which
+  // has no action of its own since the common Sposta zona went away.
   await OBR.tool.createAction({
     id: SPELL_PLACEMENT_CONFIRM_ACTION_ID,
     icons: [{
@@ -2407,8 +2432,22 @@ OBR.onReady(async () => {
           value: true,
         }],
       },
+    }, {
+      icon: "/aoe-confirm.svg",
+      label: "Conferma movimento",
+      filter: {
+        activeTools: [TOOL_ID],
+        roles: ["GM"],
+        metadata: [{
+          key: SPELL_MOVEMENT_META_KEY,
+          operator: "==",
+          value: true,
+        }],
+      },
     }],
-    onClick: () => void confirmSpellPlacement(),
+    onClick: () => void (spellMovementSession && !spellPlacementSession
+      ? confirmSpellZoneMovement()
+      : confirmSpellPlacement()),
   });
   await OBR.tool.createAction({
     id: SPELL_PLACEMENT_CANCEL_ACTION_ID,
@@ -2424,8 +2463,22 @@ OBR.onReady(async () => {
           value: true,
         }],
       },
+    }, {
+      icon: "/aoe-cancel.svg",
+      label: "Annulla movimento",
+      filter: {
+        activeTools: [TOOL_ID],
+        roles: ["GM"],
+        metadata: [{
+          key: SPELL_MOVEMENT_META_KEY,
+          operator: "==",
+          value: true,
+        }],
+      },
     }],
-    onClick: () => void closeSpellPlacement("cancelled", { reason: "action" }),
+    onClick: () => void (spellMovementSession && !spellPlacementSession
+      ? closeSpellZoneMovement("cancelled", { reason: "action" })
+      : closeSpellPlacement("cancelled", { reason: "action" })),
   });
   OBR.tool.onToolChange((toolId) => {
     if (spellPlacementSession && toolId !== TOOL_ID) {

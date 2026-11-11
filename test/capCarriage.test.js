@@ -141,3 +141,39 @@ test("la taglia è quella di tokenSizeCore.js: la copia locale conta le stesse c
   }
   assert.equal(carriageUnits({ id: "shape", type: "SHAPE" }, CARRIAGE), 1, "senza immagine conta come una casella");
 });
+
+test("nella stanza: la sfera va posata, il caster tiene il suo record e lo strumento conferma lo spostamento", () => {
+  // The panel asks for the sphere before the cast: without it only the caster's concentration was left, with no ⚡.
+  assert.equal(getSpellAreaRuleById("xanathar-sfera-acquea:cast").zonePolicy.placementOptional, false);
+  const read = (file) => fs.readFileSync(new URL(`../src/${file}`, import.meta.url), "utf8");
+  // A zone that carries creatures keeps its record on the caster even when the creatures it holds carry theirs.
+  const executor = read("spellAreaResolutionExecutor.js");
+  assert.ok(executor.includes("const carriesCreatures = (placementRule?.zonePolicy?.movement?.carriedEffectIds?.length || 0) > 0;"));
+  assert.ok(executor.includes("trackConcentration: spell.concentration === true && (!hasTrackedSpellInstance || carriesCreatures),"));
+  // The tool's ✓ and ✕ show during a zone's movement too, and confirm or cancel it.
+  const tool = read("aoeTargetTool.js");
+  assert.ok(tool.includes("label: \"Conferma movimento\""));
+  assert.ok(tool.includes("label: \"Annulla movimento\""));
+  assert.ok(tool.includes("? confirmSpellZoneMovement()"));
+  assert.ok(tool.includes("? closeSpellZoneMovement(\"cancelled\", { reason: \"action\" })"));
+});
+
+test("lo spostamento a caselle intere, entro i 9 m, nella stessa direzione del trascinamento", async () => {
+  const { snappedSpellZoneMovementDelta: snap } = await import("../src/spellZoneMovementCore.js");
+  const grid = { dpi: 70, scale: { multiplier: 1.5, unit: "m" }, maximumMeters: 9 };
+  assert.deepEqual(snap({ x: 200, y: 0 }, grid), { x: 210, y: 0 }, "3 caselle");
+  assert.deepEqual(snap({ x: -100, y: 30 }, grid), { x: -70, y: 0 });
+  assert.deepEqual(snap({ x: 20, y: -20 }, grid), { x: 0, y: 0 }, "un tremolio non la sposta");
+  assert.deepEqual(snap({ x: 1000, y: 0 }, grid), { x: 420, y: 0 }, "fino a 9 m, 6 caselle");
+  assert.deepEqual(snap({ x: 500, y: 500 }, grid), { x: 280, y: 280 }, "in diagonale 4 + 4, 8,5 m");
+  assert.deepEqual(snap({ x: 300, y: 0 }, { ...grid, maximumMeters: null }), { x: 280, y: 0 }, "senza limite");
+  const read = (file) => fs.readFileSync(new URL(`../src/${file}`, import.meta.url), "utf8");
+  const tool = read("aoeTargetTool.js");
+  assert.ok(tool.includes("const delta = snappedSpellZoneMovementDelta("), "lo strumento sposta a caselle intere");
+  assert.ok(tool.includes("const anchor = runtime.zoneCenter || state.rawStart;"), "il centro della zona segue il puntatore");
+  assert.ok(tool.includes("return area ? point(areaLabelPosition(area)) : null;"), "il centro è quello della sua area");
+  assert.ok(tool.includes("runtime.previewInteraction = area && state.proposedPosition ? state.interaction : null;"),
+    "l'anteprima resta dopo il rilascio");
+  assert.ok(tool.includes("runtime.previewInteraction?.[1]?.();\n  runtime.previewInteraction = null;\n  spellMovementSession = null;"),
+    "e sparisce con ✓ o ✕");
+});

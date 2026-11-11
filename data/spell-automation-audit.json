@@ -48948,7 +48948,7 @@
         "contract": {
           "lane": "area-transaction",
           "targetingMode": "geometric",
-          "placementPolicy": "optional",
+          "placementPolicy": "required",
           "visibleInputs": [
             "caster",
             "slot",

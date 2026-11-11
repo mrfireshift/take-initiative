@@ -27,15 +27,27 @@ export function spellPillActionNeedsTargets(action) {
 }
 
 // Whether one click runs it (lotto A on the pill, lotto B in the panel): nothing to choose in the panel first. A
-// popup resolution (a heal, a save) counts, it asks its inputs in its own popup; creatures to select, a choice to
-// make or a zone to move do not.
-const PANEL_INPUT_RESOLUTION_KINDS = new Set(["zone-movement", "zone-direction"]);
+// popup resolution (a heal, a save) counts, it asks its inputs in its own popup; a zone to move or to turn (Sposta la
+// sfera, Cambia direzione) counts too, the area tool asks for it on the map. Creatures to select or a choice to make
+// do not.
 export function spellActionRunsDirectly(action) {
   if (!action || spellPillActionNeedsTargets(action) || action.completesInPanel === true) return false;
-  if (PANEL_INPUT_RESOLUTION_KINDS.has(text(action.resolutionKind))) return false;
   if (action.choice && typeof action.choice === "object") return false;
   if (action.movement?.choice && typeof action.movement.choice === "object") return false;
   return true;
+}
+
+// The actions the area tool completes on the map: the ⚡ menu says how, and waits for the ✓ of the tool.
+const AREA_TOOL_RESOLUTION_KINDS = new Set(["zone-movement", "zone-direction"]);
+export function spellActionUsesAreaTool(action) {
+  return AREA_TOOL_RESOLUTION_KINDS.has(text(action?.resolutionKind));
+}
+
+// What to do on the map while the area tool waits, in the GM's words.
+export function spellAreaToolActionHint(action) {
+  return text(action?.resolutionKind) === "zone-direction"
+    ? "Scegli la nuova direzione sulla mappa, poi premi ✓ nella barra dello strumento (Esc annulla)."
+    : "Trascina l'area sulla mappa, a caselle intere, poi premi ✓ Conferma movimento (Esc annulla).";
 }
 
 export function buildSpellPillActionsView(overview) {
@@ -51,6 +63,7 @@ export function buildSpellPillActionsView(overview) {
       reason: text(action.disabledReason || action.unavailableReason),
       needsTargets: spellPillActionNeedsTargets(action),
       direct: spellActionRunsDirectly(action),
+      areaTool: spellActionUsesAreaTool(action),
     }));
   return {
     title: text(overview.name || context.name || context.storedName) || "Incantesimo",

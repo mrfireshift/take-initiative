@@ -76,7 +76,7 @@ test("the menu shows the counter and the actions as the panel's overview has the
   assert.equal(view.title, "Marchio del cacciatore");
   assert.equal(view.casterName, "Ranger");
   assert.deepEqual(view.actions, [{ id: "hunters-mark-move", label: "Sposta il marchio", detail: "", disabled: true,
-    reason: "Disponibile dal turno successivo al lancio.", needsTargets: true, direct: false }]);
+    reason: "Disponibile dal turno successivo al lancio.", needsTargets: true, direct: false, areaTool: false }]);
   assert.equal(buildSpellPillActionsView(null), null);
   assert.equal(spellPillActionErrorText({ errors: [{ code: "x", message: "Seleziona un bersaglio." }] }), "Seleziona un bersaglio.");
   assert.equal(spellPillActionErrorText({}), "Azione non eseguita: riapri il menu.");
@@ -89,7 +89,14 @@ test("one click runs an action with nothing to fill in the panel (lotto B), its 
   assert.equal(spellActionRunsDirectly(action("mirror-image", "mirror-image-duplicate-destroyed")), true);
   assert.equal(spellActionRunsDirectly(action("goodberry", "goodberry-eat")), true, "the heal popup asks the creature");
   assert.equal(spellActionRunsDirectly(action("hunters-mark", "hunters-mark-move")), false, "a creature to select");
-  assert.equal(spellActionRunsDirectly({ id: "gust", resolutionKind: "zone-direction" }), false, "a zone to turn");
+  // A zone to turn or to move runs at once too: the area tool asks for it on the map (11/11/2026, one button, no panel).
+  assert.equal(spellActionRunsDirectly({ id: "gust", resolutionKind: "zone-direction" }), true, "a zone to turn");
+  assert.equal(spellActionRunsDirectly(action("xanathar-sfera-acquea", "watery-sphere-move")), true, "a zone to move");
+  const { spellActionUsesAreaTool, spellAreaToolActionHint } = await import("../src/spellPillActionsCore.js");
+  assert.equal(spellActionUsesAreaTool(action("xanathar-sfera-acquea", "watery-sphere-move")), true);
+  assert.equal(spellActionUsesAreaTool(action("goodberry", "goodberry-eat")), false);
+  assert.match(spellAreaToolActionHint({ resolutionKind: "zone-movement" }), /Conferma movimento/u);
+  assert.match(spellAreaToolActionHint({ resolutionKind: "zone-direction" }), /direzione/u);
   assert.equal(spellActionRunsDirectly({ id: "x", choice: { required: true, options: [{ value: "a" }] } }), false);
   assert.equal(spellActionRunsDirectly(null), false);
 });

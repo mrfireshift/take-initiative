@@ -14,6 +14,8 @@ import {
 import {
   buildSpellPillActionsView,
   spellActionRunsDirectly,
+  spellActionUsesAreaTool,
+  spellAreaToolActionHint,
   spellPillActionErrorText,
   spellPillActionNeedsTargets,
 } from "./spellPillActionsCore.js";
@@ -85,6 +87,7 @@ function render() {
     hint.textContent = action.disabled && action.reason
       ? action.reason
       : action.needsTargets ? "Seleziona sulla mappa la creatura, poi premi."
+        : action.areaTool ? "Si completa sulla mappa, con lo strumento delle aree."
         : inPanel ? "Si completa nel pannello incantesimi." : "";
     row.append(button, hint);
     list.appendChild(row);
@@ -115,7 +118,9 @@ async function run(actionId) {
     fitHeight();
     return;
   }
-  setStatus("");
+  // A zone to move or to turn: the area tool waits on the map, and this menu says how until its ✓ or ✕.
+  const areaTool = spellActionUsesAreaTool(action);
+  setStatus(areaTool ? spellAreaToolActionHint(action) : "");
   render();
   try {
     const result = await runSpellInstanceAction({
@@ -128,6 +133,12 @@ async function run(actionId) {
     if (!sceneLifecycle.isCurrent(operation)) return;
     if (result.status === "popup-opened") {
       close();
+      return;
+    }
+    // ✕ or Esc on the map: the area tool gave nothing back, and nothing changed.
+    if (result.status === "executed" && areaTool && !result.historyEntryId
+      && !(Array.isArray(result.changedIds) && result.changedIds.length)) {
+      setStatus("Annullato.");
       return;
     }
     if (result.status === "executed") {

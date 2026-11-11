@@ -558,6 +558,11 @@ const AREA_OVERRIDES = Object.freeze({
   "xanathar-sfera-della-tempesta": {
     placementOptional: false,
   },
+  // CAP-CARRIAGE: the sphere is the spell, so the panel asks for it before the cast; without it only the caster's
+  // concentration was left, with no ⚡ to move it.
+  "xanathar-sfera-acquea": {
+    placementOptional: false,
+  },
   "xanathar-turbine": {
     shape: "circle",
     sizeMeters: 3,
