@@ -837,6 +837,27 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       requiresParentInstance: true,
     },
   ],
+  // CAP-CARRIAGE (Xanathar, decision C-D1): the sphere moves up to 9 m in a straight line, the creatures it holds with it,
+  // in one command (its zone's movement, spellAreaCatalog.js); those where it stops make the Strength save
+  // (watery-sphere-save-on-ram). A drag by hand moves the sphere alone.
+  "xanathar-sfera-acquea": [
+    {
+      id: "watery-sphere-move",
+      label: "Sposta la sfera",
+      buttonLabel: "Sposta la sfera",
+      detail: "Azione: sposta la sfera fino a 9 m in linea retta. Le creature trattenute si spostano con lei; quelle dove si ferma fanno il TS su Forza.",
+      economy: "action",
+      resolutionKind: "zone-movement",
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: true,
+      showInOverview: true,
+      placementRuleId: "xanathar-sfera-acquea:cast",
+      rangeOrigin: "caster",
+      carriedEffectIds: ["watery-sphere-restrained"],
+    },
+  ],
   "gust-of-wind": [
     {
       id: "gust-of-wind-direction",

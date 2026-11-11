@@ -48,7 +48,9 @@ import {
   resolveSaveSpellResolution,
   SAVE_SPELL_OUTCOMES,
 } from "./saveSpellCore.js";
-import { CLEANSE_SPELL_ID_SET, planCleanseTarget } from "./cleanseSpellRules.js";
+import { CLEANSE_SPELL_ID_SET, massHealSkipped, planCleanseTarget } from "./cleanseSpellRules.js";
+import { spellHpRelationChanges, spellHpRelationRule } from "./spellHpRelationCore.js";
+import { MASS_HEAL_SPELL_ID, massHealAllocation, massHealAllocationText } from "./massHealCore.js";
 import { deathWardPill, planDeathWard, planWardingBondDamage } from "./reactionHpCore.js";
 import { initialSpellUses, spellHasInitialUses } from "./spellApplicationPlanCore.js";
 import { ZONE_RESOURCE_SPENDS, zoneTriggerResourceSpend } from "./zoneResourceCore.js";
@@ -717,18 +719,34 @@ function applyAreaReactionHp(entries, allItems = [], wardedIds = new Set()) {
 
 // CAP-CLEANSE (cleanseSpellRules.js): what ends on each creature, read from the live items: its pills, its spells
 // (with the concentration of their caster) and the healing of Heal and Power Word Heal.
+// Mass Heal's shares (massHealCore.js), in the panel's order of the targets, from the live items' hit points: the same
+// count as the panel's. A creature it cannot heal (massHealSkipped) takes nothing on its own: the 700 go to the others.
+function massHealAllocationFor(command, liveItems = []) {
+  const live = new Set(liveItems.map((item) => item.id));
+  return massHealAllocation({
+    targetIds: (command?.targeting?.targetIds || []).filter((id) => live.has(id)),
+    targetContexts: command?.targeting?.targetContexts || {},
+    hpById: Object.fromEntries(liveItems
+      .filter((item) => !massHealSkipped(item))
+      .map((item) => [item.id, { hp: itemMeta(item).hp, hpMax: itemMeta(item).hpMax }])),
+  });
+}
+
 function planAreaCleanse({ spell, command, liveItems, targetContexts = {} }) {
   const removals = [];
   const spellRemovals = [];
   const heals = [];
   const subjectIds = [];
   const notes = [];
+  const massHeal = spell.id === MASS_HEAL_SPELL_ID ? massHealAllocationFor(command, liveItems) : null;
   for (const item of liveItems) {
     const plan = planCleanseTarget({
       spellId: spell.id,
       item,
       slotLevel: command?.spell?.slotLevel,
-      context: targetContexts?.[item.id] || {},
+      context: massHeal
+        ? { ...(targetContexts?.[item.id] || {}), massHealShare: massHeal.byTarget[item.id] || 0 }
+        : targetContexts?.[item.id] || {},
       levelOf: (spellId) => getSpellDefinition(spellId)?.level,
     });
     if (plan.removeInstanceIds.length) {
@@ -2311,6 +2329,18 @@ async function buildPlan(command, runtime) {
         : `${magicMissileAllocationText(magicMissileAllocation)}: ogni dardo deve avere un bersaglio.`,
     }] };
   }
+  // CAP-ALLOCATION: Mass Heal's boxes are numbers, and their sum stays within the 700 (massHealCore.js).
+  const massHealShares = spell.id === MASS_HEAL_SPELL_ID ? massHealAllocationFor(command, liveItems) : null;
+  if (massHealShares && !massHealShares.valid) {
+    return { valid: false, errors: [{
+      code: "mass-heal-shares",
+      message: massHealShares.error === "invalid"
+        ? "Scrivi i PF di ogni bersaglio come numeri interi."
+        : massHealShares.error === "no-targets"
+        ? "Scegli le creature da curare."
+        : `${massHealAllocationText(massHealShares)}: al massimo ${massHealShares.total} PF in tutto.`,
+    }] };
+  }
   const entries = hpEntries({
     command,
     allItems,
@@ -2318,6 +2348,32 @@ async function buildPlan(command, runtime) {
     spell,
     prismaticSprayPlan: resolution.prismaticSpray,
   });
+  // CAP-RELATION: Life Transference's two rows in place of a damage on the target: the caster's damage, the whole roll
+  // with no defense, then the healing it gives (spellHpRelationCore.js).
+  if (spellHpRelationRule(spell.id)) {
+    const relationTargets = teleportHPItems.filter(trackedHP);
+    const relationError = !caster || !trackedHP(caster)
+      ? "il caster deve avere i PF tracciati."
+      : relationTargets.length !== 1
+        ? "scegli la creatura da curare."
+        : text(relationTargets[0].id) === text(caster.id)
+          ? "il caster non può scegliere sé stesso."
+          : "";
+    if (relationError) {
+      return { valid: false, errors: [{ code: "hp-relation-target",
+        message: `${spell.displayName || spell.name || "Trasferimento di vita"}: ${relationError}` }] };
+    }
+    const relation = spellHpRelationChanges({
+      spellId: spell.id,
+      amount: command?.hp?.amount,
+      caster: itemMeta(caster),
+      target: itemMeta(relationTargets[0]),
+      deathSaveDamage: takesDeathSaveDamage(itemMeta(caster)),
+    });
+    entries.splice(0, entries.length,
+      { item: caster, outcome: "", change: relation.casterChange },
+      ...(relation.targetChange?.changed ? [{ item: relationTargets[0], outcome: "healing", change: relation.targetChange }] : []));
+  }
   if (hpBranch?.deaths.size) applyHpBranchDeaths(entries, hpBranch.deaths, liveItems);
   if (cleanse) {
     applyCleanseHeals(entries, cleanse.heals);

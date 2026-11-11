@@ -100,9 +100,11 @@ export const SUPPLEMENT_AUTOMATION = Object.freeze({
     conditionOptions: Object.freeze({
       Trattenuto: Object.freeze({
         effectId: "watery-sphere-restrained",
-        effectDetail: "La sfera trattiene il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD dell'incantesimo e liberarsi.",
+        // CAP-CARRIAGE: four Medium or smaller, or one Large; a Huge or larger is not held (zoneCarriageCore.js).
+        mechanics: Object.freeze({ carriage: Object.freeze({ capacity: 4, largeUnits: 4 }) }),
+        effectDetail: "La sfera trattiene il bersaglio, immerso nell'acqua, e lo porta con sé. Alla fine di ogni suo turno ripete il TS su Forza e, se lo supera, ne esce.",
         summaryParts: Object.freeze([
-          Object.freeze({ id: "watery-sphere-escape-action", label: "Azione: prova For" }),
+          Object.freeze({ id: "watery-sphere-escape-save", label: "TS For a fine turno" }),
         ]),
         saveReminder: Object.freeze({
           ability: "str",
@@ -195,9 +197,11 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
     failed: Object.freeze([Object.freeze({
       condition: "Trattenuto",
       effectId: "watery-sphere-restrained",
-      effectDetail: "La sfera trattiene il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD dell'incantesimo e liberarsi.",
+      // CAP-CARRIAGE: four Medium or smaller, or one Large; a Huge or larger is not held (zoneCarriageCore.js).
+      mechanics: Object.freeze({ carriage: Object.freeze({ capacity: 4, largeUnits: 4 }) }),
+      effectDetail: "La sfera trattiene il bersaglio, immerso nell'acqua, e lo porta con sé. Alla fine di ogni suo turno ripete il TS su Forza e, se lo supera, ne esce.",
       summaryParts: Object.freeze([
-        Object.freeze({ id: "watery-sphere-escape-action", label: "Azione: prova For" }),
+        Object.freeze({ id: "watery-sphere-escape-save", label: "TS For a fine turno" }),
       ]),
       expiry: concentration,
       saveReminder: Object.freeze({

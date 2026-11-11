@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 293,
-      "PARTIAL": 18,
+      "COMPLETE / CURRENT": 296,
+      "PARTIAL": 17,
       "NO AUTOMATION REQUIRED": 145,
-      "MISSING": 6,
+      "MISSING": 4,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 24,
+    "implementableBacklog": 21,
     "readiness": {
       "GREEN": {
         "count": 0,
         "percent": 0
       },
       "YELLOW": {
-        "count": 12,
-        "percent": 50
+        "count": 9,
+        "percent": 42.857142857142854
       },
       "RED": {
         "count": 12,
-        "percent": 50
+        "percent": 57.14285714285714
       }
     },
     "scenarios": [
@@ -26745,13 +26745,18 @@
       "id": "mass-heal",
       "spell": "Guarigione di massa",
       "level": 9,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/massHealCore.js",
+        "src/cleanseSpellRules.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/spellUnifiedPanelViewCore.js",
+        "src/spellUnifiedPanelCore.js",
+        "src/spellSaveWorkflowRules.js"
       ],
       "mechanicsRequired": [
-        "Budget totale 700 allocato tra target e rimozione condizioni nel medesimo cast; multi-attack non è un budget di healing."
+        "CAP-ALLOCATION: dal pannello, qualunque numero di creature entro 18 m, ognuna con la sua casella PF: vuota parte dai PF che le mancano, in ordine, finché bastano i 700; scritta si ferma a quanto le manca; il contatore «PF assegnati N/700» diventa rosso oltre i 700. Toglie Accecato, Assordato e le malattie di Contagio a tutti i bersagli, anche già al massimo; costrutti e non morti (dal token) e i morti restano come sono, con una nota, e non consumano i 700. Un solo comando e un solo Annulla."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -26763,10 +26768,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ALLOCATION",
-        "CAP-CLEANSE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -26774,7 +26776,7 @@
         "mode": "discrete",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Budget totale 700 allocato tra target e rimozione condizioni nel medesimo cast; multi-attack non è un budget di healing."
+        "required": "CAP-ALLOCATION: dal pannello, qualunque numero di creature entro 18 m, ognuna con la sua casella PF: vuota parte dai PF che le mancano, in ordine, finché bastano i 700; scritta si ferma a quanto le manca; il contatore «PF assegnati N/700» diventa rosso oltre i 700. Toglie Accecato, Assordato e le malattie di Contagio a tutti i bersagli, anche già al massimo; costrutti e non morti (dal token) e i morti restano come sono, con una nota, e non consumano i 700. Un solo comando e un solo Annulla."
       },
       "concentration": false,
       "durationLifecycle": {
@@ -26803,8 +26805,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "HEAL-ALLOCATION",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ALLOCATION + CAP-CLEANSE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "mass-heal",
@@ -26832,7 +26834,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Budget totale 700 allocato tra target e rimozione condizioni nel medesimo cast; multi-attack non è un budget di healing.",
+        "reason": "CAP-ALLOCATION: dal pannello, qualunque numero di creature entro 18 m, ognuna con la sua casella PF: vuota parte dai PF che le mancano, in ordine, finché bastano i 700; scritta si ferma a quanto le manca; il contatore «PF assegnati N/700» diventa rosso oltre i 700. Toglie Accecato, Assordato e le malattie di Contagio a tutti i bersagli, anche già al massimo; costrutti e non morti (dal token) e i morti restano come sono, con una nota, e non consumano i 700. Un solo comando e un solo Annulla.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -52147,17 +52149,18 @@
       "id": "xanathar-sfera-acquea",
       "spell": "Sfera Acquea",
       "level": 4,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
+        "src/spellAreaCatalog.js",
+        "src/spellActiveResolutionRules.js",
+        "src/zoneCarriageCore.js",
+        "src/effectsMutations.js",
         "src/supplementSpellRules.js",
-        "src/spellApplicationPlanCore.js",
-        "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
-        "src/spellAreaResolutionExecutor.js"
+        "src/spellAreaRules.js"
       ],
       "mechanicsRequired": [
-        "carriedEffectIds/movimento atomico esistono nel donor Turbine; mancano capacità per taglia ed espulsione selettiva collegata alla stessa transazione."
+        "CAP-CARRIAGE: TS Forza al lancio; chi fallisce è Trattenuto, con il TS a fine turno, finché dura la concentrazione, e cade Prono alla fine. Il ⚡ Sposta la sfera (azione, fino a 9 m in linea retta) la sposta con le creature trattenute in un solo comando e un solo Annulla; chi sta dove si ferma fa il TS e, se fallisce, ha lo stesso Trattenuto. Capienza dalla misura del token: quattro creature Medie o più piccole, o una Grande; un'Enorme o più grande supera da sola; oltre, una creatura già trattenuta, a caso, cade fuori Prona e il GM la posa entro 1,5 m. Trascinata a mano la sfera si sposta da sola. Chi supera il TS lo sposta il GM; l'altezza e le fiamme spente restano al tavolo."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -52175,9 +52178,7 @@
         "C-MEMBERSHIP",
         "C-TRIGGERS"
       ],
-      "missingCapabilities": [
-        "CAP-CARRIAGE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects + composite scene side effects; Undo restore of owned geometry/trigger required",
       "recoveryImplications": "Derived area reconciliation; durable recovery does NOT cover every scene side effect",
@@ -52185,7 +52186,7 @@
         "mode": "geometric",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "carriedEffectIds/movimento atomico esistono nel donor Turbine; mancano capacità per taglia ed espulsione selettiva collegata alla stessa transazione."
+        "required": "CAP-CARRIAGE: TS Forza al lancio; chi fallisce è Trattenuto, con il TS a fine turno, finché dura la concentrazione, e cade Prono alla fine. Il ⚡ Sposta la sfera (azione, fino a 9 m in linea retta) la sposta con le creature trattenute in un solo comando e un solo Annulla; chi sta dove si ferma fa il TS e, se fallisce, ha lo stesso Trattenuto. Capienza dalla misura del token: quattro creature Medie o più piccole, o una Grande; un'Enorme o più grande supera da sola; oltre, una creatura già trattenuta, a caso, cade fuori Prona e il GM la posa entro 1,5 m. Trascinata a mano la sfera si sposta da sola. Chi supera il TS lo sposta il GM; l'altezza e le fiamme spente restano al tavolo."
       },
       "concentration": true,
       "durationLifecycle": {
@@ -52237,8 +52238,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "CARRIED-ZONE",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-CARRIAGE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-sfera-acquea",
@@ -52276,7 +52277,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "carriedEffectIds/movimento atomico esistono nel donor Turbine; mancano capacità per taglia ed espulsione selettiva collegata alla stessa transazione.",
+        "reason": "CAP-CARRIAGE: TS Forza al lancio; chi fallisce è Trattenuto, con il TS a fine turno, finché dura la concentrazione, e cade Prono alla fine. Il ⚡ Sposta la sfera (azione, fino a 9 m in linea retta) la sposta con le creature trattenute in un solo comando e un solo Annulla; chi sta dove si ferma fa il TS e, se fallisce, ha lo stesso Trattenuto. Capienza dalla misura del token: quattro creature Medie o più piccole, o una Grande; un'Enorme o più grande supera da sola; oltre, una creatura già trattenuta, a caso, cade fuori Prona e il GM la posa entro 1,5 m. Trascinata a mano la sfera si sposta da sola. Chi supera il TS lo sposta il GM; l'altezza e le fiamme spente restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -53555,13 +53556,17 @@
       "id": "xanathar-trasferimento-di-vita",
       "spell": "Trasferimento di Vita",
       "level": 3,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/spellHpRelationCore.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/spellUnifiedPanelViewCore.js",
+        "src/spellSaveWorkflowRules.js",
+        "src/spellCastResolutionRules.js"
       ],
       "mechanicsRequired": [
-        "Drain casterHealingFromAppliedDamage esiste in direzione target→caster; self damage→target heal x2 non è rappresentabile senza nuova relazione parametrica."
+        "CAP-RELATION: dal pannello, un bersaglio entro 9 m, mai il caster; il GM scrive il tiro in «Danno al caster · 4d8 necrotici» (+1d8 per slot sopra il 3°). Il caster subisce tutto il tiro, che nulla riduce (né resistenze, né immunità, né reazioni; i PF temporanei assorbono come sempre); il bersaglio recupera il doppio del danno subito, anche la parte oltre lo 0, fino al massimo. Un solo comando e un solo Annulla."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -53573,9 +53578,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-RELATION"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -53583,7 +53586,7 @@
         "mode": "discrete",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Drain casterHealingFromAppliedDamage esiste in direzione target→caster; self damage→target heal x2 non è rappresentabile senza nuova relazione parametrica."
+        "required": "CAP-RELATION: dal pannello, un bersaglio entro 9 m, mai il caster; il GM scrive il tiro in «Danno al caster · 4d8 necrotici» (+1d8 per slot sopra il 3°). Il caster subisce tutto il tiro, che nulla riduce (né resistenze, né immunità, né reazioni; i PF temporanei assorbono come sempre); il bersaglio recupera il doppio del danno subito, anche la parte oltre lo 0, fino al massimo. Un solo comando e un solo Annulla."
       },
       "concentration": false,
       "durationLifecycle": {
@@ -53612,8 +53615,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "HP-RELATION",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-RELATION",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-trasferimento-di-vita",
@@ -53641,7 +53644,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Drain casterHealingFromAppliedDamage esiste in direzione target→caster; self damage→target heal x2 non è rappresentabile senza nuova relazione parametrica.",
+        "reason": "CAP-RELATION: dal pannello, un bersaglio entro 9 m, mai il caster; il GM scrive il tiro in «Danno al caster · 4d8 necrotici» (+1d8 per slot sopra il 3°). Il caster subisce tutto il tiro, che nulla riduce (né resistenze, né immunità, né reazioni; i PF temporanei assorbono come sempre); il bersaglio recupera il doppio del danno subito, anche la parte oltre lo 0, fino al massimo. Un solo comando e un solo Annulla.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {

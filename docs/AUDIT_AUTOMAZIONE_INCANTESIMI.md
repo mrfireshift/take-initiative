@@ -644,9 +644,9 @@ da questo audit.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **477**; disconnessi: **0**; fragili: **0**.
 - Opzioni trackable del runtime: **361**; definizioni con tracking persistente verificate dall'audit: **361**; definizioni con regole d'area: **144** (162 regole).
-- Workflow che richiedono smoke test runtime: **418**.
+- Workflow che richiedono smoke test runtime: **420**.
 - Lacune RAW confermate P1: **7**; discrepanze ad alta confidenza P2: **2**.
-- Impronta deterministica: `a7cee5a05fb0dade`.
+- Impronta deterministica: `f61761dd6c0822ff`.
 
 ## Decisioni di prodotto chiuse
 
@@ -659,8 +659,8 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | FULL | 66 |
-| MANUAL | 56 |
-| PARTIAL | 247 |
+| MANUAL | 54 |
+| PARTIAL | 249 |
 | TRACK_ONLY | 108 |
 
 ### Stato di copertura (coverageStatus)
@@ -700,9 +700,9 @@ da questo audit.
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION | 60 |
+| ACTIVE_ACTION | 61 |
 | AREA_GEOMETRY | 144 |
-| CAST | 279 |
+| CAST | 281 |
 | CLEANUP | 134 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 361 |
@@ -951,7 +951,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Guardiano della fede | `guardian-of-faith` | SRD 5.1 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Guardiano della Natura | `xanathar-guardiano-della-natura` | Xanathar / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Guarigione | `heal` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Guarigione di massa | `mass-heal` | SRD 5.1 / 9 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Guarigione di massa | `mass-heal` | SRD 5.1 / 9 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Guida | `guidance` | SRD 5.1 / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Guscio anti-vita | `antilife-shell` | SRD 5.1 / 5 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
 | Identificare | `identify` | SRD 5.1 / 1 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1210,7 +1210,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Tocco gelido | `chill-touch` | SRD 5.1 / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Trabocchetto | `xanathar-trabocchetto` | Xanathar / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Trama ipnotica | `hypnotic-pattern` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Trasferimento di Vita | `xanathar-trasferimento-di-vita` | Xanathar / 3 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Trasferimento di Vita | `xanathar-trasferimento-di-vita` | Xanathar / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Trasformazione | `shapechange` | SRD 5.1 / 9 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; varianti rilevanti non modellate |
 | Trasformazione di Tenser | `xanathar-trasformazione-di-tenser` | Xanathar / 6 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Traslazione arborea | `tree-stride` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

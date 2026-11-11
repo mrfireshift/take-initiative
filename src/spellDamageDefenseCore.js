@@ -57,6 +57,8 @@ const SPELL_DAMAGE_TYPES = Object.freeze(Object.fromEntries([
 export const SPELL_DAMAGE_TYPE_LEFT_TO_GM = Object.freeze({
   // Its own count, dart by dart (magicMissileCore.js).
   "magic-missile": "dardi",
+  // The caster's own damage, which nothing reduces (spellHpRelationCore.js): no defense to read.
+  "xanathar-trasferimento-di-vita": "non riducibile",
   // The weapon's type.
   "phb2014-evoca-raffica": "dell'arma",
   "phb2014-evoca-pioggia-di-armi": "dell'arma",

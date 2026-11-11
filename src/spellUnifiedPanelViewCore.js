@@ -84,6 +84,13 @@ import {
   magicMissileTargetDamage,
   magicMissileTargetText,
 } from "./magicMissileCore.js";
+import { spellHpRelationChanges, spellHpRelationRule } from "./spellHpRelationCore.js";
+import {
+  MASS_HEAL_SHARE_FIELD,
+  MASS_HEAL_SPELL_ID,
+  massHealAllocation,
+  massHealAllocationText,
+} from "./massHealCore.js";
 
 const SUBJECT_LABELS = Object.freeze({
   none: "Nessun soggetto",
@@ -429,6 +436,10 @@ function hpPreviewFor(
   const magicMissileCast = !isHealing && spellId === MAGIC_MISSILE_SPELL_ID
     && inputs.targetContext?.visible === true;
   const isDamage = (inputs.damage?.visible === true && damageInputVisible) || magicMissileCast;
+  // Mass Heal: no healing input, each target's share is written on it (massHealCore.js).
+  if (!isHealing && !isDamage && spellId === MASS_HEAL_SPELL_ID && inputs.targetContext?.visible === true) {
+    return massHealPreview(session, candidates);
+  }
   if (!isHealing && !isDamage) return { visible: false, targets: [] };
 
   const mode = isHealing ? QUICK_HP_MODES.HEAL : QUICK_HP_MODES.DAMAGE;
@@ -455,6 +466,18 @@ function hpPreviewFor(
       targetIds: session?.targetIds || [],
       targetContexts: session?.targetContext || {},
       slotLevel: session?.slotLevel,
+    })
+    : null;
+  // CAP-RELATION: Life Transference, as the commit counts it (spellHpRelationCore.js): the caster takes the whole roll,
+  // the creature chosen regains twice the damage taken.
+  const relationCaster = !isHealing && spellHpRelationRule(spellId)
+    ? (Array.isArray(candidates) ? candidates : []).find((candidate) => candidate.key === asText(session?.casterId)) || null
+    : null;
+  const relation = !isHealing && spellHpRelationRule(spellId)
+    ? spellHpRelationChanges({
+      spellId,
+      amount: value,
+      caster: relationCaster ? { hp: relationCaster.hp, hpMax: relationCaster.hpMax, tempHp: relationCaster.tempHp } : {},
     })
     : null;
   // Evasion: a Dexterity save that halves the damage takes nothing on a success and half on a failure, for a creature that
@@ -496,6 +519,15 @@ function hpPreviewFor(
           delta: change.delta,
           change,
         };
+      }
+      if (relation) {
+        if (candidate.key === asText(session?.casterId)) {
+          return { ...base, factorLabel: "Il caster non può scegliere sé stesso" };
+        }
+        const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: relation.healing,
+          factor: QUICK_HP_FACTORS.FULL, hp: beforeHP, hpMax, tempHp: candidate.tempHp });
+        return { ...base, factor: QUICK_HP_FACTORS.FULL, factorLabel: `Recupera il doppio: ${relation.healing} PF`,
+          afterHP: change.afterHP, delta: change.delta, change };
       }
       const outcome = asText(candidate.outcome?.value).toLocaleLowerCase("it");
       if (!isHealing && !outcome) {
@@ -605,6 +637,23 @@ function hpPreviewFor(
         ...(defenseCount ? { defenseCount } : {}),
       };
     });
+  // CAP-RELATION: the caster's own row, its whole roll with no defense, where its card shows it.
+  if (relation && relationCaster && relationCaster.hp !== null && relationCaster.hpMax !== null
+    && !preview.targets.some((target) => target.key === relationCaster.key)) {
+    preview.targets.push({
+      key: relationCaster.key,
+      label: relationCaster.label,
+      beforeHP: relationCaster.hp,
+      hpMax: relationCaster.hpMax,
+      available: true,
+      pendingOutcome: false,
+      factor: QUICK_HP_FACTORS.FULL,
+      factorLabel: relation.casterChange.afterHP <= 0 ? "Danno al caster, non ridotto: scende a 0 PF" : "Danno al caster, non ridotto",
+      afterHP: relation.casterChange.afterHP,
+      delta: relation.casterChange.delta,
+      change: relation.casterChange,
+    });
+  }
   return preview;
 }
 
@@ -754,6 +803,53 @@ function magicMissileDartsView(allocation, selectedTargets = []) {
   };
 }
 
+// Mass Heal's shares as the area command counts them (massHealCore.js): the panel's order of the targets, their hit
+// points from the cards.
+function massHealPanelAllocation(session, selectedTargets = []) {
+  const targets = (Array.isArray(selectedTargets) ? selectedTargets : []).filter((target) => asText(target?.key));
+  const keys = new Set(targets.map((target) => asText(target.key)));
+  const order = (Array.isArray(session?.targetIds) ? session.targetIds : []).map(asText).filter((id) => keys.has(id));
+  return massHealAllocation({
+    targetIds: [...order, ...[...keys].filter((id) => !order.includes(id))],
+    targetContexts: session?.targetContext || {},
+    hpById: Object.fromEntries(targets.map((target) => [asText(target.key), { hp: target.hp, hpMax: target.hpMax }])),
+  });
+}
+
+// Mass Heal's preview: each target's share, as the commit heals it.
+function massHealPreview(session, candidates = []) {
+  const selected = (Array.isArray(candidates) ? candidates : []).filter((candidate) => candidate.selected);
+  const allocation = massHealPanelAllocation(session, selected);
+  return {
+    visible: true,
+    mode: QUICK_HP_MODES.HEAL,
+    amount: allocation.assigned,
+    valid: allocation.valid,
+    label: "Anteprima cura",
+    targets: selected.map((candidate) => {
+      const available = candidate.hp !== null && candidate.hpMax !== null;
+      const share = allocation.byTarget[candidate.key] || 0;
+      const change = available
+        ? calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: share, factor: QUICK_HP_FACTORS.FULL,
+          hp: candidate.hp, hpMax: candidate.hpMax, tempHp: candidate.tempHp })
+        : null;
+      return {
+        key: candidate.key,
+        label: candidate.label,
+        beforeHP: candidate.hp,
+        hpMax: candidate.hpMax,
+        available,
+        pendingOutcome: false,
+        factor: QUICK_HP_FACTORS.FULL,
+        factorLabel: allocation.cappedIds.includes(candidate.key) ? `Cura: ${share} PF, fino al massimo` : `Cura: ${share} PF`,
+        afterHP: change ? change.afterHP : null,
+        delta: change ? change.delta : null,
+        ...(change ? { change } : {}),
+      };
+    }),
+  };
+}
+
 function targetContextFields(presentation, session, selectedTargets = [], spellId = "") {
   const workflow = presentation?.targeting?.workflow;
   const fields = Array.isArray(workflow?.context?.fields)
@@ -773,10 +869,16 @@ function targetContextFields(presentation, session, selectedTargets = [], spellI
       slotLevel: session?.slotLevel,
     })
     : null;
+  // Mass Heal: each target's share of the 700, an empty box with what the plugin gives it.
+  const massHeal = spellId === MASS_HEAL_SPELL_ID ? massHealPanelAllocation(session, selectedTargets) : null;
   return {
     visible: presentation?.inputs?.targetContext?.visible === true && visibleFields.length > 0,
-    label: darts ? "Dardi" : "Contesto bersaglio",
+    label: darts ? "Dardi" : massHeal ? "PF da ripartire" : "Contesto bersaglio",
     ...(darts ? { magicMissile: magicMissileDartsView(darts, selectedTargets) } : {}),
+    ...(massHeal ? {
+      summary: `${massHealAllocationText(massHeal)}${massHeal.error === "over" ? ` · oltre i ${massHeal.total}` : ""}`,
+      summaryInvalid: !massHeal.valid,
+    } : {}),
     fields: clone(visibleFields),
     values: clone(session?.targetContext || {}),
     targets: (Array.isArray(selectedTargets) ? selectedTargets : []).map((target) => {
@@ -806,6 +908,9 @@ function targetContextFields(presentation, session, selectedTargets = [], spellI
         key: asText(target?.key),
         label: asText(target?.label) || asText(target?.key),
         values,
+        ...(massHeal?.autoIds.includes(asText(target?.key))
+          ? { placeholders: { [MASS_HEAL_SHARE_FIELD]: String(massHeal.byTarget[asText(target?.key)] ?? 0) } }
+          : {}),
         dependentOutcomes,
         fields: clone(visibleFields.filter((field) => (
           !field?.requiredWhen
@@ -866,10 +971,14 @@ function normalizeEffectFields(
         invalid: validation.firstInvalidField === part.field,
       });
     }
+    // CAP-RELATION: Life Transference's roll is the caster's damage (spellHpRelationCore.js).
+    const hpRelation = spellHpRelationRule(spellId);
     if (damageParts.length < 2) fields.push({
       id: "damage",
       type: "number",
-      label: shownFormula ? `Danno · ${shownFormula}` : damageFormula,
+      label: hpRelation && shownFormula
+        ? `Danno al caster · ${shownFormula} ${hpRelation.damageType}`
+        : shownFormula ? `Danno · ${shownFormula}` : damageFormula,
       hint: shownFormula
         ? spellCantripDamageHint(spellId)
         : areaDamage
@@ -881,6 +990,8 @@ function normalizeEffectFields(
       value: hpValues.damage ?? "",
       invalid: validation.firstInvalidField === "damage",
     });
+    const damageField = fields.find((field) => field.id === "damage");
+    if (hpRelation && damageField) damageField.hint = "Nulla lo riduce; il bersaglio recupera il doppio del danno subito.";
     // A cast's own hit on its primary target (Ice Knife's shard): its field once the attack hits, with the doubled dice of
     // a critical as the console says them. A miss deals nothing and asks nothing.
     const primaryHit = spellCastPrimaryHit(spellId);

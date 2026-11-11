@@ -2286,9 +2286,10 @@ const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
     ability: "str",
     failureCondition: { condition: "Prono" },
   },
+  // CAP-CARRIAGE (decision C-D2): the cast's own Trattenuto, with its repeat save, its Prono at the end and its carriage.
   "watery-sphere-save-on-ram": {
     ability: "str",
-    failureCondition: { condition: "Trattenuto" },
+    failureAutomation: "spell-save",
   },
   "create-bonfire-save-on-entry": { ability: "dex" },
   "create-bonfire-save-on-turn-end": { ability: "dex" },

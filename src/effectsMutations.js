@@ -88,6 +88,7 @@ import {
 import { emitMatchedVisualEndsFromMutation } from "./embersMatchedVisualRenderer.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { suppressElevationHistory, suppressMovementHistory } from "./history.js";
+import { expandCarriageConditionAdd } from "./zoneCarriageCore.js";
 import { compactBackgroundReminderTransportResult } from "./effectsReminderTransportCore.js";
 import { perfJsonBytes, perfNow, perfProbeEnabled, perfRecord, perfSetContext, perfSince } from "./perfProbe.js";
 import {
@@ -1112,6 +1113,11 @@ function applyMetadataPatchesToPlan(plan, sceneItems, metadataPatches = []) {
 function expandStateDependentOperations(operations, sceneItems) {
   const byId = new Map(sceneItems.map((item) => [item.id, item]));
   return operations.flatMap((operation) => {
+    // CAP-CARRIAGE: a carried effect entering a zone that may be full, with the creatures already held
+    // (zoneCarriageCore.js): those that fall out are in the same command.
+    if (operation?.type === "condition:add" && operation?.options?.mechanics?.carriage) {
+      return expandCarriageConditionAdd(operation, sceneItems).operations;
+    }
     if (operation?.type === "condition:reconcile-exhaustion") {
       const instancesByTarget = {};
       for (const targetId of uniqueIds(operation.targetIds)) {
@@ -3920,6 +3926,11 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
       throw new Error("static-zone-subzone-stale");
     }
     if (!isCurrent()) throw new Error("stale-before-static-zone-move-update");
+    // The creatures it carries move with it in this command (CAP-CARRIAGE): their own movement stays out of History, as
+    // a teleport's.
+    for (const carried of carriedItems) {
+      suppressMovementHistory(carried.id, carried.afterPosition, 5000, { relocation: true });
+    }
     await OBR.scene.items.updateItems(itemIds, (drafts) => {
       const draftsById = new Map(drafts.map((draft) => [draft?.id, draft]));
       if (itemIds.some((itemId) => !draftsById.has(itemId))) {

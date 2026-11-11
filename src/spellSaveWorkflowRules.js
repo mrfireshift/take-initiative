@@ -740,6 +740,35 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
       })],
     }),
   }),
+  // CAP-RELATION (Xanathar): no save; one creature within 9 m regains twice the damage the caster takes, and the caster
+  // cannot choose itself (the area command refuses it: spellHpRelationCore.js).
+  "xanathar-trasferimento-di-vita": workflowRule({
+    spellId: "xanathar-trasferimento-di-vita",
+    ability: "con",
+    maximum: 1,
+    baseSlot: 3,
+    spatial: { mode: "caster-range", maxMeters: 9 },
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+  }),
+  // CAP-ALLOCATION (PHB 2014): no save; any number of creatures within 18 m, each with its share of the 700 hit points.
+  // An empty box takes what the creature misses from what is left (massHealCore.js).
+  "mass-heal": workflowRule({
+    spellId: "mass-heal",
+    ability: "con",
+    baseSlot: 9,
+    unlimitedTargets: true,
+    spatial: { mode: "caster-range", maxMeters: 18 },
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+    context: targetContext({
+      fields: [targetContextField({
+        id: "share",
+        label: "PF",
+        type: "number",
+      })],
+    }),
+  }),
   // No save: every dart hits (magicMissileCore.js). Each target lists the damage of its darts, one roll each.
   "magic-missile": workflowRule({
     spellId: "magic-missile",

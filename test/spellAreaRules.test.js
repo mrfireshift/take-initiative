@@ -868,7 +868,17 @@ test("lo smoke test logico di Folata copre sagoma, direzioni e lifecycle di memb
 
 test("Sfera Acquea, Spirito Guaritore, Crescita di Spine e Muro di Ghiaccio tracciano movimento e attraversamento", () => {
   const waterySphere = getSpellAreaRuleById("xanathar-sfera-acquea:cast");
-  assert.equal(waterySphere.zonePolicy.movement, "manual");
+  // CAP-CARRIAGE (decision C-D1): its ⚡ moves it up to 9 m with the creatures it holds.
+  assert.deepEqual({ ...waterySphere.zonePolicy.movement, carriedEffectIds: [...waterySphere.zonePolicy.movement.carriedEffectIds] }, {
+    mode: "action",
+    economy: "action",
+    maximumMeters: 9,
+    triggerOnAreaMove: true,
+    stopOnFirstContact: false,
+    carriedEffectIds: ["watery-sphere-restrained"],
+    label: "Sposta la sfera",
+    buttonLabel: "Sposta la sfera",
+  });
   assert.equal(waterySphere.zonePolicy.triggers.length, 1);
   assert.equal(waterySphere.zonePolicy.triggers[0].event, "enter");
   assert.equal(waterySphere.zonePolicy.triggers[0].requiresAreaMove, true);
@@ -934,11 +944,12 @@ test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () =>
   // Word Heal, Lesser Restoration and Dispel Magic (CAP-CLEANSE); 26 and 161 with Magic Missile; 27 and 162 with
   // Negative Energy Flood (CAP-TEMP); 33 and 168 with the six spells of CAP-STABILIZE; 170 with the two of lotto G1 of CAP-TERRAIN.
   // 54 and 191 with the 21 spells of decision D6 of the polish; 58 and 195 with Frostbite, Earthen Grasp, Witch Bolt and
-  // Ray of Enfeeblement (lot 3). 60 with the Illusory Dragon's appearance (CAP-ORIGIN, lotto O6).
-  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 60);
+  // Ray of Enfeeblement (lot 3). 60 with the Illusory Dragon's appearance (CAP-ORIGIN, lotto O6). 62 with Life Transference
+  // (CAP-RELATION) and Mass Heal (CAP-ALLOCATION).
+  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 62);
   // 195 with Far Step (CAP-TELEPORT, lotto T1), 196 with Arcane Gate (lotto T4), 197 with Wall of Stone (CAP-STRUCTURE),
-  // 198 with Bones of the Earth (lotto S3).
-  assert.equal(AREA_POPOVER_SPELL_IDS.length, 198);
+  // 198 with Bones of the Earth (lotto S3), 200 with Life Transference and Mass Heal.
+  assert.equal(AREA_POPOVER_SPELL_IDS.length, 200);
   assert.equal(AREA_SAVE_SPELL_IDS.includes("phb2014-fame-di-hadar"), false);
   assert.equal(
     AREA_PLACEMENT_ONLY_SPELL_IDS.includes("phb2014-fame-di-hadar"),

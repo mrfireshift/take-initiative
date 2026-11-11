@@ -59,6 +59,7 @@ import { reactionTriggerEntry } from "./reactionTriggerCatalog.js";
 import { isDamageRollReaction } from "./damageReactionCore.js";
 import { spellPanelDamageTypes } from "./spellDamageDefenseCore.js";
 import { MAGIC_MISSILE_SPELL_ID } from "./magicMissileCore.js";
+import { LIFE_TRANSFERENCE_SPELL_ID } from "./spellHpRelationCore.js";
 import { PRISMATIC_SPRAY_SPELL_ID } from "./prismaticSprayRules.js";
 import { sanitizeQuickActions } from "./quickActionsCore.js";
 import {
@@ -3250,11 +3251,12 @@ export function bootSpellUnifiedPanel(
   }
 
   // Lot R3b-5: the creatures this cast damages (the panel's preview), with their outcome: none before the damage is
-  // written; Magic Missile (its darts) and Prismatic Spray (its rays) count their damage on their own.
+  // written; Magic Missile (its darts) and Prismatic Spray (its rays) count their damage on their own. Life Transference
+  // damages its own caster, and nothing reduces that damage (spellHpRelationCore.js).
   const castDamageTargets = () => {
     if (!usesPersistentCastAdapter()) return [];
     const spellId = state.contract?.spell?.id || "";
-    if ([MAGIC_MISSILE_SPELL_ID, PRISMATIC_SPRAY_SPELL_ID].includes(spellId)) return [];
+    if ([MAGIC_MISSILE_SPELL_ID, PRISMATIC_SPRAY_SPELL_ID, LIFE_TRANSFERENCE_SPELL_ID].includes(spellId)) return [];
     const preview = state.model?.effects?.preview;
     if (!preview?.visible || !preview.valid || preview.mode !== "damage") return [];
     const candidates = new Map((state.model?.targets?.candidates || []).map((candidate) => [candidate.key, candidate]));

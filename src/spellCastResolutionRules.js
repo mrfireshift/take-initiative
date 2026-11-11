@@ -240,6 +240,15 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
       immune: Object.freeze({ formula: "5d12", type: "necrotici" }),
     }),
   }),
+  // CAP-RELATION (Xanathar): the roll is the caster's damage, nothing reduces it; the target regains twice of it
+  // (spellHpRelationCore.js).
+  "xanathar-trasferimento-di-vita": Object.freeze({
+    initialHP: true,
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({ formula: "4d8", baseSlot: 3, additionalPerSlotAbove: 1, type: "necrotici" }),
+      failed: Object.freeze({ formula: "4d8", baseSlot: 3, additionalPerSlotAbove: 1, type: "necrotici" }),
+    }),
+  }),
   // The 4d6 come before the save, whatever its result.
   "feeblemind": Object.freeze({
     initialHP: true,

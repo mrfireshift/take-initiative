@@ -9,6 +9,8 @@ const SPELLS_KEY = `${ID}/spells`;
 
 export const CLEANSE_SPELL_IDS = Object.freeze([
   "heal",
+  // CAP-ALLOCATION: its share of the 700 hit points comes in the context (massHealCore.js).
+  "mass-heal",
   "phb2014-parola-del-potere-guarire",
   "lesser-restoration",
   "dispel-magic",
@@ -70,6 +72,13 @@ function spellLevel(spell, levelOf) {
 
 const empty = () => ({ removeInstanceIds: [], endSpells: [], keptSpells: [], healing: 0, note: "" });
 
+// Why Mass Heal leaves a creature as it is: "unaffected" (a construct or an undead, by the token), "dead" (Morto), "".
+// The area command gives it no share of the 700 on its own (massHealCore.js).
+export function massHealSkipped(item) {
+  if (cleanseHealingUnaffected(meta(item))) return "unaffected";
+  return activeConditions(item).some((instance) => conditionKey(instance) === "morto") ? "dead" : "";
+}
+
 export function planCleanseTarget({ spellId = "", item = null, slotLevel = null, context = {}, levelOf = null } = {}) {
   const plan = empty();
   const value = meta(item);
@@ -89,6 +98,20 @@ export function planCleanseTarget({ spellId = "", item = null, slotLevel = null,
     plan.removeInstanceIds = spellId === "heal"
       ? conditionIds(item, HEAL_ENDS, { diseases: true })
       : conditionIds(item, POWER_WORD_HEAL_ENDS);
+    return plan;
+  }
+  // Mass Heal (decisions A-D2–A-D4 of 11/11/2026): its share of the 700, and Heal's conditions on every creature it
+  // reaches, a share of 0 too; no effect on constructs and undead, and a dead creature stays dead.
+  if (spellId === "mass-heal") {
+    const skipped = massHealSkipped(item);
+    if (skipped === "unaffected") {
+      return { ...plan, note: `${item.name || "La creatura"}: nessun effetto su costrutti e non morti.` };
+    }
+    if (skipped === "dead") {
+      return { ...plan, note: `${item.name || "La creatura"}: è morta, la cura non la riporta in vita.` };
+    }
+    plan.healing = Math.max(0, Math.floor(Number(context?.massHealShare) || 0));
+    plan.removeInstanceIds = conditionIds(item, HEAL_ENDS, { diseases: true });
     return plan;
   }
   if (spellId === "lesser-restoration") {

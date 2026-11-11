@@ -69,6 +69,7 @@ import {
 } from "./spellAttackResolutionCore.js";
 import { validateAnimatedObjectComposition } from "./animatedObjectsCore.js";
 import { MAGIC_MISSILE_SPELL_ID, magicMissileDartAllocation } from "./magicMissileCore.js";
+import { MASS_HEAL_SPELL_ID, massHealAllocation } from "./massHealCore.js";
 
 export const SPELL_UNIFIED_PANEL_LANES = Object.freeze({
   SPELL_LIFECYCLE: "spell-lifecycle",
@@ -133,6 +134,7 @@ export const SPELL_PANEL_VALIDATION_LABELS = Object.freeze({
   "primary-target": "bersaglio primario",
   "target-context": "contesto dei bersagli",
   darts: "dardi",
+  shares: "PF da ripartire",
   placement: "posizione dell'area",
   teleportDestination: "destinazione del teletrasporto",
   outcomes: "esiti dei bersagli",
@@ -154,6 +156,7 @@ const SPELL_PANEL_VALIDATION_MESSAGES = Object.freeze({
   "primary-target": "Seleziona il bersaglio primario",
   "target-context": "Completa il contesto dei bersagli",
   darts: "Assegna ogni dardo e inseriscine il danno",
+  shares: "Scrivi i PF di ogni bersaglio come numeri interi",
   placement: "Posiziona e conferma l'area",
   teleportDestination: "Scegli la destinazione del teletrasporto",
   outcomes: "Registra l'esito di ogni bersaglio",
@@ -2544,6 +2547,14 @@ function validationFor(contract, session, placement) {
       targetContexts: session.targetContext,
       slotLevel: session.slotLevel,
     }).valid) add("darts", "magic-missile-darts");
+  // Mass Heal: the boxes written are whole numbers. The 700 depend on the targets' hit points (a box stops at what its
+  // target misses): the target view counts them in red, the area command refuses a sum beyond them.
+  if (contract.spell?.id === MASS_HEAL_SPELL_ID
+    && session.targetIds.length
+    && massHealAllocation({
+      targetIds: session.targetIds,
+      targetContexts: session.targetContext,
+    }).invalidIds.length) add("shares", "mass-heal-shares");
   if (!postPlacementTargeting && inputs.placement?.required && !placement.confirmed) {
     add("placement", "placement-required");
   }

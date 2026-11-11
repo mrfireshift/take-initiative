@@ -163,6 +163,10 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   "phb2014-duello-obbligato",
   // No save: darts that always hit, split among the targets (magicMissileCore.js).
   "magic-missile",
+  // CAP-RELATION, no save: the caster takes the roll, the creature chosen regains twice the damage (spellHpRelationCore.js).
+  "xanathar-trasferimento-di-vita",
+  // CAP-ALLOCATION, no save: 700 hit points split among the targets (massHealCore.js, cleanseSpellRules.js).
+  "mass-heal",
   // Lot 3 of docs/PIANO_POLISH_INCANTESIMI.md. A save at the cast: the cantrip's damage and its label (Frostbite), the hand's
   // grip (Earthen Grasp). An attack that leaves an effect: the same outcomes under other names, "Colpito" and "Mancato".
   "xanathar-morsa-del-gelo",

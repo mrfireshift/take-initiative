@@ -318,14 +318,16 @@ test("azione manuale, movimento zona e popup annullato non duplicano la risoluzi
       .map((rule) => rule.spellId)
       .filter(Boolean),
   )];
+  // Watery Sphere (CAP-CARRIAGE, decision C-D1) is the one with its ⚡: it carries the creatures it holds, a drag does not.
   for (const spellId of declarativeMovementSpellIds) {
     assert.equal(
       getSpellUnifiedActiveActionDeclarations(spellId)
         .some((entry) => entry.resolutionKind === "zone-movement"),
-      false,
+      spellId === "xanathar-sfera-acquea",
       spellId,
     );
   }
+  assert.ok(declarativeMovementSpellIds.includes("xanathar-sfera-acquea"));
 
   const direction = actionFor("gust-of-wind", "gust-of-wind-direction");
   const directionOverview = overviewFor("gust-of-wind", direction, {

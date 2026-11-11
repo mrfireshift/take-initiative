@@ -135,6 +135,18 @@ const DRIFTING_ZONE_SPELL_IDS = new Set([
 ]);
 
 const DECLARATIVE_ZONE_MOVEMENTS = Object.freeze({
+  // CAP-CARRIAGE (Xanathar, decision C-D1): its ⚡ Sposta la sfera, an action, up to 9 m in a straight line; the creatures
+  // it holds move with it, those where it stops save (watery-sphere-save-on-ram). A drag by hand moves the sphere alone.
+  "xanathar-sfera-acquea": Object.freeze({
+    mode: "action",
+    economy: "action",
+    maximumMeters: 9,
+    triggerOnAreaMove: true,
+    stopOnFirstContact: false,
+    carriedEffectIds: Object.freeze(["watery-sphere-restrained"]),
+    label: "Sposta la sfera",
+    buttonLabel: "Sposta la sfera",
+  }),
   "flaming-sphere": Object.freeze({
     mode: "bonus-action",
     economy: "bonus-action",

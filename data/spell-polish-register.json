@@ -3919,7 +3919,7 @@
       "id": "mass-heal",
       "name": "Guarigione di massa",
       "level": 9,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "corretto",
         "lot": "P3-8",
@@ -8000,7 +8000,7 @@
       "id": "xanathar-sfera-acquea",
       "name": "Sfera Acquea",
       "level": 4,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "corretto",
         "lot": "P1",
@@ -8180,7 +8180,7 @@
       "id": "xanathar-trasferimento-di-vita",
       "name": "Trasferimento di Vita",
       "level": 3,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "letto",
         "lot": "P3-7",
