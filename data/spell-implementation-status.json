@@ -2731,24 +2731,24 @@
     "statuses": {
       "COMPLETE / LEGACY": 13,
       "COMPLETE / CURRENT": 296,
-      "PARTIAL": 17,
-      "NO AUTOMATION REQUIRED": 145,
+      "PARTIAL": 16,
+      "NO AUTOMATION REQUIRED": 146,
       "MISSING": 4,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 21,
+    "implementableBacklog": 20,
     "readiness": {
       "GREEN": {
         "count": 0,
         "percent": 0
       },
       "YELLOW": {
-        "count": 9,
-        "percent": 42.857142857142854
+        "count": 8,
+        "percent": 40
       },
       "RED": {
         "count": 12,
-        "percent": 57.14285714285714
+        "percent": 60
       }
     },
     "scenarios": [
@@ -7484,8 +7484,8 @@
       "id": "calm-emotions",
       "spell": "Calmare emozioni",
       "level": 2,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "NO AUTOMATION REQUIRED",
+      "readiness": "BLUE",
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js",
@@ -7494,7 +7494,7 @@
         "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
-        "Marker/area presenti ma soppressione reversibile di effetti con durata che continua richiede autorità effective-state condivisa; non rimuovere gli effetti canonici."
+        "Si gestisce al tavolo: la pill con la concentrazione e la variante scelta (sopprimere o indifferenza) bastano. Tolto dal backlog dal proprietario del progetto l'11/11/2026, dopo lo studio di CAP-SUPPRESSION."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -7512,9 +7512,7 @@
         "C-MEMBERSHIP",
         "C-TRIGGERS"
       ],
-      "missingCapabilities": [
-        "CAP-SUPPRESSION"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects + composite scene side effects; Undo restore of owned geometry/trigger required",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -7522,7 +7520,7 @@
         "mode": "geometric",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Marker/area presenti ma soppressione reversibile di effetti con durata che continua richiede autorità effective-state condivisa; non rimuovere gli effetti canonici."
+        "required": "Si gestisce al tavolo: la pill con la concentrazione e la variante scelta (sopprimere o indifferenza) bastano. Tolto dal backlog dal proprietario del progetto l'11/11/2026, dopo lo studio di CAP-SUPPRESSION."
       },
       "concentration": true,
       "durationLifecycle": {
@@ -7568,8 +7566,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "SUPPRESSION",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-SUPPRESSION",
+      "estimatedEffort": "No scheduled implementation",
+      "recommendedBatch": "BLUE / no batch",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "calm-emotions",
@@ -7609,7 +7607,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Marker/area presenti ma soppressione reversibile di effetti con durata che continua richiede autorità effective-state condivisa; non rimuovere gli effetti canonici.",
+        "reason": "Si gestisce al tavolo: la pill con la concentrazione e la variante scelta (sopprimere o indifferenza) bastano. Tolto dal backlog dal proprietario del progetto l'11/11/2026, dopo lo studio di CAP-SUPPRESSION.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {

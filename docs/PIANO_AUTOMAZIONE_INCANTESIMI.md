@@ -33,7 +33,7 @@ conferma.
 | Da verificare | 2 | Testo o perimetro delle regole mancanti. |
 | **Totale** | **477** | **Tutti lanciabili dal libro, dalle azioni rapide e dal pannello, con il loro slot.** |
 
-Il lavoro di automazione residuo è di **21 incantesimi** (9 + 12) più i 2 da
+Il lavoro di automazione residuo è di **20 incantesimi** (8 + 12) più i 2 da
 verificare, contro i 152 di settembre: nel frattempo la console attacchi ha
 chiuso 17 trucchetti, Prigione Mentale è stata completata, i lotti L1–L4
 hanno chiuso altri 50 incantesimi, CAP-LINK altri 8, CAP-HP-BRANCH altri 5, CAP-CLEANSE altri 4, CAP-RESOURCE altri 5, CAP-REACTION altri 6, CAP-TEMP altri 5, CAP-STABILIZE altri 6, tre capacità singole altri 3, CAP-TERRAIN altri 4, CAP-MULTIAREA altri 2, CAP-TELEPORT altri 4, CAP-STRUCTURE altri 3, CAP-ORIGIN altri 4 e altre tre capacità singole (CAP-RELATION, CAP-ALLOCATION, CAP-CARRIAGE) altri 3.
@@ -46,7 +46,7 @@ Ordine consigliato, dal più sicuro al più costoso:
 | L2 ✓ | 14 | Cure, TS con danno, condizioni che finiscono al danno, TS ripetuti (fatto il 22 ottobre) | Sì, dal comando ad area esistente |
 | L3 ✓ | 12 | Zone e aree persistenti, due azioni ad area ripetibili (fatto il 22 ottobre) | Sì, dai percorsi di zona e azioni attive esistenti |
 | L4 ✓ | 7 | Incantesimi d'attacco nella console attacchi, con il loro slot (fatto il 22 ottobre) | Sì, dalla console attacchi; Tocco del vampiro cura il caster |
-| L5+ | 9 | Una capacità condivisa per volta (sezione 5.3); CAP-LINK fatta il 22 ottobre, CAP-HP-BRANCH e CAP-CLEANSE il 23, CAP-RESOURCE e il lotto 1 di CAP-REACTION il 28, il lotto 2 il 31, CAP-TEMP tra il 31 ottobre e il 3 novembre, CAP-STABILIZE, tre capacità singole e CAP-TERRAIN il 3 novembre, CAP-MULTIAREA, Minuscole meteore e CAP-TELEPORT il 6 novembre, CAP-STRUCTURE il 7, CAP-ORIGIN, CAP-RELATION, CAP-ALLOCATION e CAP-CARRIAGE l'11 | Spesso |
+| L5+ | 8 | Una capacità condivisa per volta (sezione 5.3); CAP-LINK fatta il 22 ottobre, CAP-HP-BRANCH e CAP-CLEANSE il 23, CAP-RESOURCE e il lotto 1 di CAP-REACTION il 28, il lotto 2 il 31, CAP-TEMP tra il 31 ottobre e il 3 novembre, CAP-STABILIZE, tre capacità singole e CAP-TERRAIN il 3 novembre, CAP-MULTIAREA, Minuscole meteore e CAP-TELEPORT il 6 novembre, CAP-STRUCTURE il 7, CAP-ORIGIN, CAP-RELATION, CAP-ALLOCATION e CAP-CARRIAGE l'11 | Spesso |
 
 ## 2. Registrare il lancio di qualunque incantesimo (fatto)
 
@@ -315,7 +315,7 @@ Una capacità per volta, con i suoi test di contratto, poi la famiglia.
 | CAP-MULTIAREA ✓ | 2 (2) | Più aree in un lancio, ogni creatura una volta: Tempesta di fuoco, Sciame di meteore, tutti fatti; Minuscole meteore non ne ha bisogno (ogni meteora è un'esplosione a sé) ed è in CAP-RESOURCE | Medio |
 | CAP-STRUCTURE ✓ | 3 (3) | Segmenti con PF e crollo: Muro di ghiaccio, Muro di pietra, Ossa della terra, tutti fatti | Alto |
 | CAP-SEQUENCE | 2 (2) | Effetto che cambia a ogni round: Tempesta di vendetta, Tsunami | Medio |
-| Singole | 1 ciascuna | CAP-MODE ✓ (Alterare sé stesso), CAP-DURATION ✓ (Scagliare maledizione), CAP-REPEAT-HEAL ✓ (Rigenerazione), CAP-CARRIAGE ✓ (Sfera acquea), CAP-RELATION ✓ (Trasferimento di vita), CAP-ALLOCATION ✓ (Guarigione di massa), CAP-SUPPRESSION (Calmare emozioni: studiata l'11 novembre e messa da parte, si gestisce al tavolo), CAP-CALENDAR (Costrizione) | Vario |
+| Singole | 1 ciascuna | CAP-MODE ✓ (Alterare sé stesso), CAP-DURATION ✓ (Scagliare maledizione), CAP-REPEAT-HEAL ✓ (Rigenerazione), CAP-CARRIAGE ✓ (Sfera acquea), CAP-RELATION ✓ (Trasferimento di vita), CAP-ALLOCATION ✓ (Guarigione di massa), CAP-SUPPRESSION tolta (Calmare emozioni: studiata l'11 novembre, si gestisce al tavolo e resta tracciato), CAP-CALENDAR (Costrizione) | Vario |
 
 **CAP-LINK, primo lotto, fatto il 22 ottobre.** Una sola parte di motore: lo
 spostamento del bersaglio di un incantesimo (`replaceSpellTargets` in
@@ -590,8 +590,8 @@ CAP-MAXHP ha uno studio consegnato il 3 novembre (lotti X1–X4, decisioni M1–
 ferma: il proprietario del progetto la giudica troppo rischiosa per ora.
 
 **Tre capacità singole, fatte l'11 novembre.** Scelte dal proprietario del progetto tra
-le cinque rimaste: Calmare emozioni è stata studiata e messa da parte, perché al tavolo
-si gestisce facilmente ed è soprattutto sociale. Decisioni R-D1–R-D3, A-D1–A-D4 e
+le cinque rimaste: Calmare emozioni è stata studiata e poi tolta dal backlog, perché al
+tavolo si gestisce facilmente ed è soprattutto sociale; resta tracciata. Decisioni R-D1–R-D3, A-D1–A-D4 e
 C-D1–C-D5.
 
 - CAP-RELATION, Trasferimento di vita (`spellHpRelationCore.js`): nel comando ad area,
@@ -1032,14 +1032,13 @@ lotto. Gli incantesimi senza lavoro residuo sono elencati per livello.
 
 Nessuno: i lotti L1–L3 li hanno chiusi tutti il 22 ottobre.
 
-### Dopo una capacità condivisa (9)
+### Dopo una capacità condivisa (8)
 
 Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi la famiglia si completa con i dati.
 
 | Incantesimo | Liv. | Come automatizzarlo | Lotto |
 | --- | --- | --- | --- |
 | Aiuto (`aid`) | 2° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
-| Calmare emozioni (`calm-emotions`) | 2° | CAP-SUPPRESSION: sospendere condizioni senza toglierle. | L5+ |
 | Costrizione (`geas`) | 5° | CAP-CALENDAR: limiti per giorno o riposo. | L5+ |
 | Dissolvi il bene e il male (`dispel-evil-and-good`) | 5° | CAP-CLEANSE: scegliere un effetto attivo e terminarlo. | L5+ |
 | Ristorare superiore (`greater-restoration`) | 5° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
@@ -1091,13 +1090,13 @@ Lancio e risoluzione assistiti dal pannello, dalla console ad area o dalla conso
 - **8° livello**: Antipatia/simpatia, Aura sacra, Dominare mostri, Drago Illusorio, Esplosione solare, Labirinto, Nube incendiaria, Orrido Avvizzimento di Abi-Dalzim, Oscurità della Follia, Parola del potere stordire, Regressione mentale, Terremoto.
 - **9° livello**: Fatale, Guarigione di massa, Invulnerabilità, Lama del Disastro, Muro prismatico, Parola del Potere Guarire, Parola del potere uccidere, Previsione, Resurrezione pura, Sciame di meteore, Urlo Psichico.
 
-### Tracciati: nessuna automazione utile (110)
+### Tracciati: nessuna automazione utile (111)
 
 Il lancio crea la pill con durata e concentrazione; gli effetti (informazioni, evocazioni, ambiente) si risolvono al tavolo. (R) = rituale.
 
 - **Trucchetti**: Illusione minore, Luce, Luci danzanti, Mano magica, Messaggio, Pietra Magica, Prestidigitazione, Randello incantato, Taumaturgia.
 - **1° livello**: Allarme (R), Caduta morbida (reazione), Camuffare se stesso, Comprensione dei linguaggi (R), Disco fluttuante (R), Immagine silenziosa, Individuazione del bene e del male, Individuazione del magico (R), Individuazione delle malattie e dei veleni (R), Parlare con gli animali (R), Scritto illusorio (R), Servitore inosservato (R).
-- **2° livello**: Animale messaggero (R), Aura magica dell'arcanista, Bocca magica (R), Evocare Bestia, Fiamma perenne, Individuazione dei pensieri, Lama d'Ombra, Lama infuocata, Localizza oggetto, Riposo inviolato (R), Scritta Celeste (R), Scurovisione, Serratura arcana, Trucco della corda, Vedere invisibilità.
+- **2° livello**: Animale messaggero (R), Aura magica dell'arcanista, Bocca magica (R), Calmare emozioni, Evocare Bestia, Fiamma perenne, Individuazione dei pensieri, Lama d'Ombra, Lama infuocata, Localizza oggetto, Riposo inviolato (R), Scritta Celeste (R), Scurovisione, Serratura arcana, Trucco della corda, Vedere invisibilità.
 - **3° livello**: Anti-individuazione, Camminare sull'acqua (R), Capanna (R), Chiaroveggenza, Destriero fantomatico (R), Evoca animali, Evoca Bestia d'Ombra, Evoca Demoni Minori, Evoca Folletto (Tasha), Evoca Non Morto, Fondersi nella pietra (R), Immagine maggiore, Inviare, Linguaggi, Parlare con i morti, Parlare con i vegetali, Respirare sott'acqua (R), Servitore Minuscolo.
 - **4° livello**: Evoca Aberrazione, Evoca Costrutto, Evoca creature boschive, Evoca Demone Maggiore, Evoca Elementale (Tasha), Evoca elementali minori, Insetto gigante, Localizza creatura, Occhio arcano, Santuario privato, Terreno illusorio.
 - **5° livello**: Cerchio di teletrasporto, Comunione (R), Contattare altri piani (R), Creazione, Danza Macabra, Evoca Celestiale (Tasha), Evoca elementale, Faretra Rapida, Legame planare, Legame telepatico (R), Modificare memoria, Passapareti, Richiamo Infernale, Scrutare, Sembrare, Sogno, Traslazione arborea.
