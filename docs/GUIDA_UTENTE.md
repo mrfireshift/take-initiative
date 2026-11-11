@@ -300,6 +300,22 @@ quel personaggio.
   è in concentrazione fa un TS per dardo e un PG a 0 PF segna un fallimento
   per dardo. In alternativa la console attacchi registra
   un dardo alla volta.
+- Trasferimento di vita si lancia dal pannello su una creatura entro 9 m, mai il
+  caster. Scrivi il tiro in **Danno al caster · 4d8 necrotici** (1d8 in più per
+  slot sopra il 3°): il caster lo subisce tutto, senza resistenze, immunità né
+  reazioni, e la creatura recupera il doppio del danno subito, fino ai suoi PF
+  massimi. I PF temporanei del caster assorbono il danno come sempre, e la cura
+  conta comunque tutto il tiro, anche la parte oltre lo 0. L'anteprima mostra
+  le due righe, per esempio «Mira 5 → 41» sul bersaglio e la riga del caster,
+  che avvisa se scende a 0 PF. Un solo Annulla rimette tutto.
+- Guarigione di massa si lancia dal pannello su tutte le creature che vuoi entro
+  18 m. Sotto **PF da ripartire** ognuna ha la sua casella: vuota, la casella
+  mostra in grigio i PF che le mancano, in ordine, finché bastano i 700; se
+  scrivi un numero, quella creatura riceve quello, mai più di quanto le manca.
+  Il contatore «PF assegnati N/700» diventa rosso se li superi. La cura toglie
+  anche Accecato, Assordato e le malattie a tutti i bersagli, anche a chi ha
+  già tutti i PF. Costrutti e non morti (se il token lo dice) e i morti restano
+  come sono, con una nota, e la loro parte va agli altri.
 - Animare oggetti: nella sezione **Oggetti animati** aggiungi gli oggetti per
   taglia con **−** e **+**; ogni scheda mostra PF, CA e Schianto della taglia,
   l'intestazione gli oggetti e il peso usato su 10, più 2 per ogni slot oltre
@@ -1328,6 +1344,17 @@ appartenenza e attraversamento. Possono generare promemoria all'ingresso, durant
 il movimento, all'uscita, a inizio turno o a fine turno e possono dichiarare
 terreno difficile. Una zona mobile o un'aura mantiene il collegamento con la
 propria sorgente.
+
+La **Sfera acquea** porta con sé chi trattiene. Al lancio, chi fallisce il TS su
+Forza è Trattenuto e ripete il TS alla fine di ogni suo turno; quando l'incantesimo
+finisce, cade Prono. Per spostarla premi il ⚡ **Sposta la sfera** (un'azione, fino a
+9 m in linea retta): le creature trattenute si spostano con lei, e Annulla le riporta
+tutte indietro. Chi si trova dove la sfera si ferma fa il TS e, se fallisce, entra
+nella sfera. La sfera tiene quattro creature Medie o più piccole, oppure una Grande,
+lette dalla misura del token; un'Enorme o più grande supera il TS da sola. Se ne entra
+una di troppo, una creatura già dentro, scelta a caso, cade fuori Prona: la posi tu
+entro 1,5 m. Trascinata a mano, la sfera si sposta da sola, senza chi trattiene. Chi
+supera il TS e ne esce lo sposti tu; l'altezza e le fiamme spente restano al tavolo.
 
 Nel pannello incantesimi, dopo la sagoma, gli incantesimi che colpiscono o
 curano «le creature a scelta» nell'area (Cura ferite di massa, Aura sacra,

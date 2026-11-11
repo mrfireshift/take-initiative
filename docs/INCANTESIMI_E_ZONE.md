@@ -623,6 +623,27 @@ I dadi, l'arresto di Sfera Infuocata al primo contatto, la spinta fisica del
 Diavoletto, il movimento delle creature e le interazioni con oggetti restano
 manuali.
 
+### Sfera Acquea — `xanathar-sfera-acquea` (CAP-CARRIAGE)
+
+La Sfera Acquea è l'unica zona con un ⚡ di movimento, **Sposta la sfera**
+(`watery-sphere-move`, `resolutionKind: "zone-movement"`): un'azione, fino a 9 m in
+linea retta. Il movimento della zona dichiara `carriedEffectIds:
+["watery-sphere-restrained"]`, così lo `static-zone:move` sposta nello stesso
+aggiornamento la radice e le creature che la sfera trattiene. È una sola voce di
+Cronologia con un solo Annulla, e le creature trasportate non scrivono voci
+«Movimento». Trascinata a mano, la sfera si sposta da sola.
+
+- **Urto**: il trigger `watery-sphere-save-on-ram` (ingresso al movimento dell'area)
+  usa `failureAutomation: "spell-save"`. Chi fallisce riceve lo stesso Trattenuto del
+  lancio: TS su Forza a fine turno, scadenza con la concentrazione, Prono alla fine.
+- **Capienza**: il Trattenuto dichiara `mechanics.carriage` (4, una Grande vale 4).
+  `expandStateDependentOperations` lo espande con `zoneCarriageCore.js` usando la
+  misura del token sulla griglia. Un'Enorme o più grande non entra. Oltre la
+  capienza, una creatura già trattenuta, estratta a caso, perde Trattenuto e riceve
+  Prono, nello stesso comando.
+- **Al tavolo**: chi supera il TS e ne esce, la posa di chi cade fuori, l'altezza fino
+  a 3 m e le fiamme spente.
+
 ### Turbine — `xanathar-turbine`
 
 Turbine è `FULL / ACCEPTED`: il workflow corrente copre l'intera risoluzione

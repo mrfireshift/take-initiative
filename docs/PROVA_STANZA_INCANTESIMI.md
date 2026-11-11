@@ -194,3 +194,19 @@ Al banco hanno girato tutti e quattro, compresi il congedo oltre 30 m e Annulla 
 - [ ] **Soffio:** il popup `Soffio` si apre sulla pedina già nel turno del lancio. **Posiziona area**: il cono di 18 m parte dal bordo del drago, non dal caster; un cono che parte lontano dal drago viene rifiutato. `Necrotici · 7d6`; un non morto con immunità ai necrotici mostra `Immune`.
 - [ ] **Movimento:** trascina la pedina: il conteggio della velocità segue i 18 m del drago nel turno del caster, come per la Mano arcana.
 - [ ] **Illusione scoperta:** seleziona un PG, ⚡ **Ha scoperto l'illusione**: il PG ha la pill `Vede oltre il drago`; al soffio dopo la sua riga dice `· vantaggio`. Termina toglie pedina, pill e `Vede oltre il drago`.
+
+## 14. PF tra due creature, 700 PF da ripartire, la sfera che trasporta (CAP-RELATION, CAP-ALLOCATION, CAP-CARRIAGE)
+
+Al banco sono passati tutti e tre: Trasferimento di vita e Guarigione di massa dal pannello vero, la sfera che porta con sé due goblin e li riporta indietro con Annulla, cinque creature nella sfera con una che cade fuori. Qui si guardano il pannello sullo schermo vero, i PF sulle barre della mappa e il ⚡ della sfera con lo strumento vero.
+
+- [ ] **Trasferimento di vita:** un PG ferito, il caster al 3° livello. La casella dice `Danno al caster · 4d8 necrotici` e sotto `Nulla lo riduce; il bersaglio recupera il doppio del danno subito.` Con 18 il bersaglio dice `Recupera il doppio: 36 PF` e la riga del caster `Danno al caster, non ridotto`. Applicato, le due barre sulla mappa cambiano insieme; Annulla le rimette entrambe.
+- [ ] **Nulla lo riduce:** dai al caster la resistenza ai necrotici sulla scheda: subisce comunque tutti i 18. Con 10 PF temporanei li perde per primi, e il bersaglio recupera comunque 36.
+- [ ] **Non sé stesso:** spunta il caster come bersaglio: la riga dice `Il caster non può scegliere sé stesso`, e applicando compare l'errore senza che cambi niente.
+- [ ] **Guarigione di massa:** tre PG feriti, uno a 0 PF e accecato. Sotto `PF da ripartire` le caselle vuote mostrano in grigio i PF che mancano, e il contatore dice `PF assegnati N/700`. Scrivi 2 su un PG a cui ne mancano 4: riceve 2. Applicato: tutti curati, l'accecato non lo è più, e chi era a 0 PF si rialza.
+- [ ] **Oltre i 700:** scrivi 400 su due creature a cui ne mancano più di 400: il contatore diventa rosso con `oltre i 700`, e applicando il pannello rifiuta.
+- [ ] **Sfera acquea:** lanciala su due goblin che falliscono il TS: `Trattenuto` con `TS For a fine turno` (non più `Azione: prova For`). A fine turno di un goblin il promemoria del TS su Forza.
+- [ ] **Sposta la sfera:** nel ⚡ della pill, **Sposta la sfera**: lo strumento vero la sposta in linea retta, fino a 9 m. I due goblin si spostano con lei, e in Cronologia c'è solo `Sposta zona: Sfera Acquea`. Annulla riporta indietro sfera e goblin.
+- [ ] **Urto:** spostala su un terzo goblin: il suo TS su Forza; se fallisce entra nella sfera con lo stesso `Trattenuto`, e al passo dopo si sposta anche lui.
+- [ ] **Piena:** con quattro creature dentro, spostala su una quinta che fallisce: una di quelle già dentro, a caso, perde `Trattenuto` ed è `Prona` (`È caduto dalla sfera, che era piena`); la posi tu entro 1,5 m. Un ogre (2×2) da solo riempie la sfera; un gigante (3×3) supera il TS da solo.
+- [ ] **Fine:** Termina o perdi la concentrazione: chi era dentro cade `Prono` dove si trova.
+- [ ] **Trascinata a mano:** trascina la sfera senza il ⚡: si sposta solo lei, i goblin restano dove sono.
