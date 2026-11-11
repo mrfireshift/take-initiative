@@ -123,6 +123,64 @@ export const SPELL_BOARD_TOKEN_RULES = Object.freeze({
       rangeMeters: 1.5,
     }),
   }),
+  // CAP-ORIGIN, lotto O1. Rampicante Afferrante (PHB 2014): the vine sprouts within 9 m and stays there; its lash reaches
+  // 9 m from it (spellActiveResolutionRules.js). It has no statistics: the text gives it none.
+  "phb2014-rampicante-afferrante": Object.freeze({
+    spellId: "phb2014-rampicante-afferrante",
+    label: "Rampicante afferrante",
+    assetPath: "/spell-token-grasping-vine.webp",
+    displayNameFormat: "parenthesized-caster",
+    assetPixelSize: 1024,
+    spaceCells: 1,
+    fillsSpace: false,
+    creationRangeMeters: 9,
+    movementMeters: 0,
+    reachMeters: 9,
+    concentration: true,
+    // Its lash is a bonus action: the tracker's row says so (spellBoardTokenTrackerCore.js).
+    actionEconomy: "bonus",
+  }),
+  // CAP-ORIGIN, lotto O2. Segugio fedele (PHB 2014): the phantom watchdog appears within 9 m and stays there for 8 hours,
+  // without concentration; it cannot be harmed. It bites at the start of each of the caster's turns, within 1,5 m.
+  "faithful-hound": Object.freeze({
+    spellId: "faithful-hound",
+    label: "Segugio fedele",
+    assetPath: "/spell-token-faithful-hound.webp",
+    displayNameFormat: "parenthesized-caster",
+    assetPixelSize: 1024,
+    sizeCategory: "Medium",
+    spaceCells: 1,
+    fillsSpace: false,
+    creationRangeMeters: 9,
+    movementMeters: 0,
+    reachMeters: 1.5,
+    concentration: false,
+  }),
+  // CAP-ORIGIN, lotto O6. Drago illusorio (XGtE): a Huge shadowy dragon in a free space within 36 m, with the user's
+  // image; it occupies its space as a creature would. As a bonus action on the caster's turn it moves up to 18 m (the
+  // speed check counts it) and breathes its 18 m cone from its own space (spellActiveResolutionRules.js). Attacks miss
+  // it and it is immune to everything: no HP, no AC, outside initiative. Its appearance frightens the enemies that can
+  // see it: the GM ticks them once it is placed (castTargeting), their Wisdom save is the cast's.
+  "xanathar-drago-illusorio": Object.freeze({
+    spellId: "xanathar-drago-illusorio",
+    label: "Drago illusorio",
+    assetPath: "/spell-token-illusory-dragon.webp",
+    displayNameFormat: "parenthesized-caster",
+    assetPixelSize: 1024,
+    sizeCategory: "Huge",
+    spaceCells: 3,
+    creationRangeMeters: 36,
+    movementMeters: 18,
+    speedCheck: true,
+    reachMeters: 18,
+    concentration: true,
+    actionEconomy: "bonus",
+    spellOwner: "caster",
+    castTargeting: Object.freeze({
+      confirmTargets: true,
+      selectionMode: "post-placement",
+    }),
+  }),
   "arcane-hand": Object.freeze({
     spellId: "arcane-hand",
     label: "Mano arcana",

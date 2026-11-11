@@ -4,6 +4,7 @@ import { getInitiativeCard } from "./initiativeCards.js";
 import { isBossActionCreature } from "./bossActionExecutionCore.js";
 import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
 import { pcAttackPickerEntries } from "./pcAttackPickerCore.js";
+import { spellGrantedActionsForItem } from "./spellGrantedActionsCore.js";
 import { openPcAttackConsoleForActor, PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_POPOVER_ID } from "./pcAttackLauncher.js";
 import { BOSS_ACTIONS_CONSOLE_CHANNEL, BOSS_ACTIONS_POPOVER_ID, openBossActionsPopover } from "./bossActionsLauncher.js";
 import { INITIATIVE_EPIC_ACTION_PREFIX } from "./initiativeSelectionProjectionCore.js";
@@ -67,7 +68,8 @@ export function pcAttackTurnGroup(item, getCard = getInitiativeCard) {
 // A creature on the map, standing (HP above 0: a character at 0 HP rolls death saves), with an attack or a spell.
 export function pcAttackTurnReady(item, getCard = getInitiativeCard) {
   if (!isBossActionCreature(item) || !standing(item)) return false;
-  return pcAttackPickerEntries(getCard(item)).length > 0;
+  // A spell's action counts (CAP-ORIGIN: the breath of Dragon's Breath).
+  return pcAttackPickerEntries(getCard(item), { grantedActions: spellGrantedActionsForItem(item) }).length > 0;
 }
 
 // A closed console answers nothing, so the ping alone waits its whole timeout on every turn. Its popover's height,

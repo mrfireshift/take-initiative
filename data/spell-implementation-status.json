@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 289,
-      "PARTIAL": 22,
+      "COMPLETE / CURRENT": 293,
+      "PARTIAL": 18,
       "NO AUTOMATION REQUIRED": 145,
       "MISSING": 6,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 28,
+    "implementableBacklog": 24,
     "readiness": {
       "GREEN": {
         "count": 0,
         "percent": 0
       },
       "YELLOW": {
-        "count": 16,
-        "percent": 57.14285714285714
+        "count": 12,
+        "percent": 50
       },
       "RED": {
         "count": 12,
-        "percent": 42.857142857142854
+        "percent": 50
       }
     },
     "scenarios": [
@@ -15890,15 +15890,17 @@
       "id": "faithful-hound",
       "spell": "Segugio fedele",
       "level": 4,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
+        "src/spellBoardTokenCore.js",
+        "src/spellActiveResolutionRules.js",
         "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/callLightningTurnPromptCore.js",
+        "src/callLightningTurnPromptController.js"
       ],
       "mechanicsRequired": [
-        "Tracking presente; attacco dal root e scadenza oltre 30 m richiedono origine/owner ed evento mantenimento condivisi.",
-        "Damage type: piercing"
+        "CAP-ORIGIN: pedina del segugio entro 9 m, 8 ore senza concentrazione; a ogni inizio turno del caster, dal turno dopo il lancio, il promemoria Morso: attacco tirato al tavolo, 4d8 perforanti a una creatura entro 1,5 m dal segugio, senza costo d'azione. Con il caster oltre 30 m il promemoria offre Congeda il segugio al posto del morso; Congeda anche dal ⚡. L'abbaio resta al tavolo."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -15910,10 +15912,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ORIGIN",
-        "CAP-LINK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -15921,7 +15920,7 @@
         "mode": "discrete",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Tracking presente; attacco dal root e scadenza oltre 30 m richiedono origine/owner ed evento mantenimento condivisi."
+        "required": "CAP-ORIGIN: pedina del segugio entro 9 m, 8 ore senza concentrazione; a ogni inizio turno del caster, dal turno dopo il lancio, il promemoria Morso: attacco tirato al tavolo, 4d8 perforanti a una creatura entro 1,5 m dal segugio, senza costo d'azione. Con il caster oltre 30 m il promemoria offre Congeda il segugio al posto del morso; Congeda anche dal ⚡. L'abbaio resta al tavolo."
       },
       "concentration": false,
       "durationLifecycle": {
@@ -15934,9 +15933,7 @@
       "reminderTurnTriggers": {
         "zone": [],
         "effectSaveReminder": false,
-        "required": [
-          "CAP-LINK"
-        ]
+        "required": []
       },
       "areaAura": [],
       "scaling": {
@@ -15952,8 +15949,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ACTIVE-ORIGIN",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ORIGIN + CAP-LINK",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "faithful-hound",
@@ -15983,7 +15980,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking presente; attacco dal root e scadenza oltre 30 m richiedono origine/owner ed evento mantenimento condivisi.",
+        "reason": "CAP-ORIGIN: pedina del segugio entro 9 m, 8 ore senza concentrazione; a ogni inizio turno del caster, dal turno dopo il lancio, il promemoria Morso: attacco tirato al tavolo, 4d8 perforanti a una creatura entro 1,5 m dal segugio, senza costo d'azione. Con il caster oltre 30 m il promemoria offre Congeda il segugio al posto del morso; Congeda anche dal ⚡. L'abbaio resta al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -18949,18 +18946,18 @@
       "id": "freezing-sphere",
       "spell": "Sfera congelante",
       "level": 6,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
+        "src/spellCastPhaseCore.js",
+        "src/spellUnifiedActiveAdapter.js",
         "src/spellApplicationPlanCore.js",
-        "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
-        "src/spellAreaResolutionExecutor.js"
+        "src/spellAreaResolutionExecutor.js",
+        "src/spellUnifiedPanelCore.js",
+        "src/spellActiveActionCore.js"
       ],
       "mechanicsRequired": [
-        "Area immediata presente; globo conservabile/passabile e detonazione differita richiedono owner/origin diverso dal caster; donor delayedBlastFireball.",
-        "Damage type: cold"
+        "CAP-ORIGIN: Scaglia subito come prima, o Trattieni il globo: pill sul caster senza scadenza, con il round in cui esplode; il ⚡ Lancia il globo apre nel pannello la sfera di 18 m, TS Costituzione, 10d6 freddo (+1d6 per slot sopra il 6°), anche su chi lancia, e chiude la pill nello stesso comando (Annulla la rimette). ⚡ Consegna il globo: la pill del caster dice chi lo tiene, senza spostarla. I 12 m dal possessore e il ghiaccio sull'acqua restano al tavolo."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -18977,9 +18974,7 @@
         "C-MEMBERSHIP",
         "C-TRIGGERS"
       ],
-      "missingCapabilities": [
-        "CAP-ORIGIN"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects + composite scene side effects; Undo restore of owned geometry/trigger required",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -18987,7 +18982,7 @@
         "mode": "geometric",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Area immediata presente; globo conservabile/passabile e detonazione differita richiedono owner/origin diverso dal caster; donor delayedBlastFireball."
+        "required": "CAP-ORIGIN: Scaglia subito come prima, o Trattieni il globo: pill sul caster senza scadenza, con il round in cui esplode; il ⚡ Lancia il globo apre nel pannello la sfera di 18 m, TS Costituzione, 10d6 freddo (+1d6 per slot sopra il 6°), anche su chi lancia, e chiude la pill nello stesso comando (Annulla la rimette). ⚡ Consegna il globo: la pill del caster dice chi lo tiene, senza spostarla. I 12 m dal possessore e il ghiaccio sull'acqua restano al tavolo."
       },
       "concentration": false,
       "durationLifecycle": {
@@ -19033,8 +19028,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "DEFERRED-ZONE",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ORIGIN",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "freezing-sphere",
@@ -19071,7 +19066,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Area immediata presente; globo conservabile/passabile e detonazione differita richiedono owner/origin diverso dal caster; donor delayedBlastFireball.",
+        "reason": "CAP-ORIGIN: Scaglia subito come prima, o Trattieni il globo: pill sul caster senza scadenza, con il round in cui esplode; il ⚡ Lancia il globo apre nel pannello la sfera di 18 m, TS Costituzione, 10d6 freddo (+1d6 per slot sopra il 6°), anche su chi lancia, e chiude la pill nello stesso comando (Annulla la rimette). ⚡ Consegna il globo: la pill del caster dice chi lo tiene, senza spostarla. I 12 m dal possessore e il ghiaccio sull'acqua restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -45411,13 +45406,17 @@
       "status": "COMPLETE / CURRENT",
       "readiness": null,
       "currentImplementationOwner": [
+        "src/spellBoardTokenCore.js",
         "src/spellActiveResolutionRules.js",
-        "src/callLightningTurnPromptCore.js",
-        "src/spellCastResolutionRules.js",
-        "src/spellAreaResolutionExecutor.js"
+        "src/spellActiveResolutionCore.js",
+        "src/spellAreaRules.js",
+        "src/areaSaveSpellRules.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/spell-active-resolution.js",
+        "src/callLightningTurnPromptCore.js"
       ],
       "mechanicsRequired": [
-        "Geometria/istanza esistono; manca active action save-area per ripetere il soffio/raggio con parent corrente; frightened/TS reminder o blindness nei descriptor."
+        "CAP-ORIGIN (O6, 11/11): pedina Enorme 3×3 entro 36 m che si muove di 18 m nel turno del caster (conteggio della velocità); al lancio il tipo del soffio e, dopo la posa, il TS Saggezza dei nemici spuntati: Spaventato 1 minuto con il TS a fine turno senza linea di vista. ⚡ Soffio (azione bonus, anche nel turno del lancio, promemoria sulla pedina): cono di 18 m dal bordo del drago, TS Intelligenza, 7d6 del tipo scelto con le difese, il caster compreso se è nel cono. ⚡ Ha scoperto l'illusione: «vantaggio» nella riga del popup del soffio."
       ],
       "existingReusableCapabilities": [
         "C-ACTIVE",
@@ -45436,7 +45435,7 @@
         "mode": "geometric",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Geometria/istanza esistono; manca active action save-area per ripetere il soffio/raggio con parent corrente; frightened/TS reminder o blindness nei descriptor."
+        "required": "CAP-ORIGIN (O6, 11/11): pedina Enorme 3×3 entro 36 m che si muove di 18 m nel turno del caster (conteggio della velocità); al lancio il tipo del soffio e, dopo la posa, il TS Saggezza dei nemici spuntati: Spaventato 1 minuto con il TS a fine turno senza linea di vista. ⚡ Soffio (azione bonus, anche nel turno del lancio, promemoria sulla pedina): cono di 18 m dal bordo del drago, TS Intelligenza, 7d6 del tipo scelto con le difese, il caster compreso se è nel cono. ⚡ Ha scoperto l'illusione: «vantaggio» nella riga del popup del soffio."
       },
       "concentration": true,
       "durationLifecycle": {
@@ -45514,7 +45513,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Lotto L3 (2026-10-22): azione bonus «Soffio»: cono di 18 m, TS Intelligenza, 7d6 del tipo scelto (indicato dal GM), metà se superato.",
+        "reason": "CAP-ORIGIN (O6, 11/11): pedina Enorme 3×3 entro 36 m che si muove di 18 m nel turno del caster (conteggio della velocità); al lancio il tipo del soffio e, dopo la posa, il TS Saggezza dei nemici spuntati: Spaventato 1 minuto con il TS a fine turno senza linea di vista. ⚡ Soffio (azione bonus, anche nel turno del lancio, promemoria sulla pedina): cono di 18 m dal bordo del drago, TS Intelligenza, 7d6 del tipo scelto con le difese, il caster compreso se è nel cono. ⚡ Ha scoperto l'illusione: «vantaggio» nella riga del popup del soffio.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -52709,17 +52708,17 @@
       "id": "xanathar-soffio-del-drago",
       "spell": "Soffio del Drago",
       "level": 2,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/supplementSpellRules.js",
-        "src/spellApplicationPlanCore.js",
-        "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
-        "src/spellAreaResolutionExecutor.js"
+        "src/spellGrantedActionsCore.js",
+        "src/spells-srd.js",
+        "src/pcAttackPickerCore.js",
+        "src/pcAttackExecution.js",
+        "src/pcAttackTurnController.js"
       ],
       "mechanicsRequired": [
-        "Effetto e cono presenti ma chi esegue il soffio è il beneficiario, diverso dal proprietario della concentrazione; capability actor distinta da caster ancora incompleta."
+        "CAP-ORIGIN: energia scelta al lancio (acido, freddo, fuoco, fulmine, veleno), scritta nella pill di chi soffia; nella sua console attacchi il Soffio del Drago: cono di 4,5 m dal suo token, TS Destrezza con la CD del caster, 3d6 (+1d6 per slot sopra il 2°), metà se superato, con le difese dei bersagli. Senza la CD del caster resta al tavolo."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -52737,9 +52736,7 @@
         "C-MEMBERSHIP",
         "C-TRIGGERS"
       ],
-      "missingCapabilities": [
-        "CAP-ORIGIN"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects + composite scene side effects; Undo restore of owned geometry/trigger required",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -52747,7 +52744,7 @@
         "mode": "geometric",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Effetto e cono presenti ma chi esegue il soffio è il beneficiario, diverso dal proprietario della concentrazione; capability actor distinta da caster ancora incompleta."
+        "required": "CAP-ORIGIN: energia scelta al lancio (acido, freddo, fuoco, fulmine, veleno), scritta nella pill di chi soffia; nella sua console attacchi il Soffio del Drago: cono di 4,5 m dal suo token, TS Destrezza con la CD del caster, 3d6 (+1d6 per slot sopra il 2°), metà se superato, con le difese dei bersagli. Senza la CD del caster resta al tavolo."
       },
       "concentration": true,
       "durationLifecycle": {
@@ -52793,8 +52790,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ACTIVE-ORIGIN",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ORIGIN",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-soffio-del-drago",
@@ -52832,7 +52829,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Effetto e cono presenti ma chi esegue il soffio è il beneficiario, diverso dal proprietario della concentrazione; capability actor distinta da caster ancora incompleta.",
+        "reason": "CAP-ORIGIN: energia scelta al lancio (acido, freddo, fuoco, fulmine, veleno), scritta nella pill di chi soffia; nella sua console attacchi il Soffio del Drago: cono di 4,5 m dal suo token, TS Destrezza con la CD del caster, 3d6 (+1d6 per slot sopra il 2°), metà se superato, con le difese dei bersagli. Senza la CD del caster resta al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -61564,14 +61561,16 @@
       "id": "phb2014-rampicante-afferrante",
       "spell": "Rampicante Afferrante",
       "level": 4,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/phb2014SpellRules.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spellBoardTokenCore.js",
+        "src/spellActiveResolutionRules.js",
+        "src/callLightningTurnPromptCore.js",
+        "src/spell-active-resolution.js"
       ],
       "mechanicsRequired": [
-        "Effect/tracking esiste; attivazione ripetibile deve partire dal rampicante root, non sempre dal caster; generalizzare active origin/actor."
+        "CAP-ORIGIN: pedina del rampicante entro 9 m; ⚡ Frusta al lancio e come azione bonus a ogni turno del caster, anche dal promemoria: TS Destrezza di una creatura entro 9 m dal rampicante; se fallisce, il popup dice di trascinarla di 6 m in linea retta verso il rampicante e il token lo sposta il GM."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -61586,9 +61585,7 @@
         "C-SAVE",
         "C-REPEATSAVE"
       ],
-      "missingCapabilities": [
-        "CAP-ORIGIN"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -61596,7 +61593,7 @@
         "mode": "none",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Effect/tracking esiste; attivazione ripetibile deve partire dal rampicante root, non sempre dal caster; generalizzare active origin/actor."
+        "required": "CAP-ORIGIN: pedina del rampicante entro 9 m; ⚡ Frusta al lancio e come azione bonus a ogni turno del caster, anche dal promemoria: TS Destrezza di una creatura entro 9 m dal rampicante; se fallisce, il popup dice di trascinarla di 6 m in linea retta verso il rampicante e il token lo sposta il GM."
       },
       "concentration": true,
       "durationLifecycle": {
@@ -61625,8 +61622,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ACTIVE-ORIGIN",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ORIGIN",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-phb2014-extra.json",
         "spellId": "phb2014-rampicante-afferrante",
@@ -61658,7 +61655,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Effect/tracking esiste; attivazione ripetibile deve partire dal rampicante root, non sempre dal caster; generalizzare active origin/actor.",
+        "reason": "CAP-ORIGIN: pedina del rampicante entro 9 m; ⚡ Frusta al lancio e come azione bonus a ogni turno del caster, anche dal promemoria: TS Destrezza di una creatura entro 9 m dal rampicante; se fallisce, il popup dice di trascinarla di 6 m in linea retta verso il rampicante e il token lo sposta il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {

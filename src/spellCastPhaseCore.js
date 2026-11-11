@@ -34,6 +34,31 @@ const weaponAttack = Object.freeze({
 });
 
 const PHASED_SPELLS = Object.freeze({
+  // CAP-ORIGIN, lotto O4. Freezing Sphere (PHB 2014): the caster may keep the globe instead of firing it. "Scaglia subito"
+  // is the cast as before (phase "cast", the default: immediateCast); "Trattieni il globo" puts the globe's pill on the
+  // caster (phase "prepare"), with no expiry of its own and the round it explodes at (preparedRoundLimit). Its ⚡ throws
+  // it, or makes it explode where it lies: the same sphere, saves and damage, resolved in the panel as Symbol's glyph
+  // (SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS), the pill dismissed in the same command.
+  "freezing-sphere": Object.freeze({
+    prepareOnly: false,
+    immediateCast: Object.freeze({ label: "Scaglia subito" }),
+    prepareLabel: "Trattieni il globo",
+    resolveAction: "dismiss",
+    resolveLabel: "Lancia il globo",
+    resolvePhaseLabel: "Esplosione del globo",
+    preparedExpiry: Object.freeze({ mode: "manual" }),
+    preparedRoundLimit: Object.freeze({ rounds: 10 }),
+    prepared: (slot) => freezeEffect({
+      id: "freezing-sphere-globe",
+      label: `Globo di Otiluke / ${10 + Math.max(0, slot - 6)}d6 freddo`,
+      detail: `Il globo è in mano al caster o a chi lo riceve: si lancia entro 12 m (o con una fionda) ed esplode come l'incantesimo, una sfera di 18 m di raggio, TS Costituzione, ${10 + Math.max(0, slot - 6)}d6 freddo, metà se superato. Si può posare senza romperlo; dopo 1 minuto esplode da solo, dove si trova.`,
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "freezing-sphere-globe", label: "Globo trattenuto" }),
+        Object.freeze({ id: "freezing-sphere-globe-damage", label: `${10 + Math.max(0, slot - 6)}d6 freddo` }),
+      ]),
+    }),
+    resolution: () => null,
+  }),
   // Symbol (2014): the cast only traces the glyph, with its effect; the zone and the saves come when it is triggered.
   "symbol": Object.freeze({
     prepareOnly: true,
@@ -300,6 +325,15 @@ export function getSpellCastPhaseOptions(value, requestedPhase = "") {
   const rule = PHASED_SPELLS[spellId(value)];
   if (!rule) return [];
   const phase = String(requestedPhase || "").trim().toLocaleLowerCase("it");
+  // A spell cast as before by default, or prepared (Freezing Sphere's globe); its resolution comes from the pill.
+  if (rule.immediateCast) {
+    return phase === "resolve"
+      ? [{ value: "resolve", label: rule.resolvePhaseLabel || "Risoluzione" }]
+      : [
+        { value: "cast", label: rule.immediateCast.label || "Lancio" },
+        { value: "prepare", label: rule.prepareLabel || "Preparazione sul caster" },
+      ];
+  }
   if (rule.prepareOnly) {
     if (rule.preparedResolution === false) {
       return [{ value: "prepare", label: "Preparazione sul caster" }];
@@ -323,6 +357,8 @@ export function isPreparedSpellCast({
   if (!PHASED_SPELLS[spellId(spell)]) return false;
   const phase = String(castContext?.phase || "").trim().toLocaleLowerCase("it");
   if (phase) return phase === "prepare";
+  // Cast as before unless prepared: a Freezing Sphere without its phase is never a kept globe.
+  if (PHASED_SPELLS[spellId(spell)].immediateCast) return false;
   const caster = String(casterId || "").trim();
   const targets = Array.from(new Set(
     (Array.isArray(targetIds) ? targetIds : [])
@@ -358,6 +394,21 @@ export function getSpellCastPhasePlan(spell, requestedPhase = "", castContext = 
     };
   }
 
+  // Cast as before (Freezing Sphere fired at once): the plan of a spell without phases. Its phase can come with the cast
+  // context alone (a cast outside the panel, "prepare" for the kept globe).
+  if (rule.immediateCast) {
+    const requested = String(requestedPhase || castContext?.phase || "").trim();
+    if (!["prepare", "resolve"].includes(requested)) {
+      return {
+        phase: "cast",
+        subjectMode: spell?.targetMode || "selected",
+        useCatalogAutomation: true,
+        effects: null,
+        concentrationAction: "replace",
+      };
+    }
+    requestedPhase = requested;
+  }
   const phase = requestedPhase === "resolve" && rule.preparedResolution !== false
     ? "resolve"
     : "prepare";
@@ -384,6 +435,15 @@ export function getSpellCastPhasePlan(spell, requestedPhase = "", castContext = 
     attack: rule.attack || null,
     concentrationAction: rule.resolveAction,
   };
+}
+
+// The round a prepared pill gives way at (Freezing Sphere's globe explodes 1 minute after the cast), in its summary:
+// "Esplode al round N", from the round of the cast. Nothing out of initiative, nor for another spell (decision D8).
+export function spellPreparedRoundSummaryParts(spell, castContext = {}, appliedAt = null) {
+  const limit = PHASED_SPELLS[spellId(spell)]?.preparedRoundLimit;
+  const round = Math.floor(Number(appliedAt?.round));
+  if (!limit || String(castContext?.phase || "").trim() !== "prepare" || !Number.isInteger(round) || round < 1) return [];
+  return [{ id: `${spellId(spell)}-prepared-round`, label: `Esplode al round ${round + limit.rounds}` }];
 }
 
 export function spellPhaseAttackOutcomeRequired(phasePlan = null) {

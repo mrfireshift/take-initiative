@@ -308,9 +308,11 @@ test("l'origine adiacente al caster è usata solo da coni e linee emessi dal cas
     getSpellAreaRuleById("blade-barrier:cast").placement.origin,
     "point",
   );
+  // CAP-ORIGIN, lotto O6: the Illusory Dragon is a token; its breath starts from the dragon's edge, as a monster's.
+  assert.equal(getSpellAreaRuleById("xanathar-drago-illusorio:cast"), null);
   assert.equal(
-    getSpellAreaRuleById("xanathar-drago-illusorio:cast").placement.origin,
-    "point",
+    getSpellAreaRuleById("xanathar-drago-illusorio:breath").placement.origin,
+    "caster-adjacent",
   );
 
   const invalid = {
@@ -917,21 +919,23 @@ test("Sfera Acquea, Spirito Guaritore, Crescita di Spine e Muro di Ghiaccio trac
 
 test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () => {
   // 93 since Dragon's Breath has no cone at the cast (polish, lot 7): the creature touched breathes later. 94 with Bones
-  // of the Earth's pillars (CAP-STRUCTURE, lotto S3).
-  assert.equal(AREA_SAVE_SPELL_IDS.length, 94);
+  // of the Earth's pillars (CAP-STRUCTURE, lotto S3). 93 since the Illusory Dragon is a token whose appearance frightens
+  // the creatures the GM ticks (CAP-ORIGIN, lotto O6): it moved to the saves on chosen creatures.
+  assert.equal(AREA_SAVE_SPELL_IDS.length, 93);
   // 37 with Pass without Trace's aura (lotto L1); 40 with Wall of Sand, Wall of Force and Forbiddance (lotto L3); 42 with
   // Plant Growth and Wall of Water (CAP-TERRAIN); 42 and 136 with Far Step's destination (CAP-TELEPORT, lotto T1); 43 and
   // 137 with Arcane Gate's first portal (lotto T4); 44 and 138 with Wall of Stone's panels (CAP-STRUCTURE, lotto S1); 139
   // with Bones of the Earth (lotto S3).
   assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 44);
-  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 139);
+  // 138 without the Illusory Dragon (lotto O6).
+  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 138);
   // 17 with the saves with damage of lotto L2; 152 in the popover with the zones of lotto L3; 21 and 156 with
   // Disintegrate, Finger of Death, Power Word Kill and Feeblemind (CAP-HP-BRANCH); 25 and 160 with Heal, Power
   // Word Heal, Lesser Restoration and Dispel Magic (CAP-CLEANSE); 26 and 161 with Magic Missile; 27 and 162 with
   // Negative Energy Flood (CAP-TEMP); 33 and 168 with the six spells of CAP-STABILIZE; 170 with the two of lotto G1 of CAP-TERRAIN.
   // 54 and 191 with the 21 spells of decision D6 of the polish; 58 and 195 with Frostbite, Earthen Grasp, Witch Bolt and
-  // Ray of Enfeeblement (lot 3).
-  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 59);
+  // Ray of Enfeeblement (lot 3). 60 with the Illusory Dragon's appearance (CAP-ORIGIN, lotto O6).
+  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 60);
   // 195 with Far Step (CAP-TELEPORT, lotto T1), 196 with Arcane Gate (lotto T4), 197 with Wall of Stone (CAP-STRUCTURE),
   // 198 with Bones of the Earth (lotto S3).
   assert.equal(AREA_POPOVER_SPELL_IDS.length, 198);
@@ -950,8 +954,10 @@ test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () =>
     );
   }
   for (const spellId of MULTI_TARGET_SAVE_SPELL_IDS) {
-    assert.deepEqual(getSpellAreaRules(spellId), [], spellId);
+    // No shape at the cast; an action may draw its own (the Illusory Dragon's breath, CAP-ORIGIN lotto O6).
+    assert.deepEqual(getSpellAreaRules(spellId, { triggerType: "cast" }), [], spellId);
   }
+  assert.deepEqual(getSpellAreaRules("xanathar-drago-illusorio").map((rule) => rule.id), ["xanathar-drago-illusorio:breath"]);
 });
 
 test("l'audit classifica ogni campo area dell'intero catalogo", () => {

@@ -2731,7 +2731,12 @@ function primaryActionFor(contract, session, validation, placement, activeAction
     };
   }
   if (contract.presentation.phase?.selected === "prepare") {
-    return { id: "prepare", label: "Prepara incantesimo", disabled: false };
+    // A spell that can also be cast at once names its own preparation (CAP-ORIGIN, Freezing Sphere: "Trattieni il globo").
+    const phaseOptions = Array.isArray(contract.presentation.phase.options) ? contract.presentation.phase.options : [];
+    const named = phaseOptions.some((option) => option?.value === "cast")
+      ? phaseOptions.find((option) => option?.value === "prepare")?.label
+      : "";
+    return { id: "prepare", label: named || "Prepara incantesimo", disabled: false };
   }
   if (execution.lane === SPELL_UNIFIED_PANEL_LANES.AREA_TRANSACTION
     && session.targetIds.length > 0

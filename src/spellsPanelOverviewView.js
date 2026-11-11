@@ -140,7 +140,8 @@ export function renderSpellOverview({
       summary.className = "spell-board-token-summary";
       summary.textContent = [
         "Pedina sul campo",
-        `Mov. ${boardToken.movementMeters} m`,
+        // CAP-ORIGIN: the vine and the hound do not move.
+        Number(boardToken.movementMeters) > 0 ? `Mov. ${boardToken.movementMeters} m` : "Ferma",
         `Portata ${String(boardToken.reachMeters).replace(".", ",")} m`,
         boardToken.ignoresBarriers ? "attraversa barriere" : "",
       ].filter(Boolean).join(" · ");

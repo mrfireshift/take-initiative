@@ -73,9 +73,9 @@ const TURN_PROMPT_SPELLS = Object.freeze([
   Object.freeze({
     spellId: "xanathar-drago-illusorio",
     actionId: "illusory-dragon-breath",
-    ownerContext: "caster",
+    // CAP-ORIGIN, lotto O6: the dragon is a token; its popup opens on it. A bonus action: on the cast turn too.
+    ownerContext: "boardToken",
     availableAfterCast: true,
-    // A bonus action, and the dragon has no pill with a ⚡: the popup is the way to it on the cast turn too.
     availableOnCastTurn: true,
   }),
   Object.freeze({
@@ -226,6 +226,30 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     availableAfterCast: true,
     choice: true,
   }),
+  // CAP-ORIGIN, lotto O1: the vine lashes at the cast and then on each of the caster's turns, from its token.
+  Object.freeze({
+    spellId: "phb2014-rampicante-afferrante",
+    actionId: "grasping-vine-lash",
+    ownerContext: "boardToken",
+    availableOnCastTurn: true,
+  }),
+  // CAP-ORIGIN, lotto O2: the hound bites at the start of each of the caster's turns, from the next one. A caster farther
+  // than 30 m from it has ended the spell (D5): then the prompt offers the dismissal instead of the bite (leash).
+  Object.freeze({
+    spellId: "faithful-hound",
+    actionId: "faithful-hound-bite",
+    ownerContext: "boardToken",
+    leash: Object.freeze({ meters: 30, keep: "within" }),
+  }),
+  Object.freeze({
+    spellId: "faithful-hound",
+    actionId: "faithful-hound-dismiss",
+    ownerContext: "boardToken",
+    choice: true,
+    executionKind: "active-action",
+    leash: Object.freeze({ meters: 30, keep: "beyond" }),
+    choiceHint: "Sei a più di 30 m dal segugio: l'incantesimo finisce.",
+  }),
   // Mano arcana (Bigby): one effect of the hand when the spell is cast, and then per bonus action on the following turns.
   Object.freeze({
     spellId: "arcane-hand",
@@ -367,6 +391,31 @@ function promptActionIds(prompt) {
   return prompt?.actionId ? [prompt.actionId] : [];
 }
 
+// CAP-ORIGIN, D5: a prompt with a leash shows only on its side of the distance between the caster and the spell's token
+// (the hound's bite within 30 m, its dismissal beyond). Without a measure (no grid read, no token) the caster is within.
+function turnPromptLeashAllows(leash, items, group, zoneItemId, distanceMeters) {
+  const meters = Number(leash?.meters);
+  let within = true;
+  if (typeof distanceMeters === "function" && Number.isFinite(meters) && String(zoneItemId || "").trim()) {
+    const byId = new Map((Array.isArray(items) ? items : []).map((item) => [String(item?.id || "").trim(), item]));
+    const caster = byId.get(String(group?.casterId || "").trim());
+    const token = byId.get(String(zoneItemId).trim());
+    const raw = caster && token ? distanceMeters(caster, token) : null;
+    const measured = raw === null || raw === undefined ? NaN : Number(raw);
+    if (Number.isFinite(measured)) within = measured <= meters + 1e-9;
+  }
+  return leash?.keep === "beyond" ? !within : within;
+}
+
+const LEASH_SPELL_IDS = new Set(TURN_PROMPT_SPELLS.filter((prompt) => prompt.leash).map((prompt) => prompt.spellId));
+
+// Whether the prompts need a distance: the controller reads the grid only when a leashed spell's token is on the map.
+export function spellTurnPromptNeedsDistance(items = []) {
+  return (Array.isArray(items) ? items : []).some((item) => (
+    LEASH_SPELL_IDS.has(String(item?.metadata?.[SPELL_BOARD_TOKEN_META_KEY]?.spellId || ""))
+  ));
+}
+
 function buildSpellTurnActiveActionPayload({
   spell,
   action,
@@ -449,11 +498,13 @@ function choiceCandidateTargets(items, group, actions) {
     .filter((item) => item.id);
 }
 
+// distanceMeters: (item, item) => meters or null, for the prompts with a leash (spellTurnPromptNeedsDistance).
 export function spellTurnPromptRequests({
   items = [],
   actorId = "",
   sceneEpoch = 0,
   turnKey = "",
+  distanceMeters = null,
 } = {}) {
   const actor = baseActorId(actorId);
   if (!actor) return [];
@@ -491,6 +542,7 @@ export function spellTurnPromptRequests({
         continue;
       }
       if (prompt.requiresLinkedTargetDown === true && !linkedTargetDown(items, group)) continue;
+      if (prompt.leash && !turnPromptLeashAllows(prompt.leash, items, group, zoneItemId, distanceMeters)) continue;
       const payloads = activeActionPrompt
         ? actions.map((action) => buildSpellTurnActiveActionPayload({
           spell,

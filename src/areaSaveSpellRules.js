@@ -63,7 +63,6 @@ export const AREA_SAVE_SPELL_IDS = Object.freeze([
   "xanathar-controllare-venti",
   "xanathar-creare-falo",
   "xanathar-diavoletto-di-polvere",
-  "xanathar-drago-illusorio",
   "xanathar-eruzione-terrestre",
   "xanathar-fulgore-nauseante",
   "xanathar-investitura-del-ghiaccio",
@@ -168,6 +167,9 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   // grip (Earthen Grasp). An attack that leaves an effect: the same outcomes under other names, "Colpito" and "Mancato".
   "xanathar-morsa-del-gelo",
   "xanathar-stretta-della-terra-di-maximilian",
+  // CAP-ORIGIN, lotto O6: the Illusory Dragon is a token now; its appearance asks the Wisdom save of the enemies the GM
+  // ticks after placing it, as the hand's grip asks its creature's.
+  "xanathar-drago-illusorio",
   "phb2014-dardo-stregato",
   "ray-of-enfeeblement",
 ]);
@@ -1223,24 +1225,15 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
       replaceBase: true,
     }),
   ]),
+  // CAP-ORIGIN, lotto O6 (XGtE): the damage type of the breath, chosen when the dragon is created; the breath's ⚡ reads it
+  // (damageTypeByChoice) and the pill says it (summaryLabel). The fear of the appearance is the base automation, the
+  // same for every type.
   "xanathar-drago-illusorio": Object.freeze([
-    Object.freeze({
-      id: "frightful",
-      label: "Manifestazione: Spaventato",
-      automation: failedAutomation([
-        conditionRule("Spaventato", {
-          expiry: rounds(10),
-          independent: true,
-          manualRemoval: true,
-        }),
-      ], { track: false }),
-      replaceBase: true,
-    }),
-    Object.freeze({
-      id: "breath",
-      label: "Soffio: solo danno",
-      automation: noPersistentEffect,
-      replaceBase: true,
-    }),
-  ]),
+    ["acid", "Acido", "acido"],
+    ["cold", "Freddo", "freddo"],
+    ["fire", "Fuoco", "fuoco"],
+    ["lightning", "Fulmine", "fulmine"],
+    ["necrotic", "Necrotici", "necrotici"],
+    ["poison", "Veleno", "veleno"],
+  ].map(([id, label, type]) => Object.freeze({ id, label, summaryLabel: `Soffio: ${type}` }))),
 });

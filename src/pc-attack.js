@@ -36,6 +36,7 @@ import { openTrackedPopover } from "./popoverDragHost.js";
 import { WILD_MAGIC_SURGE_POPOVER_HEIGHT } from "./wildMagicSurgeCore.js";
 import { classFeatureDescription, classFeatureDescriptionsLoaded, classFeatureMissingText, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
 import { pcAttackPickerDefault, pcAttackPickerEntries, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
+import { spellGrantedActionsForItem } from "./spellGrantedActionsCore.js";
 import { PC_MANEUVER_CONTEST, PC_MANEUVER_NOTES, PC_MANEUVER_OUTCOMES, PC_MANEUVER_OUTCOME_LABELS, PC_SHOVE_EFFECTS, PC_SHOVE_EFFECT_LABELS,
   pcAttackManeuverEntries, pcGrappleHolds, pcGrapplesOn, pcManeuverBlocker, pcManeuverLabel } from "./pcAttackManeuverCore.js";
 import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
@@ -2887,7 +2888,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     switchActor(next,name);
   }
   // A creature the console can show: something in its picker (an attack, a spell, a feature).
-  const hasEntries=item=>!!item && pcAttackPickerEntries(item.metadata?.[META_KEY]?.initiativeCard || {}).length>0;
+  // A spell's action counts too (CAP-ORIGIN: Dragon's Breath on a creature with nothing else).
+  const hasEntries=item=>!!item && pcAttackPickerEntries(item.metadata?.[META_KEY]?.initiativeCard || {},
+    {grantedActions:spellGrantedActionsForItem(item)}).length>0;
   const leaveDraft=()=>!((draft && draftLocked(draft)) || palmDraft.outcome || maneuverDraft.outcome)
     || confirmSwitch("Lasciare questo attacco? Le scelte non registrate andranno perse.");
   // The actor in the turn (presentation.turnState): never the Lair or an Epic Action slot; a Paragon's extra turn is its

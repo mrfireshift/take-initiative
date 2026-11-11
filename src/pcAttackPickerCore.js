@@ -33,7 +33,8 @@ const attackLabel = (spellId) => getPcAttackCantrip(spellId)?.name || getPcAttac
 // [{ key, tab, actionId, spellId, label, mode, level, concentration, ritual, recordOnly, pinned }], grouped by tab.
 // card: the actor's card (its quick actions, book, build and traits); a plain list of quick actions is read as one.
 // activeSpellIds: what the actor keeps active with its concentration: Vampiric Touch is launched, then its touches recorded.
-export function pcAttackPickerEntries(card, { activeSpellIds = [] } = {}) {
+// grantedActions: the actions a spell gives the actor while its pill lasts (CAP-ORIGIN, spellGrantedActionsCore.js), in Attacchi.
+export function pcAttackPickerEntries(card, { activeSpellIds = [], grantedActions = [] } = {}) {
   const profile = Array.isArray(card) ? { quickActions: card } : (card && typeof card === "object" ? card : {});
   const quickActions = sanitizeQuickActions(profile.quickActions, { limit: 64, attackLimit: 64 });
   const entries = { attacks: [], cantrips: [], spells: [], features: [] };
@@ -58,6 +59,9 @@ export function pcAttackPickerEntries(card, { activeSpellIds = [] } = {}) {
     if (!["cantrip", "spell"].includes(action.source?.kind)) add("attacks", action.id, "", action.label || action.id, action.magical === true ? { magical: true } : {});
   }
   for (const action of pcAttackBreathActionsForCard(profile)) add("attacks", action.id, "", action.label || action.id);
+  for (const action of (Array.isArray(grantedActions) ? grantedActions : []).map(pcAttackAction).filter(Boolean)) {
+    add("attacks", action.id, "", action.label || action.id);
+  }
   entries.features = pcAttackFeatureEntries(profile);
   const book = spellbookGroupsForProfile(profile)
     .filter((group) => group.level !== null)

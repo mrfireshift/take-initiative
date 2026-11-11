@@ -49,6 +49,7 @@ import {
 } from "./delayedBlastFireballRules.js";
 import { prismaticWallSummaryParts } from "./prismaticWallRules.js";
 import { getSpellStructureRule, spellStructureSummaryParts } from "./spellStructureCore.js";
+import { DRAGON_BREATH_SPELL_ID, DRAGON_BREATH_TYPES } from "./spellGrantedActionsCore.js";
 import { blinkSummaryParts } from "./blinkRules.js";
 import { telekinesisSummaryParts } from "./telekinesisRules.js";
 
@@ -488,6 +489,70 @@ const SRD_ACTIVE_ACTIONS = Object.freeze({
       requiresParentInstance: true,
       replaceSpellTargets: true,
       effectsFromCast: true,
+    }),
+  ]),
+  // CAP-ORIGIN, D7: who holds Freezing Sphere's kept globe, written on the caster's pill ("In mano a: Mira") without
+  // moving it: the throw (the prepared resolution) finds the globe on the caster. Given back to the caster, the line goes.
+  "freezing-sphere": Object.freeze([
+    Object.freeze({
+      id: "freezing-sphere-hand-over",
+      label: "Consegna il globo",
+      buttonLabel: "Consegna il globo",
+      detail: "Il globo passa alla creatura selezionata: la pill del caster dice chi lo tiene. Lo si lancia sempre con «Lancia il globo», entro 12 m da chi lo tiene.",
+      economy: "gm",
+      showInOverview: true,
+      subjectMode: "selected",
+      requiresTargets: true,
+      maxTargets: 1,
+      requiresParentInstance: true,
+      holder: true,
+    }),
+  ]),
+  // CAP-ORIGIN, lotto O6 (XGtE): a creature that examined the dragon with an action and beat the caster's DC with its
+  // Intelligence (Investigation) sees through it, with advantage on the saves against its breath: the GM marks it here,
+  // and the breath's popup says "vantaggio" in its row (saveAdvantageEffectId). It lasts as long as the spell.
+  "xanathar-drago-illusorio": Object.freeze([
+    Object.freeze({
+      id: "illusory-dragon-discern",
+      label: "Ha scoperto l'illusione",
+      buttonLabel: "Ha scoperto l'illusione",
+      detail: "Dopo una prova di Intelligenza (Indagare) riuscita contro la CD del caster, fatta con un'azione: la creatura vede attraverso il drago e ha vantaggio ai TS contro il suo soffio.",
+      economy: "gm",
+      showInOverview: true,
+      subjectMode: "selected",
+      requiresTargets: true,
+      maxTargets: 1,
+      forbidCasterTarget: true,
+      requiresParentInstance: true,
+      rejectActiveEffectIds: Object.freeze(["illusory-dragon-discerned"]),
+      effects: Object.freeze([Object.freeze({
+        id: "illusory-dragon-discerned",
+        kind: "buff",
+        label: "Vede oltre il drago",
+        detail: "Ha scoperto l'illusione del Drago illusorio: lo vede in trasparenza e ha vantaggio ai TS contro il suo soffio.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "illusory-dragon-discerned", label: "Vant. TS soffio" }),
+        ]),
+        expiry: Object.freeze({ mode: "concentration" }),
+      })]),
+    }),
+  ]),
+  // CAP-ORIGIN, lotto O2 (D5): the caster dismisses the hound with an action, and the spell ends when the caster is
+  // farther than 30 m from it. In the ⚡ menu, and in the turn prompt instead of the bite when the caster starts a turn
+  // beyond 30 m (callLightningTurnPromptCore.js).
+  "faithful-hound": Object.freeze([
+    Object.freeze({
+      id: "faithful-hound-dismiss",
+      label: "Congeda il segugio",
+      buttonLabel: "Congeda il segugio",
+      detail: "L'incantesimo finisce: il caster congeda il segugio con un'azione, o si è allontanato a più di 30 m da lui.",
+      economy: "gm",
+      showInOverview: true,
+      subjectMode: "caster",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: false,
+      termination: true,
     }),
   ]),
   "blink": Object.freeze([
@@ -1881,6 +1946,21 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
       effects: Object.freeze([ALTER_SELF_EFFECTS["change-appearance"]]),
     }),
   ]),
+  // CAP-ORIGIN, lotto O3: the energy of the breath, chosen at the cast. The creature touched breathes it with its action,
+  // in its attack console, with the caster's DC (spellGrantedActionsCore.js).
+  [DRAGON_BREATH_SPELL_ID]: Object.freeze(DRAGON_BREATH_TYPES.map((type) => Object.freeze({
+    id: type.id,
+    label: `${type.label.charAt(0).toUpperCase()}${type.label.slice(1)}`,
+    effects: Object.freeze([Object.freeze({
+      id: "dragon-breath-action",
+      kind: "buff",
+      label: `Azione: soffio (${type.label})`,
+      detail: `Con un'azione la creatura soffia un cono di 4,5 m di ${type.label}: TS Destrezza con la CD del caster, metà danni se lo supera. Si risolve nella sua console attacchi.`,
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "dragon-breath-available-action", label: `Soffio: ${type.label}` }),
+      ]),
+    })]),
+  }))),
   "xanathar-assorbire-elementi": Object.freeze([
     ...["acido", "freddo", "fulmine", "fuoco", "tuono"].map((type) => Object.freeze({
       id: type,
@@ -2799,8 +2879,13 @@ export function getSpellSummaryParts(value, choiceValue = "", castContext = {}) 
   if (structure && castContext?.structure) {
     return spellStructureSummaryParts(structure, castContext.structure);
   }
+  // CAP-ORIGIN, lotto O6: a choice of the cast that the pill says (the Illusory Dragon's breath, "Soffio: necrotici").
+  const castChoice = (Array.isArray(AREA_SAVE_RULE_CHOICES[spell?.id]) ? AREA_SAVE_RULE_CHOICES[spell.id] : [])
+    .find((choice) => choice.summaryLabel && choice.id === String(choiceValue || castContext?.choice || "").trim());
   const definition = SPELL_SUMMARY_DEFINITIONS[spell?.id];
-  if (!definition) return [];
+  if (!definition) {
+    return castChoice ? [{ id: `${spell.id}-choice`, label: castChoice.summaryLabel }] : [];
+  }
   return resolveSpellEffect(definition, castContext).summaryParts || [];
 }
 

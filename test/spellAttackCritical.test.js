@@ -13,7 +13,8 @@ const action = (id) => actions.find((entry) => entry.id === id);
 
 test("every single attack of the popup offers Critico, as the PC attack console", () => {
   const attacks = actions.filter((entry) => entry.resolutionKind === "single-attack");
-  assert.equal(attacks.length, 7);
+  // 8 with the Faithful Hound's bite (CAP-ORIGIN, lotto O2).
+  assert.equal(attacks.length, 8);
   for (const entry of attacks) {
     assert.ok(entry.attack.outcomes.includes("critical"), `${entry.id} senza Critico`);
     assert.ok(entry.attack.outcomes.includes("hit") && entry.attack.outcomes.includes("miss"), entry.id);

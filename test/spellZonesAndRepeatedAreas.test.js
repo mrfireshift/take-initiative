@@ -340,7 +340,9 @@ test("Illusory Dragon: the breath as a bonus action, Intelligence save, 7d6 halv
   assert.equal(action.economy, "bonus-action");
   assert.deepEqual(action.save, { ability: "int", onSuccess: "half" });
   assert.deepEqual([action.damage.formula, action.damage.onSave], ["7d6", "half"]);
-  assert.equal(action.placementRuleId, "xanathar-drago-illusorio:cast");
+  // CAP-ORIGIN, lotto O6: the cone of the breath, from the dragon's token.
+  assert.equal(action.placementRuleId, "xanathar-drago-illusorio:breath");
+  assert.equal(action.placementOrigin, "root");
 });
 
 test("Ice Storm and Earth Tremor leave difficult terrain after the save of the cast", () => {

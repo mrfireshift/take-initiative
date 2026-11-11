@@ -2119,7 +2119,7 @@
       "id": "faithful-hound",
       "name": "Segugio fedele",
       "level": 4,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "corretto",
         "lot": "P3-7",
@@ -2619,7 +2619,7 @@
       "id": "freezing-sphere",
       "name": "Sfera congelante",
       "level": 6,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "letto",
         "lot": "P3-7",
@@ -6942,7 +6942,7 @@
         "note": "Nessun difetto: Spaventato il suo minuto, il soffio dal popup. P4: il Soffio è un'azione bonus, anche nel turno del lancio."
       },
       "sweep": {
-        "runs": 4,
+        "runs": 12,
         "findings": []
       },
       "bench": {
@@ -8060,7 +8060,7 @@
       "id": "xanathar-soffio-del-drago",
       "name": "Soffio del Drago",
       "level": 2,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "corretto",
         "lot": "P3-7",
@@ -8068,7 +8068,7 @@
         "note": "Chiedeva cono e TS al lancio e non scriveva nulla. Ora tocca una creatura e la pill va a lei. Il soffio resta al tavolo (CAP-ORIGIN)."
       },
       "sweep": {
-        "runs": 2,
+        "runs": 10,
         "findings": []
       },
       "bench": {
@@ -9380,7 +9380,7 @@
       "id": "phb2014-rampicante-afferrante",
       "name": "Rampicante Afferrante",
       "level": 4,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "letto",
         "lot": "P3-7",

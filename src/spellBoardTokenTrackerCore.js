@@ -115,9 +115,10 @@ export function spellBoardTokenCompanionsByCasterId(items = []) {
     const casterId = normalizedId(metadata.casterId);
     if (!rule || !casterId) continue;
     const list = companions.get(casterId) || [];
+    // actionEconomy on the rule: a token whose action lives only in the ⚡ (CAP-ORIGIN, the vine's lash).
     const actionLabel = (rule.actions || []).some((action) =>
       action?.actionEconomy === "bonus"
-    ) || rule.command?.actionEconomy === "bonus" ? "(Azione Bonus)" : "";
+    ) || rule.command?.actionEconomy === "bonus" || rule.actionEconomy === "bonus" ? "(Azione Bonus)" : "";
     list.push({
       itemId: item.id,
       instanceId: normalizedId(metadata.instanceId),

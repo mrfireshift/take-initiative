@@ -45,22 +45,33 @@ test("le azioni bonus si usano già nel turno del lancio", () => {
   }
 });
 
-test("Drago illusorio: senza una pill con il ⚡, il popup del Soffio compare già nel turno del lancio", () => {
+// CAP-ORIGIN, lotto O6: the dragon is a token, and the popup of its breath opens on it, on the cast turn too.
+test("Drago illusorio: il popup del Soffio compare già nel turno del lancio, sulla pedina, con il tipo scelto", () => {
   const items = [{
     id: "caster",
     name: "Mago",
-    metadata: { [META_KEY]: { [`${ID}/concentration`]: { "drago illusorio": {
+    metadata: { [META_KEY]: { [SPELLS_KEY]: [{
       name: "Drago Illusorio",
       spellId: "xanathar-drago-illusorio",
       instanceId: "dragon-1",
       casterId: "caster",
+      conc: true,
       appliedAt: { round: 1, actorId: "caster", turnKey: CAST_TURN },
-    } } } },
+      castContext: { boardToken: true, slotLevel: 8, choice: "necrotic" },
+    }] } },
+  }, {
+    id: "dragon-token",
+    layer: "PROP",
+    metadata: { [`${ID}/spellBoardToken`]: {
+      kind: "spell-board-token", spellId: "xanathar-drago-illusorio", instanceId: "dragon-1", casterId: "caster",
+    } },
   }];
   const [request, ...rest] = spellTurnPromptRequests({ items, actorId: "caster", sceneEpoch: 1, turnKey: CAST_TURN });
   assert.equal(rest.length, 0);
   assert.equal(request.kind, "action");
   assert.equal(request.payload.actionId, "illusory-dragon-breath");
+  assert.equal(request.payload.zoneItemId, "dragon-token");
+  assert.equal(request.payload.action.damage.type, "necrotici");
 });
 
 test("le azioni vere aspettano il turno dopo: si è già usata l'azione per lanciare", () => {

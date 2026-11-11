@@ -45,7 +45,8 @@ export const SPELL_UNIFIED_ACTIVE_ERROR_CODES = Object.freeze({
   EXECUTOR_FAILED: "active-executor-failed",
 });
 
-export const SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS = Object.freeze(["symbol"]);
+// Freezing Sphere's kept globe (CAP-ORIGIN, lotto O4): thrown from its pill, the sphere drawn as at the cast.
+export const SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS = Object.freeze(["symbol", "freezing-sphere"]);
 
 const PREPARED_AREA_SPELL_IDS = new Set(SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS);
 

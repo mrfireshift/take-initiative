@@ -568,12 +568,6 @@ const AREA_OVERRIDES = Object.freeze({
     sizeMeters: 4.5,
     origin: "caster",
   },
-  "xanathar-drago-illusorio": {
-    shape: "cone",
-    sizeMeters: 18,
-    origin: "point",
-    rangeMeters: 36,
-  },
   "xanathar-minuscole-meteore-di-melf": {
     shape: "circle",
     sizeMeters: 1.5,

@@ -17,7 +17,7 @@ import {
   buildSpellApplicationIntent,
   buildSpellApplicationPlan,
 } from "./spellApplicationPlanCore.js";
-import { buildSpellActiveActionPlan } from "./spellActiveActionCore.js";
+import { buildSpellActiveActionPlan, getSpellActiveAction } from "./spellActiveActionCore.js";
 import {
   buildSpellActiveResolutionFailureOperations,
   buildSpellActiveResolutionSuccessOperations,
@@ -369,11 +369,21 @@ export async function executeSpellActiveAction({
   if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
     throw new Error("scene-epoch-stale-before-active-action");
   }
+  // CAP-ORIGIN, D7: an action that writes who the selected creature is (the globe's holder) reads its name.
+  const selectedTargetNames = {};
+  if (getSpellActiveAction(spell, actionId)?.holder === true && Array.isArray(selectedTargetIds) && selectedTargetIds.length) {
+    const selectedItems = await OBR.scene.items.getItems(selectedTargetIds.map((id) => String(id || "").trim()).filter(Boolean));
+    for (const item of selectedItems) selectedTargetNames[item.id] = String(item.name || "").trim();
+    if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+      throw new Error("scene-epoch-stale-before-active-action");
+    }
+  }
   const planFor = (planGroup) => buildSpellActiveActionPlan({
     spell,
     actionId,
     group: planGroup,
     selectedTargetIds,
+    selectedTargetNames,
     appliedAt: resolvedAppliedAt,
     casterName,
     ignoreTargetLimit,

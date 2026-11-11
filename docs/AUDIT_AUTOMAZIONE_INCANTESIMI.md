@@ -646,7 +646,7 @@ da questo audit.
 - Opzioni trackable del runtime: **361**; definizioni con tracking persistente verificate dall'audit: **361**; definizioni con regole d'area: **144** (162 regole).
 - Workflow che richiedono smoke test runtime: **418**.
 - Lacune RAW confermate P1: **7**; discrepanze ad alta confidenza P2: **2**.
-- Impronta deterministica: `4305f11f60abdcb6`.
+- Impronta deterministica: `a7cee5a05fb0dade`.
 
 ## Decisioni di prodotto chiuse
 
@@ -660,8 +660,8 @@ da questo audit.
 | --- | ---: |
 | FULL | 66 |
 | MANUAL | 56 |
-| PARTIAL | 246 |
-| TRACK_ONLY | 109 |
+| PARTIAL | 247 |
+| TRACK_ONLY | 108 |
 
 ### Stato di copertura (coverageStatus)
 
@@ -700,13 +700,13 @@ da questo audit.
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION | 57 |
+| ACTIVE_ACTION | 60 |
 | AREA_GEOMETRY | 144 |
 | CAST | 279 |
-| CLEANUP | 131 |
+| CLEANUP | 134 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 361 |
-| TURN_TRIGGER | 110 |
+| TURN_TRIGGER | 111 |
 
 ### Stato di integrazione console unificata
 
@@ -1159,7 +1159,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Scudo della fede | `shield-of-faith` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Scudo di fuoco | `fire-shield` | SRD 5.1 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Scurovisione | `darkvision` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Segugio fedele | `faithful-hound` | SRD 5.1 / 4 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Segugio fedele | `faithful-hound` | SRD 5.1 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Sembrare | `seeming` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Semipiano | `demiplane` | SRD 5.1 / 8 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Serratura arcana | `arcane-lock` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

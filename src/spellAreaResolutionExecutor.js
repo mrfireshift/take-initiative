@@ -41,6 +41,7 @@ import {
 } from "./spells-srd.js";
 import {
   AREA_HEALING_SPELL_ID_SET,
+  AREA_SAVE_RULE_CHOICES,
 } from "./areaSaveSpellRules.js";
 import {
   normalizeConditionRule,
@@ -976,8 +977,14 @@ function castContextFor({ spell, resolution, command, mobileAura, boardToken, pl
   // A reminder that grows with the slot reads it from the pill (effectSaveReminderCore.js): Tasha's Caustic Brew.
   const hasScaledReminder = Array.isArray(spell?.saveAutomation?.failed)
     && spell.saveAutomation.failed.some((rule) => Number(rule?.saveReminder?.damage?.additionalPerSlotAbove) > 0);
+  // CAP-ORIGIN, lotto O6: a choice of the cast that the pill says and a later action reads (the Illusory Dragon's damage
+  // type, read by its breath): kept in the pill's context.
+  const keptChoice = (Array.isArray(AREA_SAVE_RULE_CHOICES[text(spell?.id)]) ? AREA_SAVE_RULE_CHOICES[text(spell.id)] : [])
+    .some((choice) => choice.summaryLabel && choice.id === text(command?.spell?.choiceValue))
+    ? text(command.spell.choiceValue)
+    : "";
   if (!hasActiveResolution && !hasScaledReminder && !mobileAura && !boardToken
-    && !resolution?.targeting && !resolution?.choice) return null;
+    && !resolution?.targeting && !resolution?.choice && !keptChoice) return null;
   const context = {
     ...(command?.spell?.castContext && typeof command.spell.castContext === "object"
       ? clone(command.spell.castContext)
@@ -990,6 +997,7 @@ function castContextFor({ spell, resolution, command, mobileAura, boardToken, pl
       ? { slotLevel: resolution.targeting.slotLevel }
       : {}),
     ...(resolution?.choice?.value ? { choice: resolution.choice.value } : {}),
+    ...(keptChoice ? { choice: keptChoice } : {}),
     ...(resolution?.targetContexts && Object.keys(resolution.targetContexts).length
       ? { targetContexts: resolution.targetContexts }
       : {}),
@@ -1813,6 +1821,17 @@ async function buildPlan(command, runtime) {
         }) || { slotLevel: command?.spell?.slotLevel },
       ),
     });
+    // CAP-ORIGIN, lotto O4: a prepared spell whose resolution leaves nothing behind (Freezing Sphere's kept globe, an
+    // instant explosion) ends with it: its pill on the caster goes in the same command, and one Undo puts it back.
+    // Symbol's glyph becomes its zone instead, with the same instance.
+    if (command?.source?.kind === "prepared-resolution" && preparedParentInstanceId && casterId
+      && spell.concentration !== true && placementRule?.kind === "instant") {
+      effectOperations.push({
+        type: "spell:remove-instance",
+        targetIds: [casterId],
+        instanceId: preparedParentInstanceId,
+      });
+    }
     const attackEffects = Array.isArray(attackResolution?.effects)
       ? attackResolution.effects
       : attackResolution?.effect

@@ -1047,21 +1047,25 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       requiresParentInstance: true,
     },
   ],
-  // Illusory Dragon (XGtE): as a bonus action the dragon moves and breathes a 18 m cone. The damage type is the
-  // one chosen at cast, which the action cannot read: the GM knows it.
+  // Illusory Dragon (XGtE, CAP-ORIGIN lotto O6): as a bonus action the dragon moves up to 18 m and, at any point of the
+  // move, breathes a 18 m cone from its own space (placementOrigin "root": the token, not the caster). The damage type
+  // is the one chosen at the cast (damageTypeByChoice, written in the payload), so the defenses count. A creature that
+  // discerned the illusion has advantage on the save (saveAdvantageEffectId, said in its row of the popup).
   "xanathar-drago-illusorio": [
     {
       id: "illusory-dragon-breath",
-      label: "Soffio del drago",
+      label: "Soffio del drago · 7d6",
       buttonLabel: "Soffio",
-      detail: "Azione bonus: sposta il drago fino a 18 m e fallo soffiare in un cono di 18 m. TS Intelligenza: 7d6 del tipo scelto al lancio, metà se superato.",
+      detail: "Azione bonus: sposta il drago fino a 18 m e, in un punto del movimento, fallo soffiare: un cono di 18 m dal suo spazio. TS Intelligenza: 7d6 del tipo scelto al lancio, metà se superato. Chi ha scoperto l'illusione ha vantaggio.",
       economy: "bonus-action",
       resolutionKind: "save-area",
       subjectMode: "none",
       requiresTargets: false,
       turnStartPrompt: true,
       showInOverview: true,
-      placementRuleId: "xanathar-drago-illusorio:cast",
+      requiresZoneRoot: true,
+      placementRuleId: "xanathar-drago-illusorio:breath",
+      placementOrigin: "root",
       rangeOrigin: "caster",
       save: { ability: "int", onSuccess: "half" },
       damage: damage({
@@ -1069,6 +1073,15 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
         type: "del tipo scelto",
         onSave: "half",
       }),
+      damageTypeByChoice: {
+        acid: "acido",
+        cold: "freddo",
+        fire: "fuoco",
+        lightning: "fulmine",
+        necrotic: "necrotici",
+        poison: "veleno",
+      },
+      saveAdvantageEffectId: "illusory-dragon-discerned",
       requiresParentInstance: true,
     },
   ],
@@ -1159,6 +1172,57 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
           manualRemoval: true,
         },
       ],
+    },
+  ],
+  // CAP-ORIGIN, lotto O1. Rampicante Afferrante (PHB 2014): at the cast and then as a bonus action on each of the
+  // caster's turns, the vine lashes at a creature within 9 m of it. No damage: who fails is pulled 6 m straight toward
+  // the vine, and the GM moves the token, as for every push (failureNotice, beside the popup's button).
+  "phb2014-rampicante-afferrante": [
+    {
+      id: "grasping-vine-lash",
+      label: "Frusta · trascina 6 m",
+      buttonLabel: "Frusta",
+      detail: "Al lancio e poi come azione bonus: una creatura entro 9 m dal rampicante effettua un TS Destrezza. Se fallisce viene trascinata di 6 m in linea retta verso il rampicante: il token lo sposti tu.",
+      economy: "bonus-action",
+      resolutionKind: "single-save",
+      subjectMode: "none",
+      requiresTargets: false,
+      turnStartPrompt: true,
+      showInOverview: true,
+      requiresParentInstance: true,
+      requiresZoneRoot: true,
+      rangeOrigin: "root",
+      rangeOriginLabel: "dal rampicante",
+      range: { value: 9, unit: "m" },
+      maxTargets: 1,
+      save: { ability: "dex", onSuccess: "none" },
+      failureNotice: "Trascinala di 6 m in linea retta verso il rampicante: il token lo sposti tu.",
+    },
+  ],
+  // CAP-ORIGIN, lotto O2. Segugio fedele (PHB 2014): at the start of each of the caster's turns, from the next one, the
+  // hound bites one creature hostile to the caster within 1,5 m of it. Its bonus is the caster's spellcasting modifier +
+  // proficiency, rolled at the table; it costs the caster nothing. The turn prompt offers it (callLightningTurnPromptCore.js).
+  "faithful-hound": [
+    {
+      id: "faithful-hound-bite",
+      label: "Morso · 4d8 perforanti",
+      buttonLabel: "Morso",
+      detail: "Inizio del turno del caster: il segugio morde una creatura ostile entro 1,5 m. Bonus d'attacco: modificatore da incantatore + competenza del caster.",
+      economy: "gm",
+      resolutionKind: "single-attack",
+      subjectMode: "none",
+      requiresTargets: false,
+      turnStartPrompt: true,
+      showInOverview: true,
+      availableAfterCast: true,
+      requiresParentInstance: true,
+      requiresZoneRoot: true,
+      rangeOrigin: "root",
+      rangeOriginLabel: "dal segugio",
+      range: { value: 1.5, unit: "m" },
+      maxTargets: 1,
+      attack: { outcomes: ["hit", "critical", "miss"], damageRequiredOnHitOnly: true },
+      damage: damage({ formula: "4d8", type: "perforanti" }),
     },
   ],
   // Mano arcana (Bigby, PHB 2014): when cast and as a bonus action later, the hand moves up to 18 m and causes one

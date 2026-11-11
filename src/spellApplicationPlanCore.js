@@ -13,6 +13,7 @@ import { resolveSaveSpellResolution } from "./saveSpellCore.js";
 import { getSpellSaveWorkflowRule } from "./spellSaveWorkflowRules.js";
 import {
   getSpellCastPhasePlan,
+  spellPreparedRoundSummaryParts,
   withSpellPhaseTransitionOperations,
 } from "./spellCastPhaseCore.js";
 import { catalogSpellApplicationOperations } from "./spellLifecycleOperationsCore.js";
@@ -379,6 +380,11 @@ export function buildSpellApplicationPlan({
     && !hasPersistentResolutionEffect
     ? "dismiss"
     : concentrationAction;
+  // CAP-ORIGIN, lotto O4: a kept globe says the round it explodes at.
+  const recordSummaryParts = [
+    ...summaryParts,
+    ...spellPreparedRoundSummaryParts(spell, persistedCastContext, appliedAt),
+  ];
   const lifecycleOperations = catalogSpellApplicationOperations({
     targetIds: subjects,
     casterId,
@@ -392,7 +398,7 @@ export function buildSpellApplicationPlan({
     spellExpiry,
     appliedAt,
     castContext: persistedCastContext,
-    ...(summaryParts.length ? { summaryParts } : {}),
+    ...(recordSummaryParts.length ? { summaryParts: recordSummaryParts } : {}),
     proposedConditions: castAutomationPlan.conditions,
     // The attack's hit effect is often the catalog effect itself (Chill Touch): one pill, never two.
     proposedEffects: [

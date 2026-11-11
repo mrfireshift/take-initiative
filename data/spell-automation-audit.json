@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "4305f11f60abdcb6",
+  "fingerprint": "a7cee5a05fb0dade",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -19,8 +19,8 @@
     "currentAutomationLevel": {
       "FULL": 66,
       "MANUAL": 56,
-      "PARTIAL": 246,
-      "TRACK_ONLY": 109
+      "PARTIAL": 247,
+      "TRACK_ONLY": 108
     },
     "coverageStatus": {
       "ACCEPTED": 72,
@@ -103,13 +103,13 @@
       "CAST_NO_MUTATIONS": 3
     },
     "smokeCategories": {
-      "ACTIVE_ACTION": 57,
+      "ACTIVE_ACTION": 60,
       "AREA_GEOMETRY": 144,
       "CAST": 279,
-      "CLEANUP": 131,
+      "CLEANUP": 134,
       "CONCENTRATION": 218,
       "PERSISTENCE": 361,
-      "TURN_TRIGGER": 110
+      "TURN_TRIGGER": 111
     },
     "unifiedCatalogExposed": 477,
     "integrationDisconnected": 0,
@@ -15243,8 +15243,10 @@
         "ACTIVE_ACTION",
         "AREA_GEOMETRY",
         "CAST",
+        "CLEANUP",
         "CONCENTRATION",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -15257,9 +15259,12 @@
       ],
       "coverage": [
         "tracking",
-        "aree:instant",
+        "aree:emission",
         "TS",
         "status:Spaventato",
+        "movimento",
+        "pedina magica",
+        "turni",
         "fasi/azioni",
         "varianti"
       ],
@@ -15277,27 +15282,31 @@
       "runtime": {
         "trackable": true,
         "areaRuleIds": [
-          "xanathar-drago-illusorio:cast"
+          "xanathar-drago-illusorio:breath"
         ],
         "areaKinds": [
-          "instant"
+          "emission"
         ],
         "triggerIds": [],
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
         "activeActionIds": [
-          "illusory-dragon-breath"
+          "illusory-dragon-breath",
+          "illusory-dragon-discern"
         ],
         "phaseOptions": [],
-        "movementMechanics": false,
+        "movementMechanics": true,
         "smokeCategories": [
           "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST",
+          "CLEANUP",
           "CONCENTRATION",
-          "PERSISTENCE"
-        ]
+          "PERSISTENCE",
+          "TURN_TRIGGER"
+        ],
+        "boardToken": true
       },
       "integration": {
         "status": "reachable",
@@ -15338,24 +15347,26 @@
         },
         "actions": {
           "declaredActionIds": [
-            "illusory-dragon-breath"
+            "illusory-dragon-breath",
+            "illusory-dragon-discern"
           ],
           "panelActionIds": [
-            "illusory-dragon-breath"
+            "illusory-dragon-breath",
+            "illusory-dragon-discern"
           ],
-          "reminderActionIds": [
-            "illusory-dragon-breath"
-          ],
+          "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "panel-and-reminder"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
           "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST",
+          "CLEANUP",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -42724,7 +42735,9 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
         "CAST",
+        "CLEANUP",
         "CONCENTRATION",
         "PERSISTENCE"
       ],
@@ -42738,7 +42751,10 @@
       ],
       "coverage": [
         "tracking",
-        "TS"
+        "TS",
+        "movimento",
+        "pedina magica",
+        "fasi/azioni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -42755,14 +42771,19 @@
         "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 1,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "grasping-vine-lash"
+        ],
         "phaseOptions": [],
-        "movementMechanics": false,
+        "movementMechanics": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "CAST",
+          "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
-        ]
+        ],
+        "boardToken": true
       },
       "integration": {
         "status": "reachable",
@@ -42771,30 +42792,26 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "none",
-          "placementPolicy": "unavailable",
+          "targetingMode": "geometric",
+          "placementPolicy": "required",
           "visibleInputs": [
             "caster",
             "slot",
+            "placement",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "condition:add",
-            "concentration:register",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -42803,15 +42820,21 @@
           "ruleIds": []
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "grasping-vine-lash"
+          ],
+          "panelActionIds": [
+            "grasping-vine-lash"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "CAST",
+          "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -48160,12 +48183,15 @@
       "saveScope": "—",
       "inAuditScope": false,
       "exclusionReason": "evocazione fuori dal runtime operativo",
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
+        "CAST",
+        "CLEANUP",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -48177,7 +48203,11 @@
         "turni"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "movimento",
+        "pedina magica",
+        "fasi/azioni",
+        "varianti"
       ],
       "assessment": "escluso: evocazione",
       "priority": "—",
@@ -48194,12 +48224,19 @@
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "faithful-hound-bite",
+          "faithful-hound-dismiss"
+        ],
         "phaseOptions": [],
-        "movementMechanics": false,
+        "movementMechanics": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
+          "CAST",
+          "CLEANUP",
           "PERSISTENCE"
-        ]
+        ],
+        "boardToken": true
       },
       "integration": {
         "status": "reachable",
@@ -48208,41 +48245,50 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "none",
-          "placementPolicy": "unavailable",
+          "targetingMode": "geometric",
+          "placementPolicy": "required",
           "visibleInputs": [
             "caster",
-            "slot"
+            "slot",
+            "placement"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "spell:upsert"
-          ],
-          "mutationMode": "tracking",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
-          "required": false,
+          "required": true,
           "declared": true,
           "ruleIds": []
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "faithful-hound-bite",
+            "faithful-hound-dismiss"
+          ],
+          "panelActionIds": [
+            "faithful-hound-bite",
+            "faithful-hound-dismiss"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
+          "CAST",
+          "CLEANUP",
           "PERSISTENCE"
         ]
       },
@@ -49085,6 +49131,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
         "AREA_GEOMETRY",
         "CAST"
       ],
@@ -49099,7 +49146,8 @@
       ],
       "coverage": [
         "aree:instant",
-        "TS"
+        "TS",
+        "fasi/azioni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -49120,10 +49168,16 @@
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
-        "activeActionIds": [],
-        "phaseOptions": [],
+        "activeActionIds": [
+          "freezing-sphere-hand-over"
+        ],
+        "phaseOptions": [
+          "cast",
+          "prepare"
+        ],
         "movementMechanics": false,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST"
         ]
@@ -49160,19 +49214,24 @@
           "errors": []
         },
         "persistence": {
-          "required": false,
-          "declared": false,
+          "required": true,
+          "declared": true,
           "ruleIds": []
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "freezing-sphere-hand-over"
+          ],
+          "panelActionIds": [
+            "freezing-sphere-hand-over"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST"
         ]
@@ -50330,7 +50389,6 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
-        "CAST",
         "CONCENTRATION",
         "PERSISTENCE"
       ],
@@ -50344,7 +50402,8 @@
         "TS:area"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "varianti"
       ],
       "assessment": "revisione testuale",
       "priority": "P3",
@@ -50371,12 +50430,11 @@
         "triggerIds": [],
         "saveAutomation": false,
         "batchSaveWorkflowRequired": true,
-        "effectCount": 1,
+        "effectCount": 5,
         "activeActionIds": [],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
-          "CAST",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -50398,6 +50456,7 @@
           "visibleInputs": [
             "caster",
             "slot",
+            "variant",
             "targets",
             "automation"
           ]
@@ -50429,7 +50488,6 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
-          "CAST",
           "CONCENTRATION",
           "PERSISTENCE"
         ]

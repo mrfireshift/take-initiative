@@ -222,6 +222,14 @@ export function validateSpellActiveResolutionAction(action) {
   if (hasFixedCasterRadius && rangeOrigin !== "caster") {
     errors.push("action-fixed-caster-radius-origin-invalid");
   }
+  // CAP-ORIGIN, lotto O6: an area drawn from the spell's token instead of the caster (the Illusory Dragon's cone).
+  if (action?.placementOrigin !== undefined && (
+    action.placementOrigin !== "root"
+    || kind !== "save-area"
+    || action?.requiresZoneRoot !== true
+  )) {
+    errors.push("action-placement-origin-invalid");
+  }
   if (action?.requiresParentInstance !== true) {
     errors.push("action-parent-instance-required");
   }
@@ -456,6 +464,18 @@ function readSlotLevel(group, spell) {
   ));
 }
 
+// CAP-ORIGIN, lotto O6: an action whose damage type is the one chosen at the cast (the Illusory Dragon's breath). The
+// payload carries the chosen type, so the popup, the defenses and the executor read it as any other action's.
+export function spellActiveResolutionActionForCast(action = null, castContext = {}) {
+  const byChoice = action?.damageTypeByChoice && typeof action.damageTypeByChoice === "object"
+    ? action.damageTypeByChoice
+    : null;
+  const chosen = byChoice ? String(byChoice[String(castContext?.choice || "").trim()] || "").trim() : "";
+  return chosen && action?.damage && typeof action.damage === "object"
+    ? { ...action, damage: { ...action.damage, type: chosen } }
+    : action;
+}
+
 export function buildSpellActiveResolutionPayload({
   spell = null,
   action = null,
@@ -500,7 +520,7 @@ export function buildSpellActiveResolutionPayload({
     slotLevel: readSlotLevel(group, spell),
     sceneEpoch: epoch,
     actionId: String(action.id).trim(),
-    action: clone(action),
+    action: clone(spellActiveResolutionActionForCast(action, castContext)),
     ...(action?.resolutionKind === TELEKINESIS_CONTEST_RESOLUTION_KIND
       ? {
         activationId: telekinesisActivationId(

@@ -7,6 +7,7 @@ import {
   spellPreparedResolutionInPanel,
   spellPreparedResolutionLabel,
   spellPreparedResolutionAvailable,
+  spellPreparedRoundSummaryParts,
 } from "./spellCastPhaseCore.js";
 import { buildSpellActiveResolutionResourceOperations } from "./spellActiveResolutionCore.js";
 import { NEXT_OWN_TURN_START_EXPIRY, REACTION_USED_CONDITION } from "./reactionTrackerCore.js";
@@ -336,11 +337,13 @@ function spellCastEffects(spell, castContext = {}) {
   ];
 }
 
+// selectedTargetNames: { id: name } of the selected creatures, for an action that writes who they are (the globe's holder).
 export function buildSpellActiveActionPlan({
   spell = null,
   actionId = "",
   group = null,
   selectedTargetIds = [],
+  selectedTargetNames = {},
   appliedAt = null,
   casterName = "",
   ignoreTargetLimit = false,
@@ -550,6 +553,39 @@ export function buildSpellActiveActionPlan({
         reference: parentInstanceId,
       });
     }
+  }
+  // CAP-ORIGIN, D7: who holds Freezing Sphere's kept globe, on the caster's pill ("In mano a: Mira") without moving it:
+  // the throw finds the globe on the caster. Back to the caster, the line goes. The pill's summary is rewritten whole,
+  // as the cast wrote it (the round it explodes at) plus the holder; a context changed meanwhile refuses the command.
+  if (action.holder === true && subjectIds.length === 1 && casterId) {
+    const holderId = subjectIds[0];
+    const holderName = String(selectedTargetNames?.[holderId] || "").trim() || "una creatura";
+    const castContext = group?.castContext && typeof group.castContext === "object" ? group.castContext : {};
+    const nextCastContext = clone(castContext);
+    if (holderId === casterId) delete nextCastContext.holder;
+    else nextCastContext.holder = { id: holderId, name: holderName };
+    const recordedTurns = (Array.isArray(group?.turns) ? group.turns : [])
+      .map((value) => Math.floor(Number(value) || 0))
+      .filter((value) => value > 0);
+    operations.push({
+      type: "spell:upsert",
+      targetIds: [casterId],
+      name: String(group?.storedName || group?.name || spell?.displayName || spell?.name || "Incantesimo").trim(),
+      turns: recordedTurns.length ? Math.max(...recordedTurns) : 1,
+      conc: spell?.concentration === true,
+      source: casterId,
+      ...(casterName ? { casterName: String(casterName).trim() } : {}),
+      instanceId: parentInstanceId,
+      spellId: String(spell?.id || group?.spellId || "").trim(),
+      ...(group?.appliedAt ? { appliedAt: clone(group.appliedAt) } : {}),
+      castContext: nextCastContext,
+      summaryParts: [
+        ...spellPreparedRoundSummaryParts(spell, nextCastContext, group?.appliedAt),
+        ...(holderId === casterId ? [] : [{ id: `${spell?.id}-holder`, label: `In mano a: ${holderName}` }]),
+      ],
+      expectedInstanceId: parentInstanceId,
+      expectedCastContext: clone(castContext),
+    });
   }
   if (removals.length) {
     operations.push({

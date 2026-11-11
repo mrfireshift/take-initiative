@@ -449,14 +449,11 @@ test("le varianti impediscono di applicare condizioni arbitrarie agli spell ambi
   assert.equal(getAreaSaveAutomation("symbol", "pain").failed[0].condition, "Incapacitato");
   assert.equal(getAreaSaveAutomation("symbol", "sleep").failed[0].condition, "Privo di sensi");
 
-  assert.equal(
-    getAreaSaveAutomation("xanathar-drago-illusorio", "frightful").failed[0].condition,
-    "Spaventato",
-  );
-  assert.equal(
-    getAreaSaveAutomation("xanathar-drago-illusorio", "breath").failed,
-    undefined,
-  );
+  // CAP-ORIGIN, lotto O6: the Illusory Dragon's choice is the damage type of its breath; its appearance frightens, whatever
+  // the type.
+  for (const type of ["acid", "necrotic", "poison"]) {
+    assert.equal(getAreaSaveAutomation("xanathar-drago-illusorio", type).failed[0].condition, "Spaventato", type);
+  }
   assert.equal(getAreaSaveAutomation("moonbeam", "damage").failed, undefined);
   assert.equal(
     getAreaSaveAutomation("moonbeam", "shapechanger").failed[0].effectId,

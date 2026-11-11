@@ -247,7 +247,8 @@ test("F5: a reach says where it starts, and only a hand is a hand", async () => 
       assert.equal(action.rangeOriginLabel === "dalla mano", hands.has(spellId), `${spellId}: ${action.id}`);
     }
   }
-  assert.equal(reaches, 11);
+  // 13 with the vine's lash and the hound's bite (CAP-ORIGIN, lotti O1 and O2): "dal rampicante", "dal segugio".
+  assert.equal(reaches, 13);
   assert.match(activeController, /\$\{reach\} \$\{payload\.action\.rangeOriginLabel \|\| "dalla zona"\}/);
 });
 
@@ -466,7 +467,8 @@ test("D4: a miss asks no damage in any attack, and the field appears with the ou
   const { SPELL_ACTIVE_RESOLUTION_ACTIONS } = await import("../src/spellActiveResolutionRules.js");
   const { spellActiveResolutionAttackDamageRequired } = await import("../src/spellActiveResolutionCore.js");
   const attacks = Object.values(SPELL_ACTIVE_RESOLUTION_ACTIONS).flat().filter((action) => action.resolutionKind === "single-attack");
-  assert.equal(attacks.length, 7);
+  // 8 with the Faithful Hound's bite (CAP-ORIGIN, lotto O2).
+  assert.equal(attacks.length, 8);
   for (const action of attacks) {
     assert.equal(spellActiveResolutionAttackDamageRequired(action, "miss"), false, action.id);
     assert.equal(spellActiveResolutionAttackDamageRequired(action, ""), false, `${action.id}: no outcome yet`);

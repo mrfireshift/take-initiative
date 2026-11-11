@@ -4044,6 +4044,34 @@ export const SPELL_AREA_RULES = Object.freeze([
     },
     effectPolicy: ON_CONFIRM,
   }),
+  // CAP-ORIGIN, lotto O6. The Illusory Dragon's breath (XGtE): a 18 m cone from the dragon's own space. The ⚡ asks the
+  // area tool and the check with the dragon's token as origin (placementOrigin "root"), so "caster-adjacent" is the
+  // dragon's edge; the real caster is a creature as any other, and the breath takes it when it stands in the cone.
+  defineRule({
+    id: "xanathar-drago-illusorio:breath",
+    spellId: "xanathar-drago-illusorio",
+    trigger: {
+      type: "active-action",
+      actionId: "illusory-dragon-breath",
+    },
+    kind: "emission",
+    geometry: {
+      shape: "cone",
+      size: meters(18, "length"),
+    },
+    placement: {
+      origin: "caster-adjacent",
+      direction: "pointer",
+      anchor: "caster",
+    },
+    lifecycle: PREVIEW_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: true,
+      confirmTargets: true,
+    },
+    effectPolicy: ON_CONFIRM,
+  }),
   childZoneRule({
     id: "control-water:whirlpool",
     spellId: "control-water",

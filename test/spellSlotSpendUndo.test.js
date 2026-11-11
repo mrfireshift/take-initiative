@@ -580,6 +580,161 @@ test("Symbol: the glyph of Death asks for its damage and halves it on a success;
   assert.equal((await targetMeta()).hp, 40);
 });
 
+// CAP-ORIGIN, lotto O4: Freezing Sphere's kept globe, prepared as Symbol's glyph. A pill on the caster, no area and no
+// expiry of its own, the round it explodes at; its ⚡ throws it through the panel's own area command, which dismisses the
+// pill in the same History entry.
+const { getSpellOverviewActions } = await import("../src/spellActiveActionCore.js");
+
+async function keepGlobe() {
+  await executeSpellApplication({
+    spell: getSpellDefinition("freezing-sphere"),
+    casterId: CASTER_ID,
+    targetIds: [CASTER_ID],
+    turns: 1,
+    castContext: { slotLevel: 6, phase: "prepare" },
+    extraOperations: [slotOperation(5)], // As for Symbol: the harness's mage has no 6th level slot.
+  });
+  await convergeDeferredEffectsHistory();
+  const [caster] = await sdkStub.scene.items.getItems([CASTER_ID]);
+  return caster.metadata[META_KEY][SPELLS_KEY].find((entry) => entry.spellId === "freezing-sphere");
+}
+
+// The sphere where the globe breaks: 18 m of radius (12 squares of 150 px), the thrower inside it.
+function throwGlobe(globe, { hpValue = "35", outcomes = { [TARGET_ID]: "failed", [CASTER_ID]: "passed" } } = {}) {
+  const spellId = "freezing-sphere";
+  const targetIds = Object.keys(outcomes);
+  const contract = buildSpellUnifiedPanelContract({ spellId, phase: "resolve", castContext: { slotLevel: 6, phase: "resolve" } });
+  const ruleId = contract.presentation?.placement?.ruleId;
+  const preview = { type: "circle", start: { x: 200, y: 0 }, end: { x: 2000, y: 0 }, gridOrigin: { x: 0, y: 0 }, dpi: 150, targetIds, targetLocked: true };
+  return buildSpellUnifiedAreaCommand({
+    contract,
+    session: {
+      phase: "resolve",
+      casterId: CASTER_ID,
+      slotLevel: 6,
+      activeConcentration: { instanceId: globe.instanceId, spellId },
+      castContext: { slotLevel: 6, phase: "resolve" },
+      targetIds,
+      outcomes,
+      hpValues: { damage: hpValue },
+      placement: { status: "confirmed", confirmed: true, ruleId, spellId, casterId: CASTER_ID, targetLocked: true, targetIds, preview },
+    },
+    source: { sceneEpoch: currentSceneEpoch() },
+    candidateTargetIds: targetIds,
+  });
+}
+
+const hpOf = async (id) => (await sdkStub.scene.items.getItems([id]))[0].metadata[META_KEY].hp;
+
+test("Sfera congelante: «Trattieni il globo» mette solo la pill sul caster, senza area né scadenza, con il round dell'esplosione", async () => {
+  await resetScene();
+  const itemsBefore = sceneState.items.length;
+  const globe = await keepGlobe();
+  assert.equal(sceneState.items.length, itemsBefore, "nothing on the map");
+  assert.deepEqual([globe.castContext.phase, globe.expiry.mode], ["prepare", "manual"]);
+  assert.deepEqual(globe.summaryParts.map((part) => part.label), ["Esplode al round 11"]);
+  assert.equal(await hpOf(TARGET_ID), 60);
+  const [caster] = await sdkStub.scene.items.getItems([CASTER_ID]);
+  const pill = caster.metadata[META_KEY].conditions.instances.find((entry) => entry?.effectId === "freezing-sphere-globe");
+  assert.ok(pill, "the globe's pill");
+  assert.match(pill.condition, /^Globo di Otiluke \/ 10d6 freddo$/u);
+  assert.deepEqual(pill.expiry, { mode: "manual" });
+  // The ⚡ of the kept globe throws it, in the panel, with its own area.
+  const actions = getSpellOverviewActions({
+    spell: getSpellDefinition("freezing-sphere"),
+    castContext: globe.castContext,
+    casterId: CASTER_ID,
+    targetIds: [CASTER_ID],
+  });
+  const resolve = actions.find((action) => action.type === "resolve");
+  assert.equal(resolve?.buttonLabel, "Lancia il globo");
+  assert.equal(resolve.completesInPanel, true);
+});
+
+test("Sfera congelante: il globo lanciato esplode come l'incantesimo, anche su chi lo lancia, e chiude la pill; un Annulla lo rimette in mano", async () => {
+  await resetScene();
+  const itemsBefore = sceneState.items.length;
+  const globe = await keepGlobe();
+  const slotsAfterKeep = (await casterSlots())["spell-slot-5"].current;
+  const command = throwGlobe(globe);
+  assert.equal(command.valid, true, JSON.stringify(command.errors));
+  assert.equal(command.source.kind, "prepared-resolution");
+  assert.deepEqual(command.hp.outcomeFactors, { [TARGET_ID]: "full", [CASTER_ID]: "half" });
+  assert.equal(command.automation.concentrationAction, "dismiss");
+  const result = await executeSpellAreaResolution(command, areaRuntime());
+  assert.equal(result.status, "applied", JSON.stringify(result.errors || result));
+  await convergeDeferredEffectsHistory();
+  assert.equal(await hpOf(TARGET_ID), 25, "35 cold on a failed save");
+  assert.equal(await hpOf(CASTER_ID), 43, "the thrower inside the sphere: half on a success");
+  assert.equal(sceneState.items.length, itemsBefore, "an instant explosion leaves nothing on the map");
+  assert.equal((await casterSlots())["spell-slot-5"].current, slotsAfterKeep, "no second slot");
+  const [caster] = await sdkStub.scene.items.getItems([CASTER_ID]);
+  assert.equal((caster.metadata[META_KEY][SPELLS_KEY] || []).some((entry) => entry.spellId === "freezing-sphere"), false, "the globe is gone");
+  assert.equal((caster.metadata[META_KEY].conditions?.instances || []).some((entry) => entry?.effectId === "freezing-sphere-globe"),
+    false, "and its pill");
+  await undoLast();
+  assert.equal(await hpOf(TARGET_ID), 60);
+  assert.equal(await hpOf(CASTER_ID), 60);
+  const [restored] = await sdkStub.scene.items.getItems([CASTER_ID]);
+  const back = restored.metadata[META_KEY][SPELLS_KEY].find((entry) => entry.spellId === "freezing-sphere");
+  assert.equal(back?.castContext.phase, "prepare", "the globe is in hand again");
+});
+
+test("Sfera congelante: «Consegna il globo» scrive chi lo tiene sulla pill del caster, senza spostarla; il lancio la chiude lo stesso", async () => {
+  await resetScene();
+  const globe = await keepGlobe();
+  const { executeSpellActiveAction } = await import("../src/spellApplicationExecutor.js?slot-real-application");
+  const groupOf = (entry) => ({
+    instanceId: entry.instanceId, casterId: CASTER_ID, castContext: entry.castContext, appliedAt: entry.appliedAt,
+    turns: [entry.turns], name: entry.name, casterName: "Maga",
+  });
+  await executeSpellActiveAction({
+    spell: getSpellDefinition("freezing-sphere"),
+    actionId: "freezing-sphere-hand-over",
+    group: groupOf(globe),
+    selectedTargetIds: [TARGET_ID],
+    casterName: "Maga",
+    sceneEpoch: currentSceneEpoch(),
+    isCurrent: () => true,
+  });
+  await convergeDeferredEffectsHistory();
+  const held = (await sdkStub.scene.items.getItems([CASTER_ID]))[0].metadata[META_KEY][SPELLS_KEY]
+    .find((entry) => entry.spellId === "freezing-sphere");
+  assert.equal(held.instanceId, globe.instanceId, "the same pill, on the caster");
+  assert.deepEqual(held.castContext.holder, { id: TARGET_ID, name: "Nemico" });
+  assert.deepEqual(held.summaryParts.map((part) => part.label), ["Esplode al round 11", "In mano a: Nemico"]);
+  assert.deepEqual(held.expiry, { mode: "manual" }, "the pill keeps its own expiry");
+  assert.equal(held.castContext.phase, "prepare");
+  // The holder throws it: the explosion finds the globe on the caster and closes the pill.
+  const result = await executeSpellAreaResolution(throwGlobe(held, { outcomes: { [TARGET_ID]: "failed" } }), areaRuntime());
+  assert.equal(result.status, "applied", JSON.stringify(result.errors || result));
+  await convergeDeferredEffectsHistory();
+  const [after] = await sdkStub.scene.items.getItems([CASTER_ID]);
+  assert.equal((after.metadata[META_KEY][SPELLS_KEY] || []).some((entry) => entry.spellId === "freezing-sphere"), false);
+  // Back step by step: the throw, then the hand-over.
+  await undoLast();
+  const [beforeThrow] = await sdkStub.scene.items.getItems([CASTER_ID]);
+  assert.deepEqual(beforeThrow.metadata[META_KEY][SPELLS_KEY].find((entry) => entry.spellId === "freezing-sphere").castContext.holder,
+    { id: TARGET_ID, name: "Nemico" });
+  await undoLast();
+  const [beforeHandOver] = await sdkStub.scene.items.getItems([CASTER_ID]);
+  const original = beforeHandOver.metadata[META_KEY][SPELLS_KEY].find((entry) => entry.spellId === "freezing-sphere");
+  assert.equal(original.castContext.holder, undefined);
+  assert.deepEqual(original.summaryParts.map((part) => part.label), ["Esplode al round 11"]);
+});
+
+test("Sfera congelante: «Scaglia subito» resta il lancio di sempre, la prima scelta", () => {
+  const contract = buildSpellUnifiedPanelContract({ spellId: "freezing-sphere", phase: "cast", castContext: { slotLevel: 6 } });
+  assert.deepEqual(contract.presentation.phase.options.map((option) => [option.value, option.label]),
+    [["cast", "Scaglia subito"], ["prepare", "Trattieni il globo"]]);
+  assert.equal(contract.presentation.phase.selected, "cast");
+  assert.equal(contract.execution.lane, "area-transaction");
+  assert.equal(contract.presentation.placement.ruleId, "freezing-sphere:cast");
+  const kept = buildSpellUnifiedPanelContract({ spellId: "freezing-sphere", phase: "prepare", castContext: { slotLevel: 6, phase: "prepare" } });
+  assert.equal(kept.execution.lane, "spell-lifecycle");
+  assert.equal(kept.presentation.inputs.damage.required, false);
+});
+
 async function resetSorcerer(resources = {}) {
   await resetScene();
   const caster = sceneState.items.find((item) => item.id === CASTER_ID);

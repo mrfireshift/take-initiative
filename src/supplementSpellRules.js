@@ -798,15 +798,8 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     endsParentOnRemoval: true,
     expiry: rounds(10),
   })]),
-  "xanathar-soffio-del-drago": Object.freeze([Object.freeze({
-    id: "dragon-breath-action",
-    kind: "buff",
-    label: "Azione: soffio del drago",
-    detail: "Il bersaglio può usare un'azione per esalare il tipo di energia scelto.",
-    summaryParts: Object.freeze([
-      Object.freeze({ id: "dragon-breath-available-action", label: "Azione: soffio" }),
-    ]),
-  })]),
+  // Dragon's Breath (CAP-ORIGIN, lotto O3): its pill comes from the type chosen at the cast (SPELL_EFFECT_CHOICES in
+  // spells-srd.js), which the creature touched breathes in its attack console (spellGrantedActionsCore.js).
   "xanathar-trasformazione-di-tenser": Object.freeze([Object.freeze({
     id: "tensers-transformation",
     kind: "buff",

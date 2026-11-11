@@ -443,12 +443,16 @@ async function validateSaveArea({ payload, placement, targetIds, outcomes, damag
     errors.push("direct-hit-unexpected");
   }
 
-  const [caster] = await OBR.scene.items.getItems([payload.casterId]);
+  // CAP-ORIGIN, lotto O6: an area drawn from the spell's token (the Illusory Dragon's cone) is measured from it.
+  const originId = action.placementOrigin === "root" && String(payload.zoneItemId || "").trim()
+    ? String(payload.zoneItemId).trim()
+    : payload.casterId;
+  const [caster] = await OBR.scene.items.getItems([originId]);
   const [anchorTarget] = anchorTargetId
     ? await OBR.scene.items.getItems([anchorTargetId])
     : [];
   const [casterBounds, anchorBounds, dpi, scale] = await Promise.all([
-    caster ? OBR.scene.items.getItemBounds([payload.casterId]).catch(() => null) : null,
+    caster ? OBR.scene.items.getItemBounds([originId]).catch(() => null) : null,
     anchoredToPrimary && anchorTarget
       ? OBR.scene.items.getItemBounds([anchorTargetId]).catch(() => null)
       : null,

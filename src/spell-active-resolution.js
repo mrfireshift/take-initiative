@@ -1429,13 +1429,16 @@ function renderSave() {
       depthField.appendChild(field);
     });
   }
+  // CAP-ORIGIN, lotto O6: who discerned the Illusory Dragon saves with advantage against its breath, said in its row.
+  const advantageEffectId = String(payload?.action?.saveAdvantageEffectId || "").trim();
   for (const item of targets) {
     const row = document.createElement("div");
     row.className = "target";
     const name = document.createElement("span");
     name.className = "target-name";
-    name.textContent = displayName(item);
-    name.title = displayName(item);
+    const advantage = !!advantageEffectId && itemHasLinkedSaveEffect(item, advantageEffectId);
+    name.textContent = advantage ? `${displayName(item)} · vantaggio` : displayName(item);
+    name.title = advantage ? `${displayName(item)}: vantaggio al TS, ha scoperto l'illusione` : displayName(item);
     const outcomeLabels = { passed: "Superato", failed: "Fallito", immune: "Immune" };
     row.appendChild(name);
     const hp = document.createElement("span");
@@ -1732,10 +1735,12 @@ async function renderSingleSave() {
   $("apply").disabled = !canResolve;
   $("apply").textContent = manualSave ? (payload?.action?.buttonLabel || "Applica") : "Applica";
   const saveOutcomeRequiredNotice = "Seleziona l'esito del TS";
+  // CAP-ORIGIN, lotto O1: what the GM does by hand after a failed save (the vine's pull), beside the button.
+  const failureNotice = saveOutcome === "failed" ? String(payload?.action?.failureNotice || "").trim() : "";
   renderSummary(
     !selectedSaveTarget ? "Manca il bersaglio."
       : !manualSave && !saveOutcome ? `${saveOutcomeRequiredNotice}.`
-      : !damageReady ? "Manca il danno." : "",
+      : !damageReady ? "Manca il danno." : failureNotice,
     "Danni",
     damageRequired ? subjectDamage(damageDefenseSubjects()[0]) : null,
   );
@@ -2883,7 +2888,10 @@ async function placeArea(anchorTargetOverride = "") {
   try {
     const request = requestSpellAreaPlacement({
       ruleId: child?.placementRuleId || payload.action.placementRuleId,
-      casterId: payload.casterId,
+      // CAP-ORIGIN, lotto O6: the Illusory Dragon's cone starts from its token, as a monster's from its own.
+      casterId: !child && payload.action?.placementOrigin === "root" && payload.zoneItemId
+        ? payload.zoneItemId
+        : payload.casterId,
       context: child
         ? {
           parentZoneId: payload.zoneItemId,

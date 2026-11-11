@@ -6,9 +6,11 @@ import { readSceneItemsSnapshot, subscribeSceneItemChanges } from "./sceneItemEv
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { spellActiveResolutionPopoverHeight, spellActiveResolutionPopoverId } from "./spellActiveResolutionCore.js";
 import {
+  spellTurnPromptNeedsDistance,
   spellTurnPromptRequests,
   spellTurnPromptSelectedCandidateId,
 } from "./callLightningTurnPromptCore.js";
+import { loadReactionSceneGrid } from "./reactionSceneContext.js";
 import {
   executeSpellActiveAction,
   executeSpellActiveResolution,
@@ -163,7 +165,15 @@ async function requestsForTurn(descriptor) {
     actorId: descriptor.actorId,
     sceneEpoch: descriptor.sceneEpoch,
     turnKey: descriptor.turnKey,
+    distanceMeters: await promptDistanceMeters(items),
   });
+}
+
+// CAP-ORIGIN (D5): the distance between a caster and its hound, read only when such a token is on the map.
+async function promptDistanceMeters(items) {
+  return spellTurnPromptNeedsDistance(items)
+    ? loadReactionSceneGrid(OBR).catch(() => null)
+    : null;
 }
 
 async function openRequest(request, stackIndex, taskRevision) {
@@ -181,7 +191,8 @@ async function openRequest(request, stackIndex, taskRevision) {
   const casterId = request?.casterId || payload?.casterId;
   const anchorId = request?.kind === "choice"
     ? request?.zoneItemId || casterId
-    : ["xanathar-stretta-della-terra-di-maximilian", "arcane-hand"].includes(payload?.spellId)
+    : ["xanathar-stretta-della-terra-di-maximilian", "arcane-hand", "phb2014-rampicante-afferrante", "faithful-hound",
+      "xanathar-drago-illusorio"].includes(payload?.spellId)
       ? payload?.zoneItemId || casterId
       : casterId;
   const anchor = await casterAnchor(anchorId);
@@ -315,6 +326,7 @@ async function openBoardTokenActions(zoneItemId) {
     actorId: String(board.casterId),
     sceneEpoch: currentSceneEpoch(),
     turnKey: "",
+    distanceMeters: await promptDistanceMeters(items),
   }).filter((request) => String(request?.instanceId || request?.payload?.instanceId || "").trim() === instanceId);
   if (!requests.length) {
     await OBR.notification.show("Nessuna azione disponibile per questo incantesimo.", "INFO").catch(() => {});

@@ -1116,10 +1116,12 @@ function buildIntegrationAudit({
   const requiresPersistentInstance = spell.concentration === true
     || areaRules.some((rule) => ["zone", "aura"].includes(rule.kind))
     || actions.declaredActionIds.length > 0;
+  // A cast that can be prepared keeps its pill (CAP-ORIGIN: Freezing Sphere's kept globe, whose ⚡ hand it over).
   const persistenceDeclared = trackable
     || contract.execution?.hasZones === true
     || contract.execution?.hasTokens === true
-    || cast.operationTypes.includes("spell:upsert");
+    || cast.operationTypes.includes("spell:upsert")
+    || getSpellCastPhaseOptions(spell).some((option) => option.value === "prepare");
   if (actions.declaredActionIds.length && !persistenceDeclared) {
     issues.push(integrationIssue("PERSISTENCE_UNDECLARED", "P0"));
   }

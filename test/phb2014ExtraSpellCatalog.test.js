@@ -103,7 +103,8 @@ test("il tracker include le durate persistenti e il solo istantaneo con effetto 
 // 17 with Power Word Heal, resolved on one creature in the area command (CAP-CLEANSE).
 // 19 con Duello Obbligato e Corona di Follia, che chiedono l'esito del TS (decisione D6 del polishing).
 // 21 con Portale Arcano, i cui portali sono zone (CAP-TELEPORT, lotto T4).
-test("HP rapidi riceve le 21 spell PHB con area, trigger spaziale, TS discreto con danno o cura con pulizia", () => {
+// 22 con Rampicante Afferrante, la cui pedina si posa sulla mappa (CAP-ORIGIN, lotto O1).
+test("HP rapidi riceve le 22 spell PHB con area, trigger spaziale, TS discreto con danno o cura con pulizia", () => {
   const ids = getAreaSaveSpellOptions()
     .filter((option) => spell(option.id).source === "phb2014")
     .map((option) => option.id);
@@ -124,6 +125,7 @@ test("HP rapidi riceve le 21 spell PHB con area, trigger spaziale, TS discreto c
     "phb2014-aura-di-purezza",
     "phb2014-aura-di-vitalita",
     "phb2014-aura-di-vita",
+    "phb2014-rampicante-afferrante",
     "phb2014-cerchio-di-potere",
     "phb2014-evoca-pioggia-di-armi",
     "phb2014-onda-distruttiva",
