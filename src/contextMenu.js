@@ -9,6 +9,7 @@
   import { openBossActionsPopover } from "./bossActionsLauncher.js";
   import { ID } from "./constants.js";
   import { SPELL_BOARD_TOKEN_ACTOR_SPELL_IDS, SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
+  import { SPELL_STATIC_ZONE_META_KEY, SPELL_ZONE_HOVER_MAX_SQUARES } from "./spellStaticZoneCore.js";
   import { openTrackedPopover } from "./popoverDragHost.js";
   import {
     enqueueInitiativeStateReducer,
@@ -450,6 +451,31 @@ async function toggleEpicBossOn(ids) {
         }],
         embed: {
           url: "/ctx-elevation.html",
+          height: 72,
+        },
+      });
+    }
+
+    // CAP-CARRIAGE (decision H-1 of 12/11/2026): the height of a zone that holds creatures up (the Watery Sphere), on the
+    // zone itself; the creatures it holds go with it (static-zone:set-hover in effectsMutations.js).
+    for (const spellId of Object.keys(SPELL_ZONE_HOVER_MAX_SQUARES)) {
+      OBR.contextMenu.create({
+        id: `${ID}/zone-hover:${spellId}`,
+        group: MENU_GROUP,
+        icons: [{
+          icon: ICON_ELEVATION,
+          label: "Imposta quota…",
+          filter: {
+            roles: ["GM"],
+            every: [
+              { key: "layer", value: "DRAWING" },
+              { key: ["metadata", SPELL_STATIC_ZONE_META_KEY, "spellId"], value: spellId },
+              { key: ["metadata", SPELL_STATIC_ZONE_META_KEY, "role"], value: "root" },
+            ],
+          },
+        }],
+        embed: {
+          url: "/ctx-elevation.html?zone=1",
           height: 72,
         },
       });

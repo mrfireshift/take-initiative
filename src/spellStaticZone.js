@@ -29,6 +29,7 @@ import {
 import { spellAreaStyle } from "./spellAreaStyleCore.js";
 import {
   SPELL_STATIC_ZONE_META_KEY,
+  SPELL_ZONE_MOVEMENT_CONTROL_FIELD,
   activeSpellInstanceIds,
   isStaticSpellZoneRule,
   staleStaticSpellZoneItemIds,
@@ -58,6 +59,7 @@ import {
   rearmedStaticSpellZoneNotices,
 } from "./spellStaticZoneReminderCore.js";
 import { createSceneItemBoundsCache } from "./sceneItemBoundsCache.js";
+import { planCarriageFollow } from "./zoneCarriageCore.js";
 import { runStaticSpellZoneRemovalTransaction } from "./staticSpellZoneRemovalCore.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
@@ -90,10 +92,10 @@ import {
 } from "./spellStructureCore.js";
 import { spellOverviewGroups } from "./spellsPanelViewCore.js";
 import {
-  XANATHAR_TURBINE_MAX_ELEVATION_METERS,
+  XANATHAR_TURBINE_MAX_ELEVATION_SQUARES,
   XANATHAR_TURBINE_RESTRAINED_EFFECT_ID,
   XANATHAR_TURBINE_SPELL_ID,
-  XANATHAR_TURBINE_TURN_RAISE_METERS,
+  XANATHAR_TURBINE_TURN_RAISE_SQUARES,
 } from "./xanatharTurbineCore.js";
 
 const RECONCILE_DELAY_MS = 80;
@@ -329,21 +331,6 @@ function sameAttachmentBehaviors(value, expected) {
     && value.every((entry, index) => entry === expected[index]);
 }
 
-function turbineCapturedTargetIds(items, rootContext) {
-  const rootId = String(rootContext?.rootId || "").trim();
-  const instanceId = String(rootContext?.instanceId || "").trim();
-  return [...new Set(
-    (Array.isArray(items) ? items : [])
-      .filter((item) => (
-        item?.layer === "CHARACTER"
-        && String(item?.id || "").trim()
-        && String(item.id).trim() !== rootId
-        && !!turbineRestrainedCondition(item, instanceId)
-      ))
-      .map((item) => String(item.id).trim()),
-  )];
-}
-
 async function detachTurbineNativeAttachments(
   detachPlans = [],
   sourceItems = null,
@@ -474,75 +461,20 @@ async function reconcileTurbineNativeAttachments({
     .filter(Boolean);
   if (!roots.length) return;
 
-  const allTurbineRoots = new Map();
+  // T1 (12/11/2026): the Whirlwind no longer attaches the creatures it holds. An attached token is no creature for the
+  // area tool, the 3D ruler or Imposta quota: they follow it as the Watery Sphere's do (planCarriageFollow in the
+  // reconcile), and a token still attached by an older version is released here, where it stands.
+  const allTurbineRoots = new Set();
   for (const item of liveItems) {
     const context = turbineRootContext(item);
-    if (context) allTurbineRoots.set(context.rootId, context);
+    if (context) allTurbineRoots.add(context.rootId);
   }
-  const desiredByTarget = new Map();
-  for (const root of roots) {
-    for (const targetId of turbineCapturedTargetIds(liveItems, root)) {
-      const previous = desiredByTarget.get(targetId);
-      if (previous && previous.rootId !== root.rootId) {
-        console.warn(
-          "[spell-static-zone] Turbine target conflicts between roots:",
-          targetId,
-        );
-        continue;
-      }
-      desiredByTarget.set(targetId, root);
-    }
-  }
-
-  const attachPlans = [];
-  for (const [targetId, root] of desiredByTarget) {
-    const target = liveById.get(targetId);
-    if (!target || target.layer !== "CHARACTER") continue;
-    const currentParent = String(target.attachedTo || "").trim();
-    if (currentParent && currentParent !== root.rootId) {
-      console.warn("[spell-static-zone] Turbine attachment conflict:", targetId);
-      continue;
-    }
-    const needsParent = !currentParent;
-    const needsBehaviors = !sameAttachmentBehaviors(
-      target.disableAttachmentBehavior,
-      TURBINE_ATTACHMENT_DISABLED_BEHAVIORS,
-    );
-    if (needsParent || needsBehaviors) {
-      attachPlans.push({
-        targetId,
-        rootId: root.rootId,
-        instanceId: root.instanceId,
-      });
-    }
-  }
-
-  if (attachPlans.length) {
-    if (!mounted || (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch))) return;
-    const byId = new Map(attachPlans.map((plan) => [plan.targetId, plan]));
-    await OBR.scene.items.updateItems([...byId.keys()], (drafts) => {
-      for (const draft of drafts) {
-        const plan = byId.get(String(draft?.id || "").trim());
-        if (!plan || draft.layer !== "CHARACTER") continue;
-        if (!turbineRestrainedCondition(draft, plan.instanceId)) continue;
-        const currentParent = String(draft.attachedTo || "").trim();
-        if (currentParent && currentParent !== plan.rootId) continue;
-        if (!currentParent) draft.attachedTo = plan.rootId;
-        if (String(draft.attachedTo || "").trim() !== plan.rootId) continue;
-        draft.disableAttachmentBehavior = [
-          ...TURBINE_ATTACHMENT_DISABLED_BEHAVIORS,
-        ];
-      }
-    });
-  }
-
   const detachPlans = liveItems
     .filter((item) => {
       const parentId = String(item?.attachedTo || "").trim();
       return item?.layer === "CHARACTER"
         && parentId
-        && allTurbineRoots.has(parentId)
-        && !desiredByTarget.has(String(item?.id || "").trim());
+        && allTurbineRoots.has(parentId);
     })
     .map((item) => ({
       targetId: String(item.id).trim(),
@@ -1795,6 +1727,72 @@ async function reconcileStaticSpellZones(
     zoneRoots = staticSpellZoneItems(currentItems)
       .filter((item) => item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root");
   }
+  // CAP-CARRIAGE (decision SA-D5 of 12/11/2026): a zone that carries creatures (Watery Sphere) dragged by hand takes the
+  // creatures it holds along (planCarriageFollow), before the membership below finds them left behind. One write moves
+  // them and records the zone's new place, so the next pass finds nothing to do; their move is the zone's, not theirs
+  // (suppressMovementHistory, as for the ⚡ movement). No History entry: the drag by hand is not in it either.
+  const carriageFollow = planCarriageFollow({
+    roots: zoneRoots.map((item) => {
+      const metadata = item.metadata[SPELL_STATIC_ZONE_META_KEY];
+      // The Watery Sphere's movement carries; the Whirlwind, dragged by hand only, declares it on the zone (T1).
+      const policy = getSpellAreaRuleById(metadata.ruleId)?.zonePolicy || {};
+      const carriedEffectIds = [...new Set([
+        ...(policy.movement?.carriedEffectIds || []),
+        ...(policy.carriedEffectIds || []),
+      ])];
+      return carriedEffectIds.length
+        ? {
+          id: item.id,
+          instanceId: metadata.instanceId,
+          position: item.position,
+          control: metadata[SPELL_ZONE_MOVEMENT_CONTROL_FIELD],
+          carriedEffectIds,
+        }
+        : null;
+    }).filter(Boolean),
+    items: currentItems,
+    movedIds: (Array.isArray(movementRecords) ? movementRecords : []).map((record) => record?.id),
+  });
+  if (carriageFollow.length) {
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    const moves = new Map(carriageFollow.flatMap((entry) => entry.moves.map((move) => [move.id, move.position])));
+    const controls = new Map(carriageFollow.map((entry) => [entry.rootId, entry.control]));
+    if (moves.size) {
+      const { suppressMovementHistory } = await import("./history.js");
+      for (const [id, position] of moves) suppressMovementHistory(id, position, 5000, { relocation: true });
+    }
+    const withControl = (metadata, control) => ({
+      ...metadata,
+      [SPELL_ZONE_MOVEMENT_CONTROL_FIELD]: { ...control, position: { ...control.position } },
+    });
+    await OBR.scene.items.updateItems([...controls.keys(), ...moves.keys()], (drafts) => {
+      for (const draft of drafts) {
+        const position = moves.get(draft.id);
+        if (position) draft.position = { ...position };
+        const control = controls.get(draft.id);
+        const metadata = draft.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+        if (control && metadata) {
+          draft.metadata = { ...(draft.metadata || {}), [SPELL_STATIC_ZONE_META_KEY]: withControl(metadata, control) };
+        }
+      }
+    });
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    currentItems = currentItems.map((item) => {
+      const position = moves.get(item.id);
+      const control = controls.get(item.id);
+      const metadata = item.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+      if (!position && !(control && metadata)) return item;
+      return {
+        ...item,
+        ...(position ? { position: { ...position } } : {}),
+        ...(control && metadata
+          ? { metadata: { ...item.metadata, [SPELL_STATIC_ZONE_META_KEY]: withControl(metadata, control) } }
+          : {}),
+      };
+    });
+    zoneRoots = staticSpellZoneItems(currentItems)
+      .filter((item) => item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root");
+  }
   if (!zoneRoots.length) {
     // No canonical zone remains: any restored activation tied to a removed
     // cause/zone must stop receiving temporal-pruning protection.
@@ -2161,16 +2159,16 @@ async function reconcileStaticSpellZones(
         sideEffects: targetIds.map((targetId) => ({
           type: "elevation:adjust",
           targetId,
-          delta: { value: XANATHAR_TURBINE_TURN_RAISE_METERS, unit: "m" },
-          max: { value: XANATHAR_TURBINE_MAX_ELEVATION_METERS, unit: "m" },
+          delta: { value: XANATHAR_TURBINE_TURN_RAISE_SQUARES, unit: "square" },
+          max: { value: XANATHAR_TURBINE_MAX_ELEVATION_SQUARES, unit: "square" },
         })),
         history: {
           kind: "spell-turbine-height",
           label: "Turbine · salita a inizio turno",
           payload: {
             targetIds,
-            delta: { value: XANATHAR_TURBINE_TURN_RAISE_METERS, unit: "m" },
-            max: { value: XANATHAR_TURBINE_MAX_ELEVATION_METERS, unit: "m" },
+            delta: { value: XANATHAR_TURBINE_TURN_RAISE_SQUARES, unit: "square" },
+            max: { value: XANATHAR_TURBINE_MAX_ELEVATION_SQUARES, unit: "square" },
             instances: Object.fromEntries(
               [...liveAdjustments.entries()].map(([targetId, value]) => [
                 targetId,

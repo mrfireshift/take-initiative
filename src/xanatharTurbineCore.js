@@ -5,6 +5,10 @@ export const XANATHAR_TURBINE_RESTRAINED_EFFECT_ID = "xanathar-turbine-restraine
 export const XANATHAR_TURBINE_FALL_REMINDER_EFFECT_ID = "xanathar-turbine-fall-reminder";
 export const XANATHAR_TURBINE_MAX_ELEVATION_METERS = 9;
 export const XANATHAR_TURBINE_TURN_RAISE_METERS = 1.5;
+// The rise and the top in squares of the grid, as the rules count (5 ft, 1.5 m): 1.5 m and 9 m in a scene in meters, 5 ft
+// and 30 ft in one in feet, so that a fall from them is whole dice (H-2, H-4 of 12/11/2026; zoneLandingCore.js).
+export const XANATHAR_TURBINE_TURN_RAISE_SQUARES = 1;
+export const XANATHAR_TURBINE_MAX_ELEVATION_SQUARES = 6;
 
 const SAVE_OUTCOMES = new Set(["passed", "failed"]);
 
@@ -213,9 +217,11 @@ export function turbineRestrainedConditionOptions({
     ...(parent ? { parentEffectId: parent } : {}),
     type: "spell",
     effectId: XANATHAR_TURBINE_RESTRAINED_EFFECT_ID,
+    // H-3, H-4 (12/11/2026): let go however it happens, it falls from its height (zoneLandingCore.js).
+    mechanics: { landing: { fall: "always" } },
     spellName: String(spellName || "Turbine").trim(),
     spellId: String(spellId || XANATHAR_TURBINE_SPELL_ID).trim(),
-    effectDetail: "Trattenuto nel Turbine. Si muove con il Turbine; all'inizio del proprio turno sale di 1,5 m fino a 9 m. Può usare un'azione per effettuare una prova di Forza o Destrezza contro la CD del tiro salvezza dell'incantesimo.",
+    effectDetail: "Trattenuto nel Turbine. Si muove con il Turbine; all'inizio del proprio turno sale di 1,5 m fino a 9 m. Può usare un'azione per effettuare una prova di Forza o Destrezza contro la CD del tiro salvezza dell'incantesimo. Quando ne esce cade dalla sua quota: 1d6 ogni 3 m.",
     summaryParts: [
       { id: "xanathar-turbine-carry", label: "Segue il Turbine" },
       { id: "xanathar-turbine-rise", label: "Sale di 1,5 m/turno · max 9 m" },

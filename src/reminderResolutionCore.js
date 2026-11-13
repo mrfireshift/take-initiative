@@ -10,6 +10,8 @@ import {
   normalizeExhaustionLevel,
 } from "./exhaustionCore.js";
 import { normalizeSaveSpellAutomation } from "./saveSpellCore.js";
+import { carriageExitOf, spellCarriageExit } from "./zoneCarriageCore.js";
+import { ZONE_FALL_EFFECT_ID } from "./zoneLandingCore.js";
 import {
   DEATH_SAVE_DEAD_CONDITION,
   DEATH_SAVE_RESOLUTION_MODE,
@@ -56,7 +58,8 @@ const OUTCOME_KEYS = Object.freeze([
   REMINDER_OUTCOMES.FAILED,
   REMINDER_OUTCOMES.IMMUNE,
 ]);
-const ACTION_KINDS = new Set(["condition", "spell", "concentration", "movement"]);
+// zone/eject: the target leaves the zone that holds it (CAP-CARRIAGE, zoneEjectionCore.js).
+const ACTION_KINDS = new Set(["condition", "spell", "concentration", "movement", "zone"]);
 const ACTIONS = new Set([
   "apply",
   "keep",
@@ -68,6 +71,7 @@ const ACTIONS = new Set([
   "break",
   "break-targets",
   "spend",
+  "eject",
 ]);
 const DAMAGE_FACTORS = new Set(["full", "half", "zero"]);
 const ABILITIES = Object.freeze({
@@ -543,6 +547,23 @@ export function buildEffectSaveReminderResolution({
       "remove-effect",
     ),
   };
+  // CAP-CARRIAGE (decision SA-D1): who makes the repeat save leaves the zone that held it (the Watery Sphere's pill),
+  // for the nearest free space outside (prepareZoneEjections in effectsMutations.js).
+  if (carriageExitOf(instance?.mechanics) && context.parentEffectId) {
+    outcomes[REMINDER_OUTCOMES.PASSED] = {
+      ...outcomes[REMINDER_OUTCOMES.PASSED],
+      actions: [
+        ...outcomes[REMINDER_OUTCOMES.PASSED].actions,
+        {
+          kind: "zone",
+          action: "eject",
+          targetId,
+          parentEffectId: context.parentEffectId,
+          ...(instance?.spellName ? { options: { spellName: text(instance.spellName, "", 120) } } : {}),
+        },
+      ],
+    };
+  }
   return {
     ...resolution,
     outcomes,
@@ -747,6 +768,27 @@ function zoneFailureAutomationActions({
   });
 }
 
+// CAP-CARRIAGE (decision SA-D1): a target that makes the save of a zone whose failure is the spell's own carried effect
+// (the Watery Sphere's ram) leaves the zone for the nearest free space outside it (prepareZoneEjections in
+// effectsMutations.js).
+function zoneSuccessAutomationActions({
+  failureAutomation,
+  spellId,
+  choiceValue = "",
+  targetId,
+  parentEffectId,
+  spellName = "",
+} = {}) {
+  const automationSource = typeof failureAutomation === "string"
+    ? failureAutomation
+    : failureAutomation?.source;
+  if (automationSource !== "spell-save" || !spellId || !targetId || !parentEffectId) return [];
+  const exit = spellCarriageExit(normalizeSaveSpellAutomation(getAreaSaveAutomation(spellId, choiceValue) || {}));
+  return exit
+    ? [{ kind: "zone", action: "eject", targetId, parentEffectId, ...(spellName ? { options: { spellName } } : {}) }]
+    : [];
+}
+
 export function buildZoneTriggerReminderResolution({
   activation = null,
   targetId = "",
@@ -900,7 +942,17 @@ export function buildZoneTriggerReminderResolution({
     outcomes: {
       passed: activation?.success && typeof activation.success === "object"
         ? activation.success
-        : { actions: [] },
+        : {
+          actions: zoneSuccessAutomationActions({
+            failureAutomation: activation?.failureAutomation || resolutionData.failureAutomation,
+            spellId: activation?.spellId || resolutionData.spellId,
+            choiceValue: activation?.choiceValue || activation?.ruleChoice || resolutionData.choiceValue
+              || resolutionData.ruleChoice || "",
+            targetId: normalizedTargetId,
+            parentEffectId: activation?.instanceId,
+            spellName: activation?.spellName || resolutionData.spellName,
+          }),
+        },
       failed: {
         actions: [
           ...zoneFailureActions({
@@ -1336,6 +1388,21 @@ function actionOperations({ action, targetId, itemsById, sceneMetadata = null, n
   const kind = text(action?.kind, "", 32).toLowerCase();
   const type = text(action?.action, "", 40).toLowerCase();
   if (type === "none" || type === "keep") return { operations: [] };
+  // CAP-CARRIAGE: out of the zone, to the nearest free space; the coordinator finds the zone by its spell's instance.
+  if (kind === "zone" && type === "eject") {
+    const instanceId = text(action?.parentEffectId, "", 200);
+    if (!instanceId) return { operations: [] };
+    const spellName = text(action?.options?.spellName, "", 120);
+    return {
+      operations: [],
+      sideEffects: [{
+        type: "token:eject-from-zone",
+        instanceId,
+        targetIds: [resolvedTargetId],
+        ...(spellName ? { spellName } : {}),
+      }],
+    };
+  }
   if (kind === "movement" && type === "spend") {
     const meters = Number(action?.options?.meters ?? action?.meters);
     if (!Number.isFinite(meters) || meters <= 0) {
@@ -2029,6 +2096,18 @@ export function buildReminderResolutionPlan({
     })
     : null;
   if (zoneResource) operations.push(...zoneResource.operations);
+  // CAP-CARRIAGE (H-4): a fall from a zone lands the creature prone when it takes damage (Player's Handbook); with none
+  // (Feather Fall, a 0 written) it stands.
+  if (activationKind === "deferred-effect" && effectInstanceId && hasDamage
+    && String(findCondition(target, effectInstanceId)?.effectId || "").trim() === ZONE_FALL_EFFECT_ID
+    && !conditionInstances(target).some((instance) => instance?.active !== false && conditionNameKey(instance) === "prono")) {
+    operations.push({
+      type: "condition:add",
+      targetIds: [targetId],
+      conditionName: "Prono",
+      options: { type: "automatic", expiry: { mode: "manual" }, effectDetail: "È caduto dalla sua quota." },
+    });
+  }
   const commandTargetIds = uniqueIds([
     targetId,
     sourceId,

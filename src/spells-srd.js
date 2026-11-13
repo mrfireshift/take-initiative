@@ -989,6 +989,20 @@ const SPELL_END_CONSEQUENCES = Object.freeze({
       }),
     }),
   })]),
+  // CAP-CARRIAGE (decision SA-D4 of 12/11/2026): when the spell ends the sphere falls and puts out the normal flames within
+  // 9 m of it. The plugin tracks none (torches and braziers are drawn on the map; Immolation's fire is magical): a
+  // reminder on the caster, gone at the end of its turn.
+  "xanathar-sfera-acquea": Object.freeze([Object.freeze({
+    id: "watery-sphere-flames-out",
+    target: "source",
+    condition: "Fiamme spente (9 m)",
+    effectDetail: "La Sfera Acquea è caduta: le fiamme normali entro 9 m da lei si spengono; quelle magiche no.",
+    effectId: "watery-sphere-flames-out",
+    manualRemoval: true,
+    options: Object.freeze({
+      expiry: Object.freeze({ mode: "turn-end", actor: "target", remaining: 1 }),
+    }),
+  })]),
   "xanathar-trasformazione-di-tenser": Object.freeze([Object.freeze({
     id: "tensers-transformation-end-save",
     target: "self",

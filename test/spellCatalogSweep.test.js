@@ -11,6 +11,9 @@ const { spellCastDamageParts, spellCastPrimaryHit } = await import("../src/spell
 const IN_MEMORY_TELEPORT = "Nella scena in memoria il token non si sposta: provato al banco (Passo velato, 03/11/2026).";
 const LIVING_TARGET = "Il bersaglio della prova è vivo: il rifiuto è voluto (test/stabilizeSpells.test.js).";
 const COMPOSITION = "Chiede la composizione degli oggetti: test/animatedObjectsPanelView.test.js.";
+// SA-D1 (12/11/2026): who makes the save leaves the sphere, a move whose Undo waits for the static zone controller.
+const IN_MEMORY_EJECTION = "Chi supera esce dalla sfera: nella scena in memoria nessun controllore delle zone conferma "
+  + "l'Annulla di uno spostamento. Provato in test/zoneEjectionIntegration.test.js e al banco (12/11/2026).";
 
 const KNOWN = Object.freeze({
   "command-invalid": { "animate-objects": COMPOSITION },
@@ -23,12 +26,14 @@ const KNOWN = Object.freeze({
   "undo-differs": {
     "xanathar-passo-del-tuono": IN_MEMORY_TELEPORT,
     "xanathar-passo-remoto": IN_MEMORY_TELEPORT,
+    "xanathar-sfera-acquea": IN_MEMORY_EJECTION,
   },
   "undo-failed": {
     "dimension-door": IN_MEMORY_TELEPORT,
     "misty-step": IN_MEMORY_TELEPORT,
     "xanathar-passo-del-tuono": IN_MEMORY_TELEPORT,
     "xanathar-passo-remoto": IN_MEMORY_TELEPORT,
+    "xanathar-sfera-acquea": IN_MEMORY_EJECTION,
   },
   "no-effect": {
     "dimension-door": IN_MEMORY_TELEPORT,

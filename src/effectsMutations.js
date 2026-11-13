@@ -37,7 +37,10 @@ import {
 } from "./effectsMutationCore.js";
 import {
   SPELL_STATIC_ZONE_META_KEY,
+  SPELL_ZONE_HOVER_META_KEY,
   SPELL_ZONE_MOVEMENT_CONTROL_FIELD,
+  spellZoneHoverElevation,
+  spellZoneHoverMaxSquares,
   translatedZoneArea,
 } from "./spellStaticZoneCore.js";
 import {
@@ -88,7 +91,8 @@ import {
 import { emitMatchedVisualEndsFromMutation } from "./embersMatchedVisualRenderer.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { suppressElevationHistory, suppressMovementHistory } from "./history.js";
-import { expandCarriageConditionAdd } from "./zoneCarriageCore.js";
+import { carriageEjectionRequests, expandCarriageConditionAdd } from "./zoneCarriageCore.js";
+import { planZoneEjections, ZONE_EJECTION_MAX_SQUARES } from "./zoneEjectionCore.js";
 import { compactBackgroundReminderTransportResult } from "./effectsReminderTransportCore.js";
 import { perfJsonBytes, perfNow, perfProbeEnabled, perfRecord, perfSetContext, perfSince } from "./perfProbe.js";
 import {
@@ -101,8 +105,10 @@ import {
 } from "./effectsMutationTransportCore.js";
 import {
   elevationInputToCanonical,
+  gridScaleParts,
   normalizeElevation,
 } from "./distance3dCore.js";
+import { planZoneLandings, zoneFallConditionOperation } from "./zoneLandingCore.js";
 import {
   ELEVATION_FIELD,
   readElevation,
@@ -1110,13 +1116,21 @@ function applyMetadataPatchesToPlan(plan, sceneItems, metadataPatches = []) {
   return plan;
 }
 
-function expandStateDependentOperations(operations, sceneItems) {
+function expandStateDependentOperations(operations, sceneItems, derived = null) {
   const byId = new Map(sceneItems.map((item) => [item.id, item]));
   return operations.flatMap((operation) => {
     // CAP-CARRIAGE: a carried effect entering a zone that may be full, with the creatures already held
-    // (zoneCarriageCore.js): those that fall out are in the same command.
+    // (zoneCarriageCore.js): those that fall out are in the same command, and where they land
+    // (derived.carriageEjections, placed by prepareZoneEjections).
     if (operation?.type === "condition:add" && operation?.options?.mechanics?.carriage) {
-      return expandCarriageConditionAdd(operation, sceneItems).operations;
+      const expansion = expandCarriageConditionAdd(operation, sceneItems);
+      derived?.carriageEjections?.push(...carriageEjectionRequests(operation, expansion));
+      // H-1: those it now holds go up to the zone's height (prepareZoneLifts).
+      const instanceId = String(operation.options.parentEffectId || "").trim();
+      if (instanceId) {
+        derived?.carriageLifts?.push(...expansion.keptIds.map((targetId) => ({ targetId, instanceId })));
+      }
+      return expansion.operations;
     }
     if (operation?.type === "condition:reconcile-exhaustion") {
       const instancesByTarget = {};
@@ -1549,9 +1563,12 @@ export async function prepareEffectsMutation(operations = [], {
       else hpOperations.splice(index, 1);
     }
   }
+  const carriageEjections = [];
+  const carriageLifts = [];
   const preparedOperations = expandStateDependentOperations(
     hpOperations,
     hpProjectedItems,
+    { carriageEjections, carriageLifts },
   ).map(prepareOperation).filter((operation) => operation.type);
   if (preparedOperations.some((op) => op.type === "operation:conflict")) {
     const conflictOp = preparedOperations.find((op) => op.type === "operation:conflict");
@@ -1592,14 +1609,27 @@ export async function prepareEffectsMutation(operations = [], {
     { metadataKey: META_KEY },
   );
   if (classFeatureStatePlan?.status) return classFeatureStatePlan;
-  const plan = buildEffectsMutationPlan(
+  const planOptions = {
+    knownConditionNames: CONDITION_LIST,
+    maxCustomConditions: 3,
+  };
+  let plan = buildEffectsMutationPlan(
     sceneItems.map(normalizedSceneItem),
     effectsOperations,
-    {
-      knownConditionNames: CONDITION_LIST,
-      maxCustomConditions: 3,
-    }
+    planOptions,
   );
+  // CAP-CARRIAGE (decisions H-3 and H-4 of 12/11/2026): who a zone lets go comes down in this command; a fall adds its
+  // pill, so the plan is built again with it (zoneLandingCore.js). Only a command that takes such a pill off reads more.
+  const zoneLandings = await planCommandZoneLandings(plan, sceneItems, command);
+  if (!canPrepare()) return { status: EFFECTS_MUTATION_STATUS.REJECTED, reason: "stale-after-zone-landings" };
+  const fallOperations = zoneLandings
+    .map((landing) => zoneFallConditionOperation({ targetId: landing.id, heightText: landing.heightText, dice: landing.dice }))
+    .filter(Boolean)
+    .map(prepareOperation);
+  if (fallOperations.length) {
+    effectsOperations.push(...fallOperations);
+    plan = buildEffectsMutationPlan(sceneItems.map(normalizedSceneItem), effectsOperations, planOptions);
+  }
   // CAP-TEMP, lotto T3a: the temporary hit points of a pill that ends in this command go with it ("for the duration":
   // False Life, Armor of Agathys, Heroism), unless the command gave others. A patch of this command that writes them
   // is rewritten, so the last word is theirs being gone.
@@ -1648,6 +1678,9 @@ export async function prepareEffectsMutation(operations = [], {
   if (reactionRecords.length) plan.reactionRecords = reactionRecords;
   if (bossLinkNotices.length) plan.bossLinkNotices = bossLinkNotices;
   if (zeroHpBoardTokenIds.size) plan.zeroHpBoardTokenIds = [...zeroHpBoardTokenIds];
+  if (carriageEjections.length) plan.carriageEjections = carriageEjections;
+  if (zoneLandings.length) plan.zoneLandings = zoneLandings;
+  if (carriageLifts.length) plan.carriageLifts = carriageLifts;
   plan.classFeatureMutationResults = classFeatureStatePlan.results;
   plan.mutationId = mutationId;
   plan.scannedItems = sceneItems.length;
@@ -2630,6 +2663,261 @@ function boardTokenStartPosition(bounds, item, dpi = 1) {
   };
 }
 
+// CAP-CARRIAGE (decisions SA-D1 and SA-D2 of 12/11/2026): the creatures a zone that holds creatures puts out (a save
+// made, one too large to be held, one fallen out because the zone is full) go to a free space next to it in this command,
+// as an instant teleport: the same History, Undo and log (zoneEjectionCore.js). The zone's area is the descriptor's (a
+// cast: its zone is added after the conditions) or the zone's own, found by its spell's instance. One with no room
+// stays where it is, and the GM is told (plan.zoneEjectionNotices).
+async function prepareZoneEjections(plan, command, descriptors = []) {
+  const wanted = [];
+  const areas = new Map();
+  const spellNames = new Map();
+  for (const descriptor of descriptors) {
+    if (descriptor?.type !== "token:eject-from-zone") continue;
+    const instanceId = String(descriptor.instanceId || "").trim();
+    if (!instanceId) continue;
+    if (Array.isArray(descriptor.area?.cells) && descriptor.area.cells.length && !areas.has(instanceId)) {
+      areas.set(instanceId, { cells: descriptor.area.cells });
+    }
+    const spellName = String(descriptor.spellName || "").trim();
+    if (spellName && !spellNames.has(instanceId)) spellNames.set(instanceId, spellName);
+    const within = Number(descriptor.withinSquares);
+    for (const targetId of uniqueIds(descriptor.targetIds)) {
+      wanted.push({
+        targetId,
+        instanceId,
+        withinSquares: descriptor.withinSquares !== null && Number.isInteger(within) && within >= 0 ? within : null,
+        operationId: String(descriptor.operationId || "").trim(),
+      });
+    }
+  }
+  for (const request of Array.isArray(plan?.carriageEjections) ? plan.carriageEjections : []) {
+    wanted.push({ ...request, operationId: "" });
+  }
+  // One place for each creature: its first request.
+  const seen = new Set();
+  const requests = wanted.filter((request) => {
+    const id = String(request?.targetId || "").trim();
+    if (!id || !request.instanceId || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+  if (!requests.length) return { prepared: [], notices: [] };
+  const items = await OBR.scene.items.getItems();
+  const byId = new Map(items.map((item) => [item?.id, item]));
+  for (const instanceId of uniqueIds(requests.map((request) => request.instanceId))) {
+    const root = items.find((item) => {
+      const metadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+      return metadata?.role === "root" && String(metadata.instanceId || "").trim() === instanceId;
+    });
+    if (!areas.has(instanceId)) {
+      const area = root ? translatedZoneArea(root) : null;
+      if (Array.isArray(area?.cells) && area.cells.length) areas.set(instanceId, area);
+    }
+    if (root && !spellNames.has(instanceId)) {
+      spellNames.set(instanceId, String(root.name || "").replace(/^Zona:\s*/u, "").trim());
+    }
+  }
+  const placeable = requests.filter((request) => {
+    const item = byId.get(request.targetId);
+    return areas.has(request.instanceId) && item?.layer === "CHARACTER" && !item.attachedTo;
+  });
+  if (!placeable.length) return { prepared: [], notices: [] };
+  // The creatures and the spell tokens near the zones take their squares; the search is local, so only those read.
+  const boxes = [...areas.values()].map((area) => {
+    const cells = area.cells.filter((cell) => [cell?.x, cell?.y, cell?.width, cell?.height].every((value) => (
+      Number.isFinite(Number(value))
+    )));
+    const size = Math.max(0, ...cells.map((cell) => Number(cell.width)));
+    const margin = (ZONE_EJECTION_MAX_SQUARES + 4) * size;
+    return {
+      minX: Math.min(...cells.map((cell) => Number(cell.x))) - margin,
+      minY: Math.min(...cells.map((cell) => Number(cell.y))) - margin,
+      maxX: Math.max(...cells.map((cell) => Number(cell.x) + Number(cell.width))) + margin,
+      maxY: Math.max(...cells.map((cell) => Number(cell.y) + Number(cell.height))) + margin,
+    };
+  });
+  const near = (item) => {
+    const x = Number(item?.position?.x);
+    const y = Number(item?.position?.y);
+    return Number.isFinite(x) && Number.isFinite(y)
+      && boxes.some((box) => x >= box.minX && x <= box.maxX && y >= box.minY && y <= box.maxY);
+  };
+  const occupant = (item) => !item?.attachedTo && (
+    item?.layer === "CHARACTER"
+    || (item?.layer === "PROP" && item?.metadata?.[SPELL_BOARD_TOKEN_META_KEY]?.kind === "spell-board-token")
+  );
+  const nearby = items.filter((item) => occupant(item) && near(item));
+  const boundsById = new Map(await Promise.all(nearby.map(async (item) => [
+    item.id,
+    await OBR.scene.items.getItemBounds([item.id]).catch(() => null),
+  ])));
+  const destinations = planZoneEjections({
+    requests: placeable.map((request) => ({
+      id: request.targetId,
+      position: byId.get(request.targetId)?.position,
+      bounds: boundsById.get(request.targetId),
+      area: areas.get(request.instanceId),
+      withinSquares: request.withinSquares,
+    })),
+    obstacles: nearby
+      .map((item) => ({ id: item.id, bounds: boundsById.get(item.id) }))
+      .filter((entry) => entry.bounds),
+  });
+  const requestById = new Map(placeable.map((request) => [request.targetId, request]));
+  const prepared = [];
+  const notices = [];
+  for (const destination of destinations) {
+    const request = requestById.get(destination.id);
+    const item = byId.get(destination.id);
+    if (!request || !item) continue;
+    const notice = { name: String(item.name || "").trim(), spellName: spellNames.get(request.instanceId) || "" };
+    if (!destination.position) {
+      notices.push({ ...notice, kind: "no-room" });
+      continue;
+    }
+    if (destination.beyond) notices.push({ ...notice, kind: "beyond" });
+    const beforePosition = clone(item.position);
+    const afterPosition = { x: Number(destination.position.x), y: Number(destination.position.y) };
+    if (sameValue({ x: Number(beforePosition?.x), y: Number(beforePosition?.y) }, afterPosition)) continue;
+    prepared.push({
+      type: "token:teleport",
+      id: item.id,
+      operationId: request.operationId || String(command?.commandId || "").trim(),
+      name: String(item.name || "").trim(),
+      beforePosition,
+      afterPosition: clone(afterPosition),
+      before: { id: item.id, name: item.name, position: clone(beforePosition) },
+      after: { id: item.id, name: item.name, position: clone(afterPosition) },
+      restoreVisible: item.visible !== false,
+      // Pushed out, not teleported: no fade, and a token the GM keeps hidden stays hidden.
+      skipAnimation: true,
+      preserveVisibility: true,
+    });
+  }
+  return { prepared, notices };
+}
+
+// CAP-CARRIAGE (decisions H-3 and H-4 of 12/11/2026): the creatures this command lets go from a zone that holds them up,
+// with their height in squares of the grid and the dice of their fall (zoneLandingCore.js), and that height in the
+// scene's unit for the pill ("6 m", "20 ft"). The scale is read only when a pill with a landing goes; those leaving with
+// their save are the command's ejections.
+async function planCommandZoneLandings(plan, sceneItems, command) {
+  const changes = Array.isArray(plan?.changes) ? plan.changes : [];
+  const exitIds = (Array.isArray(command?.sideEffects) ? command.sideEffects : [])
+    .filter((descriptor) => descriptor?.type === "token:eject-from-zone")
+    .flatMap((descriptor) => uniqueIds(descriptor.targetIds));
+  if (!planZoneLandings({ changes, exitIds, heightOf: () => 1 }).length) return [];
+  const scale = typeof OBR.scene?.grid?.getScale === "function"
+    ? await OBR.scene.grid.getScale().catch(() => null)
+    : null;
+  const { multiplier, unit } = gridScaleParts(scale || {});
+  const perSquare = Number(multiplier) > 0 ? Number(multiplier) : 1.5;
+  const byId = new Map((Array.isArray(sceneItems) ? sceneItems : []).map((item) => [item?.id, item]));
+  return planZoneLandings({
+    changes,
+    exitIds,
+    heightOf: (id) => readElevation(byId.get(id)) / perSquare,
+  }).map((landing) => ({
+    ...landing,
+    heightText: `${String(normalizeElevation(landing.squares * perSquare)).replace(".", ",")} ${unit || "m"}`,
+  }));
+}
+
+// CAP-CARRIAGE (decisions H-1 and H-3 of 12/11/2026): the heights a command changes with a zone that holds creatures up,
+// each an elevation:adjust, the History's and the Undo's as the Whirlwind's rise:
+// - those it lets go come down to the ground (plan.zoneLandings);
+// - those it now holds go up to its height (plan.carriageLifts, the zone's spellZoneHover);
+// - Imposta quota… on the zone sets its height, up to its maximum, and that of the creatures it holds
+//   (static-zone:set-hover, its own metadata entry for the Undo).
+async function prepareZoneHeights(plan, descriptors = []) {
+  const landings = Array.isArray(plan?.zoneLandings) ? plan.zoneLandings : [];
+  const lifts = Array.isArray(plan?.carriageLifts) ? plan.carriageLifts : [];
+  const hovers = descriptors.filter((descriptor) => descriptor?.type === "static-zone:set-hover");
+  if (!landings.length && !lifts.length && !hovers.length) return { prepared: [] };
+  const items = await OBR.scene.items.getItems();
+  const byId = new Map(items.map((item) => [item?.id, item]));
+  const rootOf = (instanceId) => items.find((item) => {
+    const metadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+    return metadata?.role === "root" && String(metadata.instanceId || "").trim() === String(instanceId || "").trim();
+  });
+  const wanted = new Map(landings.map((landing) => [landing.id, 0]));
+  for (const lift of lifts) {
+    if (wanted.has(lift.targetId)) continue;
+    const root = rootOf(lift.instanceId);
+    const height = root ? spellZoneHoverElevation(root) : 0;
+    if (height > 0) wanted.set(lift.targetId, height);
+  }
+  const prepared = [];
+  if (hovers.length) {
+    const scale = typeof OBR.scene?.grid?.getScale === "function"
+      ? await OBR.scene.grid.getScale().catch(() => null)
+      : null;
+    for (const descriptor of hovers) {
+      const root = byId.get(String(descriptor.zoneItemId || "").trim()) || rootOf(descriptor.instanceId);
+      const metadata = root?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+      if (!root || metadata?.role !== "root") {
+        return { conflict: { reason: "missing-static-zone", itemId: String(descriptor.zoneItemId || "").trim() || null } };
+      }
+      const maxSquares = spellZoneHoverMaxSquares(metadata.spellId);
+      const requested = elevationInputToCanonical(descriptor.value, scale);
+      const maximum = maxSquares ? elevationInputToCanonical({ value: maxSquares, unit: "square" }, scale) : NaN;
+      if (!Number.isFinite(maximum) || !Number.isFinite(requested) || requested < 0) {
+        return { conflict: { reason: "static-zone-hover-invalid", itemId: root.id } };
+      }
+      const height = normalizeElevation(Math.min(requested, maximum));
+      prepared.push({
+        type: "static-zone:set-hover",
+        id: root.id,
+        metadataKey: SPELL_ZONE_HOVER_META_KEY,
+        before: sceneItemMetadataSnapshot(root, SPELL_ZONE_HOVER_META_KEY),
+        after: { present: true, value: { elevation: height } },
+      });
+      const policy = getSpellAreaRuleById(metadata.ruleId)?.zonePolicy || {};
+      const effectIds = [...(policy.movement?.carriedEffectIds || []), ...(policy.carriedEffectIds || [])];
+      for (const id of staticZoneCarriedItemIds(items, { instanceId: metadata.instanceId, effectIds })) {
+        wanted.set(id, height);
+      }
+    }
+  }
+  for (const [targetId, elevation] of wanted) {
+    const item = byId.get(targetId);
+    if (!item) continue;
+    const beforeElevation = readElevation(item);
+    if (beforeElevation === elevation) continue;
+    prepared.push({
+      type: "elevation:adjust",
+      id: targetId,
+      metadataKey: META_KEY,
+      metadataField: ELEVATION_FIELD,
+      beforeElevation,
+      afterElevation: normalizeElevation(elevation),
+      expectedElevation: beforeElevation,
+      beforePresent: Object.prototype.hasOwnProperty.call(item.metadata?.[META_KEY] || {}, ELEVATION_FIELD),
+    });
+  }
+  return { prepared };
+}
+
+function zoneEjectionNoticeText(notice) {
+  const name = notice?.name || "la creatura";
+  const prefix = notice?.spellName ? `${notice.spellName}: ` : "";
+  return notice?.kind === "beyond"
+    ? `${prefix}per ${name} niente spazio libero entro 1,5 m, il token è più lontano.`
+    : `${prefix}per ${name} nessuno spazio libero vicino, sposta il token a mano.`;
+}
+
+async function showZoneEjectionNotices(notices) {
+  try {
+    if (await OBR.player.getRole() !== "GM") return;
+  } catch {
+    return;
+  }
+  for (const notice of notices) {
+    await OBR.notification.show(zoneEjectionNoticeText(notice), "WARNING").catch(() => {});
+  }
+}
+
 async function prepareEffectsSideEffects(plan, command) {
   const descriptors = Array.isArray(command?.sideEffects) ? command.sideEffects : [];
   const prepared = [];
@@ -3338,7 +3626,10 @@ async function prepareEffectsSideEffects(plan, command) {
       const scale = typeof OBR.scene?.grid?.getScale === "function"
         ? await OBR.scene.grid.getScale().catch(() => null)
         : null;
-      const delta = elevationInputToCanonical(descriptor.delta, scale);
+      // An absolute height instead of a step: a zone's (the Watery Sphere's), the ground (zoneLandingCore.js).
+      const hasValue = descriptor.value !== undefined && descriptor.value !== null;
+      const absolute = hasValue ? elevationInputToCanonical(descriptor.value, scale) : null;
+      const delta = hasValue ? 0 : elevationInputToCanonical(descriptor.delta, scale);
       const maxElevation = hasMax
         ? elevationInputToCanonical(descriptor.max, scale)
         : null;
@@ -3354,7 +3645,11 @@ async function prepareEffectsSideEffects(plan, command) {
           }],
         };
       }
-      if (!Number.isFinite(delta) || (hasMax && !Number.isFinite(maxElevation))) {
+      if (
+        !Number.isFinite(delta)
+        || (hasValue && (!Number.isFinite(absolute) || absolute < 0))
+        || (hasMax && !Number.isFinite(maxElevation))
+      ) {
         return {
           status: EFFECTS_MUTATION_STATUS.CONFLICT,
           conflicts: [{
@@ -3377,7 +3672,7 @@ async function prepareEffectsSideEffects(plan, command) {
           }],
         };
       }
-      const proposedElevation = normalizeElevation(beforeElevation + delta);
+      const proposedElevation = normalizeElevation(hasValue ? absolute : beforeElevation + delta);
       const afterElevation = hasMax
         ? normalizeElevation(Math.min(proposedElevation, maxElevation))
         : proposedElevation;
@@ -3396,6 +3691,14 @@ async function prepareEffectsSideEffects(plan, command) {
       });
     }
   }
+  // CAP-CARRIAGE: who leaves a zone that holds creatures, and where (prepareZoneEjections).
+  const ejection = await prepareZoneEjections(plan, command, descriptors);
+  prepared.push(...ejection.prepared);
+  if (ejection.notices.length) plan.zoneEjectionNotices = ejection.notices;
+  // CAP-CARRIAGE: the heights that go with it: landings, lifts, Imposta quota… on a zone (prepareZoneHeights).
+  const heights = await prepareZoneHeights(plan, descriptors);
+  if (heights.conflict) return { status: EFFECTS_MUTATION_STATUS.CONFLICT, conflicts: [heights.conflict] };
+  prepared.push(...heights.prepared);
   // A spell's token brought to 0 HP by this command leaves the map (planZeroHpSpellBoardToken), unless the command
   // already removes it (a spell area, the token's own HP editor, the end of its spell).
   const handledTokenIds = new Set(prepared.flatMap((entry) => [
@@ -3605,7 +3908,8 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
               throw new Error("recovery-teleport-conflict");
             }
             draft.position = clone(afterPosition);
-            draft.visible = true;
+            // A creature pushed out of a zone keeps its visibility (prepareZoneEjections).
+            if (sideEffect.preserveVisibility !== true) draft.visible = true;
           }
         }
       });
@@ -3809,6 +4113,29 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
         metadataChanges,
       }];
     });
+  }
+  // CAP-CARRIAGE (H-1): a zone's height, in its own metadata entry; the Undo restores it as any metadata change.
+  if (sideEffect.type === "static-zone:set-hover") {
+    const [current] = await OBR.scene.items.getItems([sideEffect.id]);
+    if (!current) throw new Error("static-zone-hover-missing");
+    if (!metadataSnapshotMatches(sceneItemMetadataSnapshot(current, sideEffect.metadataKey), sideEffect.before)) {
+      throw new Error("static-zone-hover-stale");
+    }
+    if (!isCurrent()) throw new Error("stale-before-static-zone-hover");
+    await OBR.scene.items.updateItems([sideEffect.id], (drafts) => {
+      for (const draft of drafts) {
+        if (draft.id !== sideEffect.id) continue;
+        draft.metadata = { ...(draft.metadata || {}), [sideEffect.metadataKey]: clone(sideEffect.after.value) };
+      }
+    });
+    if (!isCurrent()) throw new Error("stale-after-static-zone-hover");
+    return [{
+      id: sideEffect.id,
+      type: "metadata",
+      metadataKey: sideEffect.metadataKey,
+      before: clone(sideEffect.before),
+      after: clone(sideEffect.after),
+    }];
   }
   if (sideEffect.type === "static-zone:set-rule-choice") {
     const items = sideEffect.items || [];
@@ -4350,6 +4677,7 @@ async function commitCoordinatedEffectsPlan(plan, { isCurrent, command = {} }) {
     return effectsCommit;
   }
   if (plan?.bossLinkNotices?.length) void showBossLinkNotices(plan.bossLinkNotices);
+  if (plan?.zoneEjectionNotices?.length) void showZoneEjectionNotices(plan.zoneEjectionNotices);
   if (recoveryRecord) {
     const deferHistory = command.deferRecoveryHistory === true;
     const recovered = await recovery.resume(recoveryRecord, isCurrent, {

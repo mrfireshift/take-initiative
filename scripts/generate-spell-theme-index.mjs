@@ -97,6 +97,10 @@ const NAME_THEME_HINTS = Object.freeze([
 
 const SPELL_THEME_OVERRIDES = Object.freeze({
   "xanathar-sfera-al-vetriolo": "acid",
+  // Water and wind that put out flames, not fire: their school's colour (decision SA-D6 of 12/11/2026).
+  "xanathar-sfera-acquea": "conjuration",
+  "xanathar-onda-di-marea": "conjuration",
+  "xanathar-vento-di-interdizione": "evocation",
 });
 
 function normalized(value) {

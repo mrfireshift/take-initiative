@@ -559,9 +559,12 @@ const AREA_OVERRIDES = Object.freeze({
     placementOptional: false,
   },
   // CAP-CARRIAGE: the sphere is the spell, so the panel asks for it before the cast; without it only the caster's
-  // concentration was left, with no ⚡ to move it.
+  // concentration was left, with no ⚡ to move it. Its height is set on the sphere itself, the creatures it holds with it
+  // (decision H-1 of 12/11/2026, static-zone:set-hover); the flames it puts out, a reminder on the caster when it ends
+  // (SA-D4, spells-srd.js).
   "xanathar-sfera-acquea": {
     placementOptional: false,
+    note: "Galleggia fino a 3 m da terra: «Imposta quota…» sulla sfera, e chi trattiene la segue. Quando finisce cade e spegne le fiamme normali entro 9 m.",
   },
   "xanathar-turbine": {
     shape: "circle",

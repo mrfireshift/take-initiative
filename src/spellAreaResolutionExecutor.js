@@ -45,6 +45,7 @@ import {
 } from "./areaSaveSpellRules.js";
 import {
   normalizeConditionRule,
+  normalizeSaveSpellAutomation,
   resolveSaveSpellResolution,
   SAVE_SPELL_OUTCOMES,
 } from "./saveSpellCore.js";
@@ -124,7 +125,9 @@ import {
 import {
   SPELL_STATIC_ZONE_META_KEY,
   staticSpellZoneOwnerOperation,
+  translatedZoneArea,
 } from "./spellStaticZoneCore.js";
+import { spellCarriageExit } from "./zoneCarriageCore.js";
 import {
   getSpellBoardTokenItems,
   buildSpellBoardTokenItem,
@@ -2515,6 +2518,27 @@ async function buildPlan(command, runtime) {
     effectOperations.push(...zoneResource.operations);
     effectSubjectIds.push(casterId);
   }
+  // CAP-CARRIAGE (decision SA-D1): who makes the save leaves the zone that holds creatures (Watery Sphere) for the
+  // nearest free space outside it, in this command (prepareZoneEjections in effectsMutations.js). The area as placed for
+  // a cast, its zone being added after the conditions; as it stands for a trigger. It also tells the coordinator where
+  // the zone is for those that fall out or are too large to be held.
+  const carriageExit = spellCarriageExit(normalizeSaveSpellAutomation(
+    getAreaSaveAutomation(spell, text(command?.spell?.choiceValue)) || {},
+  ));
+  const ejectionRoot = carriageExit
+    ? (zoneTriggerResolution ? triggerRootItems : nextStaticZoneItems)
+      .find((item) => item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root") || null
+    : null;
+  const ejectionArea = ejectionRoot ? translatedZoneArea(ejectionRoot) : null;
+  const zoneEjectionSideEffects = Array.isArray(ejectionArea?.cells) && ejectionArea.cells.length ? [{
+    type: "token:eject-from-zone",
+    instanceId: text(ejectionRoot.metadata[SPELL_STATIC_ZONE_META_KEY]?.instanceId) || spellInstanceId,
+    area: {
+      cells: ejectionArea.cells.map((cell) => ({ x: cell.x, y: cell.y, width: cell.width, height: cell.height })),
+    },
+    targetIds: uniqueIds(resolution.passedIds || []).filter((id) => targetIds.includes(id)),
+    spellName: spell.displayName || spell.name || "",
+  }] : [];
   const ids = entries.map((entry) => entry.item.id);
   const affectedIds = uniqueIds([
     ...ids,
@@ -2574,6 +2598,7 @@ async function buildPlan(command, runtime) {
     boardTokenEntityId,
     boardTokenEntityIds,
     spellBoardTokenSideEffects,
+    zoneEjectionSideEffects,
     zeroHPReconcileIds,
     damageEndsRemovals,
     affectedIds,
@@ -3211,6 +3236,8 @@ export async function executeSpellAreaResolution(
           ...spellBoardTokenSideEffects,
           ...zoneTriggerSideEffects,
           ...(plan.zoneResourceSideEffects || []),
+          // CAP-CARRIAGE: who leaves the zone that holds creatures, placed by the coordinator.
+          ...(plan.zoneEjectionSideEffects || []),
         ];
         const commitCoordinatedEffects = async () => {
           if (!operations.length && !coordinatedSideEffects.length && !plan.bossActionUse?.metadataPatches.length) return true;

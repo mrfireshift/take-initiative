@@ -685,24 +685,20 @@ mock.module("../src/effectsMutations.js", {
   },
 });
 
+// T1 (12/11/2026): the creatures the Whirlwind holds follow it as the Watery Sphere's do, without a native attachment:
+// an attached token was no creature for the area tool, the 3D ruler or Imposta quota.
 test("Turbine segue il trascinamento manuale del root con i CHARACTER trattenuti", async () => {
   await prepareTurbineScene();
 
   const before = sceneState.items.find((item) => item.id === "target");
   assert.equal(sceneState.items.find((item) => item.id === "turbine-zone").locked, false);
   await moveItem("turbine-zone", { x: 100, y: 40 });
+  await wait(220);
 
   const target = sceneState.items.find((item) => item.id === "target");
   assert.deepEqual(target.position, { x: 150, y: 40 });
-  assert.equal(target.attachedTo, "turbine-zone");
-  assert.deepEqual(target.disableAttachmentBehavior, [
-    "ROTATION",
-    "SCALE",
-    "VISIBLE",
-    "DELETE",
-    "LOCKED",
-    "COPY",
-  ]);
+  assert.equal(target.attachedTo, undefined);
+  assert.equal(target.disableAttachmentBehavior, undefined);
   assert.equal(target.rotation, before.rotation);
   assert.deepEqual(target.scale, before.scale);
   assert.equal(target.visible, before.visible);
@@ -714,11 +710,8 @@ test("Turbine segue il trascinamento manuale del root con i CHARACTER trattenuti
   );
 });
 
-test("Turbine applica l'attachment nativo quando Trattenuto arriva dopo il mount", async () => {
+test("Turbine non aggancia chi diventa Trattenuto e rilascia dov'è un token agganciato da una versione precedente", async () => {
   await prepareTurbineScene({ targetRestrained: false });
-
-  const before = sceneState.items.find((item) => item.id === "target");
-  assert.equal(before.attachedTo, undefined);
 
   await sdkStub.scene.items.updateItems(["target"], (drafts) => {
     drafts[0].metadata[META_KEY].conditions = {
@@ -732,17 +725,21 @@ test("Turbine applica l'attachment nativo quando Trattenuto arriva dopo il mount
     };
   });
   await wait(220);
+  assert.equal(sceneState.items.find((item) => item.id === "target").attachedTo, undefined);
 
+  // A room saved by an older version: the token is attached when the scene opens, and the first pass releases it.
+  unmountStaticSpellZoneController();
+  await wait(300);
+  await sdkStub.scene.items.updateItems(["target"], (drafts) => {
+    drafts[0].attachedTo = "turbine-zone";
+    drafts[0].disableAttachmentBehavior = ["ROTATION", "SCALE", "VISIBLE", "DELETE", "LOCKED", "COPY"];
+  });
+  await mountStaticSpellZoneController();
+  await wait(260);
   const target = sceneState.items.find((item) => item.id === "target");
-  assert.equal(target.attachedTo, "turbine-zone");
-  assert.deepEqual(target.disableAttachmentBehavior, [
-    "ROTATION",
-    "SCALE",
-    "VISIBLE",
-    "DELETE",
-    "LOCKED",
-    "COPY",
-  ]);
+  assert.equal(target.attachedTo, undefined);
+  assert.equal(target.disableAttachmentBehavior, undefined);
+  assert.deepEqual(target.position, { x: 50, y: 0 });
 });
 
 test("Turbine aumenta l'elevation soltanto all'inizio del turno del bersaglio e si ferma a 9 m", async () => {

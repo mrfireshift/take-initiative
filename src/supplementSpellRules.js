@@ -100,9 +100,14 @@ export const SUPPLEMENT_AUTOMATION = Object.freeze({
     conditionOptions: Object.freeze({
       Trattenuto: Object.freeze({
         effectId: "watery-sphere-restrained",
-        // CAP-CARRIAGE: four Medium or smaller, or one Large; a Huge or larger is not held (zoneCarriageCore.js).
-        mechanics: Object.freeze({ carriage: Object.freeze({ capacity: 4, largeUnits: 4 }) }),
-        effectDetail: "La sfera trattiene il bersaglio, immerso nell'acqua, e lo porta con sé. Alla fine di ogni suo turno ripete il TS su Forza e, se lo supera, ne esce.",
+        // CAP-CARRIAGE: four Medium or smaller, or one Large; a Huge or larger is not held (zoneCarriageCore.js). Those that
+        // make the save, and the Huge, leave it; one that falls out lands within 1.5 m (zoneEjectionCore.js, SA-D1, SA-D2).
+        mechanics: Object.freeze({
+          carriage: Object.freeze({ capacity: 4, largeUnits: 4, exitOnSave: true, fallWithinSquares: 1 }),
+          // H-3, H-4: let go, it comes down to the ground; only the one that leaves with its save falls (zoneLandingCore.js).
+          landing: Object.freeze({ fall: "on-exit" }),
+        }),
+        effectDetail: "La sfera trattiene il bersaglio, immerso nell'acqua, e lo porta con sé. Alla fine di ogni suo turno ripete il TS su Forza e, se lo supera, ne esce. Sta alla quota della sfera, fino a 3 m da terra («Imposta quota…» sulla sfera).",
         summaryParts: Object.freeze([
           Object.freeze({ id: "watery-sphere-escape-save", label: "TS For a fine turno" }),
         ]),
@@ -197,9 +202,14 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
     failed: Object.freeze([Object.freeze({
       condition: "Trattenuto",
       effectId: "watery-sphere-restrained",
-      // CAP-CARRIAGE: four Medium or smaller, or one Large; a Huge or larger is not held (zoneCarriageCore.js).
-      mechanics: Object.freeze({ carriage: Object.freeze({ capacity: 4, largeUnits: 4 }) }),
-      effectDetail: "La sfera trattiene il bersaglio, immerso nell'acqua, e lo porta con sé. Alla fine di ogni suo turno ripete il TS su Forza e, se lo supera, ne esce.",
+      // CAP-CARRIAGE: four Medium or smaller, or one Large; a Huge or larger is not held (zoneCarriageCore.js). Those that
+      // make the save, and the Huge, leave it; one that falls out lands within 1.5 m (zoneEjectionCore.js, SA-D1, SA-D2).
+      mechanics: Object.freeze({
+        carriage: Object.freeze({ capacity: 4, largeUnits: 4, exitOnSave: true, fallWithinSquares: 1 }),
+        // H-3, H-4: let go, it comes down to the ground; only the one that leaves with its save falls (zoneLandingCore.js).
+        landing: Object.freeze({ fall: "on-exit" }),
+      }),
+      effectDetail: "La sfera trattiene il bersaglio, immerso nell'acqua, e lo porta con sé. Alla fine di ogni suo turno ripete il TS su Forza e, se lo supera, ne esce. Sta alla quota della sfera, fino a 3 m da terra («Imposta quota…» sulla sfera).",
       summaryParts: Object.freeze([
         Object.freeze({ id: "watery-sphere-escape-save", label: "TS For a fine turno" }),
       ]),

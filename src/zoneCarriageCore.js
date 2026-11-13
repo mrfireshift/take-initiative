@@ -1,9 +1,11 @@
 // CAP-CARRIAGE (docs/PIANO_AUTOMAZIONE_INCANTESIMI.md): a zone that holds creatures and carries them, with a capacity.
 // Watery Sphere (Xanathar): it holds up to four Medium or smaller creatures, or one Large; a Huge or larger creature
 // succeeds on the save on its own. A creature it restrains beyond that makes a random creature already held fall out,
-// prone, within 1.5 m of it (decisions C-D3 and C-D4 of 11/11/2026). The size is the token's, on the grid (tokenCells);
-// the creature that falls out the GM puts down. Pure: the coordinator expands the operation with the scene's items
-// (expandStateDependentOperations in effectsMutations.js), so the fall is in the same command and the same Undo.
+// prone, within 1.5 m of it (decisions C-D3 and C-D4 of 11/11/2026). The size is the token's, on the grid (tokenCells).
+// The creature that falls out lands within 1.5 m, one too large to be held leaves the zone (decisions SA-D1 and SA-D2
+// of 12/11/2026): carriageEjectionRequests, placed by the coordinator (zoneEjectionCore.js). Pure: the coordinator
+// expands the operation with the scene's items (expandStateDependentOperations in effectsMutations.js), so the fall is
+// in the same command and the same Undo.
 import { ID } from "./constants.js";
 
 const META_KEY = `${ID}/meta`;
@@ -98,9 +100,98 @@ export function expandCarriageConditionAdd(operation, sceneItems = [], { random 
           ...(operation?.options?.sourceId ? { sourceId: operation.options.sourceId } : {}),
           ...(sourceName ? { sourceName } : {}),
           expiry: { mode: "manual" },
-          effectDetail: "È caduto dalla sfera, che era piena: posalo entro 1,5 m da lei.",
+          effectDetail: "È caduto dalla sfera, che era piena.",
         },
       }, { type: "condition:automate", subjectIds: fallenIds }] : []),
     ],
   };
+}
+
+// The carriage of a zone whose creatures leave it (mechanics.carriage with exitOnSave): one that makes its save, or is
+// too large to be held, goes to the nearest free space outside; one that falls out lands within fallWithinSquares.
+// null for a carriage without it.
+export function carriageExitOf(mechanics) {
+  const carriage = mechanics?.carriage;
+  if (!carriage || typeof carriage !== "object" || carriage.exitOnSave !== true) return null;
+  const within = Number(carriage.fallWithinSquares);
+  return { fallWithinSquares: Number.isInteger(within) && within >= 0 ? within : null };
+}
+
+// The carriage of a spell's held effect, from its save automation: the failed outcome's rule that carries.
+export function spellCarriageExit(automation) {
+  const rules = Array.isArray(automation?.rulesByOutcome?.failed) ? automation.rulesByOutcome.failed : [];
+  for (const rule of rules) {
+    const exit = carriageExitOf(rule?.options?.mechanics);
+    if (exit) return exit;
+  }
+  return null;
+}
+
+// CAP-CARRIAGE (decision SA-D5 of 12/11/2026): a zone that carries creatures (Watery Sphere) dragged by hand takes the
+// creatures it holds along, by the same offset. control is where the plugin last put the zone (its ⚡ movement, that
+// movement's Undo, this follow: the zone's movementControl); a zone elsewhere was moved by the GM. roots: [{ id,
+// instanceId, position, control, carriedEffectIds }]; items: the scene's items; movedIds: the tokens that moved by
+// themselves since the last look (dragged with the zone, several tokens selected), not moved twice. Each entry:
+// { rootId, control, moves: [{ id, position }] }, control the zone's new place; a zone with no place recorded yet (one
+// cast before this rule) only gets it.
+export const CARRIAGE_FOLLOW_COMMAND_ID = "carriage-follow";
+
+function followPoint(value) {
+  const x = Number(value?.x);
+  const y = Number(value?.y);
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+export function planCarriageFollow({ roots = [], items = [], movedIds = [] } = {}) {
+  const moved = new Set((Array.isArray(movedIds) ? movedIds : []).map((id) => String(id || "").trim()));
+  const entries = [];
+  for (const root of Array.isArray(roots) ? roots : []) {
+    const rootId = String(root?.id || "").trim();
+    const instanceId = String(root?.instanceId || "").trim();
+    const effectIds = new Set((Array.isArray(root?.carriedEffectIds) ? root.carriedEffectIds : [])
+      .map((id) => String(id || "").trim()).filter(Boolean));
+    const position = followPoint(root?.position);
+    if (!rootId || !instanceId || !effectIds.size || !position) continue;
+    const control = { commandId: CARRIAGE_FOLLOW_COMMAND_ID, position };
+    const recorded = followPoint(root?.control?.position);
+    if (!recorded) {
+      entries.push({ rootId, control, moves: [] });
+      continue;
+    }
+    const delta = { x: position.x - recorded.x, y: position.y - recorded.y };
+    if (Math.abs(delta.x) < 1e-6 && Math.abs(delta.y) < 1e-6) continue;
+    const moves = (Array.isArray(items) ? items : [])
+      .filter((item) => item?.layer === "CHARACTER" && !item?.attachedTo && !moved.has(String(item?.id || "").trim()))
+      .filter((item) => conditionsOf(item).some((instance) => (
+        String(instance?.parentEffectId || "").trim() === instanceId
+          && effectIds.has(String(instance?.effectId || "").trim())
+      )))
+      .map((item) => ({ item, from: followPoint(item.position) }))
+      .filter(({ from }) => !!from)
+      .map(({ item, from }) => ({ id: item.id, position: { x: from.x + delta.x, y: from.y + delta.y } }));
+    entries.push({ rootId, control, moves });
+  }
+  return entries;
+}
+
+// Where the creatures an expansion put out go (zoneEjectionCore.js): the fallen within fallWithinSquares of the zone,
+// the too large anywhere outside it. instanceId: the zone's spell, whose area the coordinator finds.
+export function carriageEjectionRequests(operation, expansion) {
+  const exit = carriageExitOf(operation?.options?.mechanics);
+  const instanceId = String(operation?.options?.parentEffectId || "").trim();
+  if (!exit || !instanceId) return [];
+  return [
+    ...(Array.isArray(expansion?.fallenIds) ? expansion.fallenIds : []).map((targetId) => ({
+      targetId,
+      instanceId,
+      withinSquares: exit.fallWithinSquares,
+      reason: "fall-out",
+    })),
+    ...(Array.isArray(expansion?.tooLargeIds) ? expansion.tooLargeIds : []).map((targetId) => ({
+      targetId,
+      instanceId,
+      withinSquares: null,
+      reason: "too-large",
+    })),
+  ];
 }

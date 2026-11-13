@@ -5,6 +5,22 @@ import { clipChildZoneAreaToParent } from "./spellChildZoneCore.js";
 
 export const SPELL_STATIC_ZONE_META_KEY = `${ID}/spellStaticZone`;
 export const SPELL_ZONE_MOVEMENT_CONTROL_FIELD = "movementControl";
+// CAP-CARRIAGE (decision H-1 of 12/11/2026): the height a zone hovers at, set with Imposta quota… on the zone itself (the
+// Watery Sphere: up to 3 m), the creatures it holds at that height. A key of its own: the zone's metadata changes at every
+// pass of the reconcile, which would spoil the Undo's snapshot. { elevation }, in the scene's unit, as meta.elevation. The
+// maximum is in squares of the grid, as the rules count: 3 m are 10 ft, two squares, in meters or in feet alike.
+export const SPELL_ZONE_HOVER_META_KEY = `${ID}/spellZoneHover`;
+export const SPELL_ZONE_HOVER_MAX_SQUARES = Object.freeze({ "xanathar-sfera-acquea": 2 });
+
+export function spellZoneHoverMaxSquares(spellId) {
+  const max = Number(SPELL_ZONE_HOVER_MAX_SQUARES[String(spellId || "").trim()]);
+  return Number.isFinite(max) && max > 0 ? max : null;
+}
+
+export function spellZoneHoverElevation(item) {
+  const value = Number(item?.metadata?.[SPELL_ZONE_HOVER_META_KEY]?.elevation);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
 
 const normalizedId = (value) => String(value || "").trim();
 const clone = (value) => {
@@ -251,6 +267,8 @@ export function staticSpellZoneOwnerOperation({
     ...(Array.isArray(summaryParts) && summaryParts.length
       ? { summaryParts: summaryParts.map((part) => ({ ...part })) }
       : {}),
+    // What the end of the spell leaves on the caster (the Watery Sphere's flames put out: spells-srd.js).
+    ...(spell?.onSpellEnd ? { onSpellEnd: clone(spell.onSpellEnd) } : {}),
     replaceNames: [name],
   };
 }
