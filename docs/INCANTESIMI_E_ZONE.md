@@ -631,7 +631,7 @@ linea retta. Il movimento della zona dichiara `carriedEffectIds:
 ["watery-sphere-restrained"]`, così lo `static-zone:move` sposta nello stesso
 aggiornamento la radice e le creature che la sfera trattiene. È una sola voce di
 Cronologia con un solo Annulla, e le creature trasportate non scrivono voci
-«Movimento». Trascinata a mano, la sfera si sposta da sola. Lo spostamento si conferma
+«Movimento». Lo spostamento si conferma
 con la stessa ✓ dello strumento delle aree, che durante un movimento si chiama «Conferma
 movimento» (la ✕, «Annulla movimento»). La posa della sfera è obbligatoria
 (`placementOptional: false`), e il record del caster resta anche quando le creature
@@ -649,8 +649,41 @@ a ✓ o ✕.
   misura del token sulla griglia. Un'Enorme o più grande non entra. Oltre la
   capienza, una creatura già trattenuta, estratta a caso, perde Trattenuto e riceve
   Prono, nello stesso comando.
-- **Al tavolo**: chi supera il TS e ne esce, la posa di chi cade fuori, l'altezza fino
-  a 3 m e le fiamme spente.
+- **Uscita** (decisione SA-D1 del 12/11/2026): chi supera il TS al lancio, nell'urto o
+  alla fine di un suo turno, e chi è troppo grande per essere trattenuto, esce nello
+  spazio libero più vicino fuori dalla sfera (`zoneEjectionCore.js`): meno caselle,
+  poi dalla parte della creatura, poi il passo più corto. Lo dichiara
+  `mechanics.carriage.exitOnSave`; il lancio, il promemoria dell'urto (azione `zone`
+  `eject` dell'esito superato) e quello di fine turno mandano l'effetto collaterale
+  `token:eject-from-zone`, che il coordinatore prepara come `token:teleport` senza
+  animazione e senza toccare la visibilità del token. Senza spazio libero il token resta
+  e il GM riceve un avviso. Al lancio l'area è quella posata, perché la zona nasce dopo
+  le condizioni.
+- **Caduta fuori** (SA-D2): chi cade per la capienza atterra entro 1,5 m
+  (`fallWithinSquares: 1`), o nello spazio libero più vicino oltre, con un avviso.
+- **Trascinata a mano** (SA-D5): il reconcile delle zone, subito dopo le zone che seguono
+  il caster, confronta la radice con `movementControl`, scritto dal ⚡, dal suo Annulla e
+  dal trasporto stesso. Se la sfera è altrove l'ha spostata il GM, e le trattenute la
+  seguono dello stesso scarto (`planCarriageFollow`), in una sola scrittura insieme al
+  nuovo riferimento, senza voce di Cronologia; chi si è mosso nello stesso giro non si
+  sposta due volte.
+- **Quota** (H-1, che rovescia SA-D3): **Imposta quota…** sulla radice della sfera (voce del
+  menu per `SPELL_ZONE_HOVER_MAX_SQUARES`, due caselle: 3 m o 10 ft) apre il popup in
+  modalità zona. L'effetto collaterale `static-zone:set-hover` scrive la quota nella chiave
+  `spellZoneHover` della zona (una chiave sua, perché il reconcile riscrive spesso i
+  metadati della zona e l'Annulla perderebbe l'istantanea) e porta alla stessa quota le
+  creature trattenute, ognuna con `elevation:adjust` (ora anche assoluto, `value`). Chi viene
+  catturato dopo entra alla quota della sfera (`plan.carriageLifts` dell'espansione).
+- **Atterraggio** (H-3, H-4): una pill con `mechanics.landing` tolta in un comando, in
+  qualunque modo, riporta la creatura a quota 0 nello stesso comando (`zoneLandingCore.js`,
+  `planCommandZoneLandings` e `prepareZoneHeights` in `effectsMutations.js`). Da due
+  caselle in su la creatura cade: il piano si ricostruisce con la pill **Caduta da …** (un
+  effetto differito immediato `manual-damage`, 1d6 ogni due caselle, al massimo 20d6), e la
+  risposta col danno la rende Prona. Per la sfera `landing.fall` è `on-exit`: cade solo chi
+  esce col TS superato; la caduta fuori e la fine danno solo Prona, come dice il testo.
+- **Fiamme** (SA-D4): a fine incantesimo il caster riceve la pill **Fiamme spente (9 m)** fino
+  alla fine del suo turno (`SPELL_END_CONSEQUENCES` in `spells-srd.js`, portata dal record
+  della zona).
 
 ### Turbine — `xanathar-turbine`
 
@@ -675,20 +708,26 @@ subiscono comunque il TS Destrezza e il relativo danno, ma non effettuano il TS
 Forza e non vengono catturate.
 
 Una creatura catturata riceve la condizione Trattenuto legata alla parent
-instance esatta e viene collegata al root con l'attachment nativo OBR. Rimane
-un CHARACTER top-level, non ruota, non si scala, non sparisce e segue il
-movimento XY dell'area; il rilascio conserva la posizione corrente. All'inizio
+instance esatta. Dal 12/11/2026 (T1) non viene più agganciata al root con
+l'attachment nativo OBR: un token agganciato non era una creatura per lo
+strumento delle aree, il righello 3D e «Imposta quota…». Quando il GM trascina
+il Turbine, le catturate lo seguono dello stesso spostamento appena lo lascia,
+come le trattenute della Sfera Acquea (`planCarriageFollow`, con
+`zonePolicy.carriedEffectIds`); un token rimasto agganciato da una versione
+precedente viene rilasciato dov'è al primo passaggio. All'inizio
 di ogni suo turno, finché è ancora Trattenuta da quella stessa istanza,
-`meta.elevation` aumenta di 1,5 m fino a 9 m tramite la mutation canonica della
-quota.
+`meta.elevation` aumenta di una casella fino a sei (1,5 m fino a 9 m; 5 ft fino a 30 ft in
+una scena in piedi, dal 12/11/2026) tramite la mutation canonica della quota.
 
 Il target dispone dell'azione **Prova di fuga**: sceglie Forza o Destrezza e il
 GM dichiara l'esito del tiro fisico contro la CD dello spell. Il successo
-rimuove soltanto quel Trattenuto, disancora il token e mostra il promemoria
+rimuove soltanto quel Trattenuto e mostra il promemoria
 `Scagliato · 3d6 × 3 m · direzione casuale`; il lancio, la direzione e lo
-spostamento effettivo restano manuali. Una rimozione manuale della condizione o
-la fine della concentrazione esegue lo stesso rilascio senza modificare
-arbitrariamente posizione o quota. La caduta dalla quota corrente e gli
+spostamento effettivo restano manuali. Dal 12/11/2026 (H-3, H-4) ogni rilascio, la
+prova di fuga, la rimozione manuale della condizione o la fine della concentrazione,
+riporta la creatura a quota 0 nello stesso comando e, da 3 m in su, aggiunge la pill
+**Caduta da …** col suo promemoria (1d6 ogni 3 m, Prona se subisce danni):
+`mechanics.landing.fall: "always"` sulla sua Trattenuto (`zoneLandingCore.js`). Gli
 oggetti non assicurati restano adjudication del GM.
 
 Le risoluzioni, i consumi parziali multi-target, il capture/release e le
@@ -754,10 +793,11 @@ dai test.
 - **Terremoto:** i bersagli già Proni non ricevono il reminder ricorrente finché
   restano Proni nell'area. Le fenditure non sono ancora sottozone autonome.
 - **Sfera Acquea:** alla fine dell'incantesimo, le creature ancora Trattenute
-  dalla sfera vengono rese Prone.
+  dalla sfera vengono rese Prone e il caster riceve il promemoria Fiamme spente (9 m).
 - **Turbine:** il GM gestisce manualmente tiro/direzione dello scagliamento,
-  spostamento effettivo, caduta dalla quota e oggetti non assicurati; il popup
-  risolve soltanto i TS, la condizione e l'azione di fuga.
+  spostamento effettivo e oggetti non assicurati; il popup risolve i TS, la condizione e
+  l'azione di fuga, e ogni rilascio porta a terra con la caduta dalla quota (pill
+  **Caduta da …**, dal 12/11/2026).
 - **Intermittenza:** il GM tira il d20, valuta visibilità/occupazione della
   destinazione e le interazioni Materiale–Etereo; il plugin conserva soltanto
   lo stato, il punto di scomparsa e il ritorno scelto sulla mappa.

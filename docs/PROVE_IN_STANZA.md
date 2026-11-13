@@ -16,7 +16,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 
 | Sezione | Voci |
 | --- | ---: |
-| **A. Incantesimi** | **135** |
+| **A. Incantesimi** | **144** |
 | A1. Il vetro e la lettura | 10 |
 | A2. Le punizioni | 6 |
 | A3. Gli attacchi degli incantesimi | 7 |
@@ -30,7 +30,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A11. Teletrasporti (CAP-TELEPORT) | 11 |
 | A12. Muri e colonne (CAP-STRUCTURE) | 14 |
 | A13. Azioni da un altro punto (CAP-ORIGIN) | 12 |
-| A14. PF tra due creature, 700 PF da ripartire, la sfera che trasporta (CAP-RELATION, CAP-ALLOCATION, CAP-CARRIAGE) | 12 |
+| A14. PF tra due creature, 700 PF da ripartire, la sfera che trasporta (CAP-RELATION, CAP-ALLOCATION, CAP-CARRIAGE) | 21 |
 | A15. PF temporanei (CAP-TEMP) | 6 |
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
@@ -68,7 +68,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **453** |
+| **Totale** | **462** |
 
 ## A. Incantesimi
 
@@ -282,7 +282,7 @@ Al banco hanno girato tutti e quattro, compresi il congedo oltre 30 m e Annulla 
 
 ### A14. PF tra due creature, 700 PF da ripartire, la sfera che trasporta (CAP-RELATION, CAP-ALLOCATION, CAP-CARRIAGE)
 
-Fonte: [PROVA_STANZA_INCANTESIMI.md](PROVA_STANZA_INCANTESIMI.md), sezione 14; [PIANO_AUTOMAZIONE_INCANTESIMI.md](PIANO_AUTOMAZIONE_INCANTESIMI.md), «Tre capacità singole, fatte l'11 novembre». Fatto l'11/11.
+Fonte: [PROVA_STANZA_INCANTESIMI.md](PROVA_STANZA_INCANTESIMI.md), sezione 14; [PIANO_AUTOMAZIONE_INCANTESIMI.md](PIANO_AUTOMAZIONE_INCANTESIMI.md), «Tre capacità singole, fatte l'11 novembre». Fatto l'11/11; i resti della sfera (uscita, caduta fuori, trasporto a mano, fiamme, quota e colore) il 12/11.
 
 Al banco sono passati tutti e tre: Trasferimento di vita e Guarigione di massa dal pannello vero, la sfera che porta con sé due goblin e li riporta indietro con Annulla, cinque creature nella sfera con una che cade fuori. Qui si guardano il pannello sullo schermo vero, i PF sulle barre della mappa e il ⚡ della sfera con lo strumento vero.
 
@@ -295,9 +295,18 @@ Al banco sono passati tutti e tre: Trasferimento di vita e Guarigione di massa d
 - [ ] **Sposta la sfera:** il pannello chiede **Posiziona area** prima del lancio. Poi la pill del caster dice `Sfera Acquea (10)` con ⚡ e ×, anche con i goblin dentro: ⚡, **Sposta la sfera** (senza `›`: il pannello non si apre, il menu dice cosa fare). Comincia a trascinare anche lontano dalla sfera: il suo centro segue il puntatore e scatta a caselle intere, l'etichetta dice per esempio `4,5 / 9 m` e oltre i 9 m si ferma. Al rilascio l'anteprima resta dove arriverà; la ✓ **Conferma movimento** la sposta, la ✕ o Esc lasciano tutto com'è e il menu dice `Annullato.` Prova in vista compatta ed espansa.
 - [ ] **Cambia direzione:** con Folata di vento attiva, il ⚡ della pill ha **Cambia direzione** senza `›`: parte subito sulla mappa, scegli la nuova direzione e premi ✓; nessun pannello. I due goblin si spostano con lei, e in Cronologia c'è solo `Sposta zona: Sfera Acquea`. Annulla riporta indietro sfera e goblin.
 - [ ] **Urto:** spostala su un terzo goblin: il suo TS su Forza; se fallisce entra nella sfera con lo stesso `Trattenuto`, e al passo dopo si sposta anche lui.
-- [ ] **Piena:** con quattro creature dentro, spostala su una quinta che fallisce: una di quelle già dentro, a caso, perde `Trattenuto` ed è `Prona` (`È caduto dalla sfera, che era piena`); la posi tu entro 1,5 m. Un ogre (2×2) da solo riempie la sfera; un gigante (3×3) supera il TS da solo.
-- [ ] **Fine:** Termina o perdi la concentrazione: chi era dentro cade `Prono` dove si trova.
-- [ ] **Trascinata a mano:** trascina la sfera senza il ⚡: si sposta solo lei, i goblin restano dove sono.
+- [ ] **Piena:** con quattro creature dentro, spostala su una quinta che fallisce: una di quelle già dentro, a caso, perde `Trattenuto`, è `Prona` (`È caduto dalla sfera, che era piena`) e il suo token va nella casella libera più vicina entro 1,5 m dalla sfera. Un ogre (2×2) da solo riempie la sfera; un gigante (3×3) supera il TS da solo ed esce dalla sfera. *Esito cambiato il 12/11 (SA-D2): prima la posavi tu.*
+- [ ] **Fine:** Termina o perdi la concentrazione: chi era dentro cade `Prono` dove si trova, e il caster ha `Fiamme spente (9 m)` con `(F)`, che sparisce alla fine del suo turno (si toglie anche con la ×). *Il promemoria è del 12/11 (SA-D4).*
+- [ ] **Trascinata a mano:** trascina la sfera senza il ⚡, anche oltre i 9 m: appena la lasci i goblin trattenuti la seguono dello stesso spostamento, senza voci in Cronologia. Selezionali insieme alla sfera e trascinali tutti: nessuno si sposta due volte. Con Ctrl+Z di Owlbear la sfera torna indietro e i goblin la seguono. *Esito cambiato il 12/11 (SA-D5): prima si spostava solo la sfera.*
+- [ ] **Chi supera esce:** lanciala su due goblin, uno fallisce e l'altro supera: chi supera va nella casella libera più vicina fuori dalla sfera, dalla parte in cui stava, nello stesso comando; Annulla lo rimette dov'era. Con un goblin nascosto dal GM che supera, esce e resta nascosto ai giocatori (finestra del tavolo). (voce nuova: SA-D1, 12/11)
+- [ ] **Urto superato:** spostala su un terzo goblin che supera il TS: non entra, e il suo token esce nella casella libera più vicina; una sola voce in Cronologia. (voce nuova: SA-D1, 12/11)
+- [ ] **TS a fine turno superato:** alla fine del turno di un goblin trattenuto rispondi «Superato» al promemoria: perde `Trattenuto` ed esce dalla sfera, nella casella libera più vicina. (voce nuova: SA-D1, 12/11)
+- [ ] **Nessuno spazio libero:** circonda la sfera di token e fai superare il TS a chi è dentro: il token resta dov'è e il GM vede l'avviso `Sfera Acquea: per … nessuno spazio libero vicino, sposta il token a mano.` (voce nuova: SA-D1, 12/11)
+- [ ] **Quota della sfera:** clic destro sulla sfera, **Imposta quota…**: il popup dice `Fino a 3 m da terra: chi trattiene la segue.` Scrivi 5: la sfera si ferma a 3 m, i goblin trattenuti salgono a 3 m (etichetta della quota), in Cronologia c'è una sola voce e Annulla li riporta giù. Un goblin catturato dopo con l'urto entra a 3 m. (voce nuova: H-1, 12/11)
+- [ ] **Caduta dalla sfera:** con la sfera a 3 m, un goblin supera il TS di fine turno: esce, torna a terra e compare il promemoria `Caduta da 3 m: 1d6 contundenti`. Scrivi il tiro: subisce i danni ed è `Prono`; con 0 resta in piedi. Chi cade fuori per la capienza e chi resta dentro fino alla fine scendono `Proni` senza promemoria. (voce nuova: H-3 e H-4, 12/11)
+- [ ] **Colore:** la pill della sfera ha il colore della sua scuola (arancio ambra), non il rosso del fuoco; lo stesso per Onda di marea e Vento di interdizione. (voce nuova: SA-D6, 12/11)
+- [ ] **Turbine:** cattura un goblin (TS Destrezza e TS Forza falliti) e trascina il Turbine a mano: appena lo lasci, il goblin lo segue dello stesso spostamento. Con il goblin dentro, una Palla di fuoco centrata sulla sua casella lo spunta, il righello 3D lo misura e «Imposta quota…» funziona; all'inizio del suo turno sale ancora di 1,5 m. (voce nuova: T1, 12/11)
+- [ ] **Caduta dal Turbine:** con un goblin catturato da due turni (3 m), fai finire l'incantesimo: il goblin torna a terra e compare `Caduta da 3 m: 1d6 contundenti`; col danno è `Prono`. Con la prova di fuga riuscita succede lo stesso; lo scagliamento resta da fare a mano. (voce nuova: H-3 e H-4, 12/11)
 
 ### A15. PF temporanei (CAP-TEMP)
 

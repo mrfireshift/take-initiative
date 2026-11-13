@@ -618,15 +618,37 @@ C-D1–C-D5.
   coordinatore (`expandStateDependentOperations`): la taglia viene dalla misura del
   token, una Grande conta 4, un'Enorme supera da sola; oltre, una creatura già
   trattenuta, a caso, perde Trattenuto e cade Prona (C-D3 e C-D4). La pill non parla più
-  di una prova con un'azione, che il testo non prevede (C-D5). Trascinata a mano la
-  sfera si sposta da sola; chi supera il TS, l'altezza e le fiamme restano al tavolo.
+  di una prova con un'azione, che il testo non prevede (C-D5).
+- I resti della sfera, il 12 novembre (SA-D1–SA-D7, approvate come consigliato). Chi
+  supera il TS (lancio, urto, fine turno) e chi è troppo grande escono nello spazio
+  libero più vicino fuori dalla sfera, nello stesso comando (`zoneEjectionCore.js`,
+  effetto collaterale `token:eject-from-zone` preparato come teletrasporto senza
+  animazione); chi cade fuori atterra entro 1,5 m (SA-D1, SA-D2). Trascinata a mano, la
+  sfera si porta dietro le trattenute: il reconcile confronta la radice con
+  `movementControl` (SA-D5). La quota resta al tavolo con una riga nella pill e nella
+  zona (SA-D3); a fine incantesimo il caster riceve il promemoria «Fiamme spente (9 m)»
+  (SA-D4). Sfera acquea, Onda di marea e Vento di interdizione hanno il colore della
+  loro scuola, non del fuoco (SA-D6). Il Turbine, verificato al banco (SA-D7), non aggancia
+  più le sue trattenute: le porta come la sfera (T1).
+- La quota, il 12 novembre (H-1–H-5, approvate come consigliato; rovescia SA-D3). La sfera
+  ha la sua quota, fino a due caselle (3 m, 10 ft), con **Imposta quota…** sulla zona
+  (`static-zone:set-hover`): le trattenute la seguono, chi viene catturato entra a quella
+  quota. Ogni rilascio da una zona che solleva (sfera, Turbine) riporta a terra nello stesso
+  comando; da due caselle in su la caduta è una pill con promemoria immediato, 1d6 ogni due
+  caselle, Prona se subisce danni (`zoneLandingCore.js`). Per la sfera cade solo chi esce
+  col TS superato; la salita del Turbine ora è in caselle. Lo scagliamento della prova di
+  fuga del Turbine resta a mano (H-5).
 
 Test: `test/capRelation.test.js`, `test/capRelationIntegration.test.js`,
 `test/capAllocation.test.js`, `test/capAllocationIntegration.test.js` (coordinatore,
 esecutore e Cronologia veri, con Annulla) e `test/capCarriage.test.js`. Provati al banco
 l'11 novembre: Trasferimento di vita e Guarigione di massa dal pannello vero, la sfera
 che porta due goblin e li riporta con Annulla, cinque creature nella sfera con una che
-cade fuori.
+cade fuori. I resti della sfera: `test/zoneEjection.test.js`,
+`test/zoneEjectionIntegration.test.js` (coordinatore e Cronologia veri, con Annulla) e
+`test/capCarriage.test.js`; provati al banco il 12 novembre con lo strumento vero (uscita
+al lancio con Annulla, trasporto a mano, urto superato, TS di fine turno superato, caduta
+fuori al lancio, promemoria delle fiamme).
 
 **CAP-TERRAIN, fatta il 3 novembre.** Quattro incantesimi su sei, senza scrivere PF
 fuori dal comando ad area esistente. Decisioni T1–T6.

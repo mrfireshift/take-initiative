@@ -1352,16 +1352,37 @@ propria sorgente.
 
 La **Sfera acquea** porta con sé chi trattiene. Al lancio, chi fallisce il TS su
 Forza è Trattenuto e ripete il TS alla fine di ogni suo turno; quando l'incantesimo
-finisce, cade Prono. La sfera va posata sulla mappa: senza, il pannello non applica il
+finisce, cade Prono. Chi supera il TS (al lancio, quando la sfera lo investe o alla fine
+di un suo turno) esce dalla sfera: il plugin sposta il token nello spazio libero più
+vicino fuori dalla sfera, dalla parte in cui si trova, nello stesso comando del TS, e
+Annulla lo rimette dov'era. Se il giocatore sceglie un altro spazio altrettanto vicino,
+trascina il token; se attorno non c'è posto, il token resta dov'è e un avviso te lo dice.
+La sfera va posata sulla mappa: senza, il pannello non applica il
 lancio. Per spostarla premi il ⚡ della pill del caster e **Sposta la sfera** (un'azione,
 fino a 9 m in linea retta): trascina sulla mappa, da dove vuoi: il centro della sfera segue
 il puntatore a caselle intere e la sfera resta disegnata dove arriverà, e conferma con la ✓ **Conferma movimento** della barra
 dello strumento (la ✕ o Esc annullano). Le creature trattenute si spostano con lei, e Annulla le riporta tutte indietro. Chi si trova dove la sfera si ferma fa il TS e, se fallisce, entra
 nella sfera. La sfera tiene quattro creature Medie o più piccole, oppure una Grande,
-lette dalla misura del token; un'Enorme o più grande supera il TS da sola. Se ne entra
-una di troppo, una creatura già dentro, scelta a caso, cade fuori Prona: la posi tu
-entro 1,5 m. Trascinata a mano, la sfera si sposta da sola, senza chi trattiene. Chi
-supera il TS e ne esce lo sposti tu; l'altezza e le fiamme spente restano al tavolo.
+lette dalla misura del token; un'Enorme o più grande supera il TS da sola ed esce. Se ne
+entra una di troppo, una creatura già dentro, scelta a caso, cade fuori Prona nello spazio
+libero più vicino entro 1,5 m dalla sfera (più lontano, con un avviso, se lì non c'è posto).
+Anche trascinata a mano, la sfera si porta dietro chi trattiene: appena la lasci, le
+creature trattenute la seguono dello stesso spostamento, senza il limite dei 9 m e senza
+voce di Cronologia, come il trascinamento; una creatura trascinata insieme alla sfera non
+si sposta due volte. La sfera galleggia fino a 3 m da terra (10 ft in una scena in piedi):
+clic destro sulla sfera, **Imposta quota…**, e le creature trattenute salgono con lei; chi
+viene catturato dopo entra alla sua quota. Una creatura che la sfera lascia, in qualunque
+modo, torna a terra nello stesso comando: chi esce col TS superato da 3 m cade (promemoria
+**Caduta da 3 m**: scrivi il tiro di 1d6, e se subisce danni è Prona), chi cade fuori per la
+capienza o resta dentro fino alla fine scende Prona senza danni, come dice il testo.
+Quando l'incantesimo finisce, il caster riceve il promemoria **Fiamme spente (9 m)** fino
+alla fine del suo turno: la sfera cade e spegne le fiamme normali vicine, non quelle magiche.
+
+Il **Turbine** trasporta allo stesso modo: chi cattura lo segue quando lo trascini a mano, e
+all'inizio di ogni suo turno sale di una casella (1,5 m) fino a 9 m. Quando ne esce, con la
+prova di fuga, togliendo la pill o alla fine dell'incantesimo, torna a terra e cade dalla sua
+quota: 1d6 ogni 3 m nel promemoria **Caduta da …**, Prona se subisce danni. Lo scagliamento
+della prova di fuga (3d6 × 3 m in una direzione a caso) resta da fare a mano.
 
 Nel pannello incantesimi, dopo la sagoma, gli incantesimi che colpiscono o
 curano «le creature a scelta» nell'area (Cura ferite di massa, Aura sacra,

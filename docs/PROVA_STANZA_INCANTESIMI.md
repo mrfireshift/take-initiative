@@ -212,4 +212,4 @@ Al banco sono passati tutti e tre: Trasferimento di vita e Guarigione di massa d
 - [ ] **Urto:** spostala su un terzo goblin: il suo TS su Forza; se fallisce entra nella sfera con lo stesso `Trattenuto`, e al passo dopo si sposta anche lui.
 - [ ] **Piena:** con quattro creature dentro, spostala su una quinta che fallisce: una di quelle già dentro, a caso, perde `Trattenuto` ed è `Prona` (`È caduto dalla sfera, che era piena`); la posi tu entro 1,5 m. Un ogre (2×2) da solo riempie la sfera; un gigante (3×3) supera il TS da solo.
 - [ ] **Fine:** Termina o perdi la concentrazione: chi era dentro cade `Prono` dove si trova.
-- [ ] **Trascinata a mano:** trascina la sfera senza il ⚡: si sposta solo lei, i goblin restano dove sono.
+- [ ] **Trascinata a mano:** trascina la sfera senza il ⚡: i goblin trattenuti la seguono appena la lasci. *Cambiato il 12/11 con i resti della sfera (uscita di chi supera, caduta fuori, fiamme): le voci aggiornate sono nella sezione A14 della [lista unica](PROVE_IN_STANZA.md).*
