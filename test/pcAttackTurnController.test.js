@@ -20,8 +20,11 @@ function fixture({ items = [archer, creature("goblin")], enabled = true, open = 
   let consoleOpen = open, isEnabled = enabled, bossConsoleOpen = bossOpen;
   const controller = createPcAttackTurnController({
     api: { scene: { items: { getItems: async (ids) => items.filter((item) => ids.includes(item.id)) } } },
-    // enabled: one boolean for both switches, or { pc, monsters } (attacchi dei mostri, lotto 7).
-    isEnabled: (group) => (isEnabled && typeof isEnabled === "object" ? isEnabled[group] === true : isEnabled),
+    // enabled: one boolean for every switch, or { pc, monsters, boss } (attacchi dei mostri, lotto 7); boss, not given,
+    // follows monsters as the Console Boss's switch does until touched.
+    isEnabled: (group) => (isEnabled && typeof isEnabled === "object"
+      ? (group === "boss" && typeof isEnabled.boss !== "boolean" ? isEnabled.monsters === true : isEnabled[group] === true)
+      : isEnabled),
     openConsole: async (sourceId) => { opened.push(sourceId); },
     isConsoleOpen: async () => consoleOpen,
     followConsole: async (sourceId, name) => { followed.push([sourceId, name]); },
@@ -197,14 +200,31 @@ const villager = creature("npc", { attitude: "neutral", initiativeCard: { quickA
 const friend = creature("ally", { attitude: "ally", initiativeCard: { quickActions: [bow] } });
 const sideOrder = ["mira", "orc", "npc", "ally", "__LAIR__", "auril", "mira::p1"];
 
-test("whose switch a turn follows: characters and allies PG, every other creature and every boss Mostri", () => {
+test("whose switch a turn follows: characters and allies PG, every other creature Mostri, every boss its own", () => {
   const raw = (item) => item?.metadata?.[META]?.initiativeCard || {};
   assert.equal(pcAttackTurnGroup(creature("hero", { attitude: "pc" }), raw), "pc");
   assert.equal(pcAttackTurnGroup(friend, raw), "pc");
   assert.equal(pcAttackTurnGroup(archer, raw), "pc", "no attitude: an ally, as the tracker shows it");
   assert.equal(pcAttackTurnGroup(orc, raw), "monsters");
   assert.equal(pcAttackTurnGroup(villager, raw), "monsters");
-  assert.equal(pcAttackTurnGroup(creature("boss", { attitude: "pc", epic: true }), raw), "monsters", "a boss is a monster's turn");
+  assert.equal(pcAttackTurnGroup(creature("boss", { attitude: "pc", epic: true }), raw), "boss", "a boss's turn: the Console Boss's switch");
+});
+
+// The Console Boss has a switch of its own: off, a boss's turn opens nothing even with Mostri on; on, it opens with
+// Mostri off. Its Epic Action slots follow it too.
+test("the Console Boss's switch: off with Mostri on, nothing opens on a boss's turn; on with Mostri off, it opens", async () => {
+  const bossOff = fixture({ items: [archer, orc, auril], enabled: { pc: false, monsters: true, boss: false } });
+  await bossOff.controller.onState({ order: sideOrder, current: 6, round: 1 });
+  for (let current = 0; current < 7; current += 1) await bossOff.controller.onState({ order: sideOrder, current, round: 2 });
+  assert.deepEqual(bossOff.opened, ["orc"], "the monsters' consoles still open");
+  assert.deepEqual(bossOff.bossOpened, [], "the boss's turn opens nothing");
+  const bossOn = fixture({ items: [archer, orc, auril], enabled: { pc: false, monsters: false, boss: true } });
+  const epic = "__EPIC__::auril::after::mira";
+  await bossOn.controller.onState({ order: ["mira", epic, "auril"], current: 2, round: 1 });
+  for (const current of [0, 1]) await bossOn.controller.onState({ order: ["mira", epic, "auril"], current, round: 2 });
+  await bossOn.controller.onState({ order: ["mira", epic, "auril"], current: 2, round: 2 });
+  assert.deepEqual(bossOn.opened, [], "Mostri off: no attack console");
+  assert.deepEqual(bossOn.bossOpened, ["auril"], "on its Epic Action, then left open on its turn");
 });
 
 test("PG on, Mostri off: the console opens for characters and allies only, a monster's turn moves nothing", async () => {

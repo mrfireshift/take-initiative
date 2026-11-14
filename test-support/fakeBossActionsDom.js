@@ -76,7 +76,8 @@ export class FakeNode {
 const IDS = ["boss-name", "boss-phase", "boss-minimize", "boss-close", "boss-panel", "boss-list-view", "boss-abilities", "boss-manage-open",
   "boss-resolution", "boss-manage-view", "boss-manage-back", "boss-library", "boss-file", "boss-import", "boss-profile", "boss-bind",
   "boss-unbind", "boss-export", "boss-refresh", "boss-profile-info", "boss-profile-warning", "boss-delete-revision", "boss-prune",
-  "boss-cleanup-info", "boss-resource-info", "boss-reset-resources", "boss-aura-info", "boss-restore-auras", "boss-status", "boss-undo"];
+  "boss-cleanup-info", "boss-resource-info", "boss-reset-resources", "boss-aura-info", "boss-restore-auras", "boss-status", "boss-undo",
+  "boss-auto-open"];
 
 export function createBossActionsDocument() {
   const doc = {
@@ -91,7 +92,7 @@ export function createBossActionsDocument() {
   doc.root = new FakeNode(doc, "body"); doc.body = doc.root;
   const header = new FakeNode(doc, "header"); header.className = "header"; doc.root.appendChild(header);
   for (const id of IDS) {
-    const node = new FakeNode(doc, id === "boss-profile" ? "select" : ["boss-minimize", "boss-close", "boss-manage-open", "boss-manage-back", "boss-import", "boss-bind", "boss-unbind", "boss-export", "boss-refresh", "boss-undo", "boss-delete-revision", "boss-prune", "boss-reset-resources", "boss-restore-auras"].includes(id) ? "button" : "div");
+    const node = new FakeNode(doc, id === "boss-profile" ? "select" : id === "boss-auto-open" ? "input" : ["boss-minimize", "boss-close", "boss-manage-open", "boss-manage-back", "boss-import", "boss-bind", "boss-unbind", "boss-export", "boss-refresh", "boss-undo", "boss-delete-revision", "boss-prune", "boss-reset-resources", "boss-restore-auras"].includes(id) ? "button" : "div");
     node.id = id; (id === "boss-name" || id === "boss-phase" || id === "boss-minimize" || id === "boss-close" ? header : doc.root).appendChild(node);
   }
   return doc;

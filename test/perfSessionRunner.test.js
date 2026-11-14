@@ -65,7 +65,7 @@ test("the session runs every block: switches, consoles closed, probe cleared, tu
   assert.equal(probe.resets, 3);
   assert.equal(closed.length, 6, "both consoles closed before each block");
   assert.deepEqual(rows.map((row) => [row.blocco, row.ticks, row.turniSenzaTick]), [["mostri-pg", 3, ""], ["mostri-entrambi", 3, ""], ["mostri-spenti", 3, ""]]);
-  assert.deepEqual(tracker.stored.windows, { pcAttackAutoOpen: true, pcAttackAutoOpenMonsters: null }, "the switches put back as they were");
+  assert.deepEqual(tracker.stored.windows, { pcAttackAutoOpen: true, pcAttackAutoOpenMonsters: null, bossConsoleAutoOpen: null }, "the switches put back as they were");
   assert.match(logs.at(-1), /perf-compare\.mjs perf-runs\/gm-turni-flag-locale\.json perf-runs\/gm-mostri-pg\.json/);
 });
 
@@ -85,7 +85,7 @@ test("a failure in the middle still puts the switches back", async () => {
   await assert.rejects(runMonsterSession({ probe, client: tracker.client, turns: 1, settleMs: 0, betweenBlocksMs: 0,
     save: async ({ name }) => { if (name === "gm-mostri-pg") throw new Error("disco pieno"); return { saved: true, file: name }; },
     wait: async (ms) => { clock.now += ms || 1; }, now: () => clock.now, log: () => {} }), /disco pieno/);
-  assert.deepEqual(tracker.stored.windows, { pcAttackAutoOpen: false, pcAttackAutoOpenMonsters: true });
+  assert.deepEqual(tracker.stored.windows, { pcAttackAutoOpen: false, pcAttackAutoOpenMonsters: true, bossConsoleAutoOpen: null });
 });
 
 test("stop: the session ends after the current turn", async () => {

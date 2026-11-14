@@ -34,6 +34,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
     windows: {
       pcAttackAutoOpen: localInput.pcAttackAutoOpen,
       pcAttackAutoOpenMonsters: localInput.pcAttackAutoOpenMonsters,
+      bossConsoleAutoOpen: localInput.bossConsoleAutoOpen,
     },
     tools: {
       fiveToolsArchive: localInput.fiveToolsArchive,
@@ -88,6 +89,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
       combatLog: local.runtime.combatLog,
       pcAttackAutoOpen: local.windows.pcAttackAutoOpen,
       pcAttackAutoOpenMonsters: local.windows.pcAttackAutoOpenMonsters,
+      bossConsoleAutoOpen: local.windows.bossConsoleAutoOpen,
       fiveToolsArchive: local.tools.fiveToolsArchive,
       fiveToolsImages: local.tools.fiveToolsImages,
       fiveTools2024: local.tools.fiveTools2024,
@@ -160,6 +162,8 @@ export function buildOptionsPanelPatches(draft) {
         // Still inherited (null) until the GM ticks or unticks it: the panel's Salva does not freeze it.
         ...(typeof normalized.local.pcAttackAutoOpenMonsters === "boolean"
           ? { pcAttackAutoOpenMonsters: normalized.local.pcAttackAutoOpenMonsters } : {}),
+        ...(typeof normalized.local.bossConsoleAutoOpen === "boolean"
+          ? { bossConsoleAutoOpen: normalized.local.bossConsoleAutoOpen } : {}),
       },
       tools: {
         fiveToolsArchive: normalized.local.fiveToolsArchive,

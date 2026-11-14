@@ -54,6 +54,12 @@ export function selectPcAttackAutoOpenMonsters(options) {
   return typeof windows.pcAttackAutoOpenMonsters === "boolean" ? windows.pcAttackAutoOpenMonsters : windows.pcAttackAutoOpen;
 }
 
+// The Console Boss's switch: its own value once touched, else the monsters' one.
+export function selectBossConsoleAutoOpen(options) {
+  const windows = resolved(options).local.windows;
+  return typeof windows.bossConsoleAutoOpen === "boolean" ? windows.bossConsoleAutoOpen : selectPcAttackAutoOpenMonsters(options);
+}
+
 // The 5eTools archive's data folder this browser uses, or "" (attacchi dei mostri, fase 3).
 export function selectFiveToolsArchive(options) {
   return resolved(options).local.tools.fiveToolsArchive || "";
@@ -244,6 +250,7 @@ export function selectOptionsPanelModel(options) {
       combatLog: value.local.runtime.combatLog,
       pcAttackAutoOpen: value.local.windows.pcAttackAutoOpen,
       pcAttackAutoOpenMonsters: value.local.windows.pcAttackAutoOpenMonsters,
+      bossConsoleAutoOpen: value.local.windows.bossConsoleAutoOpen,
       fiveToolsArchive: value.local.tools.fiveToolsArchive || "",
       fiveToolsImages: value.local.tools.fiveToolsImages || "",
       fiveTools2024: value.local.tools.fiveTools2024 === true,

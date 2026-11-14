@@ -663,10 +663,12 @@ difese reimportandolo.
 
 Nel menu **⋯** dell'intestazione della console, **Apri da sola a ogni turno**
 (solo questo browser) ha due caselle: **Personaggi e alleati** apre la console
-al turno di un personaggio o alleato, **Mostri** a quello di un mostro; ai boss
-si apre la console Boss. Finché non tocchi **Mostri**, vale come **Personaggi e
-alleati**. Le stesse caselle sono nel pannello Opzioni, sezione **Console
-attacchi**.
+al turno di un personaggio o alleato, **Mostri** a quello di un mostro. Finché
+non tocchi **Mostri**, vale come **Personaggi e alleati**. Al turno di un boss,
+e alle sue Azioni Epiche, si apre invece la console Boss: la sua casella,
+**Al turno di un boss**, sta nel suo menu **⋯** e, finché non la tocchi, vale
+come **Mostri**. Le tre caselle sono anche nel pannello Opzioni, sezione
+**Console attacchi**.
 
 La scheda di un mostro resta sul token e nella memoria di questo browser, che
 la ritrova per nome su un nuovo token; non occupa la memoria condivisa della

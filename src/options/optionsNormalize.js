@@ -166,6 +166,13 @@ export function normalizeLocalOptions(value, { legacy = {} } = {}) {
         "pcAttackAutoOpenMonsters",
         defaults.windows.pcAttackAutoOpenMonsters,
       ),
+      // A boolean once touched; null inherits the monsters' switch (selectBossConsoleAutoOpen).
+      bossConsoleAutoOpen: layeredBoolean(
+        windows,
+        legacyWindows,
+        "bossConsoleAutoOpen",
+        defaults.windows.bossConsoleAutoOpen,
+      ),
     },
     tools: {
       ...tools,

@@ -35,10 +35,28 @@ test("the monsters' switch follows the characters' one until touched, then write
   assert.deepEqual(seen, [true], "inherited from PG");
   await monsters.set(false);
   let stored = JSON.parse(storage.getItem(LOCAL_KEY));
-  assert.deepEqual(stored.windows, { pcAttackAutoOpen: true, pcAttackAutoOpenMonsters: false, clocksCompact: false });
+  assert.deepEqual(stored.windows, { pcAttackAutoOpen: true, pcAttackAutoOpenMonsters: false, bossConsoleAutoOpen: null, clocksCompact: false });
   await pc.set(false);
   await pc.set(true);
   stored = JSON.parse(storage.getItem(LOCAL_KEY));
   assert.equal(stored.windows.pcAttackAutoOpenMonsters, false, "once touched, PG no longer moves it");
   off(); monsters.stop(); pc.stop();
+});
+
+// The Console Boss's switch (its ⋯ menu): it follows Mostri until touched, then writes its own key.
+test("the Console Boss's switch follows the monsters' one until touched, then writes its own key", async () => {
+  const storage = memoryStorage({ [LOCAL_KEY]: JSON.stringify({ windows: { pcAttackAutoOpen: true } }) });
+  const monsters = createPcAttackAutoOpenOption(createLocalOptionsStore({ storage, eventTarget: null }), { monsters: true });
+  const boss = createPcAttackAutoOpenOption(createLocalOptionsStore({ storage, eventTarget: null }), { boss: true });
+  const seen = [];
+  const off = await boss.subscribe((value) => seen.push(value));
+  assert.deepEqual(seen, [true], "inherited from Mostri, which inherits from PG");
+  await boss.set(false);
+  let stored = JSON.parse(storage.getItem(LOCAL_KEY));
+  assert.equal(stored.windows.bossConsoleAutoOpen, false);
+  assert.equal(stored.windows.pcAttackAutoOpenMonsters, null, "Mostri untouched");
+  await monsters.set(true);
+  stored = JSON.parse(storage.getItem(LOCAL_KEY));
+  assert.equal(stored.windows.bossConsoleAutoOpen, false, "once touched, Mostri no longer moves it");
+  off(); boss.stop(); monsters.stop();
 });

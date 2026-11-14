@@ -34,6 +34,7 @@ test("OPTIONS-003: il selector del pannello espone i gruppi senza metadata grezz
     combatLog: true,
     pcAttackAutoOpen: false,
     pcAttackAutoOpenMonsters: null,
+    bossConsoleAutoOpen: null,
     fiveToolsArchive: "",
     fiveToolsImages: "",
     fiveTools2024: false,
@@ -71,6 +72,7 @@ test("OPTIONS-003: il draft normalizza dati parziali e produce sole patch approv
     combatLog: true,
     pcAttackAutoOpen: false,
     pcAttackAutoOpenMonsters: null,
+    bossConsoleAutoOpen: null,
     fiveToolsArchive: "",
     fiveToolsImages: "",
     fiveTools2024: false,
@@ -131,6 +133,27 @@ test("the monsters' auto-open inherits the characters' one until set; the panel'
   assert.equal(model.local.pcAttackAutoOpenMonsters, null);
   const html = readFileSync(new URL("../options-modal.html", import.meta.url), "utf8");
   assert.match(html, /data-local="pcAttackAutoOpenMonsters" data-local-fallback="pcAttackAutoOpen"/);
+});
+
+// The Console Boss has a switch of its own: it follows the monsters' one (which follows the characters') until touched.
+test("the Console Boss's auto-open follows the monsters' switch until set; the panel's Salva does not freeze it", async () => {
+  const { selectBossConsoleAutoOpen } = await import("../src/options/optionsSelectors.js");
+  const boss = (windows) => selectBossConsoleAutoOpen(resolveOptions({ local: { windows }, room: {}, scene: {} }));
+  assert.equal(boss({ pcAttackAutoOpen: true }), true, "down the chain: characters, monsters, boss");
+  assert.equal(boss({ pcAttackAutoOpen: true, pcAttackAutoOpenMonsters: false }), false);
+  assert.equal(boss({ pcAttackAutoOpen: false, pcAttackAutoOpenMonsters: true }), true);
+  assert.equal(boss({ pcAttackAutoOpenMonsters: true, bossConsoleAutoOpen: false }), false, "its own value once touched");
+  assert.equal(boss({ bossConsoleAutoOpen: true }), true);
+  const inherited = normalizeOptionsPanelDraft({ local: { pcAttackAutoOpen: true } });
+  assert.equal(inherited.local.bossConsoleAutoOpen, null);
+  assert.deepEqual(buildOptionsPanelPatches(inherited).local.windows, { pcAttackAutoOpen: true }, "null: not written");
+  const set = normalizeOptionsPanelDraft({ local: { pcAttackAutoOpen: true, bossConsoleAutoOpen: false } });
+  assert.deepEqual(buildOptionsPanelPatches(set).local.windows, { pcAttackAutoOpen: true, bossConsoleAutoOpen: false });
+  const html = readFileSync(new URL("../options-modal.html", import.meta.url), "utf8");
+  assert.match(html, /data-local="bossConsoleAutoOpen" data-local-fallback="pcAttackAutoOpenMonsters"/);
+  // The panel shows an inherited switch with the value at the end of its chain.
+  const modal = readFileSync(new URL("../src/options-modal.js", import.meta.url), "utf8");
+  assert.ok(modal.includes('key = document.querySelector(`[data-local="${key}"]`)?.dataset.localFallback;'));
 });
 
 // Attacchi dei mostri, fase 3, lotto 3: l'archivio di 5eTools, un'opzione di questo browser, vuota di default.

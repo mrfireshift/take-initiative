@@ -48,7 +48,8 @@ function fixture(options={}){
   const controller=bootBossActions(documentRef,{api,store,runtime,sourceId:"auril",schedule:callback=>setTimeout(callback,0),
     undo:async(entryId)=>{undoCalls.push(entryId);return{ok:true};},
     placeArea:request=>new Promise(resolve=>placements.push({request,resolve})),
-    cancelArea:async requestId=>{cancelled.push(requestId);const pending=placements.find(entry=>entry.request.requestId===requestId);pending?.resolve({status:"cancelled"});}});
+    cancelArea:async requestId=>{cancelled.push(requestId);const pending=placements.find(entry=>entry.request.requestId===requestId);pending?.resolve({status:"cancelled"});},
+    ...(options.autoOpenOption?{autoOpenOption:options.autoOpenOption}:{})});
   const $=id=>documentRef.getElementById(id);
   return {documentRef,$,store,controller,calls,spellCalls,registerCalls,undoCalls,heights,availability,api,runtime,items,placements,cancelled,added,
     select:async ids=>{selection=ids;for(const listener of listeners.player)listener({selection:ids});await tick();},
@@ -1351,4 +1352,21 @@ test("L20: con Critico le righe dei danni mostrano i dadi raddoppiati, il bonus 
   await outcome(f,"hit").click();await tick();
   assert.deepEqual(formulas(),before,"back to the printed dice and average");
   f.controller.destroy();
+});
+
+// The Console Boss's own switch for the turn auto-open, in its ⋯ menu: it shows the option and writes it.
+test("the ⋯ menu's switch shows whether the console opens by itself on a boss's turn, and sets it",async()=>{
+  const sets=[];let stopped=0;
+  const autoOpenOption={subscribe:async listener=>{listener(true);return()=>{stopped+=1;};},set:async value=>{sets.push(value);},stop:()=>{stopped+=1;}};
+  const f=fixture({autoOpenOption});
+  await f.controller.ready;await tick();
+  const box=f.$("boss-auto-open");
+  assert.equal(box.checked,true,"the switch as stored (inherited from Mostri until touched)");
+  box.checked=false;await box.emit("change");await tick();
+  assert.deepEqual(sets,[false]);
+  assert.match(textOf(f.$("boss-status")),/non si aprirà più da sola/);
+  f.controller.destroy();
+  assert.equal(stopped,2,"closing the console lets go of the option");
+  const html=await readFile(new URL("../boss-actions.html",import.meta.url),"utf8");
+  assert.match(html,/<input type="checkbox" id="boss-auto-open" \/>/);
 });

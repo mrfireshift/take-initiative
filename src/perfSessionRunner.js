@@ -51,9 +51,12 @@ export function installPerfRunnerRemote({
         const options = await store();
         const before = options.read?.()?.windows || {};
         const previous = { pc: before.pcAttackAutoOpen === true,
-          monsters: typeof before.pcAttackAutoOpenMonsters === "boolean" ? before.pcAttackAutoOpenMonsters : null };
+          monsters: typeof before.pcAttackAutoOpenMonsters === "boolean" ? before.pcAttackAutoOpenMonsters : null,
+          boss: typeof before.bossConsoleAutoOpen === "boolean" ? before.bossConsoleAutoOpen : null };
+        // The Console Boss's switch is set only when asked for (a session that names it, or the restore).
         await options.update(() => ({ windows: { pcAttackAutoOpen: data.pc === true,
-          pcAttackAutoOpenMonsters: typeof data.monsters === "boolean" ? data.monsters : null } }));
+          pcAttackAutoOpenMonsters: typeof data.monsters === "boolean" ? data.monsters : null,
+          ...(Object.hasOwn(data, "boss") ? { bossConsoleAutoOpen: typeof data.boss === "boolean" ? data.boss : null } : {}) } }));
         return reply(data.id, { ok: true, previous });
       }
       return reply(data.id, { ok: false, error: `comando sconosciuto: ${data.command}` });

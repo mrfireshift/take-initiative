@@ -9,11 +9,11 @@ import { openPcAttackConsoleForActor, PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_POPOV
 import { BOSS_ACTIONS_CONSOLE_CHANNEL, BOSS_ACTIONS_POPOVER_ID, openBossActionsPopover } from "./bossActionsLauncher.js";
 import { INITIATIVE_EPIC_ACTION_PREFIX } from "./initiativeSelectionProjectionCore.js";
 import { runtimeOptionsService } from "./options/optionsRuntime.js";
-import { selectPcAttackAutoOpen, selectPcAttackAutoOpenMonsters } from "./options/optionsSelectors.js";
+import { selectBossConsoleAutoOpen, selectPcAttackAutoOpen, selectPcAttackAutoOpenMonsters } from "./options/optionsSelectors.js";
 
 // The attack console opens by itself on the turn of an actor with attacks (GM only, local options off by default: one
 // for characters and allies, one for monsters, pcAttackTurnGroup); on a boss's turn, and on its Epic Action slots, Boss
-// Actions opens instead, and closes (idle) when that turn is over.
+// Actions opens instead, with a switch of its own, and closes (idle) when that turn is over.
 // It only reads the initiative state: never writes it, never moves the turn.
 const STATE_KEY = `${ID}/state`;
 const META_KEY = `${ID}/meta`;
@@ -57,10 +57,14 @@ export function pcAttackTurnBoss(item, getCard = getInitiativeCard) {
 }
 
 // Whose switch a creature's turn follows (attacchi dei mostri, lotto 7): "pc" for a character or an ally, "monsters" for
-// any other creature and for every boss (Boss Actions). The attitude defaults to "ally", as the tracker's entries do.
-export const PC_ATTACK_TURN_GROUPS = Object.freeze(["pc", "monsters"]);
+// any other creature, "boss" for every boss (the Console Boss, whose switch follows the monsters' one until touched).
+// The attitude defaults to "ally", as the tracker's entries do.
+export const PC_ATTACK_TURN_GROUPS = Object.freeze(["pc", "monsters", "boss"]);
+const TURN_GROUP_SWITCHES = Object.freeze({
+  pc: selectPcAttackAutoOpen, monsters: selectPcAttackAutoOpenMonsters, boss: selectBossConsoleAutoOpen,
+});
 export function pcAttackTurnGroup(item, getCard = getInitiativeCard) {
-  if (pcAttackTurnBoss(item, getCard)) return "monsters";
+  if (pcAttackTurnBoss(item, getCard)) return "boss";
   const attitude = String(item?.metadata?.[META_KEY]?.attitude || "ally").trim().toLowerCase();
   return ["pc", "ally"].includes(attitude) ? "pc" : "monsters";
 }
@@ -122,8 +126,8 @@ const settle = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function createPcAttackTurnController({
   api = OBR,
-  // isEnabled(group): the switch of "pc" or "monsters".
-  isEnabled = (group) => runtimeOptionsService.get(group === "monsters" ? selectPcAttackAutoOpenMonsters : selectPcAttackAutoOpen) === true,
+  // isEnabled(group): the switch of "pc", "monsters" or "boss".
+  isEnabled = (group) => runtimeOptionsService.get(TURN_GROUP_SWITCHES[group] || selectPcAttackAutoOpen) === true,
   openConsole = openPcAttackConsoleForActor,
   isConsoleOpen = () => pingConsole(api, PC_ATTACK_CONSOLE_CHANNEL, CONSOLE_PING_TIMEOUT_MS, PC_ATTACK_POPOVER_ID),
   openBossConsole = openBossActionsPopover,

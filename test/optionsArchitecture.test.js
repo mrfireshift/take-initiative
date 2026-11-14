@@ -43,7 +43,7 @@ test("OPTIONS-001: i default versionati riproducono il comportamento legacy", ()
       playerFollowActiveTurn: false,
       playerScale: null,
     },
-    windows: { clocksCompact: false, pcAttackAutoOpen: false, pcAttackAutoOpenMonsters: null },
+    windows: { clocksCompact: false, pcAttackAutoOpen: false, pcAttackAutoOpenMonsters: null, bossConsoleAutoOpen: null },
     tools: { distance3d: true, reference: true, fiveToolsArchive: "", fiveToolsImages: "", fiveTools2024: false, diceStyle: "iron", diceSounds: true },
     runtime: { combatLog: true, playerAnimations: true, playerRemindersMineOnly: false },
   });

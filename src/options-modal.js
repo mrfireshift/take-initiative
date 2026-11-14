@@ -257,9 +257,15 @@ function render() {
   for (const node of document.querySelectorAll(".scene-mode, .scene-choice")) node.hidden = editScope !== "scene";
   for (const node of document.querySelectorAll(".room-value")) node.hidden = editScope === "scene";
 
-  // A switch still inherited (null) shows the one it follows (data-local-fallback).
+  // A switch still inherited (null) shows the one it follows (data-local-fallback), down the chain: the Console Boss
+  // follows the monsters, which follow the characters.
   for (const control of document.querySelectorAll("[data-local]")) {
-    setControlValue(control, draft.local[control.dataset.local] ?? draft.local[control.dataset.localFallback]);
+    let value = draft.local[control.dataset.local];
+    for (let key = control.dataset.localFallback, hops = 0; (value === null || value === undefined) && key && hops < 4; hops += 1) {
+      value = draft.local[key];
+      key = document.querySelector(`[data-local="${key}"]`)?.dataset.localFallback;
+    }
+    setControlValue(control, value);
   }
   for (const control of document.querySelectorAll("[data-room]")) {
     setControlValue(control, draft.room[control.dataset.room]);

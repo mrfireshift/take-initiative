@@ -82,8 +82,12 @@
             <input type="checkbox" data-local="pcAttackAutoOpen" />
           </label>
           <label class="option-toggle compact">
-            <span>Apri a ogni turno di un mostro con attacchi (e la console Boss per i boss)</span>
+            <span>Apri a ogni turno di un mostro con attacchi</span>
             <input type="checkbox" data-local="pcAttackAutoOpenMonsters" data-local-fallback="pcAttackAutoOpen" />
+          </label>
+          <label class="option-toggle compact">
+            <span>Apri la console Boss a ogni turno di un boss (anche alle sue Azioni Epiche)</span>
+            <input type="checkbox" data-local="bossConsoleAutoOpen" data-local-fallback="pcAttackAutoOpenMonsters" />
           </label>
           <div class="option-field five-tools-archive">
             <label for="fiveToolsArchiveInput">Archivio 5eTools (indirizzo della cartella dei dati)</label>

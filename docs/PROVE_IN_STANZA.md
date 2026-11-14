@@ -34,10 +34,10 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A15. PF temporanei (CAP-TEMP) | 6 |
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
-| **B. Console attacchi, mostri e capacità** | **111** |
+| **B. Console attacchi, mostri e capacità** | **112** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
-| B3. Console Boss (lotto 7) | 8 |
+| B3. Console Boss (lotto 7) | 9 |
 | B4. Velocità dei mostri | 29 |
 | B5. Dimensione del token | 10 |
 | B6. Difese contro le armi non magiche | 11 |
@@ -68,7 +68,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **462** |
+| **Totale** | **463** |
 
 ## A. Incantesimi
 
@@ -422,6 +422,7 @@ Fonte: [AUDIT_UX_PANNELLO_ATTACCHI.md](AUDIT_UX_PANNELLO_ATTACCHI.md), «Prova i
 - [ ] **Scagliare, Cuciture, Corpo Non Era Qui:** i passi e i disegni funzionano come prima; danni e condizioni uguali. *(dalla voce «Hurl, Scagliare, Epic Resistance, Cuciture, Corpo Non Era Qui», senza Hurl ed Epic Resistance di Auril)*
 - [ ] **Metri:** ovunque nella console, tranne il testo originale nei `Dettagli`.
 - [ ] **Annulla:** dopo `Registra` la barra dice cosa è successo, con la spunta, e **Annulla** torna indietro.
+- [ ] **Apertura da sola:** nel ⋯ della Console Boss la casella **Al turno di un boss** è spuntata come **Mostri** della console attacchi finché non la tocchi. Spenta, al turno del boss e alle sue Azioni Epiche non si apre nulla, mentre i mostri continuano ad aprire la console attacchi; accesa con **Mostri** spenta, si apre solo la Console Boss. La stessa casella è nelle Opzioni, sezione **Console attacchi**. (voce nuova: GUIDA_UTENTE.md, console attacchi, «Apri da sola a ogni turno»)
 
 ### B4. Velocità dei mostri
 

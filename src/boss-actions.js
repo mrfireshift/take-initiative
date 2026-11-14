@@ -2279,6 +2279,24 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(draft?.picker && !event.target?.closest?.("#boss-target-dropdown"))closeTargetMenu();
   });
   $("boss-manage-open")?.addEventListener("click",()=>{setMoreOpen(false);if(!busy){renderLibrary(presentation?.profile);setView("manage");}});
+  // The turn auto-open (pcAttackTurnController.js): a local option of this browser, switched here or in the options
+  // panel; until touched it follows the attack console's Mostri (pcAttackAutoOpenOption.js).
+  const autoOpenBox=$("boss-auto-open");
+  let offAutoOpen=()=>{};
+  if(autoOpenBox){
+    const option=overrides.autoOpenOption?Promise.resolve(overrides.autoOpenOption)
+      :import("./pcAttackAutoOpenOption.js").then(module=>module.createPcAttackAutoOpenOption(undefined,{boss:true}));
+    void option.then(async value=>{
+      const off=await value.subscribe(on=>{autoOpenBox.checked=on;});
+      offAutoOpen=()=>{off?.();value.stop?.();};
+      autoOpenBox.addEventListener("change",()=>{
+        const on=autoOpenBox.checked;
+        void Promise.resolve().then(()=>value.set(on)).then(()=>setStatus(on
+          ?"La console Boss si aprirà da sola a ogni turno di un boss."
+          :"La console Boss non si aprirà più da sola al turno di un boss.","ok")).catch(error=>setStatus(String(error?.message || error),"error"));
+      });
+    }).catch(error=>console.warn("[boss-actions] auto-open option:",error?.message || error));
+  }
   $("boss-manage-back")?.addEventListener("click",()=>setView(draft?"resolve":"list"));
   $("boss-import").addEventListener("click",()=>perform(async operation=>{
     const file=$("boss-file").files?.[0];
@@ -2364,6 +2382,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
     bossReactionPrompt.destroy();
     try{offPing?.();}catch{}
     offPing=null;
+    try{offAutoOpen();}catch{}
+    offAutoOpen=()=>{};
     if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null;}
     lifecycle.dispose();
   }
