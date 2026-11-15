@@ -740,7 +740,13 @@ preparazione al tavolo: basta importarne lo statblock.
    restano i loro. La scheda resta nel browser del GM sotto il nome dello
    statblock: su una mappa nuova, un token con quel nome la riceve quando entra
    nell'iniziativa, con un'identità e un Indebolimento suoi. Un mostro con un
-   altro nome non la riceve, nemmeno con la stessa immagine.
+   altro nome non la riceve, nemmeno con la stessa immagine. Il token nuovo
+   riceve anche ciò che era spuntato all'import:
+   - i PF, se non ne ha già, con una voce «PF dallo statblock» nella Cronologia;
+   - la dimensione, se il token è ancora a una casella;
+   - il Leggendario, se non ha già una modalità boss.
+
+   Una scheda importata prima di questa funzione va reimportata una volta.
 
 Dello statblock la scheda tiene anche gli **incantesimi** (classe e livello
 per gli slot, con le capacità di classe spente; il libro; gli innati come

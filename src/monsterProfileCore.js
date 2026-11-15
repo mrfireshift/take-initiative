@@ -32,6 +32,32 @@ function sanitizeNonmagicalDefenses(value) {
   return { types, ...(except.length ? { except } : {}) };
 }
 
+// Lot SB3a of docs/STUDIO_GIOCO_ONLINE.md (decision G19): what the GM chose at the import for this monster, given again
+// to a new token that gets the card from the registry when it joins the initiative (SB3b): the hit points confirmed in
+// the panel (with the stat block's formula), the token's size, Legendary. Only the choices ticked; a new import replaces
+// them all. The size keys are tokenSizeCore.js's MONSTER_TOKEN_SIZES, the pips monsterLegendaryCore.js's (both checked
+// by test/monsterHydrationExtras.test.js): this module stays light.
+export const MONSTER_PROFILE_IMPORT_CHOICES = Object.freeze(["hitPoints", "tokenSize", "legendary"]);
+export const MONSTER_PROFILE_TOKEN_SIZES = Object.freeze(["tiny", "small", "medium", "large", "huge", "gargantuan"]);
+export const MAX_MONSTER_PROFILE_HIT_POINTS = 9999;
+export const MAX_MONSTER_PROFILE_PIPS = 5;
+
+function profileHitPoints(value) {
+  const hp = Number(value?.value);
+  if (!Number.isInteger(hp) || hp < 1 || hp > MAX_MONSTER_PROFILE_HIT_POINTS) return null;
+  const formula = String(value?.formula ?? "").replace(/\s+/g, "").slice(0, 24);
+  return { value: hp, ...(formula ? { formula } : {}) };
+}
+
+function profileLegendary(value) {
+  const pips = (number) => {
+    const count = Math.floor(Number(number));
+    return Number.isFinite(count) && count > 0 ? Math.min(MAX_MONSTER_PROFILE_PIPS, count) : 0;
+  };
+  const actions = pips(value?.actions);
+  return actions ? { actions, resistances: pips(value?.resistances) } : null;
+}
+
 export function sanitizeMonsterProfile(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const source = sourceSet.has(value.source) ? value.source : "manual";
@@ -44,10 +70,23 @@ export function sanitizeMonsterProfile(value) {
   // { fly: 24, swim: 12 } in metres; hover only with a flying speed.
   const speeds = Object.fromEntries(MONSTER_SPEED_MODES.map((mode) => [mode, normalizeSpeedMeters(value.speeds?.[mode])]).filter(([, meters]) => meters > 0));
   const nonmagicalDefenses = sanitizeNonmagicalDefenses(value.nonmagicalDefenses);
+  const hitPoints = profileHitPoints(value.hitPoints);
+  const tokenSize = MONSTER_PROFILE_TOKEN_SIZES.includes(value.tokenSize) ? value.tokenSize : "";
+  const legendary = profileLegendary(value.legendary);
   return { source, ...(ref ? { ref } : {}), ...(multiattack ? { multiattack } : {}),
     ...(conditionImmunities.length ? { conditionImmunities } : {}), ...(value.evasion === true ? { evasion: true } : {}),
     ...(Object.keys(speeds).length ? { speeds } : {}), ...(value.hover === true && speeds.fly ? { hover: true } : {}),
-    ...(nonmagicalDefenses ? { nonmagicalDefenses } : {}) };
+    ...(nonmagicalDefenses ? { nonmagicalDefenses } : {}),
+    ...(hitPoints ? { hitPoints } : {}), ...(tokenSize ? { tokenSize } : {}), ...(legendary ? { legendary } : {}) };
+}
+
+// SB3a: the card's monster profile with the import's choices in place of the old ones, those ticked and no others.
+// hitPoints: { value, formula? }; tokenSize: a size key or ""; legendary: { actions, resistances } or null.
+export function monsterProfileWithImportChoices(profile, { hitPoints = null, tokenSize = "", legendary = null } = {}) {
+  const clean = sanitizeMonsterProfile(profile);
+  if (!clean) return clean;
+  const rest = Object.fromEntries(Object.entries(clean).filter(([field]) => !MONSTER_PROFILE_IMPORT_CHOICES.includes(field)));
+  return sanitizeMonsterProfile({ ...rest, hitPoints, tokenSize, legendary });
 }
 
 // "Volare 24 m (stazionario) · Nuotare 12 m", "" without other speeds.

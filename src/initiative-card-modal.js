@@ -73,7 +73,7 @@ import {
   parseCharacterSheetImport,
   sheetImportSectionSummary,
 } from "./characterSheetImportCore.js";
-import { MONSTER_PROFILE_FIELD, MONSTER_PROFILE_STATBLOCK_FIELDS, monsterSpeedsText, sanitizeMonsterProfile } from "./monsterProfileCore.js";
+import { MONSTER_PROFILE_FIELD, MONSTER_PROFILE_STATBLOCK_FIELDS, monsterProfileWithImportChoices, monsterSpeedsText, sanitizeMonsterProfile } from "./monsterProfileCore.js";
 import { fiveToolsCollection, fiveToolsImportSummary, fiveToolsMonsterLabel, fiveToolsMonsterToStatblock, fiveToolsMonsters, fiveToolsSearch, isFiveToolsData }
   from "./fiveToolsMonsterCore.js";
 import { createFiveToolsArchivePanel } from "./fiveToolsArchivePanel.js";
@@ -4542,6 +4542,13 @@ function applySheetImport() {
     // The stat block's own fields (immunities, Evasion) are the new block's, never the old monster's (fase 5, lotto 2).
     const kept = Object.fromEntries(Object.entries(draftMonsterProfile || {}).filter(([field]) => !MONSTER_PROFILE_STATBLOCK_FIELDS.includes(field)));
     draftMonsterProfile = sanitizeMonsterProfile({ ...kept, ...sheetImportResult.monster });
+    // Lot SB3a of docs/STUDIO_GIOCO_ONLINE.md (G19): the choices ticked here travel with the card, for a new token of
+    // this monster that gets it from the registry when it joins the initiative (SB3b).
+    draftMonsterProfile = monsterProfileWithImportChoices(draftMonsterProfile, {
+      hitPoints: pendingMonsterHitPoints ? { value: pendingMonsterHitPoints.hp, formula: sheetImportResult.hitPoints?.formula } : null,
+      tokenSize: pendingMonsterTokenSize,
+      legendary: pendingMonsterLegendary,
+    });
   }
   const labelsById = new Map([...SHEET_IMPORT_SECTIONS.map((section) => [section.id, section.label]), ["hitPoints", "Punti ferita (dopo Salva)"],
     ["name", "Nome del token (dopo Salva)"], ["portrait", "Ritratto del token (dopo Salva)"], ["tokenSize", "Dimensione del token (dopo Salva)"],

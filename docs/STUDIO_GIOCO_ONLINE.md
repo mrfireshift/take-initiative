@@ -8,8 +8,12 @@ come raccomandate. Primo passo: la prova in stanza G1.
 - **BA1, BA2 e BA3 fatti il 15/11** (BA1 e BA2 in `22a25e43`, BA3 in
   `69394243`). Il §6 dice cosa è cambiato; le prove in stanza sono in
   `PROVE_IN_STANZA.md`, B17.
-- **SB1 e SB2 fatti il 15/11.** Il §5 dice cosa è cambiato; la prova in stanza
-  è nella voce L1 di `PROVE_IN_STANZA.md`, E1.
+- **SB1 e SB2 fatti il 15/11** (in `8641fd03`). Il §5 dice cosa è cambiato;
+  la prova in stanza è nella voce L1 di `PROVE_IN_STANZA.md`, E1.
+- **Piano di SB3 scritto il 15/11** nel §5; G19–G23 approvate il 16/11 come
+  raccomandate («Sì, tutte»).
+- **SB3 fatto il 16/11.** Il §5 dice cosa è cambiato; la prova in stanza è
+  nella stessa voce L1 di E1.
 
 I sei punti vengono da una sessione di gioco online. Per ognuno: com'è oggi, la
 causa (o la conferma che funziona), la proposta, i rischi secondo AGENTS.md e i
@@ -647,6 +651,108 @@ Lasciati fuori:
     nuovo «Hobgoblin» riceve la scheda con un'identità sua; un nuovo «Goblin»
     niente.
 
+### Piano di SB3 (15/11): PF, taglia e Leggendario all'idratazione
+
+Scrive PF. G19–G23 sono state approvate il 16/11 come raccomandate: è il via al codice.
+
+**Cosa fa.** Quando un mostro riceve la scheda dal registro entrando
+nell'iniziativa, riceve anche ciò che il GM aveva scelto all'import: i PF, la
+taglia del token e il Leggendario. È lo stesso import, ripetuto per il token
+nuovo.
+
+**I dati (lotto SB3a).**
+- Oggi la scheda non porta né PF né taglia né Leggendario: sono caselle del
+  pannello Importa, applicate una volta sola al Salva (`pendingMonsterHitPoints`,
+  `pendingMonsterTokenSize`, `pendingMonsterLegendary` in
+  `initiative-card-modal.js`).
+- Il profilo del mostro (`card.monster`, `sanitizeMonsterProfile` in
+  `src/monsterProfileCore.js`) ne terrà le tre scelte, solo se spuntate:
+  - `hitPoints: { value, formula }`, con il valore confermato nella casella
+    (1–9999);
+  - `tokenSize`, una chiave di `MONSTER_TOKEN_SIZES`;
+  - `legendary: { actions, resistances }`, come `monsterLegendaryOf`.
+- All'**Applica** dell'import le scelte entrano in `draftMonsterProfile`,
+  con una funzione pura nuova in `monsterProfileCore.js`.
+- Il profilo del mostro è già tra i campi che il Salva copia agli omonimi
+  (`MONSTER_STATBLOCK_FIELDS`): li ricevono anche loro.
+- Le schede dei mostri non vanno nella stanza: nessun costo sul budget.
+
+**Dove si aggancia (lotto SB3b).**
+- Nel ciclo di `restoreInitiativeCardQuickActionsFromMemory`
+  (`src/initiativeCards.js`), dopo `loadInitiativeCard(item, { hydrate: true })`.
+  Gira solo nel tracker del GM, per i token appena entrati nell'iniziativa senza
+  azioni rapide, e all'avvio del tracker. `initiativeList.js` non si tocca.
+- Per i token idratati con una scheda di mostro che non sono PG, un modulo
+  nuovo caricato al momento (`monsterHydrationExtras.js`) fa tre cose:
+  - **PF**: `planMonsterHitPointsImport` per ogni token, senza «Sostituisci» e
+    senza omonimi. Salta PG, riserve condivise e token che hanno già PF. Poi un
+    solo `hp:set` per il gruppo, dal coordinatore, con i valori attesi e la
+    Cronologia («Hobgoblin: PF dallo statblock (11) · 3 token»), e le barre e
+    le scritte aggiornate come in `applyMonsterHitPoints`;
+  - **taglia**: solo il token idratato, e solo se è ancora a una casella;
+    fuori dalla Cronologia, come al Salva (`applyMonsterTokenSize` con un
+    filtro sugli id);
+  - **Leggendario**: `setMonsterLegendary` sul solo token idratato, mai sopra
+    una modalità boss, fuori dalla Cronologia, come al Salva.
+
+**Rischi (AGENTS.md).**
+- **PF**: solo `meta.hp` e `meta.hpMax`, dal coordinatore, con i valori attesi:
+  se nel frattempo un altro scrive, la scrittura si rifiuta. Barre derivate
+  come oggi. ActorVitals ignora i mostri; `hpMemory` salta i token con
+  identità, e dopo SB2 ogni omonimo idratato ne ha una sua.
+- **Cicli**: i PF solo se mancano, la taglia solo da una casella, il
+  Leggendario solo senza modalità boss, tutto solo all'idratazione. Se il GM
+  toglie il Leggendario o ridimensiona il token, nessuno lo rimette.
+- **Turno e ordine**: non si toccano.
+- **Due client GM**: il secondo `hp:set` è rifiutato dai valori attesi; taglia
+  e Leggendario ricontrollano sul draft.
+- **Limiti**:
+  - le schede importate prima di SB3 non hanno i tre campi;
+  - un token di cui il GM ha aperto la scheda prima di metterlo
+    nell'iniziativa non è più candidato all'idratazione;
+  - su un altro dispositivo del GM vale SB4.
+
+**Prove.**
+- Test puri: il profilo con i tre campi validi e non validi.
+- Nell'impianto di `initiativeCardSaveTransportRegression.test.js`:
+  - un omonimo nuovo senza PF li riceve, con una voce di Cronologia;
+  - un PG, una riserva e un token con PF restano com'erano;
+  - la taglia cambia solo da una casella;
+  - il Leggendario non sostituisce una modalità boss.
+- Banco: `importMonster` con PF, taglia Grande e Leggendario, poi un token nuovo
+  con `addItems`.
+- Una voce in `PROVE_IN_STANZA.md`.
+
+**Fatto il 16/11 (SB3a e SB3b):**
+
+- **SB3a:**
+  - `sanitizeMonsterProfile` (`src/monsterProfileCore.js`) tiene `hitPoints`,
+    `tokenSize` e `legendary`;
+  - `monsterProfileWithImportChoices` mette nel profilo le scelte spuntate al
+    posto delle vecchie;
+  - l'**Applica** della scheda la chiama.
+- **SB3b:**
+  - pianificatore puro: `planHydratedMonsterExtras`
+    (`src/monsterHydrationExtrasCore.js`);
+  - scrittura: `applyHydratedMonsterExtras` (`src/monsterHydrationExtras.js`),
+    caricato al momento dal ciclo di `restoreInitiativeCardQuickActionsFromMemory`;
+  - `applyMonsterTokenSize` accetta `onlyIds`.
+- **I PF** passano per lo stesso pianificatore del Salva: un solo `hp:set` per
+  il gruppo, con la Cronologia; le barre si aggiornano in un passo a parte,
+  che se fallisce non tocca il resto.
+- **Prove:**
+  - `test/monsterHydrationExtras.test.js` (6 test puri);
+  - un test d'integrazione col coordinatore in
+    `test/initiativeCardSaveTransportRegression.test.js`: PF e Leggendario al
+    token nuovo, il ferito tiene i suoi;
+  - suite completa verde in una copia pulita (6190 test);
+  - build di controllo riuscita;
+  - banco:
+    - Hobgoblin importato con PF e Leggendario: un Hobgoblin nuovo
+      nell'iniziativa riceve 11/11 PF, il Leggendario 3/1 e un'identità sua,
+      con la voce «Hobgoblin: PF dallo statblock (11)»;
+    - un Ogre Grande nuovo, a una casella, diventa 2×2 con 59/59 PF.
+
 ### Rischi
 
 - **PF (SB3):**
@@ -796,6 +902,11 @@ tavolo è peggio di nessun numero.
 | G16 | Punto 3: quale strada per i PF della forma? | (a), i PF del druido messi da parte sulla pill; (c) solo come ripiego |
 | G17 | Punto 3: da dove vengono le bestie? | Archivio 5eTools del GM e JSON o testo incollato. Un elenco SRD dentro il plugin solo se il druido del gruppo non usa l'archivio |
 | G18 | Punto 3: le regole di dettaglio | PF temporanei: restano. Aiuto durante la forma: resta sul druido. Sciami: no. PF della forma: media dello statblock, modificabile. Online il giocatore vede i PF della forma. Editor in linea: niente eccesso. Su una mappa nuova la forma non segue |
+| G19 | SB3: la scheda del mostro porta le tre scelte dell'import (PF col valore confermato, taglia, Leggendario), solo se spuntate? | Sì |
+| G20 | SB3: i PF dei token idratati insieme in una sola voce di Cronologia, o una per token? | Una per gruppo |
+| G21 | SB3: la taglia solo per i token ancora a una casella? | Sì: mai sopra una misura data dal GM |
+| G22 | SB3: il Leggendario come al Salva (mai sopra una modalità boss, fuori dalla Cronologia)? | Sì |
+| G23 | SB3: le schede importate prima di SB3, senza i tre campi? | Niente: si reimporta una volta. Il ripiego dal testo dell'IndexedDB non vale il costo |
 
 ### Prova in stanza (G1)
 

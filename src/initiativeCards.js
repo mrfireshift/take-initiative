@@ -823,6 +823,19 @@ export function restoreInitiativeCardQuickActionsFromMemory(itemIds) {
       }
       if (profile.quickActions.length) restoredIds.push(item.id);
     }
+    // Lot SB3b of docs/STUDIO_GIOCO_ONLINE.md: a monster's card brings the import's hit points, size and Legendary too.
+    // The planner keeps only the monsters' tokens; a failure there never undoes the cards just written.
+    if (candidates.length) {
+      try {
+        const { applyHydratedMonsterExtras } = await import("./monsterHydrationExtras.js");
+        await applyHydratedMonsterExtras({
+          hydratedIds: candidates.map((item) => item.id),
+          isCurrent: typeof options.isCurrent === "function" ? options.isCurrent : () => true,
+        });
+      } catch (error) {
+        console.warn("[initiative-card] monster hydration extras:", error?.message || error);
+      }
+    }
     return restoredIds;
   };
 

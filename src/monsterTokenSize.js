@@ -9,11 +9,13 @@ function samePoint(left, right) {
   return Number(left?.x) === Number(right?.x) && Number(left?.y) === Number(right?.y);
 }
 
-// Returns how many tokens were resized.
-export async function applyMonsterTokenSize({ sourceId, cells, isCurrent = () => true } = {}) {
+// Returns how many tokens were resized. onlyIds: the tokens to resize among those planned (lot SB3b of
+// docs/STUDIO_GIOCO_ONLINE.md: a token hydrated from the registry is resized alone, never its namesakes).
+export async function applyMonsterTokenSize({ sourceId, cells, isCurrent = () => true, onlyIds = null } = {}) {
   const items = await OBR.scene.items.getItems();
   if (!isCurrent()) return 0;
-  const { targetIds } = planMonsterTokenSize({ items, sourceId, cells });
+  const planned = planMonsterTokenSize({ items, sourceId, cells }).targetIds;
+  const targetIds = Array.isArray(onlyIds) ? planned.filter((id) => onlyIds.includes(id)) : planned;
   if (!targetIds.length) return 0;
   const { useCorners, useCenter } = tokenCentreSnap(cells);
   const positions = new Map();

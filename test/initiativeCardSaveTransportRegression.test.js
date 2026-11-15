@@ -777,6 +777,43 @@ test("SB1: la scheda del mostro va nel registro col nome finale; un altro mostro
   }
 });
 
+// Lot SB3 of docs/STUDIO_GIOCO_ONLINE.md (G19–G23): a monster that gets its card from the registry when it joins the
+// initiative gets the import's hit points ("hp:set" through the coordinator, with History) and Legendary too; a wounded
+// namesake keeps its hit points.
+test("SB3: entrando nell'iniziativa il mostro idratato riceve i PF e il Leggendario dell'import", async () => {
+  reset();
+  // Image tokens on the Characters layer: the creatures the stat block's hit points are for.
+  const token = (id, name, meta = {}) => ({ id, name, type: "IMAGE", layer: "CHARACTER",
+    metadata: { [META_KEY]: { attitude: "enemy", inInitiative: true, ...meta } } });
+  scene.items = [token("s1", "Hobgoblin", { hp: 11, hpMax: 11 }), token("s2", "(2) Hobgoblin"), token("s3", "(3) Hobgoblin", { hp: 4, hpMax: 11 })];
+  const local = new Map();
+  const previousStorage = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: (key) => local.has(key) ? local.get(key) : null,
+    setItem: (key, value) => { local.set(key, String(value)); },
+    removeItem: (key) => { local.delete(key); },
+  };
+  const runtime = await startRuntime();
+  const meta = (id) => scene.items.find((item) => item.id === id).metadata[META_KEY];
+  try {
+    const card = { armorClass: 18,
+      monster: { source: "manual", ref: "Hobgoblin|MM", hitPoints: { value: 11, formula: "2d8+2" }, legendary: { actions: 3, resistances: 1 } },
+      quickActions: [{ id: "q1", label: "Spada lunga", kind: "attack", range: "melee", components: [{ type: "slashing", formula: "1d8+1" }] }] };
+    await runtime.cards.saveInitiativeCard("s1", "Hobgoblin", card, { commandId: "sb3-save", transportTimeoutMs: 100 });
+    await runtime.cards.restoreInitiativeCardQuickActionsFromMemory(["s2", "s3"], { isGM: true });
+    assert.equal(meta("s2").initiativeCard?.armorClass, 18, "the card came");
+    assert.deepEqual([meta("s2").hp, meta("s2").hpMax], [11, 11], "with the import's hit points");
+    assert.deepEqual(meta("s2").legendary, { max: 3, current: 3 }, "and Legendary");
+    assert.deepEqual(meta("s2").legendaryResistances, { max: 1, current: 1 });
+    assert.deepEqual([meta("s3").hp, meta("s3").hpMax], [4, 11], "a wounded namesake keeps its hit points");
+    assert.deepEqual([meta("s1").hp, meta("s1").hpMax], [11, 11], "the token of the sheet is not touched");
+  } finally {
+    await stopRuntime(runtime);
+    if (previousStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = previousStorage;
+  }
+});
+
 // Lot L3 of the bugfix pass (HI-01): a command over Owlbear's 16 kB limit, from a page to the background coordinator,
 // travels in chunks that the real background joins before its broker. An Undo of several History entries is the case
 // at the table; a spell with a large cast context is one here.

@@ -897,10 +897,11 @@ Serve un combattimento in corso con almeno due creature. Per L27 serve un boss P
 - [ ] **Tavolo, prima:** nella console della finestra dei giocatori, contesto **background.html**, lancia `await __tbpPerf.watchFluidity()`, che ora controlla anche i token nascosti.
 - [ ] **GM:** con il tracker appena aperto o ricaricato, nella console del GM, contesto **background.html**, lancia `await __tbpPerf.runBugfixCheck()` e non toccare nulla per circa un minuto. Fa da sola cinque verifiche e poi rimette tutto com'era: scadenze dopo la riapertura (L2), PF dalla seconda card Paragon (L27), creatura di turno tolta (L6), Annulla di due voci (L3), token nascosto (L16). La tabella va in `perf-runs/verifica-bugfix.json`: annota le verifiche che non passano.
 - [ ] **Tavolo, alla fine:** `watchFluidity` non segnala `token-nascosto-visibile`.
-- [ ] statblock su un goblin con omonimi feriti, poi cambio scena: i PF degli altri goblin non cambiano (L1). Poi, nella stessa prova (SB1 e SB2 di STUDIO_GIOCO_ONLINE.md):
+- [ ] statblock su un goblin con omonimi feriti, poi cambio scena: i PF degli altri goblin non cambiano (L1). Poi, nella stessa prova (SB1, SB2 e SB3 di STUDIO_GIOCO_ONLINE.md):
   - importa lo statblock dell'Hobgoblin su un «Goblin» con **Rinomina il token** spuntata, e dagli due livelli di Indebolimento;
-  - sulla scena nuova, un token «Hobgoblin» entrato nell'iniziativa riceve la scheda (CA e attacchi) senza l'Indebolimento;
-  - un «Goblin» con la stessa immagine non riceve la scheda dell'Hobgoblin.
+  - sulla scena nuova, un token «Hobgoblin» entrato nell'iniziativa riceve la scheda (CA e attacchi) senza l'Indebolimento, con i PF dell'import e una voce «PF dallo statblock» nella Cronologia;
+  - un «Goblin» con la stessa immagine non riceve la scheda dell'Hobgoblin;
+  - un mostro Grande o con azioni leggendarie, nuovo e a una casella, diventa 2×2 e ha il **Leggendario**; un omonimo che ha già PF, o già una modalità boss, li tiene.
 - [ ] **◀ e ▶ (L15):** dopo un ◀ e un nuovo ▶ la stessa fine turno non si conta due volte: le durate non scendono di nuovo e i TS degli effetti non si richiedono di nuovo. (voce nuova: PIANO_BUGFIX_POLISHING.md, L15)
 - [ ] **Posizioni degli avvisi (L20):** l'avviso di concentrazione sta in alto e la carta del TS contro la morte sotto l'avviso di turno, anche sullo schermo HDMI. (voce nuova: PIANO_BUGFIX_POLISHING.md, L20)
 - [ ] **Aree libere (L20):** ruota o scala un'area sulla mappa: i bersagli si riselezionano dove l'area si trova davvero. (voce nuova: PIANO_BUGFIX_POLISHING.md, L20)
