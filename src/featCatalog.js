@@ -60,10 +60,20 @@ const ON_SHEET = "Le competenze vanno riportate nella scheda del personaggio.";
 // feat; species: the racial feat's species (speciesOptions narrows them to a subrace); pool: a use of its own; srdEntryId
 // and srdText: the SRD 5.1's text of the only feat it has, Lottatore, as the rules compendium has it
 // (src/rules-reference-it.json): the card shows it when the GM has no pack of the manual.
+// Lot F1 (the attack console): effect: the pill the feat's activation puts on the target ({ conditionName, detail,
+// timing, movement }), as Lance of Lethargy's; parts: the records of a second effect, "talento-<feat>-<key>" (Slasher's
+// critical); naturalWeapon: the attack the card adds, as a species' claws (speciesNaturalWeaponCore.js). pool.rest
+// "breve": back with a short rest too.
 const feat = (book, page, name, english, { prerequisite = "", abilities = [], choices = [], species = [], speciesOptions = [],
-  repeatable = false, plugin = LATER, pool = null, srdEntryId = "", srdText = "" } = {}) => ({
+  repeatable = false, plugin = LATER, pool = null, srdEntryId = "", srdText = "", effect = null, parts = [], naturalWeapon = null } = {}) => ({
   book, page, name, english, prerequisite, abilities, choices, species, speciesOptions, repeatable, plugin, pool, srdEntryId, srdText,
+  effect, parts, naturalWeapon,
 });
+// Until the start of the attacker's next turn: Slasher's and Crusher's pills.
+const UNTIL_NEXT_TURN = "next-turn";
+// The pills of the critical parts, which the attack console reminds about (pcAttackTargetNotes).
+export const CRUSHER_CRITICAL_CONDITION = "Martello Vivente";
+export const SLASHER_CRITICAL_CONDITION = "Bisturi da Battaglia: critico";
 // CC-BY-4.0, Systems Reference Document 5.1 in italiano: the compendium's entry "lottatore", word for word (a test checks).
 const GRAPPLER_SRD_TEXT = [
   "Prerequisito: Forza 13 o superiore",
@@ -80,7 +90,8 @@ const DEFINITIONS = [
   feat("phb", 165, "Adepto Elementale", "Elemental Adept", { prerequisite: "Saper lanciare almeno un incantesimo",
     choices: ["damageType"], repeatable: true }),
   feat("phb", 165, "Adepto Marziale", "Martial Adept"),
-  feat("phb", 165, "Aggressore Selvaggio", "Savage Attacker"),
+  feat("phb", 165, "Aggressore Selvaggio", "Savage Attacker", {
+    plugin: "Nella console attacchi, sui colpi in mischia, il promemoria: una volta per turno ritiri i dadi dell'arma e tieni il totale che preferisci." }),
   feat("phb", 165, "Allerta", "Alert", {
     plugin: "Il +5 all'iniziativa lo somma chi la tira: il plugin non tira l'iniziativa e non gestisce la sorpresa." }),
   feat("phb", 165, "Appostato", "Skulker", { prerequisite: "Destrezza 13" }),
@@ -98,7 +109,8 @@ const DEFINITIONS = [
   feat("phb", 167, "Corazze Pesanti", "Heavily Armored", { prerequisite: "Competenza nelle armature medie",
     abilities: ["str"], plugin: ON_SHEET }),
   feat("phb", 167, "Duellante Difensivo", "Defensive Duelist", { prerequisite: "Destrezza 13" }),
-  feat("phb", 167, "Esperto di Balestre", "Crossbow Expert"),
+  feat("phb", 167, "Esperto di Balestre", "Crossbow Expert", {
+    plugin: "Dopo un attacco con un'arma, la console ricorda l'attacco bonus con la balestra a mano, se l'arma era a una mano; il resto si gestisce al tavolo." }),
   feat("phb", 167, "Esperto di Dungeon", "Dungeon Delver", { plugin: AT_TABLE }),
   feat("phb", 167, "Fortunato", "Lucky", {
     plugin: "3 punti fortuna, che tornano con il riposo lungo: il pulsante spende un punto, il d20 in più si tira al tavolo.",
@@ -112,7 +124,8 @@ const DEFINITIONS = [
   feat("phb", 168, "Lottatore", "Grappler", { prerequisite: "Forza 13", srdEntryId: "lottatore", srdText: GRAPPLER_SRD_TEXT }),
   feat("phb", 168, "Lottatore da Taverna", "Tavern Brawler", { abilities: ["str", "con"] }),
   feat("phb", 168, "Maestro d'Armi", "Weapon Master", { abilities: ["str", "dex"], plugin: ON_SHEET }),
-  feat("phb", 168, "Maestro d'Armi Possenti", "Great Weapon Master"),
+  feat("phb", 168, "Maestro d'Armi Possenti", "Great Weapon Master", {
+    plugin: "Nella console attacchi, in mischia: «−5/+10», −5 al tiro e +10 ai danni se colpisce, quando l'arma è pesante. Dopo un critico o un nemico a 0 PF, la console ricorda l'attacco bonus." }),
   feat("phb", 169, "Maestro degli Scudi", "Shield Master"),
   feat("phb", 169, "Maestro delle Armature Medie", "Medium Armor Master", { prerequisite: "Competenza nelle armature medie",
     plugin: "La CA va scritta nella scheda; il resto si gestisce al tavolo." }),
@@ -130,7 +143,8 @@ const DEFINITIONS = [
   feat("phb", 170, "Sentinella", "Sentinel"),
   feat("phb", 170, "Sterminatore di Maghi", "Mage Slayer"),
   feat("phb", 170, "Tenace", "Durable", { abilities: ["con"] }),
-  feat("phb", 170, "Tiratore Scelto", "Sharpshooter"),
+  feat("phb", 170, "Tiratore Scelto", "Sharpshooter", {
+    plugin: "Nella console attacchi, a distanza: «−5/+10», −5 al tiro e +10 ai danni se colpisce. Gittata lunga e copertura restano al tavolo." }),
 
   // Guida Omnicomprensiva di Xanathar, capitolo 1, pp. 73–75: the racial feats.
   feat("xge", 74, "Agilità Tarchiata", "Squat Nimbleness", { prerequisite: "Nano o specie di taglia Piccola",
@@ -142,11 +156,15 @@ const DEFINITIONS = [
     abilities: ["int", "cha"] }),
   feat("xge", 74, "Fortuna Generosa", "Bountiful Luck", { prerequisite: "Halfling", species: HALFLINGS,
     plugin: "Si gestisce al tavolo: gli avvisi di reazione non vedono i tiri." }),
-  feat("xge", 74, "Furia Orchesca", "Orcish Fury", { prerequisite: "Mezzorco", species: ["mezzorco"], abilities: ["str", "con"] }),
+  feat("xge", 74, "Furia Orchesca", "Orcish Fury", { prerequisite: "Mezzorco", species: ["mezzorco"], abilities: ["str", "con"],
+    plugin: "Nella console attacchi, su un colpo con un'arma: un dado dell'arma in più, una volta per riposo breve o lungo. L'attacco con la reazione dopo Tenacia implacabile resta al tavolo.",
+    pool: { key: "dado", name: "Furia Orchesca", count: 1, rest: "breve" } }),
   feat("xge", 74, "Magia degli Elfi dei Boschi", "Wood Elf Magic", { prerequisite: "Elfo (dei boschi)", species: ["elfo"],
     speciesOptions: ["boschi"] }),
   feat("xge", 74, "Paura Draconica", "Dragon Fear", { prerequisite: "Dragonide", species: DRAGONBORN, abilities: ["str", "con", "cha"] }),
-  feat("xge", 75, "Pelle di Drago", "Dragon Hide", { prerequisite: "Dragonide", species: DRAGONBORN, abilities: ["str", "con", "cha"] }),
+  feat("xge", 75, "Pelle di Drago", "Dragon Hide", { prerequisite: "Dragonide", species: DRAGONBORN, abilities: ["str", "con", "cha"],
+    plugin: "Gli artigli si aggiungono agli Attacchi da questa card (1d4 + Forza, taglienti); la CA va scritta nella scheda.",
+    naturalWeapon: { label: "Artigli", dice: "1d4", type: "slashing", ability: "str" } }),
   feat("xge", 75, "Precisione Elfica", "Elven Accuracy", { prerequisite: "Elfo o mezzelfo", species: [...ELVES, ...HALF_ELVES],
     abilities: ["dex", "int", "wis", "cha"], plugin: "Si gestisce al tavolo, con i dadi." }),
   feat("xge", 75, "Prodigio", "Prodigy", { prerequisite: "Mezzelfo, mezzorco o umano", species: [...HALF_ELVES, "mezzorco", "umano"],
@@ -162,16 +180,29 @@ const DEFINITIONS = [
   feat("tce", 79, "Abilità Impeccabile", "Skill Expert", { abilities: ALL_ABILITIES, plugin: ON_SHEET }),
   feat("tce", 79, "Adepto di Metamagia", "Metamagic Adept", { prerequisite: "Lanciare Incantesimi o Magia del Patto" }),
   feat("tce", 79, "Adepto Occulto", "Eldritch Adept", { prerequisite: "Lanciare Incantesimi o Magia del Patto" }),
-  feat("tce", 79, "Bisturi da Battaglia", "Slasher", { abilities: ["str", "dex"] }),
+  feat("tce", 79, "Bisturi da Battaglia", "Slasher", { abilities: ["str", "dex"],
+    plugin: "Nella console attacchi, una volta per turno su un colpo tagliente: −3 m di velocità al bersaglio fino all'inizio del tuo prossimo turno; al critico, svantaggio ai suoi tiri per colpire.",
+    effect: { conditionName: "Bisturi da Battaglia", timing: UNTIL_NEXT_TURN, movement: { addMeters: -3 },
+      detail: "Velocità ridotta di 3 m fino all'inizio del prossimo turno di chi l'ha colpito." },
+    parts: [{ key: "critico", name: "Bisturi da Battaglia: critico",
+      description: "Su un critico con danni taglienti: svantaggio ai tiri per colpire del bersaglio fino all'inizio del tuo prossimo turno.",
+      effect: { conditionName: SLASHER_CRITICAL_CONDITION, timing: UNTIL_NEXT_TURN,
+        detail: "Svantaggio ai tiri per colpire fino all'inizio del prossimo turno di chi l'ha colpito." } }] }),
   feat("tce", 80, "Contaminazione Fatata", "Fey Touched", { abilities: ["int", "wis", "cha"] }),
   feat("tce", 80, "Contaminazione Ombrosa", "Shadow Touched", { abilities: ["int", "wis", "cha"] }),
   feat("tce", 80, "Cuoco", "Chef", { abilities: ["con", "wis"] }),
   feat("tce", 80, "Maestria dei Veleni", "Poisoner"),
-  feat("tce", 80, "Martello Vivente", "Crusher", { abilities: ["str", "con"] }),
+  feat("tce", 80, "Martello Vivente", "Crusher", { abilities: ["str", "con"],
+    plugin: "Nella console attacchi, una volta per turno su un colpo contundente: la nota «spostalo di 1,5 m»; al critico, gli attacchi contro il bersaglio hanno vantaggio fino all'inizio del tuo prossimo turno.",
+    parts: [{ key: "critico", name: "Martello Vivente: critico",
+      description: "Su un critico con danni contundenti: gli attacchi contro il bersaglio hanno vantaggio fino all'inizio del tuo prossimo turno.",
+      effect: { conditionName: CRUSHER_CRITICAL_CONDITION, timing: UNTIL_NEXT_TURN,
+        detail: "Gli attacchi contro hanno vantaggio fino all'inizio del prossimo turno di chi l'ha colpito." } }] }),
   feat("tce", 80, "Pistolero", "Gunner", { abilities: ["dex"], plugin: AT_TABLE }),
   feat("tce", 80, "Rudimenti da Artefice", "Artificer Initiate"),
   feat("tce", 81, "Rudimenti da Guerriero", "Fighting Initiate", { prerequisite: "Competenza in un'arma da guerra" }),
-  feat("tce", 81, "Stile Penetrante", "Piercer", { abilities: ["str", "dex"] }),
+  feat("tce", 81, "Stile Penetrante", "Piercer", { abilities: ["str", "dex"],
+    plugin: "Nella console attacchi: al critico con danni perforanti, un dado di danno in più; sui colpi perforanti il promemoria di ritirare un dado, una volta per turno." }),
   feat("tce", 81, "Telecinesi", "Telekinetic", { abilities: ["int", "wis", "cha"] }),
   feat("tce", 81, "Telepatia", "Telepathic", { abilities: ["int", "wis", "cha"] }),
 ];
@@ -208,6 +239,9 @@ export const FEATS = Object.freeze(DEFINITIONS.map((definition) => {
     pool: definition.pool ? Object.freeze({ ...definition.pool }) : null,
     srdEntryId: definition.srdEntryId,
     srdText: definition.srdText,
+    effect: definition.effect ? Object.freeze({ ...definition.effect }) : null,
+    parts: Object.freeze(definition.parts.map((part) => Object.freeze({ ...part, effect: part.effect ? Object.freeze({ ...part.effect }) : null }))),
+    naturalWeapon: definition.naturalWeapon ? Object.freeze({ ...definition.naturalWeapon }) : null,
   });
 }));
 const FEAT_BY_ID = new Map(FEATS.map((entry) => [entry.id, entry]));
@@ -221,20 +255,43 @@ export function featFeatureId(featId) {
   return `talento-${featId}`;
 }
 
-const pool = (id, name, capacity) => Object.freeze({
+const pool = (id, name, capacity, shortRest = false) => Object.freeze({
   id, name, capacity: Object.freeze({ type: "fixed", value: capacity }), maximumByClassLevel: null,
-  refresh: Object.freeze([Object.freeze({ event: "riposo_lungo", amount: "massimo" })]), refreshByClassLevel: Object.freeze([]),
+  refresh: Object.freeze((shortRest ? ["riposo_breve", "riposo_lungo"] : ["riposo_lungo"])
+    .map((event) => Object.freeze({ event, amount: "massimo" }))),
+  refreshByClassLevel: Object.freeze([]),
 });
 const featPoolId = (entry) => `${featFeatureId(entry.id)}-${entry.pool.key}-usi`;
 
 export const FEAT_RESOURCE_POOLS = Object.freeze(FEATS.filter((entry) => entry.pool)
-  .map((entry) => pool(featPoolId(entry), entry.pool.name, entry.pool.count)));
+  .map((entry) => pool(featPoolId(entry), entry.pool.name, entry.pool.count, entry.pool.rest === "breve")));
 
 const NOT_AUTOMATED = Object.freeze({ status: "not-automated", adapter: null, reason: "adapter-not-implemented" });
 // A use resolved at the table: the button only spends it (speciesTraitCore.js, RESOURCE_ONLY).
 const RESOURCE_ONLY = Object.freeze({ status: "implemented", adapter: "resource-only", reason: null });
+// A pill put on a creature (the attack console's activations), like Lance of Lethargy's.
+const CONDITION_ADAPTER = Object.freeze({ status: "implemented", adapter: "condition", reason: null });
 const SELF_TARGETING = Object.freeze({ mode: "self", rangeMeters: null, maxTargets: 1, excludeSource: false });
+const TARGET_TARGETING = Object.freeze({ mode: "single-target", rangeMeters: null, maxTargets: 1, excludeSource: true });
 export const FEAT_THEME = Object.freeze({ emoji: "🎖️", accent: "#facc15", background: "#422006", text: "#fefce8" });
+
+// The fields of a record by what it does: a pill on a target, a use spent by a button, or a reference card.
+function recordBehaviour({ effect, poolId }) {
+  if (effect) {
+    return {
+      automationLevel: "assistita", completenessStatus: "partial", runtimeSupport: CONDITION_ADAPTER,
+      activation: Object.freeze({ primary: "innesco" }), targetMode: "selection", targeting: TARGET_TARGETING,
+      effectPlan: Object.freeze({ kind: "condition", conditionName: effect.conditionName, effectKind: effect.kind || "debuff",
+        detail: effect.detail, ...(effect.movement ? { mechanics: Object.freeze({ movement: Object.freeze({ ...effect.movement }) }) } : {}) }),
+      duration: Object.freeze({ rounds: null, timing: effect.timing }), trackingMode: "active",
+    };
+  }
+  return {
+    automationLevel: poolId ? "manuale" : "riferimento", completenessStatus: poolId ? "partial" : "reference",
+    runtimeSupport: poolId ? RESOURCE_ONLY : NOT_AUTOMATED, activation: Object.freeze({ primary: poolId ? "innesco" : "passiva" }),
+    targetMode: "self", targeting: SELF_TARGETING, effectPlan: null, duration: Object.freeze({ rounds: null }), trackingMode: "instant",
+  };
+}
 
 function featRecord(entry) {
   const poolId = entry.pool ? featPoolId(entry) : "";
@@ -255,26 +312,46 @@ function featRecord(entry) {
     ...(entry.srdText ? { srdText: entry.srdText } : {}),
     collection: "talenti",
     defaultEnabled: true,
-    automationLevel: poolId ? "manuale" : "riferimento",
-    completenessStatus: poolId ? "partial" : "reference",
     runtimeRequirements: Object.freeze([]),
     missingForExecution: Object.freeze([]),
-    runtimeSupport: poolId ? RESOURCE_ONLY : NOT_AUTOMATED,
-    activation: Object.freeze({ primary: poolId ? "innesco" : "passiva" }),
+    ...recordBehaviour({ effect: entry.effect, poolId }),
     trackedResourcePoolIds: Object.freeze(poolId ? [poolId] : []),
-    targetMode: "self",
-    targeting: SELF_TARGETING,
     theme: FEAT_THEME,
-    effectPlan: null,
     breaksConcentration: false,
-    duration: Object.freeze({ rounds: null }),
-    trackingMode: "instant",
     resourceCosts: Object.freeze(poolId ? [Object.freeze({ poolId, amount: 1 })] : []),
+    ...(entry.naturalWeapon ? { naturalWeapon: entry.naturalWeapon } : {}),
   });
 }
 
-export const FEAT_FEATURES = Object.freeze(FEATS.map(featRecord));
-const FEATURES_BY_FEAT = new Map(FEAT_FEATURES.map((feature) => [feature.featId, [feature]]));
+// A second effect of a feat (Slasher's critical): a record of its own, with its pill and the line it shows as text; no
+// rules entry, the feat's card has it.
+function featPartRecord(entry, part) {
+  return Object.freeze({
+    id: `${featFeatureId(entry.id)}-${part.key}`,
+    name: part.name,
+    description: part.description,
+    classId: "",
+    subclassId: "",
+    featId: entry.id,
+    featPart: true,
+    minimumLevel: 1,
+    source: entry.source,
+    sourceLabel: entry.sourceLabel,
+    page: entry.page,
+    collection: "talenti",
+    defaultEnabled: true,
+    runtimeRequirements: Object.freeze([]),
+    missingForExecution: Object.freeze([]),
+    ...recordBehaviour({ effect: part.effect, poolId: "" }),
+    trackedResourcePoolIds: Object.freeze([]),
+    theme: FEAT_THEME,
+    breaksConcentration: false,
+    resourceCosts: Object.freeze([]),
+  });
+}
+
+export const FEAT_FEATURES = Object.freeze(FEATS.flatMap((entry) => [featRecord(entry), ...entry.parts.map((part) => featPartRecord(entry, part))]));
+const FEATURES_BY_FEAT = new Map(FEATS.map((entry) => [entry.id, FEAT_FEATURES.filter((feature) => feature.featId === entry.id)]));
 
 const FEAT_ID = /^[a-z0-9][a-z0-9-]{0,47}$/u;
 const CHOICE_KEY = /^[a-zA-Z][a-zA-Z0-9]{0,23}$/u;
@@ -362,7 +439,8 @@ function totalCharacterLevel(profile) {
 // The "Nel plugin" line of a feat's card, with the half feat's ability: Robusto's counted on the character's level.
 export function featPluginLine(feature, profile = null) {
   const definition = getFeat(feature?.featId);
-  if (!definition) return "";
+  // A second effect's card (Slasher's critical) shows its own line as its text: the feat's card has the plugin's.
+  if (!definition || feature?.featPart) return "";
   const level = totalCharacterLevel(profile);
   const line = definition.id === "robusto" && level
     ? `+${2 * level} PF massimi al ${level}° livello (2 per livello), da comprendere nei PF massimi della scheda: il plugin non li scrive.`

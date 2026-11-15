@@ -856,8 +856,9 @@ function activationOptionsFor(attack, { sourceItem, targetItem = null, turnState
     const reason = activationBlocker(activation, { attack, sourceItem, targetItem, turn, uses, turnState, riderIds,
       damageTypes: [...weaponTypes, ...damageTypes], resources, card, state, effect, outcome });
     // The die is rolled once: it damages the target (damage) and/or a second creature (secondary). Inspiring Smite's dice
-    // are a total of temporary hit points, never damage.
-    const deals = pcAttackActivationDealsDamage(activation, card) && !activation.tempHp;
+    // are a total of temporary hit points, never damage. An activation chosen before the roll deals its damage only if the
+    // attack hits (Great Weapon Master's +10): on a miss it keeps only its bonus to the roll.
+    const deals = pcAttackActivationDealsDamage(activation, card) && !activation.tempHp && !(activation.preRoll && outcome === "miss");
     const damage = deals && (!activation.secondary || activation.secondary.targetDamage);
     const dc = pcAttackActivationSaveDC(activation, card);
     const limit = pcAttackActivationLimit(activation);
@@ -888,13 +889,21 @@ function activationOptionsFor(attack, { sourceItem, targetItem = null, turnState
 
 // What the GM may do next because of this attack (shown after the commit, never applied by it).
 // Inspiring Smite (Oath of Glory) follows a Divine Smite: a Channel Divinity the GM activates separately.
-export function pcAttackFollowUps(card = {}, riders = [], activationIds = []) {
+// Lot F1 of docs/STUDIO_TALENTI.md, the feats' bonus attacks: Great Weapon Master after a critical or a creature dropped to
+// 0 HP with a melee weapon; Crossbow Expert after an attack with a weapon (one-handed: the table knows).
+export function pcAttackFollowUps(card = {}, riders = [], activationIds = [], { attack = null, outcome = "", targetDown = false } = {}) {
   const notes = riders.filter((rider) => rider.slotLevel)
     .map((rider) => `${rider.option?.label || rider.id}: slot di ${rider.slotLevel}° livello speso.`);
+  const enabled = getEnabledClassFeatureIds(card);
   if (riders.some((rider) => rider.id === "paladino-punizione-divina")
       && !activationIds.includes("paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice")
-      && getEnabledClassFeatureIds(card).has("paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice"))
+      && enabled.has("paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice"))
     notes.push("Punizione Ispiratrice: puoi usare Incanalare Divinità come azione bonus (capacità di classe del paladino).");
+  const weapon = !!attack && !attack.cantrip && !attack.spell && !attack.mode;
+  if (weapon && attack.range === "melee" && (outcome === "critical" || targetDown) && enabled.has("talento-maestro-d-armi-possenti"))
+    notes.push("Maestro d'Armi Possenti: nel tuo turno puoi fare un attacco in mischia con un'arma come azione bonus.");
+  if (weapon && enabled.has("talento-esperto-di-balestre"))
+    notes.push("Esperto di Balestre: se hai attaccato con un'arma a una mano, puoi attaccare con la balestra a mano come azione bonus.");
   return notes;
 }
 
@@ -1674,7 +1683,8 @@ export function buildPcAttackMutation({
   if (damageReactionRecords.length) causality.damageReactions = structuredClone(damageReactionRecords);
   return {
     change, damageComponents, causality,
-    followUps: [...pcAttackFollowUps(sourceMeta.initiativeCard, chosenRiders, activationPlan.chosen.map((activation) => activation.id)), ...activationPlan.notes],
+    followUps: [...pcAttackFollowUps(sourceMeta.initiativeCard, chosenRiders, activationPlan.chosen.map((activation) => activation.id),
+      { attack, outcome, targetDown: !!change && targetMeta.hp > 0 && change.afterHP === 0 }), ...activationPlan.notes],
     // Temporary hit points (Inspiring Smite): their own projections after the commit (no concentration warnings).
     tempHpChanges: activationPlan.tempHp.filter((row) => row.change.changed).map((row) => ({ item: row.item, change: row.change })),
     labelTargetIds: [...new Set([...pillTargetIds, ...(activationConditions.length ? [targetItem.id] : []),

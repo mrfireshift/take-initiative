@@ -177,6 +177,30 @@ export const PC_ATTACK_ACTIVATIONS = Object.freeze([
   // the critical's extra dice and not doubled again.
   Object.freeze({ id: "specie-mezzorco-attacchi-selvaggi", dice: Object.freeze({ weaponDie: true }), type: "weapon", noCriticalDouble: true,
     requires: Object.freeze({ range: "melee", critical: true }) }),
+  // Feats (featCatalog.js, lot F1 of docs/STUDIO_TALENTI.md): the sheet's feats enable their records.
+  // Great Weapon Master and Sharpshooter (decision D9): −5 to the roll, chosen before it, so also on a miss, and +10 to the
+  // damage if it hits. Whether the weapon is heavy, or the attack a ranged one with a weapon the attacker is proficient
+  // with, the table knows: the console does not read the weapons' properties.
+  Object.freeze({ id: "talento-maestro-d-armi-possenti", label: "Maestro d'Armi Possenti (−5/+10)", preRoll: true,
+    rollBonus: Object.freeze({ fixed: "-5" }), dice: Object.freeze({ fixed: "+10" }), type: "weapon", requires: Object.freeze({ range: "melee" }),
+    hint: "Solo con un'arma pesante in cui sei competente." }),
+  Object.freeze({ id: "talento-tiratore-scelto", label: "Tiratore Scelto (−5/+10)", preRoll: true,
+    rollBonus: Object.freeze({ fixed: "-5" }), dice: Object.freeze({ fixed: "+10" }), type: "weapon", requires: Object.freeze({ range: "ranged" }),
+    hint: "Solo con un'arma a distanza in cui sei competente." }),
+  // Piercer: on a critical with piercing damage, one more damage die, added to the critical's and not doubled again.
+  Object.freeze({ id: "talento-stile-penetrante", dice: Object.freeze({ weaponDie: true }), type: "weapon", noCriticalDouble: true,
+    requires: Object.freeze({ critical: true, damageType: "piercing" }) }),
+  // Orcish Fury: one more die of the weapon on a hit, its use back with a short or long rest (the feat's pool).
+  Object.freeze({ id: "talento-furia-orchesca", dice: Object.freeze({ weaponDie: true }), type: "weapon" }),
+  // Slasher and Crusher: once per turn on a hit of their type; the critical's part has no limit.
+  Object.freeze({ id: "talento-bisturi-da-battaglia", limit: ONCE_PER_TURN, requires: Object.freeze({ damageType: "slashing" }),
+    effect: Object.freeze({ pill: true }) }),
+  Object.freeze({ id: "talento-bisturi-da-battaglia-critico", requires: Object.freeze({ damageType: "slashing", critical: true }),
+    effect: Object.freeze({ pill: true }) }),
+  Object.freeze({ id: "talento-martello-vivente", limit: ONCE_PER_TURN, requires: Object.freeze({ damageType: "bludgeoning" }),
+    size: "al massimo una taglia più grande di te", effect: Object.freeze({ note: "Spostato di 1,5 m in uno spazio libero." }) }),
+  Object.freeze({ id: "talento-martello-vivente-critico", requires: Object.freeze({ damageType: "bludgeoning", critical: true }),
+    effect: Object.freeze({ pill: true }) }),
 ]);
 
 const ACTIVATION_BY_ID = new Map(PC_ATTACK_ACTIVATIONS.map((activation) => [activation.id, activation]));
@@ -285,11 +309,12 @@ export function pcAttackActivationEffect(activation, spec = activation?.effect) 
   return effect.note ? { kind: "note", label: effect.note } : null;
 }
 
-// What a pre-roll activation adds to the attack roll: "+1d10" (Precision Attack), "+10" (Guided Strike), or null.
+// What a pre-roll activation adds to the attack roll: "+1d10" (Precision Attack), "+10" (Guided Strike), "-5" (Great
+// Weapon Master), or null.
 export function pcAttackActivationRollBonus(activation, card = {}) {
   if (!activation?.rollBonus) return null;
   const value = pcAttackActivationDice(activation, card, activation.rollBonus);
-  return value ? (value.startsWith("+") ? value : `+${value}`) : null;
+  return value ? (/^[+-]/u.test(value) ? value : `+${value}`) : null;
 }
 
 // The save DC of this activation (8 + proficiency + the feature's ability; maneuvers: the better of Strength and

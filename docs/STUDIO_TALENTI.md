@@ -1,7 +1,8 @@
 # Studio: talenti
 
 Data: 15 novembre 2026. Stato: **studio, decisioni D1–D15 approvate
-dall'utente il 15/11** (§9); **F0 fatto il 15/11** (§7.1).
+dall'utente il 15/11** (§9); **F0 fatto il 15/11** (§7.1), **F1 il 16/11**
+(§7.2).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -831,6 +832,54 @@ scaricato `SRD_CC_v5.1_IT.pdf`, letto con il `pdftotext` di Xpdf.
 - La card di Lottatore mostra il testo del pacchetto del PHB se c'è, altrimenti
   quello dell'SRD (`srdText` nel catalogo). Un test controlla che sia parola per
   parola la voce del compendio.
+
+### 7.2 F1, fatto il 16/11
+
+**Nella console attacchi** (`pcAttackActivationCatalog.js`), come attivazioni
+delle voci dei talenti:
+
+- **Maestro d'Armi Possenti** in mischia e **Tiratore Scelto** a distanza:
+  «−5/+10» (D9). Il −5 si sceglie prima del tiro, quindi anche su un mancato;
+  il +10 è un componente del tipo dell'arma, solo se colpisce.
+- **Stile Penetrante**: al critico con danni perforanti, un dado dell'arma in
+  più, non raddoppiato, come Attacchi selvaggi.
+- **Furia Orchesca**: un dado dell'arma in più, con il suo uso che torna con il
+  riposo breve (`talento-furia-orchesca-dado-usi`).
+- **Bisturi da Battaglia**: una volta per turno su un colpo tagliente, la pill
+  «−3 m» sul bersaglio fino all'inizio del prossimo turno di chi attacca, letta
+  dal tracker movimento come quella di Lancia della Letargia. Al critico, la
+  pill dello svantaggio, da una seconda voce (`talento-bisturi-da-battaglia-critico`).
+- **Martello Vivente**: una volta per turno su un colpo contundente, la nota
+  «spostato di 1,5 m»; al critico, la pill «Martello Vivente» sul bersaglio.
+
+**I promemoria, senza clic** (`pcAttackTargetNotes`, `pcAttackFollowUps`):
+
+- prima del tiro:
+  - con la pill di Martello Vivente sul bersaglio, «vantaggio all'attacco»;
+  - con quella del critico di Bisturi sull'attaccante, «svantaggio»;
+  - in mischia, il ritiro di Aggressore Selvaggio;
+  - sui colpi perforanti, il ritiro di Stile Penetrante;
+- dopo il colpo:
+  - l'attacco bonus di Maestro d'Armi Possenti, dopo un critico in mischia o un
+    nemico portato a 0 PF;
+  - quello di Esperto di Balestre, dopo un attacco con un'arma.
+
+**Pelle di Drago**: gli artigli (1d4 + Forza, taglienti) si aggiungono agli
+Attacchi dalla card, come le armi naturali delle specie.
+
+**Correzioni della console nate da F1:**
+
+- `pcAttackActivationRollBonus` scriveva «+-5» per un bonus negativo;
+- un'attivazione scelta prima del tiro che fa anche danni non chiede il danno su
+  un mancato: lì conta solo il bonus al tiro.
+
+**Restano al tavolo:**
+
+- se l'arma è pesante, se il PG è competente;
+- se l'arma era a una mano, per Esperto di Balestre;
+- i dadi che si ritirano.
+
+I PF non cambiano strada: i danni passano dal comando dell'attacco di sempre.
 
 ---
 

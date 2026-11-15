@@ -24,6 +24,7 @@ import { NEXT_OWN_TURN_START_EXPIRY, READIED_ACTION_CONDITION, conditionInstance
 import { resolveSpeedCheckTurn } from "./speedCheckCore.js";
 import { MAX_TURN_DASHES, TURN_ACTIONS_STATE_KEY, consoleDashCount } from "./pcAttackTurnDashCore.js";
 import { DODGE_CONDITION, HELPED_CONDITION, HELP_TARGET_CONDITION, HIDDEN_CONDITION, consumedAdvantagePills, hiddenPills } from "./attackAdvantagePillsCore.js";
+import { CRUSHER_CRITICAL_CONDITION, FEATS_FIELD, SLASHER_CRITICAL_CONDITION, sanitizeFeats } from "./featCatalog.js";
 
 const META_KEY = `${ID}/meta`;
 
@@ -213,6 +214,25 @@ export function pcAttackTargetNotes({ attack = null, targetItem = null, sourceIt
     for (const pill of consumedAdvantagePills({ attackerItem: sourceItem, targetItem, items })) {
       notes.push(`${pill.name}: vantaggio all'attacco; registrato, la pill si toglie.`);
     }
+  }
+  notes.push(...featAttackNotes({ attack, targetItem, sourceItem }));
+  return notes;
+}
+
+// Lot F1 of docs/STUDIO_TALENTI.md: what the feats remind about an attack roll and its damage, never a roll of their own.
+// Crusher's critical gives advantage to the attacks against its target, Slasher's critical disadvantage to its target's
+// attacks; Savage Attacker and Piercer reroll dice once per turn, at the table.
+function featAttackNotes({ attack, targetItem, sourceItem }) {
+  const notes = [];
+  if (hasActiveCondition(targetItem, CRUSHER_CRITICAL_CONDITION)) notes.push("Martello Vivente: vantaggio all'attacco.");
+  if (sourceItem && hasActiveCondition(sourceItem, SLASHER_CRITICAL_CONDITION)) notes.push("Bisturi da Battaglia: svantaggio all'attacco.");
+  const feats = new Set(sanitizeFeats(sourceItem?.metadata?.[META_KEY]?.initiativeCard?.[FEATS_FIELD]).map((entry) => entry.id));
+  const weapon = !attack.cantrip && !attack.spell;
+  if (weapon && attack.range === "melee" && feats.has("aggressore-selvaggio")) {
+    notes.push("Aggressore Selvaggio: una volta per turno puoi ritirare i dadi dell'arma e tenere il totale che preferisci.");
+  }
+  if (weapon && (attack.components || []).some((component) => component?.type === "piercing") && feats.has("stile-penetrante")) {
+    notes.push("Stile Penetrante: una volta per turno puoi ritirare un dado di danno perforante.");
   }
   return notes;
 }

@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **171** |
+| **B. Console attacchi, mostri e capacità** | **177** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -57,6 +57,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B19. Statblock da testo nel pannello Importa | 4 |
 | B20. Incantesimo preparato: le perdite | 5 |
 | B21. Talenti: le fondamenta | 7 |
+| B23. Talenti nella console attacchi | 6 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -82,7 +83,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **534** |
+| **Totale** | **540** |
 
 ## A. Incantesimi
 
@@ -747,6 +748,17 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F0 (decisioni D2–D5, D8, 
 - [ ] **L'import:** in **Importa**, `{ "feats": ["Great Weapon Master", { "name": "Fey Touched", "ability": "cha" }, "Volo radente"] }` dà la sezione «Talenti» con «2 talenti: …» e «Volo radente» fra i non riconosciuti; **Applica al modulo** sostituisce i talenti della scheda.
 - [ ] **Cuoco e la stanza:** reimporta il pacchetto di Tasha dall'Enciclopedia (Pacchetti): Cuoco ha la sua voce e Contaminazione Ombrosa non contiene più il suo testo. Il PG con i talenti, portato in un'altra scena della stessa stanza, li ha ancora.
 - [ ] **Lottatore dall'SRD:** nell'Enciclopedia DM, Personaggio → **Talenti** ha l'introduzione e Lottatore, con il prerequisito in una riga sua. In un browser senza il pacchetto del PHB, la card di Lottatore nella scheda mostra lo stesso testo invece della nota del pacchetto mancante.
+
+### B23. Talenti nella console attacchi
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F1 (decisione D9). Le voci sono nuove: nessuna lista le aveva. Serve un PG con i talenti nella scheda (Modifica → Capacità → Talenti), una spada, un maglio, uno stocco e un arco negli Attacchi, e un nemico.
+
+- [ ] **−5/+10:** con Maestro d'Armi Possenti e la spada, la console offre «Maestro d'Armi Possenti (−5/+10)» con «-5 al tiro per colpire». Su **Mancato** resta in «Prima del tiro» e non chiede danni; su **Colpito** chiede il +10 e il totale sale di 10. Con l'arco offre Tiratore Scelto; Maestro d'Armi Possenti dice «Solo per gli attacchi in mischia».
+- [ ] **Dadi in più:** Stile Penetrante con lo stocco, su un **Critico**, aggiunge un d8 non raddoppiato. Furia Orchesca aggiunge un dado dell'arma e spende il suo uso; dopo dice «nessun uso rimasto», finché **Riposo breve** non lo rimette.
+- [ ] **Bisturi da Battaglia:** un colpo con la spada mette la pill «Bisturi da Battaglia» sul bersaglio, e il suo riquadro movimento perde 3 m; un secondo colpo nello stesso turno dice «Già usato in questo turno». Su un critico arriva anche la pill dello svantaggio: quando quel nemico attacca, la sua console ricorda «svantaggio all'attacco». Le pill finiscono all'inizio del turno successivo del PG. Da provare in vista compatta ed estesa.
+- [ ] **Martello Vivente:** un colpo con il maglio scrive «Spostato di 1,5 m in uno spazio libero»; su un critico la pill «Martello Vivente» va sul bersaglio, e chi lo attacca legge «Martello Vivente: vantaggio all'attacco».
+- [ ] **I promemoria:** con Aggressore Selvaggio, sotto il bersaglio di un attacco in mischia compare il ritiro dei dadi. Dopo un critico in mischia, o un nemico portato a 0 PF, Maestro d'Armi Possenti ricorda l'attacco bonus; con Esperto di Balestre, dopo un attacco con un'arma, compare l'attacco bonus con la balestra a mano.
+- [ ] **Pelle di Drago:** la card del talento ha **Aggiungi agli Attacchi**; gli Artigli, 1d4 + Forza taglienti, compaiono negli Attacchi.
 
 ## C. Tracker e UX
 
