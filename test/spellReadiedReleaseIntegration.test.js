@@ -230,6 +230,11 @@ test("Fireball readied, then released: its damage, the reaction, the hold gone i
   const entries = await history.getHistoryEntries();
   assert.equal(entries.length, before + 1, "one command");
   assert.equal(entries.at(-1).label, "Rilascio · Palla di fuoco");
+  // Lot T6e: the log tells the hold released, never vanished.
+  const { combatEventFromHistoryEntryV3 } = await import("../src/combatLogV3Core.js");
+  const { buildCombatLogPresentation } = await import("../src/combatLogPresentationCore.js");
+  const logLines = buildCombatLogPresentation(null, [combatEventFromHistoryEntryV3(entries.at(-1))]).events[0].details.flatMap((section) => section.lines);
+  assert.ok(logLines.some((line) => /Palla di fuoco \(azione preparata, rilasciata\)/u.test(line)), logLines.join(" | "));
 
   const undone = await history.undoHistoryThrough(entries.at(-1).id, { sceneEpoch: currentSceneEpoch() });
   assert.equal(normalizeHistoryUndoResult(undone).outcome, HISTORY_UNDO_OUTCOME.COMMITTED, JSON.stringify(undone));
@@ -273,6 +278,26 @@ test("Bless readied, then released: a concentration of its own, its duration fro
   assert.equal(record?.castContext?.readied, undefined);
   assert.deepEqual(meta("maga")[SPELLS_KEY].filter((entry) => entry.instanceId === holdId), []);
   assert.equal((await history.getHistoryEntries()).at(-1).label, "Rilascio: Benedizione");
+});
+
+// Lot T6e: brought to 0 HP, the caster loses the hold with its concentration (decision D4 of the bugfix pass); the log
+// says it vanished.
+test("Fireball readied, then the caster drops to 0 HP: the hold vanishes, the slot still spent; the log says so", async () => {
+  const { combatEventFromHistoryEntryV3 } = await import("../src/combatLogV3Core.js");
+  const { buildCombatLogPresentation } = await import("../src/combatLogPresentationCore.js");
+  await resetScene([token("maga", 30, { attitude: "enemy" }), token("goblin", 40, { attitude: "enemy" })]);
+  const holdId = await hold("fireball", 3);
+  const result = await clientEffects.runEffectsMutation([{ type: "hp:set", updates: [{ itemId: "maga", hp: 0, hpMax: 30,
+    hpIntent: { mode: "damage", amount: 30, eventId: "ko" } }] }], { kind: "hp", label: "Danni: Maga", targetIds: ["maga"],
+    history: { kind: "hp", label: "Danni: Maga" } });
+  assert.equal(result.status, "applied", JSON.stringify(result));
+  await converge();
+  assert.equal(meta("maga").hp, 0);
+  assert.deepEqual([(meta("maga")[SPELLS_KEY] || []).filter((entry) => entry.instanceId === holdId), meta("maga")[CONCENTRATION_KEY]], [[], {}]);
+  assert.equal(pills("maga").includes("Azione preparata"), false);
+  const entry = (await history.getHistoryEntries()).at(-1);
+  const lines = buildCombatLogPresentation(null, [combatEventFromHistoryEntryV3(entry)]).events[0].details.flatMap((section) => section.lines);
+  assert.ok(lines.some((line) => /Palla di fuoco \(azione preparata, svanita\)/u.test(line)), lines.join(" | "));
 });
 
 test("a hold that is gone releases nothing: the spell is not cast for free", async () => {

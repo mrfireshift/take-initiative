@@ -23,6 +23,18 @@ export function conditionInstancesNamed(conditions, name) {
     && String(instance.id || "").trim());
 }
 
+// A spell record or a concentration that holds a readied spell (lot T6e of docs/STUDIO_AZIONI_DI_TURNO.md, decision P4):
+// its name says so wherever the concentration is named (the save's warning, the card's C, the console, the panel, the
+// log). «azione preparata» whatever the spell's gender.
+export const READIED_HOLD_TAG = "azione preparata";
+export function isReadiedHoldEntry(entry) {
+  return entry?.castContext?.readied === true && String(entry?.castContext?.phase || "").trim() === "prepare";
+}
+export function readiedHoldName(name, entry) {
+  const text = String(name || "").trim();
+  return text && isReadiedHoldEntry(entry) ? `${text} (${READIED_HOLD_TAG})` : text;
+}
+
 // The spell a readied action holds (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md, decision P5): the record its pill
 // belongs to, held on the creature (castContext.readied, at its hold). null for a readied action holding no spell.
 export function readiedSpellHold(conditions, spells = []) {

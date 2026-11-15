@@ -50,6 +50,7 @@ import {
 import { planSpellCastCost, spellSlotChoices } from "./spellSlotSpendCore.js";
 import { planSpeciesSpellCost, speciesSpellCast } from "./speciesInnateSpellCore.js";
 import { planSpellReactionSpend } from "./spellReactionCore.js";
+import { readiedHoldName } from "./reactionTrackerCore.js";
 import { isCounterspell } from "./counterspellCore.js";
 import { COUNTERSPELL_RESULT_CHANNEL, openCounterspellPopover } from "./counterspellLauncher.js";
 import { createReactionPrompt, reactionPromptCandidates, reactionPromptEffectText } from "./reactionPromptView.js";
@@ -151,7 +152,9 @@ function concentrationSummary(concentrations = {}) {
     const targetIds = uniqueIds(info?.targets);
     return {
       key,
-      name: displayName,
+      // A readied spell's hold says so (lot T6e of docs/STUDIO_AZIONI_DI_TURNO.md): the confirmation that a new
+      // concentration ends it names it «Palla di fuoco (azione preparata)».
+      name: readiedHoldName(displayName, info),
       targetCount: targetIds.length,
     };
   });

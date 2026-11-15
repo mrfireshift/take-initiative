@@ -34,7 +34,7 @@ import { pcAttackFeatureForm, pcAttackFeatureRequest } from "./pcAttackFeatureFo
 import { getSpellCatalog, getSpellDefinition } from "./spells-srd.js";
 import { spellbookQuickActionId } from "./spellbookCore.js";
 import { spellCanBeReadied } from "./spellCastPhaseCore.js";
-import { hasReactionUsed, hasReadiedAction, isOffTurn, isReactionClassFeature } from "./reactionTrackerCore.js";
+import { hasReactionUsed, hasReadiedAction, isOffTurn, isReactionClassFeature, readiedHoldName } from "./reactionTrackerCore.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { WILD_MAGIC_SURGE_POPOVER_HEIGHT } from "./wildMagicSurgeCore.js";
 import { classFeatureDescription, classFeatureDescriptionsLoaded, classFeatureMissingText, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
@@ -1375,8 +1375,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   // The caster at a glance in the cantrips and spells tabs: the concentration in progress, only when there is one (the
   // slots left sit in the spells' level headers).
+  // A readied spell's hold says so (lot T6e of docs/STUDIO_AZIONI_DI_TURNO.md): «Raggio rovente (azione preparata)».
   const concentrationNames=()=>Object.entries(presentation?.item?.metadata?.[META_KEY]?.[`${ID}/concentration`] || {})
-    .map(([key,entry])=>String(entry?.name || entry?.spellId || key).trim()).filter(Boolean);
+    .map(([key,entry])=>readiedHoldName(String(entry?.name || entry?.spellId || key).trim(),entry)).filter(Boolean);
   function renderMonster() {
     const multiattack=sanitizeMonsterProfile(attackerCard()[MONSTER_PROFILE_FIELD])?.multiattack || "";
     if(multiattackLine) {
@@ -3028,7 +3029,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(result.reaction?.spent) reactionSpentBy=sourceId;
     setStatus([resultSummary(result),...(result.spell?[spellResultSummary(result.spell)]:[]),
       // A readied spell released (lot T6d): its hold ends with the attack, its slot spent at the hold.
-      ...(result.readiedRelease?[`${result.readiedRelease.name || "Incantesimo"} preparato rilasciato: la presa è finita.`]:[]),
+      ...(result.readiedRelease?[`Incantesimo preparato rilasciato: ${result.readiedRelease.name || "la presa"}.`]:[]),
       ...(result.reaction?.spent || result.reaction?.readied
       ?[result.reaction.readied?(result.reaction.spent?"Reazione segnata: azione preparata innescata.":"Azione preparata innescata."):"Reazione segnata."]:[]),
       ...(result.followUps || []),...(result.warnings || [])].join("\n"),"ok");

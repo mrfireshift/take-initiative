@@ -2464,7 +2464,9 @@ test("a readied Scorching Ray off its turn: the hold's slot, locked; the note sa
   const rays = sanitizeQuickAction({ id: "rays", label: "Incantesimi", kind: "attack", source: { kind: "spell", spellIds: ["scorching-ray"] } });
   const hold = { conditions: { version: 2, instances: [{ id: "pill-1", condition: "Azione preparata", parentEffectId: "hold-1", sourceId: "aria", active: true }] },
     "com.thebigpicture.initiative/spells": [{ instanceId: "hold-1", spellId: "scorching-ray", name: "Raggio rovente", casterId: "aria",
-      castContext: { readied: true, phase: "prepare", slotLevel: 3 } }] };
+      castContext: { readied: true, phase: "prepare", slotLevel: 3 } }],
+    "com.thebigpicture.initiative/concentration": { "raggio rovente": { name: "Raggio rovente", instanceId: "hold-1", spellId: "scorching-ray",
+      targets: ["aria"], castContext: { readied: true, phase: "prepare", slotLevel: 3 } } } };
   const asked = [];
   const confirm = (message) => { asked.push(message); return true; };
   const f = fixture({ actions: [rays], actionId: "rays", attacker: { ...noRollCaster, ...hold }, confirm,
@@ -2476,6 +2478,8 @@ test("a readied Scorching Ray off its turn: the hold's slot, locked; the note sa
     "Rilascio dell'incantesimo preparato: slot di 3° già speso alla preparazione; questo attacco chiude la presa");
   assert.match(f.$("pc-attack-cantrip-note").textContent, /Raggi: 4\./);
   assert.match(textOf(f.$("pc-attack-reaction")), /Usa la reazione \(azione preparata\)/);
+  // Lot T6e: the concentration in progress is the hold's, and says so.
+  assert.equal(textOf(f.$("pc-attack-caster")).trim(), "Concentrazione: Raggio rovente (azione preparata)");
   await f.select(["ghoul"]);
   await f.outcome("hit").click();
   await typeAmounts(f, ["7"]);

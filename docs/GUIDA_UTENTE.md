@@ -619,6 +619,19 @@ pannello.
 **Annulla azione preparata** dal menu della card fa svanire l'incantesimo senza
 effetto: la reazione resta, lo slot resta speso.
 
+**Quando svanisce.** La presa è una concentrazione vera, quindi finisce come
+ogni concentrazione, senza effetto e con lo slot ancora speso:
+
+- un TS di concentrazione fallito: l'avviso la nomina «Palla di fuoco (azione
+  preparata)»;
+- 0 PF, oppure Incapacitato o una condizione che lo include, come Stordito;
+- un altro incantesimo a concentrazione: la conferma la nomina;
+- l'inizio del prossimo turno del caster, anche il secondo turno di un
+  Paragon nello stesso round.
+
+La C della pill, la riga «Concentrazione» della console e il log dicono «(azione
+preparata)». Nel log, la presa che finisce è «svanita», oppure «rilasciata».
+
 Entrambe sono condizioni normali: compaiono come etichette sulla card e sulla
 mappa, si annullano dalla Cronologia e seguono le opzioni di visibilità degli
 effetti per i giocatori.

@@ -7,6 +7,7 @@ import {
 } from "./effectsMutations.js";
 import { spellPillCounter, spellExpiryDescription } from "./spellExpiryCore.js";
 import { spellColorFor } from "./spellColorCore.js";
+import { readiedHoldName } from "./reactionTrackerCore.js";
 
 const META_KEY = ID + "/meta";
 const SPELLS_META_KEY = ID + "/spells";
@@ -244,7 +245,8 @@ export function buildSpellChips(spells, options = {}) {
       const marker = document.createElement("span");
       marker.dataset.concentrationMarker = "1";
       marker.textContent = "C";
-      marker.title = `Concentrazione: ${displayName}`;
+      // A readied spell's hold (lot T6e of docs/STUDIO_AZIONI_DI_TURNO.md): «Palla di fuoco (azione preparata)».
+      marker.title = `Concentrazione: ${readiedHoldName(displayName, spell)}`;
       marker.setAttribute("aria-label", marker.title);
       Object.assign(marker.style, { display: "inline-flex", alignItems: "center", justifyContent: "center",
         flex: "0 0 auto", width: "12px", height: "12px", borderRadius: "50%",
@@ -279,7 +281,7 @@ export function buildSpellChips(spells, options = {}) {
       });
       chip.appendChild(hp);
     }
-    const spellChipTitle = displayName + " — " + (options.concentrationOnly ? "Concentrazione attiva" : spellExpiryDescription(spell));
+    const spellChipTitle = readiedHoldName(displayName, spell) + " — " + (options.concentrationOnly ? "Concentrazione attiva" : spellExpiryDescription(spell));
     chip.title = spellChipTitle;
     const color = spellColorFor(spell?.spellId || displayName);
     Object.assign(chip.style, {

@@ -1,4 +1,5 @@
 import { ID } from "./constants.js";
+import { readiedHoldName } from "./reactionTrackerCore.js";
 
 const META_KEY = `${ID}/meta`;
 export const CONCENTRATION_KEY = `${ID}/concentration`;
@@ -29,7 +30,8 @@ function concentrationDescriptors(value) {
     if (!reference) return null;
     return {
       reference,
-      name: text(data.name || key, "Concentrazione"),
+      // A readied spell held by the concentration: «Palla di fuoco (azione preparata)» (lot T6e).
+      name: readiedHoldName(text(data.name || key, "Concentrazione"), data),
     };
   }).filter(Boolean);
 }

@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **159** |
+| **B. Console attacchi, mostri e capacità** | **164** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -55,6 +55,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B17. Bonus al tiro delle armi dei PG | 3 |
 | B18. Incantesimo preparato: il rilascio nella console | 5 |
 | B19. Statblock da testo nel pannello Importa | 4 |
+| B20. Incantesimo preparato: le perdite | 5 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -80,7 +81,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **522** |
+| **Totale** | **527** |
 
 ## A. Incantesimi
 
@@ -707,7 +708,7 @@ Fonte: [STUDIO_GIOCO_ONLINE.md](STUDIO_GIOCO_ONLINE.md), lotti BA1 e BA2 (decisi
 Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T6d (decisione P6). Le voci sono nuove: nessuna lista le aveva. Serve un mago che prepari (B14), una alla volta, Raggio rovente con lo slot di 3° e poi Dardo di fuoco, in combattimento; il rilascio si fa nel turno di un'altra creatura.
 
 - [ ] **Da dove:** **Rilascia Raggio rovente** dal menu della card, e poi il ⚡ della pill, aprono la console attacchi fuori turno su Raggio rovente: lo slot è fermo a 3°, la nota dice «Rilascio dell'incantesimo preparato: slot di 3° già speso alla preparazione», «Usa la reazione (azione preparata)» è spuntata. Da provare in vista compatta ed estesa.
-- [ ] **Il primo raggio:** registrato, toglie pill e C della presa, segna la reazione e non scala nessuno slot; il risultato dice «slot già speso alla preparazione» e «Raggio rovente preparato rilasciato».
+- [ ] **Il primo raggio:** registrato, toglie pill e C della presa, segna la reazione e non scala nessuno slot; il risultato dice «slot già speso alla preparazione» e «Incantesimo preparato rilasciato: Raggio rovente».
 - [ ] **I raggi dopo:** gli altri tre raggi si registrano come oggi, senza slot; l'Annulla del primo raggio rimette la presa, la pill e la reazione.
 - [ ] **Un trucchetto mancato:** Dardo di fuoco preparato e rilasciato con un mancato chiude comunque la presa e segna la reazione.
 - [ ] **Dalla 🗡️ e nel proprio turno:** aperta dalla 🗡️ della card fuori turno, la console riconosce lo stesso il rilascio; nel turno del mago Dardo di fuoco si lancia come sempre e la presa resta.
@@ -720,6 +721,16 @@ Fonte: [STUDIO_IMPORT_STATBLOCK_TESTO.md](STUDIO_IMPORT_STATBLOCK_TESTO.md), lot
 - [ ] **Statblock originale:** Statistiche → **Statblock originale** mostra il mostro diviso in voci; in Capacità ci sono i tratti, le reazioni e le leggendarie; un mostro con Parry accende l'avviso di reazione.
 - [ ] **I rifiuti:** un testo in italiano, o uno delle regole 2024, dice perché non si legge e rimanda al JSON di 5eTools o al prompt per un assistente.
 - [ ] **Da PDF:** lo stesso mostro copiato da un PDF, con le righe spezzate, dà le stesse azioni di quello copiato da D&D Beyond.
+
+### B20. Incantesimo preparato: le perdite
+
+Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T6e (decisioni P4, P8). Le voci sono nuove: nessuna lista le aveva. Serve un PG incantatore con Palla di fuoco preparata (B14), in combattimento, e per l'ultima voce un nemico Paragon con due turni nel round.
+
+- [ ] **TS di concentrazione:** il PG con la presa subisce 14 danni: l'avviso del TS dice «Palla di fuoco (azione preparata)», CD 10. **Fallito** toglie pill, C e incantesimo; lo slot resta speso e il log dice «− Palla di fuoco (azione preparata, svanita)».
+- [ ] **0 PF e Incapacitato:** portato a 0 PF, oppure reso Stordito, il PG perde la presa nello stesso modo, con la stessa riga nel log.
+- [ ] **Un'altra concentrazione:** con la presa, lanciare Benedizione chiede la conferma che nomina «Palla di fuoco (azione preparata)»; confermato, la presa finisce e Benedizione resta.
+- [ ] **La C, la console e il rilascio:** passando sulla C della pill compare «Concentrazione: Palla di fuoco (azione preparata)»; la console attacchi del PG dice lo stesso nella riga «Concentrazione»; dopo un rilascio il log dice «(azione preparata, rilasciata)».
+- [ ] **Prossimo turno e Paragon:** se nessuno la rilascia, la presa sparisce all'inizio del prossimo turno del PG con «svanita» nel log. Un Paragon che prepara nel suo primo turno la perde all'inizio del suo secondo turno nello stesso round. Da provare in vista compatta ed estesa.
 
 ## C. Tracker e UX
 

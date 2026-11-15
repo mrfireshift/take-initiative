@@ -6,6 +6,7 @@ import { normalizeCombatLogEventV3 } from "./combatLogV3Core.js";
 import { DEATH_SAVE_DEAD_CONDITION, DEATH_SAVE_OUTCOME_LABELS, deathSaveTallyText } from "./deathSaveCore.js";
 import { damageTypeLabel } from "./damageDefensesCore.js";
 import { counterspellLogLines } from "./counterspellCore.js";
+import { isReadiedHoldEntry, readiedHoldName, READIED_HOLD_TAG } from "./reactionTrackerCore.js";
 import { wildMagicSurgeLogLines } from "./wildMagicSurgeCore.js";
 
 export const COMBAT_LOG_CATEGORY_ORDER = Object.freeze([
@@ -278,12 +279,28 @@ function collectionItemName(item, field) {
 
 function facetItemText(item, field) {
   const name = collectionItemName(item, field);
+  // A readied spell's hold (lot T6e of docs/STUDIO_AZIONI_DI_TURNO.md): «Palla di fuoco (azione preparata)».
+  if (field === "spells" || field === "concentrations") return readiedHoldName(name, item) || name;
   // Lot U3b: Morto says why when it came without the third failure (massive damage, a spell's death).
   const detail = stringValue(item?.effectDetail);
   return detail && name === DEATH_SAVE_DEAD_CONDITION ? `${name} (${detail})` : name;
 }
 
-function facetChangeLines(facet, field) {
+// A readied spell's release (lots T6c and T6d): the spell panel's «Rilascio» entries, the console's attack that released.
+function readiedReleaseEvent(event) {
+  return /^Rilascio\b/u.test(stringValue(event?.label)) || !!event?.payload?.causality?.readiedRelease;
+}
+
+// The hold of a readied spell that ends (lot T6e): released, or vanished without effect (a failed concentration save,
+// 0 HP, Incapacitated, another concentration, the start of the caster's next turn), its slot still spent.
+function removedFacetItemText(item, field, release = false) {
+  if ((field === "spells" || field === "concentrations") && isReadiedHoldEntry(item)) {
+    return `${collectionItemName(item, field)} (${READIED_HOLD_TAG}, ${release ? "rilasciata" : "svanita"})`;
+  }
+  return facetItemText(item, field);
+}
+
+function facetChangeLines(facet, field, { release = false } = {}) {
   const lines = [];
   const targets = Array.isArray(facet?.targets) ? facet.targets : [];
   for (const target of targets) {
@@ -292,7 +309,7 @@ function facetChangeLines(facet, field) {
       lines.push(`${prefix}: + ${facetItemText(item, field)}`);
     }
     for (const item of Array.isArray(target.removed) ? target.removed : []) {
-      lines.push(`${prefix}: − ${facetItemText(item, field)}`);
+      lines.push(`${prefix}: − ${removedFacetItemText(item, field, release)}`);
     }
     for (const item of Array.isArray(target.updated) ? target.updated : []) {
       const before = facetItemText(item.before, field);
@@ -967,7 +984,8 @@ function eventSummary(event, targets, outcomes) {
   const category = event.category;
   const hpLines = hpTargets(event).map((target) => hpTargetLine(target, event));
   const facetLines = [
-    ...["conditions", "spells", "concentrations"].flatMap((field) => facetChangeLines(event?.facets?.[field], field)),
+    ...["conditions", "spells", "concentrations"].flatMap((field) => facetChangeLines(event?.facets?.[field], field,
+      { release: readiedReleaseEvent(event) })),
     ...deathSaveLines(event, targets),
   ];
   // A Wild Magic Surge that wrote nothing (at the table, a spell cast from the panel): what it was.
@@ -1026,7 +1044,7 @@ function detailSections(event, targets, outcomes, turnName) {
     ["spells", "Incantesimi"],
     ["concentrations", "Concentrazione"],
   ]) {
-    const lines = facetChangeLines(event?.facets?.[field], field);
+    const lines = facetChangeLines(event?.facets?.[field], field, { release: readiedReleaseEvent(event) });
     if (lines.length) sections.push({ label, lines });
   }
   const deathLines = deathSaveLines(event, targets);

@@ -160,8 +160,10 @@ Prove in `PROVE_IN_STANZA.md`, sezione B15.
   concentrazione per id. Un solo Annulla rimette tutto.
 - **Più raggi:** Raggio rovente e Dardo incantato rilasciati continuano il
   lancio come oggi, senza slot; la reazione si spende al primo.
-- Nel risultato e nel log: «slot già speso alla preparazione» e «Raggio
-  rovente preparato rilasciato: la presa è finita.».
+- Nel risultato e nel log: «slot già speso alla preparazione» e «Incantesimo
+  preparato rilasciato: Raggio rovente.» (forma corretta in T6e, prima
+  «Raggio rovente preparato rilasciato», che sbagliava il genere con
+  Palla di fuoco).
 - **Correzione di T6b trovata al banco:** per il pannello gli incantesimi della
   console (Raggio rovente, Dardo di fuoco, Infliggi ferite…) sono «solo
   registrati». La loro preparazione passava per «Lancio registrato»: spendeva
@@ -169,6 +171,31 @@ Prove in `PROVE_IN_STANZA.md`, sezione B15.
   incantesimo.
 
 Prove in `PROVE_IN_STANZA.md`, sezione B18.
+
+**T6e fatto il 15/11:** le perdite.
+
+- **Le strade c'erano già** (P8), perché la presa è una concentrazione vera.
+  Il TS di concentrazione fallito la rompe per id. Con 0 PF (decisione D4 del
+  bugfix) e con Incapacitato o le condizioni che lo includono (Stordito,
+  Paralizzato…), l'automazione rompe ogni concentrazione. Un'altra
+  concentrazione la sostituisce, con la conferma di sempre. L'inizio del
+  prossimo turno del caster la fa scadere. Ora un test per ciascuna le tiene
+  ferme.
+- **Paragon:** il confine di ogni turno usa l'id base (`__conditionActorId`) e
+  la scadenza «prossimo turno» confronta la chiave del turno. Una presa fatta
+  nel primo turno del Paragon sparisce all'inizio del suo secondo turno
+  (`::p2`), mai in quello di un'altra creatura.
+- **I nomi (P4):** dove si nomina la concentrazione della presa compare
+  «Palla di fuoco (azione preparata)»: l'avviso del TS di concentrazione e la
+  sua riga nel log, la C della pill sulla card, la riga «Concentrazione» della
+  console, la conferma del pannello quando un nuovo lancio chiude la presa.
+  «Azione preparata» resta giusta qualunque sia il genere dell'incantesimo.
+- **Il log:** la presa che finisce scrive «Maga: − Palla di fuoco (azione
+  preparata, svanita)», oppure «rilasciata» negli eventi di rilascio (le voci
+  «Rilascio» del pannello e gli attacchi della console con il rilascio). Alla
+  preparazione scrive «+ Palla di fuoco (azione preparata)».
+
+Prove in `PROVE_IN_STANZA.md`, sezione B20.
 
 Scritti lo stesso giorno, con decisioni nuove in attesa:
 
