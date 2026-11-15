@@ -169,6 +169,29 @@ limite e il campo «Prova» per quelli sopra. Le note (incantesimi rimasti, ness
 effetto su un costrutto) tornano nel risultato come `notes` e compaiono nel
 messaggio del pannello.
 
+CAP-MAXHP (`src/maxHpModifierCore.js`, docs/PIANO_CAP_MAXHP.md) cambia i PF massimi con
+una pill. `meta.hpMax` resta l'unico massimo; la pill ricorda di quanto lo cambia in
+`mechanics.maxHp` (`amount`, `raisesCurrent`, `stack`, `restEnds`).
+
+- **Il motore** sta nel coordinatore (`planCommandMaxHpWrites` in `effectsMutations.js`).
+  Quando una di queste pill arriva o finisce in un comando, scrive massimo e PF nello
+  stesso comando, sopra quello che il comando scrive già. Nello stesso incantesimo vale la
+  pill più forte.
+  - Una scrittura che conosce già le pill del comando si marca `maxHpAware` e resta
+    com'è: il riposo che chiude Aiuto, la cura che chiude Ferire.
+  - Su creature senza PF tracciati, con PF condivisi o token degli incantesimi la pill
+    arriva come etichetta (`withMaxHpTargetsChecked`).
+- **La memoria dei PG** (`hpMemory`, `actorVitals`) tiene il massimo senza i bonus. Il
+  ripristino aggiunge quelli delle pill del token.
+- **Aiuto** prende l'importo dal suo slot nel lancio (`maxHpEffectForCast`).
+- **Ferire** sta in `hpBranchSpellRules.js`, tra gli incantesimi che decidono dopo il
+  danno. Il pavimento a 1 PF è `hpFloor` nella sua regola di lancio (`withSpellHpFloor`, nella
+  scrittura e nell'anteprima). La pill è una malattia (`mechanics.disease`), che
+  `isDiseaseInstance` riconosce.
+- **Ristorare superiore e Banchetto degli eroi** passano da CAP-CLEANSE: il primo con il
+  campo «Termina», il secondo con un campo «2d10» per bersaglio. Il Banchetto aggiunge la sua
+  pill con `addConditions`.
+
 Dardo incantato (`src/magicMissileCore.js`) si risolve nella console ad area
 senza TS e senza un danno unico: ogni bersaglio ha una colonna con una
 casella per dardo (il campo «darts» conserva i tiri, «-» per un dardo ancora da

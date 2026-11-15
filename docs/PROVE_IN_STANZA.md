@@ -16,7 +16,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 
 | Sezione | Voci |
 | --- | ---: |
-| **A. Incantesimi** | **144** |
+| **A. Incantesimi** | **156** |
 | A1. Il vetro e la lettura | 10 |
 | A2. Le punizioni | 6 |
 | A3. Gli attacchi degli incantesimi | 7 |
@@ -34,6 +34,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A15. PF temporanei (CAP-TEMP) | 6 |
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
+| A18. PF massimi (CAP-MAXHP) | 12 |
 | **B. Console attacchi, mostri e capacità** | **117** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
@@ -69,11 +70,11 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **468** |
+| **Totale** | **480** |
 
 ## A. Incantesimi
 
-Fonte: [PROVA_STANZA_INCANTESIMI.md](PROVA_STANZA_INCANTESIMI.md), che raccoglie P5 del [piano di polishing degli incantesimi](PIANO_POLISH_INCANTESIMI.md), le prove dell'[audit dei popup viola](AUDIT_UX_POPUP_VIOLA.md) e quelle del [piano di automazione](PIANO_AUTOMAZIONE_INCANTESIMI.md). Le sezioni da A1 ad A14 sono le sezioni 1–14 di quella lista; A15, A16 e A17 sono capacità che non avevano una lista.
+Fonte: [PROVA_STANZA_INCANTESIMI.md](PROVA_STANZA_INCANTESIMI.md), che raccoglie P5 del [piano di polishing degli incantesimi](PIANO_POLISH_INCANTESIMI.md), le prove dell'[audit dei popup viola](AUDIT_UX_POPUP_VIOLA.md) e quelle del [piano di automazione](PIANO_AUTOMAZIONE_INCANTESIMI.md). Le sezioni da A1 ad A14 sono le sezioni 1–14 di quella lista; A15, A16, A17 e A18 sono capacità che non avevano una lista.
 
 In scena servono:
 
@@ -340,6 +341,69 @@ Fonte: [PIANO_AUTOMAZIONE_INCANTESIMI.md](PIANO_AUTOMAZIONE_INCANTESIMI.md), «T
 - [ ] **Muro d'Acqua:** nella Forma, **Muro lineare** o **Muro circolare**; dentro il muro il terreno è difficile. (voce nuova: GUIDA_UTENTE.md, incantesimi che cambiano il terreno)
 - [ ] **Roccia in fango:** la zona costa ×4, chi fallisce è Trattenuto, e il promemoria compare quando una creatura entra o finisce il turno dentro. Al banco questi promemoria non girano. (voce nuova: GUIDA_UTENTE.md, Trasmutare Roccia; memoria cap-single-lots)
 - [ ] **Simbolo:** **Prepara incantesimo** spende lo slot e lascia solo la pill sul caster; **Attiva** nel ⚡ posa la sfera di 18 m dove sta il glifo, senza un altro slot, e la sfera chiede il TS a chi entra o finisce il turno dentro. (voce nuova: GUIDA_UTENTE.md, Simbolo)
+
+### A18. PF massimi (CAP-MAXHP)
+
+Fonte: [PIANO_CAP_MAXHP.md](PIANO_CAP_MAXHP.md), lotti X0–X5; [GUIDA_UTENTE.md](GUIDA_UTENTE.md), «PF massimi cambiati dagli incantesimi». Fatto il 13/11 e provato al banco con il pannello vero. Al banco mancano le due finestre, le scene diverse e le barre vere sulla mappa.
+
+- [ ] **Aiuto al 3° livello su tre PG:**
+  - massimo e PF +10 sulla card, sulle barre e sul numero sotto il token;
+  - il tooltip della pill comincia con «PF max +10»;
+  - un solo **Annulla** riporta tutto com'era.
+
+  (voce nuova: PIANO_CAP_MAXHP.md, X1)
+- [ ] **Aiuto, la ✕ su un bersaglio:**
+  - scende solo il suo massimo;
+  - gli altri tengono la pill;
+  - un PG ferito tiene i suoi PF, uno a PF pieni scende al massimo.
+
+  (voce nuova: PIANO_CAP_MAXHP.md, X1)
+- [ ] **Aiuto su un PG a 0 PF:** si rialza con 5 PF, senza Privo di sensi e con i TS contro la morte azzerati. (voce nuova: PIANO_CAP_MAXHP.md, X1)
+- [ ] **La memoria tra due scene:**
+  - un PG con Aiuto nella scena A ha il suo massimo normale nella scena B;
+  - tornato nella A ha di nuovo il bonus, con i PF della memoria;
+  - ricaricare la scena A non riscrive il token.
+
+  (voce nuova: PIANO_CAP_MAXHP.md, X0)
+- [ ] **Ferire dal pannello:**
+  - l'anteprima non scende sotto «1 PF»;
+  - se fallisce: pill «Ferire» con «PF max −N» e massimo ridotto del danno;
+  - se supera: metà del danno, nessuna pill.
+
+  (voce nuova: PIANO_CAP_MAXHP.md, X2)
+- [ ] **Ferire chiuso da una cura:**
+  - Ristorare inferiore («Una malattia») riporta il massimo e lascia i PF;
+  - Guarigione cura fino al massimo che torna.
+
+  (voce nuova: PIANO_CAP_MAXHP.md, X2 e M10)
+- [ ] **Ristorare superiore:**
+  - nella riga del bersaglio ci sono le sei scelte;
+  - «Un livello di indebolimento» abbassa anche la scheda;
+  - «Una riduzione dei PF massimi» toglie Ferire;
+  - una scelta senza effetto dà solo una nota.
+
+  (voce nuova: PIANO_CAP_MAXHP.md, X3)
+- [ ] **Banchetto degli eroi:**
+  - un 2d10 diverso per ogni bersaglio;
+  - toglie Avvelenato e Ferire;
+  - poi Avvelenato e Spaventato non si possono più aggiungere;
+  - i chip della pill: «PF max +N», «Imm. Veleno, Spaventato», «Vant. TS Sag».
+
+  (voce nuova: PIANO_CAP_MAXHP.md, X4)
+- [ ] **Riposo del gruppo:**
+  - il breve chiude Ferire;
+  - il lungo chiude Aiuto e Ferire e porta i PF al massimo che torna; il riepilogo dice «Aiuto finito»;
+  - il Banchetto resta;
+  - un solo **Annulla**.
+
+  (voce nuova: PIANO_CAP_MAXHP.md, X5)
+- [ ] **La finestra del tavolo:**
+  - i giocatori vedono il nuovo massimo sulle creature di cui vedono i PF esatti;
+  - le barre sulla mappa seguono il lancio e la fine della pill.
+
+  (voce nuova: PIANO_CAP_MAXHP.md, X1)
+- [ ] **PF condivisi o non tracciati:** su un boss con la forma collegata, o su un token senza PF, Aiuto arriva come etichetta, con la nota «il bonus va messo a mano», e i PF non cambiano. (voce nuova: PIANO_CAP_MAXHP.md, M9)
+- [ ] **PF dallo statblock su un mostro con Aiuto:** «Sostituisci» scrive i PF dello statblock più il bonus, a PF pieni. (voce nuova: PIANO_CAP_MAXHP.md, X1)
 
 ## B. Console attacchi, mostri e capacità
 

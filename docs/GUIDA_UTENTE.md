@@ -729,6 +729,32 @@ Alcuni li danno da soli:
 - **Flusso di Energia Negativa**: per un non morto premi **Non morto** al posto dell'esito del TS, e inserisci il tiro di 5d12: riceve metà del tiro come temporanei, senza danni. Il tipo di creatura lo indichi sempre tu. Chi viene ucciso riceve l'etichetta **Si rianima come zombi**, con il promemoria al prossimo turno di chi ha lanciato; il token dello zombi lo aggiungi tu.
 - **Capacità di classe**: Entità Simbiotica, Tomba di Levistus, Chiamata alla caccia e Totem spirituale (Orso) li danno all'attivazione. Entrando in Ira li danno anche Aura tempestosa (Tundra: alle creature selezionate sulla mappa entro 3 m, o al solo barbaro se non ne selezioni nessuna; nei turni dopo dalla Console effetti manuali) e Impeto selvaggio (Viti Oscure: a ogni Ira chiede il tiro di 1d12). Santuario del crepuscolo offre **Applica PF temporanei** nel promemoria di fine turno. Questi temporanei non scadono da soli con la capacità: se serve, togli i rimasti dalla card.
 
+### PF massimi cambiati dagli incantesimi
+
+Alcuni incantesimi alzano o abbassano i **PF massimi**. Non sono PF temporanei. Il bonus o la riduzione entra nel massimo della card, e la pill dell'incantesimo ricorda di quanto: il tooltip comincia con **PF max +N** o **PF max −N**.
+
+- **Quando la pill arriva**, massimo e PF cambiano insieme, nello stesso comando. Un solo **Annulla** li riporta indietro.
+- **Quando la pill finisce**, il massimo torna com'era, sia con la ✕ sia con una cura o un riposo. I PF scendono solo se sono sopra il nuovo massimo.
+- **Il massimo che scrivi a mano** è quello che vedi, bonus compreso. Togliendo la pill si toglie comunque il suo bonus. Se correggi il massimo a mano, quindi, non togliere il bonus due volte.
+- **La memoria del PG** tiene il personaggio senza questi effetti, come se finissero adesso. In un'altra scena il PG ha il suo massimo normale, perché il bonus vive dove vive la pill.
+- **Creature senza PF tracciati, con PF condivisi o token degli incantesimi**: la pill arriva come etichetta, senza bonus. Il suo testo dice di metterlo a mano.
+- **Nessuna di queste pill scade a round.** Si tolgono con la ✕ quando l'incantesimo finisce, oppure le chiude il **Riposo del gruppo**: quello breve chiude Ferire, quello lungo Ferire e Aiuto. Il riepilogo dice cosa ha chiuso.
+
+Gli incantesimi:
+
+- **Aiuto**: fino a 3 creature, +5 al massimo e ai PF, altri +5 per ogni slot sopra il 2°. Su una creatura a 0 PF la rialza.
+- **Ferire**: TS su Costituzione, 14d6 necrotici, metà se lo supera. Il danno non porta sotto 1 PF, e l'anteprima del pannello lo mostra. Se fallisce, il massimo scende del danno subito, ma non sotto 1. È una malattia: la tolgono Ristorare inferiore («Una malattia»), Guarigione, Guarigione di massa, Resurrezione pura, Banchetto degli eroi e il riposo del gruppo. Guarigione cura fino al massimo che torna.
+- **Banchetto degli eroi**: il caster e fino a 12 creature. Ognuna ha il suo **2d10** nella sua riga del pannello. Cura malattie e veleno, poi per 24 ore dà +tiro al massimo e ai PF, l'immunità ai danni da veleno, ad Avvelenato e a Spaventato, e il vantaggio ai TS di Saggezza. Il vantaggio è solo un'etichetta: lo tieni tu al tavolo. Il riposo non lo chiude.
+- **Ristorare superiore**: nella riga della creatura scegli cosa termina:
+  - un livello di indebolimento (la scheda lo segue);
+  - Affascinato;
+  - Pietrificato;
+  - una maledizione;
+  - la riduzione dei PF massimi più forte;
+  - una riduzione di caratteristica, che il plugin non tiene e quindi resta una nota.
+
+  Se la creatura non ha l'effetto scelto, ricevi solo una nota.
+
 ### TS contro la morte
 
 Un PG a 0 PF, né stabile né morto, riceve a inizio turno il promemoria **TS contro la morte**, con i successi e i fallimenti accumulati (●●○ / ✕○○). Il popup compare anche sullo schermo del tavolo, ma i pulsanti li ha solo il GM: dopo il tiro del d20 segna **Successo**, **Fallimento**, **1 naturale** (due fallimenti) o **20 naturale** (torna a 1 PF). Ogni tiro è una voce annullabile della Cronologia. Se il GM chiude la sua carta con la × senza registrare, si chiude anche quella sullo schermo del tavolo.

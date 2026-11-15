@@ -24,19 +24,19 @@ conferma.
 
 | Categoria | Incantesimi | Che cosa fa oggi il plugin |
 | --- | ---: | --- |
-| Automatizzati | 302 | Lancio e risoluzione assistiti: pannello, console ad area o console attacchi. |
+| Automatizzati | 306 | Lancio e risoluzione assistiti: pannello, console ad area o console attacchi. |
 | Tracciati, nessuna automazione utile | 110 | Pill con durata e concentrazione; informazioni, evocazioni e ambiente al tavolo. |
 | Solo registrazione, nessuna automazione utile | 35 | Istantanei di utilità: lo slot e il registro di combattimento. |
 | **Pronti: bastano i dati** | **0** | Si lanciano e registrano; l'automazione richiede soltanto dati e test. |
-| **Dopo una capacità condivisa** | **16** | Si lanciano e registrano; serve prima una capacità del motore. |
+| **Dopo una capacità condivisa** | **12** | Si lanciano e registrano; serve prima una capacità del motore. |
 | Su misura | 12 | Si lanciano e registrano; lo stato è troppo specifico per un'automazione generica. |
 | Da verificare | 2 | Testo o perimetro delle regole mancanti. |
 | **Totale** | **477** | **Tutti lanciabili dal libro, dalle azioni rapide e dal pannello, con il loro slot.** |
 
-Il lavoro di automazione residuo è di **20 incantesimi** (8 + 12) più i 2 da
+Il lavoro di automazione residuo è di **16 incantesimi** (4 + 12) più i 2 da
 verificare, contro i 152 di settembre: nel frattempo la console attacchi ha
 chiuso 17 trucchetti, Prigione Mentale è stata completata, i lotti L1–L4
-hanno chiuso altri 50 incantesimi, CAP-LINK altri 8, CAP-HP-BRANCH altri 5, CAP-CLEANSE altri 4, CAP-RESOURCE altri 5, CAP-REACTION altri 6, CAP-TEMP altri 5, CAP-STABILIZE altri 6, tre capacità singole altri 3, CAP-TERRAIN altri 4, CAP-MULTIAREA altri 2, CAP-TELEPORT altri 4, CAP-STRUCTURE altri 3, CAP-ORIGIN altri 4 e altre tre capacità singole (CAP-RELATION, CAP-ALLOCATION, CAP-CARRIAGE) altri 3.
+hanno chiuso altri 50 incantesimi, CAP-LINK altri 8, CAP-HP-BRANCH altri 5, CAP-CLEANSE altri 4, CAP-RESOURCE altri 5, CAP-REACTION altri 6, CAP-TEMP altri 5, CAP-STABILIZE altri 6, tre capacità singole altri 3, CAP-TERRAIN altri 4, CAP-MULTIAREA altri 2, CAP-TELEPORT altri 4, CAP-STRUCTURE altri 3, CAP-ORIGIN altri 4, altre tre capacità singole (CAP-RELATION, CAP-ALLOCATION, CAP-CARRIAGE) altri 3 e CAP-MAXHP altri 4.
 
 Ordine consigliato, dal più sicuro al più costoso:
 
@@ -307,7 +307,7 @@ Una capacità per volta, con i suoi test di contratto, poi la famiglia.
 | CAP-RESOURCE ✓ | 5 (5) | Contatore consumato: Bacche benefiche, Guardiano della fede, Immagine speculare, Cordone di frecce, Minuscole meteore, tutti fatti | Medio |
 | CAP-REACTION ✓ | 6 (6) | Reazione assistita al danno o all'attacco: Scudo di fuoco, Santuario, Interdizione primordiale, Ombra di Moil, Interdizione alla morte, Vincolo di interdizione, tutti fatti | Alto: HP |
 | CAP-TEMP ✓ | 5 (5) | PF temporanei consumati dal danno: Vita falsata, Eroismo, Armatura di Agathys, Trasformazione di Tenser, Flusso di energia negativa, tutti fatti | Alto: HP |
-| CAP-MAXHP | 4 (4) | PF massimi reversibili: Aiuto, Banchetto degli eroi, Ferire, Ristorare superiore | Alto: HP e barre |
+| CAP-MAXHP ✓ | 4 (4) | PF massimi reversibili: Aiuto, Banchetto degli eroi, Ferire, Ristorare superiore, tutti fatti (docs/PIANO_CAP_MAXHP.md) | Alto: HP e barre |
 | CAP-TERRAIN ✓ (4 di 6) | 6 (4) | Modalità di terreno: Crescita vegetale, Muro d'acqua, Trasmutare roccia, Simbolo, tutti fatti; Parlare con i vegetali è tra i tracciati e Boschetto druidico tra i su misura (decisione T6) | Medio |
 | CAP-STABILIZE ✓ | 6 (6) | Stabilizzare, riportare a 1 PF, penalità che scendono ai riposi: Salvare i morenti, Rinascita, Rianimare morti, Reincarnazione, Resurrezione, Resurrezione pura, tutti fatti | Alto: HP |
 | CAP-TELEPORT ✓ | 4 (4) | Teletrasporto attivo o composito: Passo del tuono, Passo remoto, Portale arcano, Colpo del Vento d'Acciaio (in console), tutti fatti | Alto |
@@ -586,8 +586,21 @@ meccanismi già presenti.
 
 Test: `test/castModeSpells.test.js` e `test/tempHpIntegration.test.js`.
 
-CAP-MAXHP ha uno studio consegnato il 3 novembre (lotti X1–X4, decisioni M1–M7) ma è
-ferma: il proprietario del progetto la giudica troppo rischiosa per ora.
+**CAP-MAXHP, fatta il 13 novembre** (docs/PIANO_CAP_MAXHP.md, lotti X0–X6, decisioni M0–M11).
+Lo studio del 3 novembre era stato fermato perché troppo rischioso. Il 13 novembre è stato
+ripreso, con i rischi verificati sul codice e una regola per la memoria dei PG.
+
+- **X0, memoria (M0):** la memoria tiene il PG senza gli effetti in corso; il ripristino
+  aggiunge il bonus delle pill di quel token (`maxHpModifierCore.js`, `hpMemory.js`,
+  `actorVitalsStore.js`).
+- **X1, motore:** nel coordinatore. Una pill con `mechanics.maxHp` che arriva o finisce scrive
+  massimo e PF nello stesso comando, sopra quello che il comando già scrive
+  (`planCommandMaxHpWrites`). Aiuto è la prima pill di questo tipo.
+- **X2–X4:** Ferire, Ristorare superiore e Banchetto degli eroi passano dalla corsia del
+  comando, come la pulizia (CAP-CLEANSE).
+- **X5, riposo:** il riposo del gruppo chiude le pill che la sua durata esaurisce (`restEnds`).
+
+Test: `test/maxHpModifier.test.js`, `test/maxHpMemory.test.js`, `test/maxHpIntegration.test.js`.
 
 **Tre capacità singole, fatte l'11 novembre.** Scelte dal proprietario del progetto tra
 le cinque rimaste: Calmare emozioni è stata studiata e poi tolta dal backlog, perché al
@@ -1054,18 +1067,14 @@ lotto. Gli incantesimi senza lavoro residuo sono elencati per livello.
 
 Nessuno: i lotti L1–L3 li hanno chiusi tutti il 22 ottobre.
 
-### Dopo una capacità condivisa (8)
+### Dopo una capacità condivisa (4)
 
 Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi la famiglia si completa con i dati.
 
 | Incantesimo | Liv. | Come automatizzarlo | Lotto |
 | --- | --- | --- | --- |
-| Aiuto (`aid`) | 2° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
 | Costrizione (`geas`) | 5° | CAP-CALENDAR: limiti per giorno o riposo. | L5+ |
 | Dissolvi il bene e il male (`dispel-evil-and-good`) | 5° | CAP-CLEANSE: scegliere un effetto attivo e terminarlo. | L5+ |
-| Ristorare superiore (`greater-restoration`) | 5° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
-| Banchetto degli eroi (`heroes-feast`) | 6° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
-| Ferire (`harm`) | 6° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
 | Tsunami (`phb2014-tsunami`) | 8° | CAP-SEQUENCE: effetto che cambia a ogni round. | L5+ |
 | Tempesta di vendetta (`storm-of-vengeance`) | 9° | CAP-SEQUENCE: effetto che cambia a ogni round. | L5+ |
 

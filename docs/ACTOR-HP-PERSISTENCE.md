@@ -112,6 +112,31 @@ leggere e normalizzare la cache locale, ma non esegue scritture ActorVitals.
 Il registro è quindi uno snapshot di continuità tra scene, non una seconda
 fonte usata per correggere ogni modifica locale.
 
+## PF massimi cambiati dalle pill (CAP-MAXHP)
+
+Regola M0 del 13/11/2026 (`docs/PIANO_CAP_MAXHP.md`): la memoria tiene il PG
+senza gli effetti in corso, come se finissero adesso. Vale sia per
+`actorVitals` sia per la vecchia `hpMemory`.
+
+Alcune pill alzano o abbassano il massimo e lo dicono in `mechanics.maxHp`
+(Aiuto, Banchetto degli eroi, la riduzione di Ferire). Il calcolo è in
+`src/maxHpModifierCore.js`:
+
+- **Salvataggio:** la memoria registra la base, cioè il massimo senza il
+  bonus delle pill del token (mai sotto 1), e i PF entro quella base.
+- **Ripristino:** il token riceve la base più il bonus delle **sue** pill, e
+  i PF entro quel massimo.
+- **Confronto della hydration:** confronta le basi. Così una ricarica della
+  scena non riscrive un token che ha Aiuto.
+
+Il bonus vive dove vive la pill: in una scena dove il token non ha la pill, il
+PG ha il massimo base.
+
+`syncHPBatchToMemory` legge i PF e le pill dal token dopo il comando, così
+valori e pill sono sempre dello stesso momento. I valori passati dai chiamanti
+restano solo per un token che non si legge. Senza pill che cambiano il massimo
+la memoria registra i valori di sempre.
+
 ## Salvataggio della scheda
 
 Una lettura normale della scheda non genera ID e non scrive metadata. Al
