@@ -398,6 +398,12 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
       className: "unified-target-row__copy",
       children: [
         createNode(documentRef, "strong", { text: target.label }),
+        // In Dodge, a Dexterity save has advantage: under the name, while the panel asks for the outcomes.
+        ...(target.saveNote && targets.outcomes.visible ? [createNode(documentRef, "small", {
+          className: "unified-target-row__note",
+          text: target.saveNote,
+          attributes: { title: "Schivata: vantaggio al TS su Destrezza." },
+        })] : []),
       ],
     }));
     // A defense's chip beside the name: on one line when both fit, below when they do not, so a long name is never cut.

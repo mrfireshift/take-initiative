@@ -4,7 +4,8 @@ import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { createPcAttackRuntime, pcAttackSmiteSlotPlans, pcAttackSpellSlotPlan } from "./pcAttackExecution.js";
 import { spellSlotStatus } from "./spellSlotCore.js";
 import { pcAttackAreaOutcomes, pcAttackTargetActionImmune, pcAttackTargetConditionImmune, pcAttackTargetEvasion, pcAttackTargetSaveBonus,
-  pcAttackFeetLabel, pcAttackMonsterFailureText, pcAttackSaveLabel as hitSaveLabel } from "./pcAttackCore.js";
+  pcAttackFeetLabel, pcAttackMonsterFailureText, pcAttackSave, pcAttackSaveLabel as hitSaveLabel } from "./pcAttackCore.js";
+import { DODGE_SAVE_NOTE, dodgeSaveAdvantage } from "./attackAdvantagePillsCore.js";
 import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint, pcAttackActivationOptions,
   pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction, pcAttackOutcomesFor, pcAttackSaveLabel, pcAttackDamageFactor,
   pcAttackCantripPillLabels, pcAttackWeaponCantripOptions, pcAttackActionWeaponCantripIds, pcAttackQuiveringPalm,
@@ -2503,14 +2504,14 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     defensesBox.replaceChildren();
     const view=areaPreview();
     const condition=attack?.monster?.onFail?.condition || "";
-    // The total says only the sum: each creature's row says what it takes; under it, what its defenses did, its Evasion and
-    // what it is immune to, only when there is something to say.
+    // The total says only the sum: each creature's row says what it takes; under it, its advantage on a Dexterity save in
+    // Dodge (lot T5), what its defenses did, its Evasion and what it is immune to, only when there is something to say.
     for(const item of presentation?.targets || []) {
       const row=areaList.querySelector(`[data-area-id="${item.id}"]`);
       if(!row) continue;
       const damage=pcAttackAreaRowDamage(view.rows.find(entry=>entry.id===item.id));
       row.querySelector('[data-area-field="amount"]').textContent=damage?.amount || "";
-      const notes=[...(pcAttackTargetEvasion(attack,item)?["Elusione"]:[]),
+      const notes=[...(dodgeSaveAdvantage(item,pcAttackSave(attack))?[DODGE_SAVE_NOTE]:[]),...(pcAttackTargetEvasion(attack,item)?["Elusione"]:[]),
         ...(condition && pcAttackTargetConditionImmune(item,condition)?[`immune a ${condition.toLowerCase()}`]:[]),
         ...(pcAttackTargetActionImmune(item,attack,sourceId)?[`immune a ${attack.label}`]:[]),...(damage?.reason?[damage.reason]:[])];
       const line=row.querySelector('[data-area-field="damage"]');

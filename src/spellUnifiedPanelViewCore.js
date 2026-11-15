@@ -21,6 +21,7 @@ import {
   spellPanelDamageTypes,
 } from "./spellDamageDefenseCore.js";
 import { evasionFactor, RESISTANCE_VULNERABILITY } from "./damageDefensesCore.js";
+import { DODGE_SAVE_NOTE } from "./attackAdvantagePillsCore.js";
 import { spellTargetMatchesFilters } from "./spellsPanelTargetPicker.js";
 import {
   spellTargetContextConditionMatches,
@@ -327,6 +328,7 @@ function normalizeTargetCandidates(
       ...(candidate?.magicMissileGuard ? { magicMissileGuard: clone(candidate.magicMissileGuard) } : {}),
       ...(candidate?.damageDefenses ? { damageDefenses: clone(candidate.damageDefenses) } : {}),
       ...(candidate?.evasion === true ? { evasion: true } : {}),
+      ...(candidate?.dodging === true ? { dodging: true } : {}),
       turbineSize: asText(candidate?.turbineSize) || null,
       layer: asText(candidate?.layer) || null,
       isCreature: candidate?.isCreature === true || asText(candidate?.layer) === "CHARACTER",
@@ -1331,6 +1333,8 @@ export function buildUnifiedPanelViewModel({
   const hpPreviewByKey = new Map(
     (hpPreview.targets || []).map((target) => [target.key, target]),
   );
+  // In Dodge, a Dexterity save has advantage (lot T5 of docs/STUDIO_AZIONI_DI_TURNO.md): said under the name, a reminder.
+  const dexSave = outcomeMode === "save" && asText(saveDescriptor?.ability).toLowerCase() === "dex";
   const candidates = filteredCandidates.map((candidate) => {
     const preview = hpPreviewByKey.get(candidate.key) || null;
     return {
@@ -1338,6 +1342,7 @@ export function buildUnifiedPanelViewModel({
       hpPreview: preview,
       defenseChips: candidateDefenseChips({ candidate, presentation, session, spellId: contract?.spell?.id, damageInputVisible,
         count: preview?.defenseCount }),
+      ...(dexSave && candidate.dodging === true ? { saveNote: DODGE_SAVE_NOTE } : {}),
     };
   });
   const eligiblePassengerIds = new Set(

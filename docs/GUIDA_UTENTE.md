@@ -577,8 +577,11 @@ solo nel turno della creatura, in combattimento.
 - **Schivata**: la pill «Schivata» fino all'inizio del prossimo turno della
   creatura, la stessa di Difesa Paziente. Chi la attacca dalla console legge sotto
   il bersaglio «svantaggio all'attacco, se il bersaglio vede chi attacca»; un TS
-  su Destrezza, «vantaggio». Se la creatura diventa incapacitata o resta senza
-  velocità, la pill si toglie a mano.
+  su Destrezza, «vantaggio». Nei pannelli che chiedono un TS su Destrezza a più
+  creature la sua riga dice **vant. (Schivata)**: le aree e le azioni dei mostri
+  della console, la Console Boss, il pannello incantesimi e i promemoria degli
+  incantesimi attivi. È un promemoria: i dadi restano del tavolo. Se la creatura
+  diventa incapacitata o resta senza velocità, la pill si toglie a mano.
 - **Aiuto**: sopra la scheda scegli **Aiuta in** («Una prova» o «Un attacco») e la
   creatura. All'inizio è quella selezionata sulla mappa, e il modo segue la sua
   fazione: un alleato, una prova; un nemico, un attacco. Quando scegli tu, la

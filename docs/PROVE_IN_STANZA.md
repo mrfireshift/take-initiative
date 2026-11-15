@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **132** |
+| **B. Console attacchi, mostri e capacità** | **135** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -48,6 +48,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B10. Azioni di turno nella console | 5 |
 | B11. Aiuto, Nascondersi e il vantaggio che si consuma | 6 |
 | B12. Preparare e Innesca | 4 |
+| B13. La Schivata nei tiri salvezza | 3 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -73,7 +74,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **495** |
+| **Totale** | **498** |
 
 ## A. Incantesimi
 
@@ -651,6 +652,14 @@ Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T3 (decisio
 - [ ] **Innesca con un attacco:** nel turno del goblin, menu della card del PG → **Innesca con un attacco**: si apre la console sul PG, fuori turno, con **Usa la reazione (azione preparata)** già spuntata. Registrato l'attacco al goblin, nello stesso passo il PG ha «Reazione usata» e non ha più «Azione preparata»; la console scrive «Reazione segnata: azione preparata innescata.». **Annulla** rimette l'azione preparata e libera la reazione. Da provare in vista compatta ed estesa.
 - [ ] **Innesca senza attacco:** con l'azione preparata attiva, **Innesca senza attacco** toglie la pill e segna la reazione, come prima. Una creatura che la console non mostra (senza attacchi né incantesimi) ha la sola voce **Innesca azione preparata**.
 - [ ] **Attacco di opportunità:** il PG con l'azione preparata fa un attacco di opportunità dalla console, con la reazione: l'azione preparata sparisce con lui. Togliendo la spunta della reazione resta.
+
+### B13. La Schivata nei tiri salvezza
+
+Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T5 (decisione D5). Le voci sono nuove: nessuna lista le aveva. Serve un PG in Schivata (Azioni → Schivata, o Difesa Paziente) e un goblin.
+
+- [ ] **Pannello incantesimi:** una Palla di fuoco che prende il PG: sotto il suo nome «vant. (Schivata)», con la regola nel suggerimento. Con un'Onda tonante (TS su Costituzione) niente. Da provare in vista compatta ed estesa.
+- [ ] **Console attacchi e Console Boss:** un'azione di mostro ad area con TS su Destrezza (un soffio a cono) mette «vant. (Schivata)» nella riga sotto il PG, prima di «Elusione» se ce l'ha; nella Console Boss, un'azione con TS su Destrezza mostra l'etichetta «vant. (Schivata)» sulla riga del PG.
+- [ ] **Promemoria degli incantesimi attivi:** il TS su Destrezza di una zona attiva (Nube incendiaria, quando il PG ci entra o ci finisce il turno) scrive «· vantaggio (Schivata)» accanto al nome del PG in Schivata.
 
 ## C. Tracker e UX
 

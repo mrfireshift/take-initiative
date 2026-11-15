@@ -727,6 +727,23 @@ test("an area: on each creature's row what it takes, under it what its defenses 
   assert.deepEqual([line("ghoul").hidden, amount("ghoul")], [true, ""], "out of the area, nothing to say");
 });
 
+// Lot T5 of docs/STUDIO_AZIONI_DI_TURNO.md: a creature in Dodge saves on Dexterity with advantage, said before the save.
+test("an area's row: a creature in Dodge, «vant. (Schivata)» under it for a Dexterity save, before its Evasion; not for another save", async () => {
+  const monster = { initiativeCard: { monster: { source: "manual" } } };
+  const dodging = { conditions: { version: 2, instances: [{ id: "dodge-1", condition: "Schivata", sourceId: "ghoul", active: true }] } };
+  const breath = sanitizeQuickAction({ id: "breath", label: "Soffio di fuoco", kind: "attack", range: "ranged", components: [{ id: "c1", type: "fire", formula: "18d6" }], save: "dex", saveDC: 21, saveHalf: true, area: { shape: "cone", sizeFeet: 60 } });
+  const f = fixture({ action: breath, attacker: monster, turnState: ownTurn,
+    metas: { ghoul: { ...dodging, initiativeCard: { monster: { source: "manual", evasion: true } } }, imp: dodging } });
+  await f.controller.ready; await tick();
+  const line = (id) => areaField(areaRow(f, id), "damage");
+  assert.deepEqual([line("ghoul").hidden, line("ghoul").textContent], [false, "vant. (Schivata) · Elusione"]);
+  assert.deepEqual([line("imp").hidden, line("imp").textContent], [false, "vant. (Schivata)"]);
+  const presence = sanitizeQuickAction({ id: "presence", label: "Presenza terrificante", kind: "attack", components: [], save: "wis", saveDC: 19, area: { shape: "sphere", sizeFeet: 120 }, onFail: { condition: "Spaventato" } });
+  const g = fixture({ action: presence, attacker: monster, turnState: ownTurn, metas: { imp: dodging } });
+  await g.controller.ready; await tick();
+  assert.equal(areaField(areaRow(g, "imp"), "damage").hidden, true, "a Wisdom save: nothing to say");
+});
+
 test("an area's row: the bonus to the save in its column; its Evasion and what it is immune to under it; no title over nothing", async () => {
   const monster = { initiativeCard: { monster: { source: "manual" } } };
   const breath = sanitizeQuickAction({ id: "breath", label: "Soffio di fuoco", kind: "attack", range: "ranged", components: [{ id: "c1", type: "fire", formula: "18d6" }], save: "dex", saveDC: 21, saveHalf: true, area: { shape: "cone", sizeFeet: 60 } });

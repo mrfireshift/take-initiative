@@ -33,6 +33,7 @@ import { reactionTriggerEntry } from "./reactionTriggerCatalog.js";
 import { damageReactionAppliesTo, isDamageRollReaction } from "./damageReactionCore.js";
 import { loadMonsterReactions, loadReactionSceneGrid } from "./reactionSceneContext.js";
 import { hasReactionUsed } from "./reactionTrackerCore.js";
+import { DODGE_SAVE_NOTE, dodgeSaveAdvantage, isDodging } from "./attackAdvantagePillsCore.js";
 import { perfBootPage } from "./perfProbe.js";
 
 perfBootPage(OBR);
@@ -1700,6 +1701,12 @@ export function bootBossActions(documentRef=document, overrides={}) {
         const badge=node("small","Immune","immune-badge");badge.title=`Già immune a ${draft.action.execution.onPassed.immunity.condition} di ${draft.action.name}: subisce i danni, non la condizione.`;
         chips.appendChild(badge);
       }
+      // In Dodge, a Dexterity save has advantage (lot T5 of docs/STUDIO_AZIONI_DI_TURNO.md): a reminder, the dice stay the table's.
+      if(item && dodgeSaveAdvantage(item,draft.action.execution.save?.ability)) {
+        if(!chips){chips=node("span","","defense-chips");chips.dataset.defensesFor=id;}
+        const badge=node("small",DODGE_SAVE_NOTE,"save-advantage-badge");badge.title="Schivata: vantaggio al TS su Destrezza.";
+        chips.appendChild(badge);
+      }
       row.appendChild(name);
       if(chips)row.appendChild(chips);
       const damageCell=node("span","","group-damage");
@@ -2196,6 +2203,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
         // Its temporary hit points and their source (Armor of Agathys' retaliation, CAP-TEMP).
         item.metadata?.[META_KEY]?.tempHp ?? null,item.metadata?.[META_KEY]?.tempHpSource ?? null,
         damageDefensesForItem(item,META_KEY),immunityKeys(item),hasReactionUsed(item.metadata?.[META_KEY]?.conditions),
+        // In Dodge: the advantage on a Dexterity save, on its row (lot T5).
+        isDodging(item),
         (Array.isArray(item.metadata?.[META_KEY]?.[ID+"/spells"])?item.metadata[META_KEY][ID+"/spells"]:[])
           .map(spell=>[spell?.spellId || "",spell?.castContext?.uses?.remaining ?? null])]),bossGrappledIds(items,sourceId)]);
   }

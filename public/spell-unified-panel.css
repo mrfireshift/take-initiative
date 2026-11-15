@@ -778,6 +778,15 @@ select:disabled {
   white-space: nowrap;
 }
 
+/* A reminder under the name: the advantage on a Dexterity save of a creature in Dodge. */
+.unified-target-row__note {
+  overflow: hidden;
+  color: var(--unified-muted);
+  font-size: var(--obrt-type-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .unified-target-row__hp-change {
   color: var(--unified-text);
   font-size: var(--obrt-type-caption);

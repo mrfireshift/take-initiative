@@ -5,6 +5,8 @@
 //   attack console now removes them in the attack's own command;
 // - Hidden («Nascosto», the Hide action): advantage to the hidden creature's attack roll, disadvantage to an attack roll
 //   against it from whoever cannot see it; it ends when the hidden creature attacks.
+// - Dodge («Schivata», the Dodge action and Patient Defense): advantage on Dexterity saves, said on the creature's row
+//   of every panel that asks for a save (lot T5).
 // Not Versatile Trickster: its advantage lasts the whole turn. Pure: no SDK, DOM or runtime state.
 import { ID } from "./constants.js";
 
@@ -14,6 +16,10 @@ const SPELLS_FIELD = `${ID}/spells`;
 export const HELP_TARGET_CONDITION = "Bersaglio dell'aiuto";
 export const HELPED_CONDITION = "Aiutato";
 export const HIDDEN_CONDITION = "Nascosto";
+// The name Patient Defense's pill has too: a Dodge from either is the same pill.
+export const DODGE_CONDITION = "Schivata";
+// What a save panel says on the row of a creature in Dodge, for a Dexterity save.
+export const DODGE_SAVE_NOTE = "vant. (Schivata)";
 // Who spends the pill with an attack roll against its bearer: "ally" (a creature on the side of the pill's source, the
 // source excluded), "other" (anyone but the source), "any".
 // name: what the console calls it in its reminder.
@@ -69,4 +75,12 @@ export function consumedAdvantagePills({ attackerItem, targetItem, items = [] } 
 // A creature's Hidden pills.
 export function hiddenPills(item) {
   return activeInstances(item).filter((instance) => instance.condition === HIDDEN_CONDITION);
+}
+
+// A creature in Dodge, and whether that gives it advantage on this save (an ability: "dex", "con"…).
+export function isDodging(item) {
+  return activeInstances(item).some((instance) => instance.condition === DODGE_CONDITION);
+}
+export function dodgeSaveAdvantage(item, ability) {
+  return String(ability || "").trim().toLowerCase() === "dex" && isDodging(item);
 }

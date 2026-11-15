@@ -23,7 +23,7 @@ import { PC_ATTACK_HISTORY_KIND, PC_ATTACK_STATE_FIELD, PC_ATTACK_STATE_VERSION,
 import { NEXT_OWN_TURN_START_EXPIRY, READIED_ACTION_CONDITION, conditionInstancesNamed, initiativeTurnCreatureId } from "./reactionTrackerCore.js";
 import { resolveSpeedCheckTurn } from "./speedCheckCore.js";
 import { MAX_TURN_DASHES, TURN_ACTIONS_STATE_KEY, consoleDashCount } from "./pcAttackTurnDashCore.js";
-import { HELPED_CONDITION, HELP_TARGET_CONDITION, HIDDEN_CONDITION, consumedAdvantagePills, hiddenPills } from "./attackAdvantagePillsCore.js";
+import { DODGE_CONDITION, HELPED_CONDITION, HELP_TARGET_CONDITION, HIDDEN_CONDITION, consumedAdvantagePills, hiddenPills } from "./attackAdvantagePillsCore.js";
 
 const META_KEY = `${ID}/meta`;
 
@@ -32,9 +32,9 @@ export const PC_TURN_ACTION_KEY_PREFIX = "turn-action::";
 const LABELS = Object.freeze({ dash: "Scatto", disengage: "Disimpegno", dodge: "Schivata", help: "Aiuto", hide: "Nascondersi",
   ready: "Preparare" });
 export const DISENGAGE_CONDITION = "Disimpegno";
-// The name Patient Defense's pill has: a Dodge from either is the same pill.
-export const DODGE_CONDITION = "Schivata";
-export { HELPED_CONDITION, HELP_TARGET_CONDITION, HIDDEN_CONDITION };
+// The name Patient Defense's pill has: a Dodge from either is the same pill (attackAdvantagePillsCore.js, which the save
+// panels read too).
+export { DODGE_CONDITION, HELPED_CONDITION, HELP_TARGET_CONDITION, HIDDEN_CONDITION };
 // Help: an ally's ability check, or an attack against an enemy (the console's «Aiuta in» buttons).
 export const PC_HELP_MODES = Object.freeze(["check", "attack"]);
 export const PC_HELP_MODE_LABELS = Object.freeze({ check: "Una prova", attack: "Un attacco" });

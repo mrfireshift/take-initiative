@@ -52,6 +52,19 @@ era quella che aspettava. La reazione spesa per altre vie (un incantesimo a
 reazione, il clic sull'icona della card) per ora non la toglie. Prove in
 `PROVE_IN_STANZA.md`, sezione B12.
 
+**T5 fatto il 15/11:** una creatura in Schivata ha «vant. (Schivata)» sulla sua
+riga in ogni pannello che chiede un TS su Destrezza:
+
+- la console attacchi, per le aree e le azioni dei mostri, sotto la riga, prima
+  di «Elusione»;
+- la Console Boss, come etichetta accanto alle difese;
+- il pannello incantesimi, sotto il nome;
+- i promemoria degli incantesimi attivi, accanto al nome, come il vantaggio di
+  chi ha scoperto il drago illusorio.
+
+La regola sta in `attackAdvantagePillsCore.js` (`dodgeSaveAdvantage`). Prove in
+`PROVE_IN_STANZA.md`, sezione B13.
+
 Scritti lo stesso giorno, con decisioni nuove in attesa:
 
 - §9, l'incantesimo preparato: decisioni **P1–P12** (§9.8);

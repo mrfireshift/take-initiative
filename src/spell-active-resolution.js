@@ -66,6 +66,7 @@ import {
   spellStructureSegmentMiddle,
 } from "./spellStructureCore.js";
 import { DAMAGE_TYPES, evasionForItem } from "./damageDefensesCore.js";
+import { dodgeSaveAdvantage } from "./attackAdvantagePillsCore.js";
 import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 import { wallOfLightTargetWithinRange } from "./wallOfLightActiveCore.js";
 import {
@@ -1437,8 +1438,11 @@ function renderSave() {
     const name = document.createElement("span");
     name.className = "target-name";
     const advantage = !!advantageEffectId && itemHasLinkedSaveEffect(item, advantageEffectId);
-    name.textContent = advantage ? `${displayName(item)} · vantaggio` : displayName(item);
-    name.title = advantage ? `${displayName(item)}: vantaggio al TS, ha scoperto l'illusione` : displayName(item);
+    // In Dodge, a Dexterity save has advantage (lot T5 of docs/STUDIO_AZIONI_DI_TURNO.md): said in its row too.
+    const dodging = !advantage && dodgeSaveAdvantage(item, saveAbility || child?.save?.ability || payload?.action?.save?.ability);
+    name.textContent = advantage ? `${displayName(item)} · vantaggio` : dodging ? `${displayName(item)} · vantaggio (Schivata)` : displayName(item);
+    name.title = advantage ? `${displayName(item)}: vantaggio al TS, ha scoperto l'illusione`
+      : dodging ? `${displayName(item)}: vantaggio al TS su Destrezza, è in Schivata` : displayName(item);
     const outcomeLabels = { passed: "Superato", failed: "Fallito", immune: "Immune" };
     row.appendChild(name);
     const hp = document.createElement("span");

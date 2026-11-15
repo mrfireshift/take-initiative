@@ -932,6 +932,32 @@ test("Meteor Swarm: draw four spaced points, within 10 ft from the drawn centres
   f.controller.destroy();
 });
 
+// Lot T5 of docs/STUDIO_AZIONI_DI_TURNO.md: a creature in Dodge saves on Dexterity with advantage, said on its row.
+test("a creature in Dodge: «vant. (Schivata)» on its row for Meteor Swarm's Dexterity save, not for the Breath's Constitution one",async()=>{
+  const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
+  f.items.find(item=>item.id==="dars").metadata[META].conditions={version:2,instances:[{id:"dodge-1",condition:"Schivata",sourceId:"dars",active:true}]};
+  f.api.scene.grid={getDpi:async()=>150,getScale:async()=>({parsed:{multiplier:5,unit:"ft"}})};
+  const positions={dars:{x:150,y:0},mira:{x:1200,y:0}};
+  f.api.scene.items.getItemBounds=async([id])=>({min:{x:positions[id].x-75,y:-75},max:{x:positions[id].x+75,y:75}});
+  await open(f,"Meteor Swarm");
+  await f.$("boss-draw-area").click();await tick();
+  const shape=(x,ids)=>({start:{x,y:0},end:{x:x+1200,y:0},radius:1200,targetIds:ids});
+  f.placements.at(-1).resolve({status:"confirmed",preview:{...shape(0,["dars","mira"]),targetIds:["dars","mira"],
+    areas:[shape(0,["dars","mira"]),shape(3000,["mira"]),shape(6000,[]),shape(9000,[])]}});
+  await tick();await tick();await tick();await tick();
+  const badge=id=>groupRows(f).find(row=>row.dataset.targetId===id).querySelector(".save-advantage-badge");
+  assert.equal(badge("dars").textContent,"vant. (Schivata)");
+  assert.equal(badge("dars").title,"Schivata: vantaggio al TS su Destrezza.");
+  assert.equal(badge("mira"),null);
+  f.controller.destroy();
+  const g=fixture({selection:[]});await g.controller.ready;await importAndBind(g,"auril-phase-2.html");
+  g.items.find(item=>item.id==="dars").metadata[META].conditions={version:2,instances:[{id:"dodge-1",condition:"Schivata",sourceId:"dars",active:true}]};
+  await open(g,"Breath of the Long Night");
+  await drawCone(g,["dars","mira"]);
+  assert.equal(groupRows(g).find(row=>row.dataset.targetId==="dars").querySelector(".save-advantage-badge"),null,"a Constitution save");
+  g.controller.destroy();
+});
+
 // ---- tranche 9: Divine Brilliance ----
 test("Divine Brilliance: a row's own roll keeps the count on its chip up to date while typing",async()=>{
   const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"auril-phase-3.html");
