@@ -743,7 +743,7 @@ const PHB_FEATURES = [
     description: "Vantaggio ai tiri salvezza contro il veleno. La resistenza ai danni da veleno è già applicata alle difese." }),
 
   speciesTrait({ speciesId: "umano", optionId: "variante", key: "talento", name: "Talento", page: 31,
-    description: "Ottieni un talento a tua scelta e la competenza in un'abilità. Gli effetti del talento si configurano a parte: capacità, Azioni rapide, difese." }),
+    description: "Ottieni un talento a tua scelta e la competenza in un'abilità: il talento si sceglie nella sezione Talenti della scheda (Modifica → Capacità)." }),
 
   speciesTrait({ speciesId: "gnomo", key: "astuzia-gnomesca", name: "Astuzia gnomesca", page: 37,
     description: "Vantaggio a tutti i tiri salvezza di Intelligenza, Saggezza e Carisma contro la magia." }),

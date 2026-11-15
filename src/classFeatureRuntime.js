@@ -47,6 +47,7 @@ import {
   getAvailableClassFeatures,
   getEnabledClassFeatures,
   getSpeciesFeatures,
+  getFeatFeatures,
   getClassFeatureResourcePool,
 } from "./classFeatureCatalog.js";
 import { emitMatchedClassFeatureVisual } from "./embersMatchedVisualRenderer.js";
@@ -2098,12 +2099,12 @@ export async function adjustClassFeatureResource(
   return reaction.applies ? { ...result, ...reactionResult(reaction) } : result;
 }
 
-// Every resource pool of the character: those already in its state, those of its class and species features
+// Every resource pool of the character: those already in its state, those of its class, species and feat features
 // (spell slots included, resolved by id), and the uses of its spell quick actions with a counter of their own.
 function characterResourcePools(sourceItem, profile) {
   const currentState = getClassFeatureState(sourceItem);
   const poolIds = new Set(Object.keys(currentState.resources));
-  for (const feature of [...getAvailableClassFeatures(profile.characterBuild), ...getSpeciesFeatures(profile)]) {
+  for (const feature of [...getAvailableClassFeatures(profile.characterBuild), ...getSpeciesFeatures(profile), ...getFeatFeatures(profile)]) {
     for (const cost of Array.isArray(feature.resourceCosts) ? feature.resourceCosts : []) {
       if (cost?.poolId) poolIds.add(String(cost.poolId));
     }

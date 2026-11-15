@@ -7,6 +7,7 @@ import { getSpellDefinition } from "./spells-srd.js";
 import { CLASS_FEATURE_CLASSES, getClassFeatureSubclasses } from "./classFeatureCatalog.js";
 import { MAX_CHARACTER_CLASSES, sanitizeCharacterBuild } from "./classFeatureCore.js";
 import { SPECIES, SUPERNATURAL_GIFTS, speciesDisplayName, supernaturalGiftDisplayName } from "./speciesTraitCore.js";
+import { FEATS, FEAT_DAMAGE_TYPES, MAX_FEATS, featDisplayName, sanitizeFeats } from "./featCatalog.js";
 import { DAMAGE_TYPES, sanitizeDamageDefenses, hasDamageDefenses } from "./damageDefensesCore.js";
 import { ABILITY_KEYS, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
 import { MAX_QUICK_ACTIONS, MAX_QUICK_ACTION_ATTACKS, MAX_QUICK_ACTION_USES, sanitizeQuickAction } from "./quickActionsCore.js";
@@ -22,6 +23,8 @@ export const SHEET_IMPORT_SECTIONS = Object.freeze([
   Object.freeze({ id: "classes", label: "Classi e livelli" }),
   Object.freeze({ id: "species", label: "Specie" }),
   Object.freeze({ id: "supernaturalGift", label: "Dono soprannaturale" }),
+  // The feats (docs/STUDIO_TALENTI.md, lot F0): like the classes, the imported list replaces the sheet's.
+  Object.freeze({ id: "feats", label: "Talenti" }),
   Object.freeze({ id: "stats", label: "Statistiche" }),
   Object.freeze({ id: "abilities", label: "Modificatori di caratteristica" }),
   Object.freeze({ id: "saves", label: "Tiri salvezza" }),
@@ -275,6 +278,41 @@ function importedSupernaturalGift(data, unresolved) {
   return { id: gift.id };
 }
 
+// feats (or talenti): names in Italian or in English, or { name, ability, damageType } (docs/STUDIO_TALENTI.md §4.6).
+// The ability of a half feat only where it offers more than one; the type only for Elemental Adept. What is not
+// recognised is reported, never guessed.
+const FEAT_BY_KEY = new Map(FEATS.flatMap((feat) => [feat.id, feat.name, ...feat.aliases].map((name) => [lookupKey(name), feat])));
+
+function importedFeats(data, unresolved) {
+  const raw = data.feats ?? data.talenti;
+  if (raw === undefined || raw === null || raw === "") return null;
+  const feats = [];
+  for (const value of Array.isArray(raw) ? raw : [raw]) {
+    const source = value && typeof value === "object" ? value : { name: value };
+    const name = text(source.name ?? source.nome ?? source.id);
+    if (!name) continue;
+    const feat = FEAT_BY_KEY.get(lookupKey(name));
+    if (!feat) {
+      unresolved.push(`talento "${name}"`);
+      continue;
+    }
+    const entry = { id: feat.id };
+    const abilityName = text(source.ability ?? source.caratteristica);
+    const ability = ABILITY_BY_ALIAS.get(lookupKey(abilityName)) || "";
+    if (feat.abilityChoices.length > 1 && feat.abilityChoices.includes(ability)) entry.ability = ability;
+    else if (abilityName && !feat.abilityChoices.includes(ability)) unresolved.push(`caratteristica "${abilityName}" per ${feat.name}`);
+    const typeName = text(source.damageType ?? source.tipoDiDanno ?? source.danno);
+    const damageType = resolveDamageType(typeName);
+    if (feat.choices.includes("damageType") && FEAT_DAMAGE_TYPES.some((type) => type.id === damageType)) entry.choice = { damageType };
+    else if (typeName) unresolved.push(`tipo di danno "${typeName}" per ${feat.name}`);
+    // The same feat written twice counts once; Elemental Adept twice only with two types.
+    if (feats.some((other) => other.id === entry.id && (!feat.repeatable || other.choice?.damageType === entry.choice?.damageType))) continue;
+    feats.push(entry);
+  }
+  if (feats.length > MAX_FEATS) unresolved.push(`${feats.length - MAX_FEATS} talenti oltre il limite di ${MAX_FEATS}`);
+  return feats.length ? sanitizeFeats(feats) : null;
+}
+
 const DAMAGE_TYPE_BY_KEY = new Map(DAMAGE_TYPES.flatMap((entry) => [
   [lookupKey(entry.id), entry.id],
   [lookupKey(entry.label), entry.id],
@@ -438,6 +476,7 @@ export function parseCharacterSheetImport(value) {
     classes: importedClasses(data, unresolved),
     species: importedSpecies(data, unresolved),
     supernaturalGift: importedSupernaturalGift(data, unresolved),
+    feats: importedFeats(data, unresolved),
     stats: importedStats(data),
     abilities: importedAbilityModifiers(data),
     saves: importedSaves(data),
@@ -526,6 +565,10 @@ export function sheetImportSectionSummary(id, section, { classNameOf = (classId)
     }).join(" / ");
   }
   if (id === "supernaturalGift") return supernaturalGiftDisplayName(section);
+  if (id === "feats") {
+    const names = section.map(featDisplayName);
+    return `${names.length} ${names.length === 1 ? "talento" : "talenti"}: ${names.slice(0, 6).join(", ")}${names.length > 6 ? "…" : ""}`;
+  }
   if (id === "species") {
     const species = SPECIES.find((entry) => entry.id === section.id);
     const ancestry = species?.ancestries.find((entry) => entry.id === section.ancestryId);

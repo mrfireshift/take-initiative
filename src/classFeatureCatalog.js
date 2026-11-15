@@ -14,6 +14,7 @@ import {
   classFeatureResourceCostUsesActiveParent,
 } from "./classFeatureCore.js";
 import { SPECIES_FEATURES, SPECIES_RESOURCE_POOLS, speciesFeaturesForProfile } from "./speciesTraitCore.js";
+import { FEAT_FEATURES, FEAT_RESOURCE_POOLS, featFeaturesForProfile } from "./featCatalog.js";
 import { SPELL_SLOT_RESOURCE_POOLS } from "./spellSlotCore.js";
 
 export { classFeatureIsReferenceOnly, classFeatureRuntimeSupport };
@@ -33,14 +34,15 @@ export const CLASS_FEATURE_RESOURCE_POOLS = Object.freeze(
 );
 
 // Species traits share the class-feature record shape: they resolve by id like class features,
-// but stay out of CLASS_FEATURES so the class editor and the catalog audits never list them.
+// but stay out of CLASS_FEATURES so the class editor and the catalog audits never list them. The feats
+// (featCatalog.js, docs/STUDIO_TALENTI.md) do the same.
 export const CLASS_FEATURE_BY_ID = new Map(
-  [...CLASS_FEATURES, ...SPECIES_FEATURES].map((feature) => [feature.id, feature])
+  [...CLASS_FEATURES, ...SPECIES_FEATURES, ...FEAT_FEATURES].map((feature) => [feature.id, feature])
 );
 // Spell slot pools resolve by id too, for the state operations and the resource reset; like the species
-// pools they stay out of CLASS_FEATURE_RESOURCE_POOLS and its audits.
+// and feat pools they stay out of CLASS_FEATURE_RESOURCE_POOLS and its audits.
 export const CLASS_FEATURE_RESOURCE_POOL_BY_ID = new Map(
-  [...CLASS_FEATURE_RESOURCE_POOLS, ...SPECIES_RESOURCE_POOLS, ...SPELL_SLOT_RESOURCE_POOLS].map((pool) => [pool.id, pool])
+  [...CLASS_FEATURE_RESOURCE_POOLS, ...SPECIES_RESOURCE_POOLS, ...FEAT_RESOURCE_POOLS, ...SPELL_SLOT_RESOURCE_POOLS].map((pool) => [pool.id, pool])
 );
 
 export function getClassFeatureDefinition(featureId) {
@@ -142,7 +144,7 @@ export function getEnabledClassFeatures(profile) {
     }
     result.push(feature);
   }
-  return [...result, ...getSpeciesFeatures(profile)];
+  return [...result, ...getSpeciesFeatures(profile), ...getFeatFeatures(profile)];
 }
 
 // Species traits are always enabled for the profile's species and ancestry.
@@ -150,6 +152,11 @@ export function getSpeciesFeatures(profile) {
   const totalLevel = Math.min(20, sanitizeCharacterBuild(profile?.characterBuild)
     .reduce((total, entry) => total + entry.level, 0));
   return speciesFeaturesForProfile(profile, totalLevel);
+}
+
+// The feats of the sheet are always enabled, like the species traits.
+export function getFeatFeatures(profile) {
+  return featFeaturesForProfile(profile);
 }
 
 export function classFeatureTargetMode(feature, characterBuild = []) {

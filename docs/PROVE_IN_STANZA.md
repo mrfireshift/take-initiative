@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **164** |
+| **B. Console attacchi, mostri e capacità** | **170** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -56,6 +56,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B18. Incantesimo preparato: il rilascio nella console | 5 |
 | B19. Statblock da testo nel pannello Importa | 4 |
 | B20. Incantesimo preparato: le perdite | 5 |
+| B21. Talenti: le fondamenta | 6 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -81,7 +82,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **527** |
+| **Totale** | **533** |
 
 ## A. Incantesimi
 
@@ -731,6 +732,17 @@ Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T6e (decisi
 - [ ] **Un'altra concentrazione:** con la presa, lanciare Benedizione chiede la conferma che nomina «Palla di fuoco (azione preparata)»; confermato, la presa finisce e Benedizione resta.
 - [ ] **La C, la console e il rilascio:** passando sulla C della pill compare «Concentrazione: Palla di fuoco (azione preparata)»; la console attacchi del PG dice lo stesso nella riga «Concentrazione»; dopo un rilascio il log dice «(azione preparata, rilasciata)».
 - [ ] **Prossimo turno e Paragon:** se nessuno la rilascia, la presa sparisce all'inizio del prossimo turno del PG con «svanita» nel log. Un Paragon che prepara nel suo primo turno la perde all'inizio del suo secondo turno nello stesso round. Da provare in vista compatta ed estesa.
+
+### B21. Talenti: le fondamenta
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F0 (decisioni D2–D5, D8, D10). Le voci sono nuove: nessuna lista le aveva. Serve un PG con classe e livello, per esempio un guerriero di 5° livello umano variante.
+
+- [ ] **Il riquadro:** Modifica → Capacità: fra Specie e Classi e livelli c'è **Talenti**. **+ Talento** apre l'elenco dei tre manuali; Resiliente chiede «Caratteristica del +1», Adepto Elementale il tipo di danno, Robusto niente. **Salva**: i talenti compaiono come badge dopo specie e classi («Adepto Elementale · fuoco»).
+- [ ] **Gli avvisi:** Agilità Tarchiata su un umano dice «Richiede: Nano o specie di taglia Piccola.», che sparisce scegliendo un nano; lo stesso talento due volte dice «Già scelto.». Nessuno dei due blocca **Salva**.
+- [ ] **Le card:** in Capacità ogni talento ha la sua card, «Talento · Manuale del Giocatore 2014 p. 170», con la riga «Nel plugin»; Robusto al 5° livello dice «+10 PF massimi». Con il pacchetto del manuale importato la card mostra il testo del talento; senza, la nota «Il testo è nel pacchetto privato…».
+- [ ] **Fortunato:** Risorse mostra «Punti fortuna 3/3»; **Conferma consumo**, o la voce del menu della card, spende un punto; **Riposo lungo**, anche quello del gruppo, li riporta a 3. Il menu della card da provare in vista compatta ed estesa.
+- [ ] **L'import:** in **Importa**, `{ "feats": ["Great Weapon Master", { "name": "Fey Touched", "ability": "cha" }, "Volo radente"] }` dà la sezione «Talenti» con «2 talenti: …» e «Volo radente» fra i non riconosciuti; **Applica al modulo** sostituisce i talenti della scheda.
+- [ ] **Cuoco e la stanza:** reimporta il pacchetto di Tasha dall'Enciclopedia (Pacchetti): Cuoco ha la sua voce e Contaminazione Ombrosa non contiene più il suo testo. Il PG con i talenti, portato in un'altra scena della stessa stanza, li ha ancora.
 
 ## C. Tracker e UX
 

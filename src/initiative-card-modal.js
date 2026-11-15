@@ -164,6 +164,10 @@ import { speciesSpellCast, speciesSpellActionId, speciesSpellOpenRequest, specie
 import { perfBootPage } from "./perfProbe.js";
 import { rulesTextBlock } from "./rulesTextView.js";
 import { privateTextMissingNote } from "./privatePackCore.js";
+import {
+  FEATS, FEATS_FIELD, FEAT_ABILITY_LABELS, FEAT_BOOK_SOURCES, FEAT_DAMAGE_TYPES, MAX_FEATS,
+  featDisplayName, featPluginLine, featWarnings, getFeat, sanitizeFeats,
+} from "./featCatalog.js";
 
 perfBootPage(OBR);
 
@@ -1574,9 +1578,10 @@ function classFeatureMetaText(feature) {
   const currentDie = resolveClassFeatureProgressionValue(feature, profile?.characterBuild);
   const parts = [
     classFeatureActivationLabel(feature),
-    `liv. ${feature.minimumLevel}`,
-    // A species or gift trait shows its page, to check it on the manual.
-    (feature.speciesId || feature.giftId) && feature.page ? `${feature.sourceLabel} p. ${feature.page}` : feature.sourceLabel,
+    // A feat has no level of its own.
+    feature.featId ? "Talento" : `liv. ${feature.minimumLevel}`,
+    // A species or gift trait, or a feat, shows its page, to check it on the manual.
+    (feature.speciesId || feature.giftId || feature.featId) && feature.page ? `${feature.sourceLabel} p. ${feature.page}` : feature.sourceLabel,
     currentDie ? `dado corrente ${currentDie}` : "",
     targeting.rangeMeters
       ? `${targeting.mode === "aura" ? "area" : "portata"} ${targeting.rangeMeters} m`
@@ -2811,11 +2816,13 @@ function renderClassFeatures() {
   const speciesLabel = speciesDisplayName(profile?.[SPECIES_FIELD]);
   const giftLabel = supernaturalGiftDisplayName(profile?.[SUPERNATURAL_GIFT_FIELD]);
   const buildLabels = [...(speciesLabel ? [speciesLabel] : []), ...(giftLabel ? [giftLabel] : []), ...classFeatureBuildLabel(profile.characterBuild)];
+  // The feats follow, one badge each: "Robusto", "Adepto Elementale · fuoco".
+  const featLabels = sanitizeFeats(profile?.[FEATS_FIELD]).map(featDisplayName).filter(Boolean);
   buildSummary.replaceChildren(...(
-    buildLabels.length
-      ? buildLabels.map((text) => {
+    buildLabels.length || featLabels.length
+      ? [...buildLabels.map((text) => [text, false]), ...featLabels.map((text) => [text, true])].map(([text, isFeat]) => {
         const badge = document.createElement("span");
-        badge.className = "class-build-badge";
+        badge.className = isFeat ? "class-build-badge feat" : "class-build-badge";
         badge.textContent = text;
         return badge;
       })
@@ -3141,6 +3148,9 @@ function renderClassFeatures() {
           const note = rulesTextBlock(privateTextMissingNote(classFeatureMissingText(feature)), { className: "class-feature-description" });
           card.appendChild(note);
         }
+        // A feat's card says what the plugin does with it (featCatalog.js); Robusto's line is counted on the level.
+        const featLine = feature.featId ? featPluginLine(feature, profile) : "";
+        if (featLine) card.appendChild(rulesTextBlock(`Nel plugin: ${featLine}`, { className: "class-feature-description" }));
         if (featureControls) card.appendChild(featureControls);
         if (feature.id.endsWith("-incantesimi")) {
           const additionalSpells = getAdditionalSubclassSpellEntries(
@@ -4457,8 +4467,12 @@ function applySheetImport() {
     } else if (id === "species") {
       $("speciesInput").value = section.id;
       buildSpeciesAncestryOptions(section.id, section.ancestryId);
+      syncFeatWarnings();
     } else if (id === "supernaturalGift") {
       $("supernaturalGiftInput").value = section.id;
+    } else if (id === "feats") {
+      // Like the classes, the imported list replaces the sheet's.
+      buildFeatEditor(section);
     } else if (id === "stats") {
       const inputs = {
         armorClass: "armorClassInput",
@@ -5106,6 +5120,137 @@ function collectSupernaturalGift() {
   return sanitizeSupernaturalGift({ id: $("supernaturalGiftInput").value });
 }
 
+// The Talenti box (docs/STUDIO_TALENTI.md §4.5, lot F0): one row per feat, its choices under it, warnings that never
+// block (decision D8). An id this version does not know keeps its row, in red, and is saved as it came, like the
+// choices this version does not edit.
+function featEditorRows() {
+  return Array.from($("featEditorList").querySelectorAll("[data-feat-row='1']"));
+}
+
+function featSelectControl(featId = "") {
+  const select = document.createElement("select");
+  select.dataset.featField = "id";
+  // Grouped by manual, in the catalog's order.
+  const groups = new Map(FEAT_BOOK_SOURCES.map((source) => [source, null]));
+  for (const feat of FEATS) {
+    if (!groups.get(feat.source)) groups.set(feat.source, Object.assign(document.createElement("optgroup"), { label: feat.sourceLabel }));
+    groups.get(feat.source).append(new Option(feat.name, feat.id));
+  }
+  select.replaceChildren(new Option("Scegli talento", ""), ...[...groups.values()].filter(Boolean));
+  if (featId && !getFeat(featId)) select.append(new Option(`Sconosciuto: ${featId}`, featId));
+  select.value = featId;
+  return select;
+}
+
+function buildFeatEditorRow(entry = {}) {
+  const row = document.createElement("div");
+  row.className = "feat-editor-row";
+  row.dataset.featRow = "1";
+  row.dataset.featEntry = JSON.stringify(entry || {});
+  const makeLabel = (text, control) => {
+    const label = document.createElement("label");
+    label.append(text, control);
+    return label;
+  };
+  const select = featSelectControl(entry?.id || "");
+  const ability = document.createElement("select");
+  ability.dataset.featField = "ability";
+  const damage = document.createElement("select");
+  damage.dataset.featField = "damageType";
+  const abilityLabel = makeLabel("Caratteristica del +1", ability);
+  const damageLabel = makeLabel("Tipo di danno", damage);
+  const choices = document.createElement("div");
+  choices.className = "feat-editor-choices";
+  choices.append(abilityLabel, damageLabel);
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "class-build-remove";
+  remove.textContent = "×";
+  remove.title = "Rimuovi talento";
+  const warning = document.createElement("small");
+  warning.className = "feat-editor-warning";
+  warning.dataset.featWarning = "1";
+  warning.hidden = true;
+  // Only the choices of the feat chosen: the ability of a half feat with more than one, Elemental Adept's type.
+  const syncChoices = ({ ability: chosenAbility = "", damageType = "" } = {}) => {
+    const feat = getFeat(select.value);
+    const abilities = feat?.abilityChoices.length > 1 ? feat.abilityChoices : [];
+    ability.replaceChildren(new Option("Da scegliere", ""), ...abilities.map((key) => new Option(FEAT_ABILITY_LABELS[key], key)));
+    ability.value = abilities.includes(chosenAbility) ? chosenAbility : "";
+    abilityLabel.hidden = !abilities.length;
+    const asksDamage = !!feat?.choices.includes("damageType");
+    damage.replaceChildren(new Option("Da scegliere", ""), ...FEAT_DAMAGE_TYPES.map((type) => new Option(type.label, type.id)));
+    damage.value = asksDamage && FEAT_DAMAGE_TYPES.some((type) => type.id === damageType) ? damageType : "";
+    damageLabel.hidden = !asksDamage;
+    choices.hidden = abilityLabel.hidden && damageLabel.hidden;
+    row.classList.toggle("unknown", !!select.value && !feat);
+  };
+  syncChoices({ ability: entry?.ability, damageType: entry?.choice?.damageType });
+  select.addEventListener("change", () => {
+    syncChoices();
+    syncFeatWarnings();
+  });
+  damage.addEventListener("change", syncFeatWarnings);
+  remove.addEventListener("click", () => {
+    row.remove();
+    syncFeatAddState();
+    syncFeatWarnings();
+  });
+  row.append(makeLabel("Talento", select), remove, choices, warning);
+  return row;
+}
+
+function syncFeatAddState() {
+  const full = featEditorRows().length >= MAX_FEATS;
+  $("featAdd").disabled = full;
+  $("featAdd").title = full ? `Massimo ${MAX_FEATS} talenti` : "Aggiungi un talento";
+}
+
+// A racial feat on another species, a feat taken twice (featWarnings), an unknown id: under its row.
+function syncFeatWarnings() {
+  const rows = featEditorRows();
+  const entries = rows.map((row) => ({
+    id: row.querySelector("[data-feat-field='id']").value,
+    choice: { damageType: row.querySelector("[data-feat-field='damageType']").value },
+  }));
+  const warnings = featWarnings(entries, collectSpecies());
+  rows.forEach((row, index) => {
+    const id = entries[index].id;
+    const unknown = id && !getFeat(id) ? ["Questa versione del plugin non conosce il talento: resta com'è."] : [];
+    const line = row.querySelector("[data-feat-warning='1']");
+    line.textContent = [...unknown, ...(warnings[index] || [])].join(" ");
+    line.hidden = !line.textContent;
+  });
+}
+
+function buildFeatEditor(entries = sanitizeFeats(profile?.[FEATS_FIELD])) {
+  $("featEditorList").replaceChildren(...sanitizeFeats(entries).map((entry) => buildFeatEditorRow(entry)));
+  syncFeatAddState();
+  syncFeatWarnings();
+}
+
+// The rows as the card's field: the ability only where the feat offers more than one, the type only for Elemental
+// Adept; an unknown feat, and the choices of a newer client, as they came.
+function collectFeats() {
+  return sanitizeFeats(featEditorRows().map((row) => {
+    let original = {};
+    try {
+      original = JSON.parse(row.dataset.featEntry || "{}") || {};
+    } catch {
+      original = {};
+    }
+    const id = row.querySelector("[data-feat-field='id']").value;
+    const feat = getFeat(id);
+    if (!id) return null;
+    if (!feat) return id === original.id ? original : null;
+    const { damageType: _previousType, ...kept } = id === original.id && original.choice ? original.choice : {};
+    const ability = feat.abilityChoices.length > 1 ? row.querySelector("[data-feat-field='ability']").value : "";
+    const damageType = feat.choices.includes("damageType") ? row.querySelector("[data-feat-field='damageType']").value : "";
+    const choice = { ...kept, ...(damageType ? { damageType } : {}) };
+    return { id, ...(ability ? { ability } : {}), ...(Object.keys(choice).length ? { choice } : {}) };
+  }));
+}
+
 function collectDamageDefenses() {
   const result = { resistances: [], immunities: [], vulnerabilities: [] };
   for (const type of DAMAGE_TYPES) {
@@ -5146,6 +5291,7 @@ function setEditing(active) {
   $("sheetImportPicker").hidden = true;
   setSheetImportOpen(false);
   buildSpeciesEditor();
+  buildFeatEditor();
   buildClassBuildEditor();
   const abilityModifiers = sanitizeAbilityModifiers(profile?.[ABILITY_MODIFIERS_FIELD]);
   for (const key of ABILITY_KEYS) $(`ability-${key}`).value = abilityModifiers[key] ?? "";
@@ -5373,6 +5519,16 @@ $("attackAdd").addEventListener("click", () => {
 $("speciesInput").addEventListener("change", () => {
   buildSpeciesAncestryOptions($("speciesInput").value);
   syncSpeciesSpellAbilityRow();
+  syncFeatWarnings();
+});
+// A racial feat of Xanathar may ask for a subrace (Drow High Magic): its warning follows the option too.
+$("speciesAncestryInput").addEventListener("change", syncFeatWarnings);
+$("featAdd").addEventListener("click", () => {
+  if (featEditorRows().length >= MAX_FEATS) return;
+  const row = buildFeatEditorRow();
+  $("featEditorList").appendChild(row);
+  syncFeatAddState();
+  row.querySelector("[data-feat-field='id']")?.focus();
 });
 $("classBuildAdd").addEventListener("click", () => {
   const list = $("classBuildEditorList");
@@ -5418,6 +5574,9 @@ $("form").addEventListener("submit", async (event) => {
     const spellAbility = speciesHasSpellAbilityChoice(species?.id) ? sanitizeSpeciesSpellAbility($("speciesSpellAbilityInput").value) : null;
     const spellAbilityPatch = spellAbility || Object.hasOwn(profile || {}, SPECIES_SPELL_ABILITY_FIELD)
       ? { [SPECIES_SPELL_ABILITY_FIELD]: spellAbility } : {};
+    // Come la specie: i talenti si scrivono solo se scelti o già presenti.
+    const feats = collectFeats();
+    const featsPatch = feats.length || Object.hasOwn(profile || {}, FEATS_FIELD) ? { [FEATS_FIELD]: feats } : {};
     // Come la specie: il libro si scrive solo se usato o già presente.
     const spellbook = sanitizeSpellbook(draftSpellbook);
     const spellbookPatch = hasSpellbook(spellbook) || Object.hasOwn(profile || {}, SPELLBOOK_FIELD)
@@ -5456,6 +5615,7 @@ $("form").addEventListener("submit", async (event) => {
       ...speciesPatch,
       ...giftPatch,
       ...spellAbilityPatch,
+      ...featsPatch,
       ...spellbookPatch,
       ...monsterPatch,
     }, {

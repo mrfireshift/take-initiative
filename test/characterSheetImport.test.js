@@ -169,6 +169,7 @@ test("each section has a one-line summary for the panel", () => {
     classes: [{ class: "Mago", level: 5, subclass: "Divinazione" }],
     species: { name: "Dragonide", ancestry: "Rosso" },
     supernaturalGift: "Hollow One",
+    feats: ["Tough"],
     armorClass: 15, speed: 9, spellAttackBonus: 7,
     abilities: { int: 18 }, damageDefenses: { resistances: ["fire"] },
     spells: ["Shield", "Fireball"], attacks: [{ label: "Pugnale", components: [{ type: "piercing" }] }],
@@ -183,6 +184,7 @@ test("each section has a one-line summary for the panel", () => {
   assert.equal(summary("classes"), "Mago 5 (Scuola di Divinazione)");
   assert.equal(summary("species"), "Dragonide (rosso)");
   assert.equal(summary("supernaturalGift"), "Hollow one");
+  assert.equal(summary("feats"), "1 talento: Robusto");
   assert.equal(summary("stats"), "CA 15 · Velocità 9 m · Attacco incantesimi +7");
   assert.equal(summary("abilities"), "INT +4");
   assert.equal(summary("defenses"), "Res. fuoco");
