@@ -20,6 +20,7 @@ import {
 } from "./metadataKeyScoped.js";
 import { ROOM_METADATA_DOMAIN_MAX_BYTES } from "./roomMetadataBudget.js";
 import { retainHPMapWithinByteBudget } from "./hpMemoryRetention.js";
+import { maxHpBaseValues, maxHpEffectiveValues } from "./maxHpModifierCore.js";
 
 let __attSubMounted = false;        // evita doppie subscribe
 let __hpApplyBusyEpoch = null;
@@ -214,11 +215,13 @@ async function persistRemovedHPItems(items = [], sceneEpoch = currentSceneEpoch(
     const hp = Number(meta.hp);
     const hpMax = Number(meta.hpMax);
     if (!Number.isFinite(hp) || !Number.isFinite(hpMax) || hpMax <= 0) continue;
+    // CAP-MAXHP (decision M0): the creature without the bonus or reduction of its pills.
+    const base = maxHpBaseValues({ hp: Math.max(0, Math.floor(hp)), hpMax: Math.max(0, Math.floor(hpMax)) }, meta);
 
     snapshots.push({
       key,
-      hp: Math.max(0, Math.floor(hp)),
-      hpMax: Math.max(0, Math.floor(hpMax)),
+      hp: base.hp,
+      hpMax: base.hpMax,
       attitude: meta.attitude || null,
     });
   }
@@ -358,25 +361,35 @@ export async function syncHPBatchToMemory(
       .filter((item) => item?.id && updatesById.has(item.id))
       .map((item) => [item.id, item]),
   );
-  const missingIds = [...updatesById.keys()].filter((itemId) => !itemsById.has(itemId));
-  if (missingIds.length) {
-    const loadedItems = await OBR.scene.items.getItems(missingIds);
-    if (!isCurrent(sceneEpoch)) return;
-    for (const item of loadedItems) itemsById.set(item.id, item);
-  }
+  // CAP-MAXHP (decision M0 of 13/11/2026): the memory keeps the creature without the bonus or reduction of its pills, so
+  // its values and its pills must come from the same moment. Every caller saves after its command: the token is read as
+  // the command left it, because the items passed may be older and the values passed may not be the ones written (Death
+  // Ward, a pill that ended with the write). The ones passed stay for a token that cannot be read.
+  const liveById = new Map();
+  const loadedItems = await OBR.scene.items.getItems([...updatesById.keys()]);
+  if (!isCurrent(sceneEpoch)) return;
+  for (const item of loadedItems) liveById.set(item.id, item);
   if (!isCurrent(sceneEpoch)) return;
 
   const memoryUpdates = [];
   for (const update of updatesById.values()) {
-    const item = itemsById.get(update.itemId);
+    const live = liveById.get(update.itemId);
+    const item = live || itemsById.get(update.itemId);
     const key = pcKeyFromItem(item);
     if (!key) continue;
+    const meta = item.metadata?.[META_KEY] || {};
+    const liveHp = Number(meta.hp);
+    const liveHpMax = Number(meta.hpMax);
+    const fromToken = !!live && Number.isFinite(liveHp) && Number.isFinite(liveHpMax) && liveHpMax > 0;
+    const hp = Math.max(0, Math.floor(fromToken ? liveHp : Number(update.hp) || 0));
+    const hpMax = Math.max(0, Math.floor(fromToken ? liveHpMax : Number(update.hpMax) || 0));
+    const base = !update.remove && hpMax > 0 ? maxHpBaseValues({ hp, hpMax }, meta) : { hp, hpMax };
     memoryUpdates.push({
       key,
       remove: update.remove,
-      hp: Math.max(0, Math.floor(Number(update.hp) || 0)),
-      hpMax: Math.max(0, Math.floor(Number(update.hpMax) || 0)),
-      attitude: String(item.metadata?.[META_KEY]?.attitude || "").trim().toLowerCase() || null,
+      hp: base.hp,
+      hpMax: base.hpMax,
+      attitude: String(meta.attitude || "").trim().toLowerCase() || null,
     });
   }
   if (!memoryUpdates.length || !isCurrent(sceneEpoch)) return;
@@ -531,7 +544,9 @@ export async function applyHPMemoryToSceneForMissingHP(
       if (!memo) return [];
       const nHP = Math.max(0, Math.floor(Number(memo.hp) || 0));
       const nMax = Math.max(0, Math.floor(Number(memo.hpMax) || 0));
-      return [{ id: it.id, hp: nHP, hpMax: nMax, attitude: memo.attitude }];
+      // CAP-MAXHP (decision M0): the memory keeps the creature without its effects; this token adds its own pills'.
+      const values = nMax > 0 ? maxHpEffectiveValues({ hp: nHP, hpMax: nMax }, it.metadata?.[META_KEY]) : { hp: nHP, hpMax: nMax };
+      return [{ id: it.id, hp: values.hp, hpMax: values.hpMax, attitude: memo.attitude }];
     });
 
     if (!targets.length) return;

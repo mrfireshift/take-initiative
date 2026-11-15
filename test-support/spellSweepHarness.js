@@ -303,6 +303,8 @@ function targetContextFor(id, targetIds, outcome) {
   if (id === "magic-missile") Object.assign(values, { darts: "3 3 3" });
   if (id === "prismatic-spray") Object.assign(values, { ray: "1", damage: SWEEP_DAMAGE });
   if (id === "xanathar-turbine") Object.assign(values, { turbineStrengthOutcome: outcome === "failed" ? "failed" : "passed" });
+  // CAP-MAXHP, lotto X4: each creature's 2d10, the average one.
+  if (id === "heroes-feast") Object.assign(values, { feastRoll: 11 });
   return Object.keys(values).length ? Object.fromEntries(targetIds.map((target) => [target, values])) : {};
 }
 

@@ -230,6 +230,16 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
       failed: Object.freeze({ formula: "7d8+30", type: "necrotici" }),
     }),
   }),
+  // CAP-MAXHP, lotto X2 (2014): 14d6 necrotic, half on a success, never below 1 hit point (hpFloor). A failed save also
+  // lowers the maximum by the damage taken, in hpBranchSpellRules.js.
+  "harm": Object.freeze({
+    initialHP: true,
+    hpFloor: 1,
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({ formula: "14d6", type: "necrotici" }),
+      failed: Object.freeze({ formula: "14d6", type: "necrotici" }),
+    }),
+  }),
   // CAP-TEMP, lotto T3e (Xanathar): half on a success; an undead takes half the roll as temporary hit points
   // (spellTemporaryHpRules.js), the zombie is in hpBranchSpellRules.js.
   "xanathar-flusso-di-energia-negativa": Object.freeze({
@@ -270,6 +280,8 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
   "heal": Object.freeze({ initialHP: false }),
   "phb2014-parola-del-potere-guarire": Object.freeze({ initialHP: false }),
   "lesser-restoration": Object.freeze({ initialHP: false }),
+  "greater-restoration": Object.freeze({ initialHP: false }),
+  "heroes-feast": Object.freeze({ initialHP: false }),
   "dispel-magic": Object.freeze({ initialHP: false }),
   "remove-curse": Object.freeze({ initialHP: false }),
   "divine-word": Object.freeze({ initialHP: false }),
@@ -404,6 +416,23 @@ export function spellHasExplicitInitialHPPolicy(spellOrId, choiceValue = "") {
   const byChoice = rule?.initialHPChoices?.[String(choiceValue || "").trim()];
   if (typeof byChoice === "boolean") return byChoice;
   return rule && typeof rule.initialHP === "boolean" ? rule.initialHP : null;
+}
+
+// The hit points a cast's damage cannot take a creature below (Harm: 1), or 0. A creature already below it stays as the
+// damage leaves it.
+export function spellCastHpFloor(spellOrId) {
+  const floor = Math.floor(Number(getSpellCastResolutionRule(spellOrId)?.hpFloor));
+  return Number.isFinite(floor) && floor > 0 ? floor : 0;
+}
+
+// A damage change (calculateQuickHPChange) held at that floor. requested stays the damage taken: the floor keeps the
+// creature up, it does not make the damage smaller (Harm's reduction counts all of it, decision M5).
+export function withSpellHpFloor(change, floor = 0) {
+  if (!change || !(floor > 0) || change.mode !== "damage") return change;
+  if (!(Number(change.hp) >= floor) || !(Number(change.afterHP) < floor)) return change;
+  const hpDelta = floor - Number(change.hp);
+  const delta = hpDelta + (Number(change.tempDelta) || 0);
+  return { ...change, afterHP: floor, hpDelta, delta, changed: delta !== 0, hpFloor: floor };
 }
 
 export function spellSaveDamageFactor(spellOrId, outcome) {
@@ -712,7 +741,6 @@ const SPELL_CAST_SAVE_ABILITIES = Object.freeze(Object.fromEntries(Object.entrie
     "cone-of-cold",
     "enlarge-reduce",
     "freezing-sphere",
-    "harm",
     "insect-plague",
     "levitate",
     "poison-spray",

@@ -51,7 +51,7 @@
       "id": "aid",
       "name": "Aiuto",
       "level": 2,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "letto",
         "lot": "P3-7",
@@ -2859,7 +2859,7 @@
       "id": "greater-restoration",
       "name": "Ristorare superiore",
       "level": 5,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "letto",
         "lot": "P3-7",
@@ -3019,7 +3019,7 @@
       "id": "harm",
       "name": "Ferire",
       "level": 6,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "letto",
         "lot": "P3-7",
@@ -3139,7 +3139,7 @@
       "id": "heroes-feast",
       "name": "Banchetto degli eroi",
       "level": 6,
-      "group": "capacita",
+      "group": "automatizzato",
       "reading": {
         "state": "letto",
         "lot": "P3-7",

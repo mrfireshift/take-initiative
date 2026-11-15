@@ -115,3 +115,19 @@ test("con «Sostituisci» il token della scheda cambia anche se ferito; un omoni
   assert.deepEqual(plan.skipped.map((entry) => [entry.id, entry.reason]), [["g2", "wounded"]]);
   assert.equal(monsterHitPointsSummary(plan, 9), "PF 9 impostati su 2 token. Goblin è ferito: i PF di un mostro ferito non si toccano.");
 });
+
+test("CAP-MAXHP: lo statblock dà il massimo base; un token con Aiuto o con la riduzione di Ferire tiene il bonus, a PF pieni", () => {
+  const aid = { id: "aid-1", condition: "Aiuto", spellId: "aid", mechanics: { maxHp: { amount: 5, raisesCurrent: true } } };
+  const harm = { id: "harm-1", condition: "Ferire", spellId: "harm", mechanics: { maxHp: { amount: -10 } } };
+  sceneItems = [
+    creature("ogre", "Ogre", { hp: 64, hpMax: 64, conditions: { instances: [aid] } }),
+    creature("troll", "Troll", { hp: 74, hpMax: 74, conditions: { instances: [harm] } }),
+  ];
+  const aided = planMonsterHitPointsImport({ items: sceneItems, sourceId: "ogre", hp: 59, overwrite: true });
+  assert.deepEqual(aided.updates.map(({ hp, hpMax }) => [hp, hpMax]), [], "59 + 5 is what it has: nothing to write");
+  assert.deepEqual(aided.skipped.map((entry) => entry.reason), ["same"]);
+  const raised = planMonsterHitPointsImport({ items: sceneItems, sourceId: "ogre", hp: 70, overwrite: true });
+  assert.deepEqual(raised.updates.map(({ hp, hpMax }) => [hp, hpMax]), [[75, 75]]);
+  const reduced = planMonsterHitPointsImport({ items: sceneItems, sourceId: "troll", hp: 84, overwrite: true });
+  assert.deepEqual(reduced.updates.map(({ hp, hpMax }) => [hp, hpMax]), [], "84 − 10 is what it has");
+});

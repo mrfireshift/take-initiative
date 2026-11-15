@@ -1,5 +1,7 @@
 import { ID } from "./constants.js";
 import { conditionKey } from "./conditionRulesCore.js";
+import { exhaustionLevelFromInstances } from "./exhaustionCore.js";
+import { MAX_HP_SUMMARY_PART_SUFFIX, maxHpModifierOf, maxHpSummaryLabel } from "./maxHpModifierCore.js";
 
 // CAP-CLEANSE (docs/PIANO_AUTOMAZIONE_INCANTESIMI.md, PHB 2014 texts): spells that end pills and spells on one
 // creature, Heal and Power Word Heal with their healing. The area command reads the live item at the confirmation
@@ -13,6 +15,10 @@ export const CLEANSE_SPELL_IDS = Object.freeze([
   "mass-heal",
   "phb2014-parola-del-potere-guarire",
   "lesser-restoration",
+  // CAP-MAXHP, lotto X3: one effect of the GM's choice, or a level of exhaustion.
+  "greater-restoration",
+  // CAP-MAXHP, lotto X4: the cures of the feast and the pill of its benefits.
+  "heroes-feast",
   "dispel-magic",
   "remove-curse",
 ]);
@@ -36,9 +42,10 @@ function activeConditions(item) {
   return instances.filter((instance) => instance?.active !== false && String(instance?.id || "").trim());
 }
 
-// A disease: the pills of Contagion (contagionRules.js).
+// A disease: the pills of Contagion (contagionRules.js) and Harm's reduction of the maximum (CAP-MAXHP, decision M10).
 export function isDiseaseInstance(instance) {
   return !!instance?.mechanics?.contagionDiseaseId
+    || instance?.mechanics?.disease === true
     || String(instance?.effectId || "").trim().startsWith("contagion");
 }
 
@@ -70,7 +77,37 @@ function spellLevel(spell, levelOf) {
   return Number.isInteger(catalog) && catalog >= 0 ? catalog : 0;
 }
 
-const empty = () => ({ removeInstanceIds: [], endSpells: [], keptSpells: [], healing: 0, note: "" });
+const empty = () => ({ removeInstanceIds: [], endSpells: [], keptSpells: [], healing: 0, exhaustionLevel: null, addConditions: [],
+  note: "" });
+
+// The pill of Heroes' Feast's benefits on one creature, with its own roll.
+export function heroesFeastCondition(roll) {
+  const amount = Math.max(0, Math.floor(Number(roll) || 0));
+  return {
+    conditionName: "Banchetto degli eroi",
+    options: {
+      parentEffectId: "",
+      spellId: "heroes-feast",
+      spellName: "Banchetto degli eroi",
+      effectId: "heroes-feast-benefits",
+      effectDetail: `${maxHpSummaryLabel(amount)}. Curato da malattie e veleno; per 24 ore immune al veleno e a spaventato, `
+        + "vantaggio ai TS di Saggezza, PF massimi e attuali aumentati (già compresi nel massimo). Quando finisce togli la pill: "
+        + "il massimo torna com'era.",
+      summaryParts: [
+        { id: `heroes-feast${MAX_HP_SUMMARY_PART_SUFFIX}`, label: maxHpSummaryLabel(amount) },
+        { id: "heroes-feast-immunities", label: "Imm. Veleno, Spaventato" },
+        { id: "heroes-feast-wisdom", label: "Vant. TS Sag" },
+      ],
+      mechanics: {
+        maxHp: { amount, raisesCurrent: true, stack: "heroes-feast" },
+        conditionImmunities: { names: ["Spaventato", "Avvelenato"], label: "Banchetto degli eroi: immune a veleno e spaventato" },
+        damageDefenses: { immunities: ["poison"] },
+      },
+      expiry: { mode: "manual" },
+      manualRemoval: true,
+    },
+  };
+}
 
 // Why Mass Heal leaves a creature as it is: "unaffected" (a construct or an undead, by the token), "dead" (Morto), "".
 // The area command gives it no share of the 700 on its own (massHealCore.js).
@@ -119,6 +156,53 @@ export function planCleanseTarget({ spellId = "", item = null, slotLevel = null,
     plan.removeInstanceIds = chosen === "disease"
       ? activeConditions(item).filter(isDiseaseInstance).map((instance) => String(instance.id).trim())
       : chosen ? conditionIds(item, [conditionKey(chosen)]) : [];
+    return plan;
+  }
+  // CAP-MAXHP, lotto X3 (2014): one level of exhaustion less, or one of these effects ended: one that charmed or petrified
+  // the creature, one curse, one reduction of an ability score (the plugin does not keep them: a note), one reduction of the
+  // hit point maximum, the strongest of its pills (decision M7: only a pill; the coordinator gives the maximum back).
+  if (spellId === "greater-restoration") {
+    const chosen = String(context?.cleanseCondition || "").trim();
+    const name = item.name || "La creatura";
+    if (chosen === "exhaustion") {
+      const level = exhaustionLevelFromInstances(activeConditions(item).filter((instance) => instance?.exhaustionContribution !== true));
+      if (level > 0) plan.exhaustionLevel = level - 1;
+      else plan.note = `${name}: nessun livello di indebolimento da togliere.`;
+      return plan;
+    }
+    if (chosen === "Affascinato" || chosen === "Pietrificato") {
+      plan.removeInstanceIds = conditionIds(item, [conditionKey(chosen)]).slice(0, 1);
+    } else if (chosen === "curse") {
+      plan.endSpells = spellsOn(item)
+        .filter((spell) => REMOVE_CURSE_ENDS.has(String(spell?.spellId || "").trim()))
+        .slice(0, 1)
+        .map((spell) => ({ instanceId: String(spell.instanceId).trim(), name: String(spell.name || spell.spellId), level: 0 }));
+    } else if (chosen === "max-hp") {
+      const strongest = activeConditions(item)
+        .map((instance) => ({ instance, modifier: maxHpModifierOf(instance) }))
+        .filter(({ modifier }) => modifier && modifier.amount < 0)
+        .sort((left, right) => left.modifier.amount - right.modifier.amount)[0];
+      if (strongest) plan.removeInstanceIds = [String(strongest.instance.id).trim()];
+    } else if (chosen === "ability") {
+      plan.note = `${name}: il plugin non tiene le riduzioni di caratteristica, toglila a mano.`;
+      return plan;
+    }
+    if (!plan.removeInstanceIds.length && !plan.endSpells.length) plan.note = `${name}: niente da terminare per la scelta fatta.`;
+    return plan;
+  }
+  // CAP-MAXHP, lotto X4 (2014): Heroes' Feast, on each creature that eats: every disease and poison cured, and for 24 hours
+  // immune to poison and to being frightened, advantage on Wisdom saves (a label), the maximum and the hit points up by its
+  // own 2d10 (decision M6, written in its row). Its pill ends by hand (M8); the coordinator writes the maximum.
+  if (spellId === "heroes-feast") {
+    plan.removeInstanceIds = activeConditions(item)
+      .filter((instance) => isDiseaseInstance(instance) || conditionKey(instance) === conditionKey("Avvelenato"))
+      .map((instance) => String(instance.id).trim());
+    const roll = Number(context?.feastRoll);
+    if (!Number.isInteger(roll) || roll < 2 || roll > 20) {
+      plan.note = `${item.name || "La creatura"}: il tiro di 2d10 va da 2 a 20, il banchetto non le dà i suoi benefici.`;
+      return plan;
+    }
+    plan.addConditions = [heroesFeastCondition(roll)];
     return plan;
   }
   // One poison: the plugin cannot tell them apart, so with more than one it takes the first listed and the others stay.

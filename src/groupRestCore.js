@@ -3,6 +3,7 @@ import { quickHPStateOf } from "./quickHpCore.js";
 import { isSpellBoardTokenItem } from "./spellBoardTokenTrackerCore.js";
 import { DEATH_SAVE_DEAD_CONDITION } from "./deathSaveCore.js";
 import { returnFromDeathCondition, returnFromDeathPill } from "./stabilizeSpellRules.js";
+import { planMaxHpChange } from "./maxHpModifierCore.js";
 
 // Lot U6' of the system UX audit, "Riposo del gruppo": the party's short and long rest in one command (PHB 2014,
 // p. 186). The resources come back as on each character's sheet (classFeatureRuntime.js); on a long rest the HP go to
@@ -48,6 +49,8 @@ export function groupRestMembers(items = []) {
         dead: activePills(meta).some((instance) => text(instance.condition) === DEATH_SAVE_DEAD_CONDITION),
         // CAP-STABILIZE: the return from death of Raise Dead and Resurrection (stabilizeSpellRules.js).
         returnPill: returnFromDeathPill(meta),
+        // CAP-MAXHP (decision M11): its pills, for those of the maximum that the rest outlasts.
+        pills: activePills(meta).map((instance) => ({ ...instance })),
       };
     })
     .sort((left, right) => left.name.localeCompare(right.name, "it"));
@@ -63,20 +66,52 @@ export function planGroupRestHpWrites({ members = [], longRest = false, recovere
     const hp = integer(member.hp);
     const hpMax = integer(member.hpMax);
     const tempHp = integer(member.tempHp);
-    const nextHp = longRest ? hpMax : Math.min(hpMax, hp + integer(recovered?.[member.id]));
+    // CAP-MAXHP, decision M11: a pill of the maximum the rest outlasts ends in the same command; the HP count on the
+    // maximum that comes back, and the write says so (maxHpAware), so the coordinator does not move it again.
+    const ending = new Set(groupRestEndingPillIds(member, longRest));
+    const restored = ending.size ? planMaxHpChange({
+      beforeInstances: member.pills,
+      afterInstances: (member.pills || []).filter((pill) => !ending.has(text(pill?.id))),
+      state: { hp, hpMax },
+    }) : null;
+    const maxAfter = restored ? restored.hpMax : hpMax;
+    const nextHp = longRest ? maxAfter : Math.min(maxAfter, (restored ? restored.hp : hp) + integer(recovered?.[member.id]));
     const nextTemp = longRest ? 0 : tempHp;
-    if (nextHp === hp && nextTemp === tempHp) continue;
+    if (nextHp === hp && nextTemp === tempHp && maxAfter === hpMax) continue;
     updates.push({
       itemId: member.id,
       hp: nextHp,
-      hpMax,
+      hpMax: maxAfter,
       tempHp: nextTemp,
+      ...(restored ? { maxHpAware: true } : {}),
       hpIntent: { mode: "rest", amount: nextHp - hp, eventId },
       expectedHP: { present: true, value: member.rawHp ?? hp },
       expectedHPMax: { present: true, value: member.rawHpMax ?? hpMax },
     });
   }
   return updates;
+}
+
+// CAP-MAXHP, decision M11: the pills of the maximum the rest outlasts (mechanics.maxHp.restEnds): "short" ends with
+// any rest of the party (Harm's hour), "long" only with a long one (Aid's 8 hours); Heroes' Feast's 24 hours stay. Time
+// passes for every member who rests, the ones at 0 HP too; not for the dead.
+export function groupRestEndingPills(member, longRest = false) {
+  if (member?.dead) return [];
+  return (Array.isArray(member?.pills) ? member.pills : []).filter((pill) => {
+    const restEnds = text(pill?.mechanics?.maxHp?.restEnds);
+    return pill?.active !== false && (restEnds === "short" || (longRest && restEnds === "long"));
+  });
+}
+
+export function groupRestEndingPillIds(member, longRest = false) {
+  return groupRestEndingPills(member, longRest).map((pill) => text(pill.id)).filter(Boolean);
+}
+
+// The removals of those pills, in the rest's own command.
+export function planGroupRestPillEndings({ members = [], longRest = false } = {}) {
+  const removals = (Array.isArray(members) ? members : []).flatMap((member) => groupRestEndingPillIds(member, longRest)
+    .map((instanceId) => ({ itemId: member.id, instanceId })));
+  return removals.length ? [{ type: "condition:remove-instances", removals }] : [];
 }
 
 // CAP-STABILIZE: each long rest takes 1 from the return from death's penalty, in the rest's own command: the pill makes
@@ -110,6 +145,8 @@ export function groupRestMemberSummary(member, update, { resourcesRestored = fal
     const next = integer(member.returnPill.mechanics?.returnFromDeathPenalty) - 1;
     parts.push(next > 0 ? `ritorno dalla morte −${next}` : "ritorno dalla morte finito");
   }
+  // CAP-MAXHP, decision M11: what the rest ended of the maximum (Aid, Harm).
+  for (const pill of groupRestEndingPills(member, longRest)) parts.push(`${text(pill.condition) || "effetto"} finito`);
   if (resourcesRestored) parts.push("risorse ripristinate");
   if (member?.sharedHp) parts.push("PF condivisi: da aggiornare a mano");
   return parts.length ? parts.join(" · ") : "nulla da ripristinare";

@@ -28,6 +28,7 @@ import {
 } from "./sceneEpoch.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { DEATH_SAVES_FIELD } from "./deathSaveCore.js";
+import { maxHpBaseValues, maxHpEffectiveValues } from "./maxHpModifierCore.js";
 
 export const ACTOR_VITALS_ROOM_KEY = `${ID}/actorVitals`;
 export const ACTOR_VITALS_LOCAL_KEY = `${ID}/actorVitals/local`;
@@ -85,12 +86,14 @@ function normalizeHPMax(value) {
   return Number.isFinite(number) && number > 0 ? number : null;
 }
 
+// The token's hit points as the registry keeps them: without the bonus or reduction of its pills (CAP-MAXHP, decision M0
+// of 13/11/2026), so saving, the hydration's comparison and the initialization all see the creature as if they ended.
 function validCanonicalHP(item) {
   const meta = item?.metadata?.[`${ID}/meta`] || {};
   const hp = normalizeHP(meta.hp);
   const hpMax = normalizeHPMax(meta.hpMax);
   if (hp === null || hpMax === null) return null;
-  return { hp, hpMax };
+  return maxHpBaseValues({ hp, hpMax }, meta);
 }
 
 function canonicalHPPropertiesAbsent(item) {
@@ -130,14 +133,17 @@ function metadataWithCanonicalHP(item, hp, hpMax) {
   const previous = item?.metadata?.[metaKey] && typeof item.metadata[metaKey] === "object"
     ? item.metadata[metaKey]
     : {};
+  // CAP-MAXHP (decision M0): the registry keeps the creature without its effects; this token gets back the bonus or
+  // reduction of its own pills.
+  const effective = maxHpEffectiveValues({ hp, hpMax }, previous);
   const next = {
     ...previous,
-    hp,
-    hpMax,
+    hp: effective.hp,
+    hpMax: effective.hpMax,
   };
   // Hit points above 0 brought from another scene: the creature is no longer dying, its death save tally ends, as
   // with any heal from 0 (deathSaveCore).
-  if (hp > 0) delete next[DEATH_SAVES_FIELD];
+  if (effective.hp > 0) delete next[DEATH_SAVES_FIELD];
   return {
     ...(item?.metadata || {}),
     [metaKey]: next,

@@ -945,11 +945,13 @@ test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () =>
   // Negative Energy Flood (CAP-TEMP); 33 and 168 with the six spells of CAP-STABILIZE; 170 with the two of lotto G1 of CAP-TERRAIN.
   // 54 and 191 with the 21 spells of decision D6 of the polish; 58 and 195 with Frostbite, Earthen Grasp, Witch Bolt and
   // Ray of Enfeeblement (lot 3). 60 with the Illusory Dragon's appearance (CAP-ORIGIN, lotto O6). 62 with Life Transference
-  // (CAP-RELATION) and Mass Heal (CAP-ALLOCATION).
-  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 62);
+  // (CAP-RELATION) and Mass Heal (CAP-ALLOCATION). 63 with Harm (CAP-MAXHP, lotto X2), 64 with
+  // Greater Restoration (lotto X3), 65 with Heroes' Feast (lotto X4).
+  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 65);
   // 195 with Far Step (CAP-TELEPORT, lotto T1), 196 with Arcane Gate (lotto T4), 197 with Wall of Stone (CAP-STRUCTURE),
-  // 198 with Bones of the Earth (lotto S3), 200 with Life Transference and Mass Heal.
-  assert.equal(AREA_POPOVER_SPELL_IDS.length, 200);
+  // 198 with Bones of the Earth (lotto S3), 200 with Life Transference and Mass Heal, 201 with Harm, 202 with Greater
+  // Restoration, 203 with Heroes' Feast (CAP-MAXHP).
+  assert.equal(AREA_POPOVER_SPELL_IDS.length, 203);
   assert.equal(AREA_SAVE_SPELL_IDS.includes("phb2014-fame-di-hadar"), false);
   assert.equal(
     AREA_PLACEMENT_ONLY_SPELL_IDS.includes("phb2014-fame-di-hadar"),

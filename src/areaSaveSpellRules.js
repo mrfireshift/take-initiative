@@ -125,6 +125,8 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   "xanathar-flusso-di-energia-negativa",
   "power-word-kill",
   "feeblemind",
+  // CAP-MAXHP, lotto X2: the damage, never below 1 HP, and the reduction of the maximum on a failure.
+  "harm",
   // CAP-STABILIZE (2014 texts): one creature, dying or dead (stabilizeSpellRules.js).
   "spare-the-dying",
   "revivify",
@@ -136,6 +138,8 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   "heal",
   "phb2014-parola-del-potere-guarire",
   "lesser-restoration",
+  "greater-restoration",
+  "heroes-feast",
   "dispel-magic",
   "remove-curse",
   // Decision D6 of docs/PIANO_POLISH_INCANTESIMI.md: a save at the cast, on creatures chosen in the panel. The quick launch

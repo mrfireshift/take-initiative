@@ -23,6 +23,7 @@ import {
   quickHPZeroReconcileTargetIds,
 } from "./quickHpCore.js";
 import { getConditionInstances } from "./conditions.js";
+import { planMaxHpChange } from "./maxHpModifierCore.js";
 import {
   resolveDamageEndsConditionRemovals,
   resolveZeroHPUnconsciousAction,
@@ -92,8 +93,10 @@ import {
   spellCastPrimaryHit,
   spellCastPrimaryHitAmount,
   spellCastPrimaryHitTypes,
+  spellCastHpFloor,
   spellCastSaveAbility,
   spellSaveDamageFactor,
+  withSpellHpFloor,
 } from "./spellCastResolutionRules.js";
 import {
   resolveTurbineTargetChains,
@@ -502,6 +505,8 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
   const saveAbility = text(command?.outcomes?.save?.ability || spellCastSaveAbility(spell?.id)).toLowerCase();
   const evasionSave = mode === QUICK_HP_MODES.DAMAGE && saveAbility === "dex"
     && (spellSaveDamageFactor(spell?.id, "passed") || QUICK_HP_FACTORS.HALF) === QUICK_HP_FACTORS.HALF;
+  // CAP-MAXHP, lotto X2: Harm's damage never takes a creature below 1 hit point (spellCastHpFloor), as the preview shows.
+  const hpFloor = mode === QUICK_HP_MODES.DAMAGE ? spellCastHpFloor(spell?.id) : 0;
   return (Array.isArray(items) ? items : [])
     .filter(trackedHP)
     .map((item) => {
@@ -571,7 +576,7 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
           })
           : primaryAmount;
       if (!primaryTarget || primaryValue <= 0) {
-        return { item, change: areaChange, outcome, ...(reactionRecords.length ? { reactionRecords } : {}) };
+        return { item, change: withSpellHpFloor(areaChange, hpFloor), outcome, ...(reactionRecords.length ? { reactionRecords } : {}) };
       }
       const primaryChange = calculateQuickHPChange({
         mode,
@@ -741,6 +746,9 @@ function planAreaCleanse({ spell, command, liveItems, targetContexts = {} }) {
   const heals = [];
   const subjectIds = [];
   const notes = [];
+  const exhaustionOperations = [];
+  const addOperations = [];
+  const metadataPatches = [];
   const massHeal = spell.id === MASS_HEAL_SPELL_ID ? massHealAllocationFor(command, liveItems) : null;
   for (const item of liveItems) {
     const plan = planCleanseTarget({
@@ -763,7 +771,26 @@ function planAreaCleanse({ spell, command, liveItems, targetContexts = {} }) {
       const casterId = text(entry?.casterId || entry?.source);
       if (casterId) subjectIds.push(casterId);
     }
-    if (plan.healing > 0) heals.push({ item, amount: plan.healing });
+    if (plan.healing > 0) heals.push({ item, amount: plan.healing, removedInstanceIds: plan.removeInstanceIds });
+    // CAP-MAXHP, lotto X3: Greater Restoration's level of exhaustion less, as a reminder's reconcile does it; a sheet that
+    // keeps the base level follows, or opening it would put the level back.
+    if (Number.isInteger(plan.exhaustionLevel)) {
+      exhaustionOperations.push({ type: "condition:reconcile-exhaustion", targetIds: [item.id], level: plan.exhaustionLevel });
+      subjectIds.push(item.id);
+      const card = itemMeta(item).initiativeCard;
+      if (card && typeof card === "object" && Object.hasOwn(card, "exhaustion") && Number(card.exhaustion) !== plan.exhaustionLevel) {
+        metadataPatches.push({ id: item.id, fields: { initiativeCard: {
+          expected: { present: true, value: clone(card) },
+          value: { ...clone(card), exhaustion: plan.exhaustionLevel, updatedAt: Date.now() },
+        } } });
+      }
+    }
+    // CAP-MAXHP, lotto X4: the pill Heroes' Feast leaves on each creature, after its cures in the same command.
+    for (const condition of plan.addConditions || []) {
+      addOperations.push({ type: "condition:add", targetIds: [item.id], conditionName: condition.conditionName,
+        options: condition.options });
+      subjectIds.push(item.id);
+    }
     if (plan.note) notes.push(plan.note);
   }
   return {
@@ -772,11 +799,15 @@ function planAreaCleanse({ spell, command, liveItems, targetContexts = {} }) {
         { type: "condition:remove-instances", removals },
         { type: "condition:automate", subjectIds: uniqueIds(removals.map((removal) => removal.itemId)) },
       ] : []),
+      ...exhaustionOperations,
+      ...addOperations,
+      ...(addOperations.length ? [{ type: "condition:automate", subjectIds: uniqueIds(addOperations.flatMap((operation) => operation.targetIds)) }] : []),
       ...spellRemovals,
     ],
     heals,
     subjectIds: uniqueIds(subjectIds),
     notes,
+    metadataPatches,
   };
 }
 
@@ -820,19 +851,31 @@ function applyStabilizeTallies(entries, items = []) {
 }
 
 // The healing of Heal and Power Word Heal: an HP write of the area command, temporary hit points untouched.
-function applyCleanseHeals(entries, heals = []) {
-  for (const { item, amount } of heals) {
+// CAP-MAXHP, decision M10: a cure that also ends a reduction of the maximum (Harm's disease) heals up to the maximum that
+// comes back. Its write then says the maximum itself, so the coordinator leaves that creature to it (maxHpAwareIds).
+function applyCleanseHeals(entries, heals = [], maxHpAwareIds = null) {
+  for (const { item, amount, removedInstanceIds = [] } of heals) {
     if (!trackedHP(item) || entries.some((entry) => entry.item?.id === item.id)) continue;
     const meta = itemMeta(item);
+    const removed = new Set(removedInstanceIds);
+    const pills = getConditionInstances(meta.conditions || {});
+    const restored = removed.size ? planMaxHpChange({
+      beforeInstances: pills,
+      afterInstances: pills.filter((instance) => !removed.has(String(instance?.id || ""))),
+      state: quickHPStateOf(meta),
+    }) : null;
     const change = calculateQuickHPChange({
       mode: QUICK_HP_MODES.HEAL,
       value: amount,
       factor: QUICK_HP_FACTORS.FULL,
       hp: meta.hp,
-      hpMax: meta.hpMax,
+      hpMax: restored ? restored.hpMax : meta.hpMax,
       tempHp: meta.tempHp,
     });
-    if (change.changed) entries.push({ item, change, outcome: SAVE_SPELL_OUTCOMES.FAILED });
+    if (restored) maxHpAwareIds?.add(item.id);
+    if (change.changed || restored) {
+      entries.push({ item, change: restored ? { ...change, changed: true } : change, outcome: SAVE_SPELL_OUTCOMES.FAILED });
+    }
   }
 }
 
@@ -2381,13 +2424,15 @@ async function buildPlan(command, runtime) {
       ...(relation.targetChange?.changed ? [{ item: relationTargets[0], outcome: "healing", change: relation.targetChange }] : []));
   }
   if (hpBranch?.deaths.size) applyHpBranchDeaths(entries, hpBranch.deaths, liveItems);
+  // CAP-MAXHP: the creatures whose cure here writes the maximum that comes back (applyCleanseHeals).
+  const maxHpAwareIds = new Set();
   if (cleanse) {
-    applyCleanseHeals(entries, cleanse.heals);
+    applyCleanseHeals(entries, cleanse.heals, maxHpAwareIds);
     effectOperations.push(...cleanse.operations);
     effectSubjectIds.push(...cleanse.subjectIds);
   }
   if (stabilize) {
-    applyCleanseHeals(entries, stabilize.heals);
+    applyCleanseHeals(entries, stabilize.heals, maxHpAwareIds);
     applyStabilizeTallies(entries, stabilize.tallies);
     effectOperations.push(...stabilize.operations);
     effectSubjectIds.push(...stabilize.subjectIds);
@@ -2599,6 +2644,12 @@ async function buildPlan(command, runtime) {
     boardTokenEntityIds,
     spellBoardTokenSideEffects,
     zoneEjectionSideEffects,
+    // CAP-MAXHP: the cure's own metadata (a sheet's exhaustion), and patches with no field that tell the coordinator this
+    // command wrote their maximum itself.
+    coordinatedMetadataPatches: [
+      ...(cleanse?.metadataPatches || []),
+      ...[...maxHpAwareIds].map((id) => ({ id, maxHpAware: true, fields: {} })),
+    ],
     zeroHPReconcileIds,
     damageEndsRemovals,
     affectedIds,
@@ -3240,14 +3291,15 @@ export async function executeSpellAreaResolution(
           ...(plan.zoneEjectionSideEffects || []),
         ];
         const commitCoordinatedEffects = async () => {
-          if (!operations.length && !coordinatedSideEffects.length && !plan.bossActionUse?.metadataPatches.length) return true;
+          if (!operations.length && !coordinatedSideEffects.length && !plan.bossActionUse?.metadataPatches.length
+            && !plan.coordinatedMetadataPatches?.length) return true;
           coordinatedMutation = await runtime.runEffectsMutation(operations, {
             history: false,
             sharedHp: command.sharedHp,
             ...(plan.bossActionUse ? {
-              metadataPatches: plan.bossActionUse.metadataPatches,
+              metadataPatches: [...plan.bossActionUse.metadataPatches, ...(plan.coordinatedMetadataPatches || [])],
               sceneMetadataPreconditions: plan.bossActionUse.sceneMetadataPreconditions,
-            } : {}),
+            } : plan.coordinatedMetadataPatches?.length ? { metadataPatches: plan.coordinatedMetadataPatches } : {}),
             kind: isTeleport ? "spell" : "save-resolution",
             label: isTeleport
               ? `Lancio incantesimo · ${plan.spell.displayName || plan.spell.name || "Passo Velato"}`

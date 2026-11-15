@@ -62,6 +62,8 @@ import {
 } from "./spellUnifiedActiveAdapter.js";
 import {
   spellSaveDamageFactor,
+  spellCastHpFloor,
+  withSpellHpFloor,
   spellCantripDamageHint,
   spellCastDamageParts,
   spellCastDamagePartsHint,
@@ -581,14 +583,15 @@ function hpPreviewFor(
           types: [type], defenses: candidate.damageDefenses, ignoredTypes: session?.ignoredDefenses?.[candidate.key] }))),
         reactions: (Array.isArray(session?.damageReactions) ? session.damageReactions : []).filter((row) => damageReactionAppliesTo(row, candidate.key)),
       });
-      let change = calculateQuickHPChange({
+      // CAP-MAXHP, lotto X2: Harm never below 1 hit point, as the commit writes it (withSpellHpFloor).
+      let change = withSpellHpFloor(calculateQuickHPChange({
         mode,
         value: immune || attackMiss || noDamage ? 0 : reacted ? reacted.value : parts ? parts.after : defense ? spellDamageAfterDefense(value, factor, defense) : value,
         factor: attackMiss || defense || parts || reacted ? QUICK_HP_FACTORS.FULL : factor,
         hp: beforeHP,
         hpMax,
         tempHp: candidate.tempHp,
-      });
+      }), isHealing ? 0 : spellCastHpFloor(spellId));
       const defenseCount = isHealing || immune || attackMiss || noDamage
         ? null
         : parts

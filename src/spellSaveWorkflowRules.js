@@ -554,6 +554,15 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
     baseSlot: 6,
     spatial: { mode: "caster-range", maxMeters: 18 },
   }),
+  // CAP-MAXHP, lotto X2 (2014): one creature it can see within 60 feet; its reduction is in hpBranchSpellRules.js.
+  "harm": workflowRule({
+    spellId: "harm",
+    ability: "con",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 6,
+    spatial: { mode: "caster-range", maxMeters: 18 },
+  }),
   "finger-of-death": workflowRule({
     spellId: "finger-of-death",
     ability: "con",
@@ -690,6 +699,49 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
           { value: "disease", label: "Una malattia" },
         ],
         placeholder: "Scegli la condizione",
+      })],
+    }),
+  }),
+  // CAP-MAXHP, lotto X3 (2014): the creature it touches loses one level of exhaustion, or one effect of the GM's choice ends
+  // (cleanseSpellRules.js).
+  "greater-restoration": workflowRule({
+    spellId: "greater-restoration",
+    ability: "con",
+    maximum: 1,
+    baseSlot: 5,
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+    context: targetContext({
+      fields: [targetContextField({
+        id: "cleanseCondition",
+        label: "Termina",
+        required: true,
+        options: [
+          { value: "exhaustion", label: "Un livello di indebolimento" },
+          { value: "Affascinato", label: "Affascinato" },
+          { value: "Pietrificato", label: "Pietrificato" },
+          { value: "curse", label: "Una maledizione" },
+          { value: "max-hp", label: "Una riduzione dei PF massimi" },
+          { value: "ability", label: "Una riduzione di caratteristica" },
+        ],
+        placeholder: "Scegli l'effetto",
+      })],
+    }),
+  }),
+  // CAP-MAXHP, lotto X4 (2014): the caster and up to twelve other creatures eat; each one's 2d10 in its row (decision M6).
+  "heroes-feast": workflowRule({
+    spellId: "heroes-feast",
+    ability: "con",
+    maximum: 13,
+    baseSlot: 6,
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+    context: targetContext({
+      fields: [targetContextField({
+        id: "feastRoll",
+        label: "2d10",
+        type: "number",
+        required: true,
       })],
     }),
   }),

@@ -55,7 +55,7 @@ function bookAction(spellId, overrides = {}) {
 // 60 with Control Flames, Shape Water and Mold Earth, which change the surroundings and left no trace (lotto P2 of the polish).
 // 58 since Bones of the Earth raises its pillars on the map (CAP-STRUCTURE, lotto S3). 56 since Life Transference (CAP-RELATION)
 // and Mass Heal (CAP-ALLOCATION) resolve in the area command.
-test("the plugin only records the instantaneous spells it neither tracks nor places: 56 of the catalog", () => {
+test("the plugin only records the instantaneous spells it neither tracks nor places: 53 of the catalog", () => {
   const catalog = getSpellCatalog();
   const tracked = new Set(getTrackableSpellOptions().map((option) => option.id));
   const expected = catalog
@@ -64,8 +64,10 @@ test("the plugin only records the instantaneous spells it neither tracks nor pla
     .map((spell) => spell.id);
   const recorded = getRecordOnlySpellOptions().map((option) => option.id);
   assert.deepEqual(recorded, expected);
-  assert.equal(recorded.length, 56);
-  for (const id of ["counterspell", "greater-restoration", "wish", "scorching-ray", "mending", "identify"]) {
+  // 55: Harm resolves in the area command (CAP-MAXHP, lotto X2); 54: Greater Restoration (lotto X3);
+  // 53: Heroes' Feast (lotto X4).
+  assert.equal(recorded.length, 53);
+  for (const id of ["counterspell", "legend-lore", "wish", "scorching-ray", "mending", "identify"]) {
     assert.equal(isSpellCastRecordOnly(id), true, id);
   }
   for (const id of ["bless", "fireball", "shield", "hold-person", "mass-cure-wounds", "cure-wounds", "blight", "awaken", "heal", "magic-missile"]) {
@@ -80,7 +82,7 @@ test("the plugin only records the instantaneous spells it neither tracks nor pla
 test("every spell of the catalog is a quick action option, the recorded ones flagged", () => {
   const options = getQuickActionSpellOptions();
   assert.equal(options.length, getSpellCatalog().length);
-  assert.equal(options.filter((option) => option.recordOnly).length, 56);
+  assert.equal(options.filter((option) => option.recordOnly).length, 53);
   assert.equal(options.find((option) => option.id === "counterspell").recordOnly, true);
   assert.equal(options.find((option) => option.id === "fireball").recordOnly, false);
 });

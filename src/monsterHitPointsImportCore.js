@@ -4,6 +4,7 @@
 import { ID } from "./constants.js";
 import { bossMetadataSnapshot, isBossActionCreature } from "./bossActionExecutionCore.js";
 import { resolveSharedHpGroup } from "./sharedHpCore.js";
+import { maxHpEffectiveValues } from "./maxHpModifierCore.js";
 
 const META_KEY = `${ID}/meta`;
 export const MAX_MONSTER_HIT_POINTS = 9999;
@@ -50,9 +51,14 @@ export function planMonsterHitPointsImport({ items = [], sourceId = "", hp, over
     else if (hasCanonicalHitPoints(item) && !overwrite) skipped.push({ id: item.id, name, reason: "has-hp" });
     // «Sostituisci» is the GM's choice for the token in the sheet; a wounded namesake keeps its hit points (fase 4).
     else if (item.id !== sourceId && hasCanonicalHitPoints(item) && meta.hp < meta.hpMax) skipped.push({ id: item.id, name, reason: "wounded" });
-    else if (meta.hp === value && meta.hpMax === value) skipped.push({ id: item.id, name, reason: "same" });
-    else updates.push({ itemId: item.id, hp: value, hpMax: value,
-      expectedHP: bossMetadataSnapshot(meta, "hp"), expectedHPMax: bossMetadataSnapshot(meta, "hpMax") });
+    else {
+      // CAP-MAXHP: the stat block gives the base maximum; a token with Aid (or Harm's reduction) keeps its pills' bonus,
+      // at full hit points.
+      const full = maxHpEffectiveValues({ hp: value, hpMax: value }, meta).hpMax;
+      if (meta.hp === full && meta.hpMax === full) skipped.push({ id: item.id, name, reason: "same" });
+      else updates.push({ itemId: item.id, hp: full, hpMax: full,
+        expectedHP: bossMetadataSnapshot(meta, "hp"), expectedHPMax: bossMetadataSnapshot(meta, "hpMax") });
+    }
   }
   return { updates, skipped, targetIds: updates.map((update) => update.itemId) };
 }

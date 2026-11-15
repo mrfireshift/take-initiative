@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 296,
-      "PARTIAL": 16,
+      "COMPLETE / CURRENT": 300,
+      "PARTIAL": 15,
       "NO AUTOMATION REQUIRED": 146,
-      "MISSING": 4,
+      "MISSING": 1,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 20,
+    "implementableBacklog": 16,
     "readiness": {
       "GREEN": {
         "count": 0,
         "percent": 0
       },
       "YELLOW": {
-        "count": 8,
-        "percent": 40
+        "count": 4,
+        "percent": 25
       },
       "RED": {
         "count": 12,
-        "percent": 60
+        "percent": 75
       }
     },
     "scenarios": [
@@ -3190,14 +3190,17 @@
       "id": "aid",
       "spell": "Aiuto",
       "level": 2,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/maxHpModifierCore.js",
+        "src/spellLifecycleOperationsCore.js",
+        "src/effectsMutations.js",
+        "src/groupRestCore.js"
       ],
       "mechanicsRequired": [
-        "Modifica reversibile PF massimi e valore corrente, rimozione di riduzione o bonus con durata, stacking e clamp: manca ownership del modificatore. Riutilizzare hp/hpMax e ActorVitals."
+        "CAP-MAXHP: fino a 3 creature, PF massimi e attuali +5 (+5 per slot sopra il 2°) nello stesso comando della pill «Aiuto», che ricorda l'importo; quando la pill finisce (× o riposo lungo del gruppo) il massimo torna e i PF scendono solo se sopra. Scadenza manuale, niente conteggio dei round. Una creatura a 0 PF si rialza. PF condivisi o non tracciati: la pill resta un'etichetta. La memoria del PG tiene il massimo senza il bonus. Un solo comando e un solo Annulla."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -3209,9 +3212,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-MAXHP"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -3219,7 +3220,7 @@
         "mode": "discrete",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Modifica reversibile PF massimi e valore corrente, rimozione di riduzione o bonus con durata, stacking e clamp: manca ownership del modificatore. Riutilizzare hp/hpMax e ActorVitals."
+        "required": "CAP-MAXHP: fino a 3 creature, PF massimi e attuali +5 (+5 per slot sopra il 2°) nello stesso comando della pill «Aiuto», che ricorda l'importo; quando la pill finisce (× o riposo lungo del gruppo) il massimo torna e i PF scendono solo se sopra. Scadenza manuale, niente conteggio dei round. Una creatura a 0 PF si rialza. PF condivisi o non tracciati: la pill resta un'etichetta. La memoria del PG tiene il massimo senza il bonus. Un solo comando e un solo Annulla."
       },
       "concentration": false,
       "durationLifecycle": {
@@ -3248,8 +3249,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "MAX-HP",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-MAXHP",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "aid",
@@ -3280,7 +3281,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Modifica reversibile PF massimi e valore corrente, rimozione di riduzione o bonus con durata, stacking e clamp: manca ownership del modificatore. Riutilizzare hp/hpMax e ActorVitals.",
+        "reason": "CAP-MAXHP: fino a 3 creature, PF massimi e attuali +5 (+5 per slot sopra il 2°) nello stesso comando della pill «Aiuto», che ricorda l'importo; quando la pill finisce (× o riposo lungo del gruppo) il massimo torna e i PF scendono solo se sopra. Scadenza manuale, niente conteggio dei round. Una creatura a 0 PF si rialza. PF condivisi o non tracciati: la pill resta un'etichetta. La memoria del PG tiene il massimo senza il bonus. Un solo comando e un solo Annulla.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -20383,13 +20384,17 @@
       "id": "greater-restoration",
       "spell": "Ristorare superiore",
       "level": 5,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/cleanseSpellRules.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/spellSaveWorkflowRules.js",
+        "src/maxHpModifierCore.js",
+        "src/effectsMutations.js"
       ],
       "mechanicsRequired": [
-        "Modifica reversibile PF massimi e valore corrente, rimozione di riduzione o bonus con durata, stacking e clamp: manca ownership del modificatore. Riutilizzare hp/hpMax e ActorVitals."
+        "CAP-MAXHP: una creatura toccata, con la scelta nella sua riga: un livello di indebolimento (la scheda che tiene la base lo segue), Affascinato, Pietrificato, una maledizione, la riduzione dei PF massimi più forte tra le sue pill (il massimo torna), o una riduzione di caratteristica (solo una nota: il plugin non le tiene). Senza l'effetto scelto, solo una nota. Un solo comando e un solo Annulla."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -20401,9 +20406,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-MAXHP"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -20411,7 +20414,7 @@
         "mode": "discrete",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Modifica reversibile PF massimi e valore corrente, rimozione di riduzione o bonus con durata, stacking e clamp: manca ownership del modificatore. Riutilizzare hp/hpMax e ActorVitals."
+        "required": "CAP-MAXHP: una creatura toccata, con la scelta nella sua riga: un livello di indebolimento (la scheda che tiene la base lo segue), Affascinato, Pietrificato, una maledizione, la riduzione dei PF massimi più forte tra le sue pill (il massimo torna), o una riduzione di caratteristica (solo una nota: il plugin non le tiene). Senza l'effetto scelto, solo una nota. Un solo comando e un solo Annulla."
       },
       "concentration": false,
       "durationLifecycle": {
@@ -20440,8 +20443,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "MAX-HP",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-MAXHP",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "greater-restoration",
@@ -20469,7 +20472,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Modifica reversibile PF massimi e valore corrente, rimozione di riduzione o bonus con durata, stacking e clamp: manca ownership del modificatore. Riutilizzare hp/hpMax e ActorVitals.",
+        "reason": "CAP-MAXHP: una creatura toccata, con la scelta nella sua riga: un livello di indebolimento (la scheda che tiene la base lo segue), Affascinato, Pietrificato, una maledizione, la riduzione dei PF massimi più forte tra le sue pill (il massimo torna), o una riduzione di caratteristica (solo una nota: il plugin non le tiene). Senza l'effetto scelto, solo una nota. Un solo comando e un solo Annulla.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -21392,13 +21395,19 @@
       "id": "harm",
       "spell": "Ferire",
       "level": 6,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/spellCastResolutionRules.js",
+        "src/hpBranchSpellRules.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/spellSaveWorkflowRules.js",
+        "src/cleanseSpellRules.js",
+        "src/maxHpModifierCore.js",
+        "src/effectsMutations.js"
       ],
       "mechanicsRequired": [
-        "Modifica reversibile PF massimi e valore corrente, rimozione di riduzione o bonus con durata, stacking e clamp: manca ownership del modificatore. Riutilizzare hp/hpMax e ActorVitals.",
+        "CAP-MAXHP: TS Costituzione, 14d6 necrotici (metà se supera); il danno non porta sotto 1 PF, anche nell'anteprima del pannello. Se fallisce, la pill «Ferire» riduce il massimo del danno subito (dopo resistenze, anche la parte presa dai PF temporanei), mai sotto 1; un secondo Ferire più forte prende il posto del primo. È una malattia: Ristorare inferiore, Guarigione, Guarigione di massa, Resurrezione pura, Banchetto degli eroi e qualsiasi riposo del gruppo la chiudono e il massimo torna; Guarigione cura fino al massimo che torna. Scadenza manuale.",
         "Damage type: necrotic"
       ],
       "existingReusableCapabilities": [
@@ -21411,9 +21420,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-MAXHP"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -21421,7 +21428,7 @@
         "mode": "discrete",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Modifica reversibile PF massimi e valore corrente, rimozione di riduzione o bonus con durata, stacking e clamp: manca ownership del modificatore. Riutilizzare hp/hpMax e ActorVitals."
+        "required": "CAP-MAXHP: TS Costituzione, 14d6 necrotici (metà se supera); il danno non porta sotto 1 PF, anche nell'anteprima del pannello. Se fallisce, la pill «Ferire» riduce il massimo del danno subito (dopo resistenze, anche la parte presa dai PF temporanei), mai sotto 1; un secondo Ferire più forte prende il posto del primo. È una malattia: Ristorare inferiore, Guarigione, Guarigione di massa, Resurrezione pura, Banchetto degli eroi e qualsiasi riposo del gruppo la chiudono e il massimo torna; Guarigione cura fino al massimo che torna. Scadenza manuale."
       },
       "concentration": false,
       "durationLifecycle": {
@@ -21450,8 +21457,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "MAX-HP",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-MAXHP",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "harm",
@@ -21479,7 +21486,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Modifica reversibile PF massimi e valore corrente, rimozione di riduzione o bonus con durata, stacking e clamp: manca ownership del modificatore. Riutilizzare hp/hpMax e ActorVitals.",
+        "reason": "CAP-MAXHP: TS Costituzione, 14d6 necrotici (metà se supera); il danno non porta sotto 1 PF, anche nell'anteprima del pannello. Se fallisce, la pill «Ferire» riduce il massimo del danno subito (dopo resistenze, anche la parte presa dai PF temporanei), mai sotto 1; un secondo Ferire più forte prende il posto del primo. È una malattia: Ristorare inferiore, Guarigione, Guarigione di massa, Resurrezione pura, Banchetto degli eroi e qualsiasi riposo del gruppo la chiudono e il massimo torna; Guarigione cura fino al massimo che torna. Scadenza manuale.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -22164,13 +22171,17 @@
       "id": "heroes-feast",
       "spell": "Banchetto degli eroi",
       "level": 6,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/cleanseSpellRules.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/spellSaveWorkflowRules.js",
+        "src/maxHpModifierCore.js",
+        "src/effectsMutations.js"
       ],
       "mechanicsRequired": [
-        "Modifica reversibile PF massimi e valore corrente, rimozione di riduzione o bonus con durata, stacking e clamp: manca ownership del modificatore. Riutilizzare hp/hpMax e ActorVitals."
+        "CAP-MAXHP: il caster e fino a 12 creature, ognuna col suo 2d10 scritto nella sua riga; cura malattie (anche la riduzione di Ferire) e veleno nello stesso comando, poi la pill «Banchetto degli eroi» per 24 ore: PF massimi e attuali +tiro, immune ai danni da veleno, ad Avvelenato e a Spaventato, vantaggio ai TS di Saggezza (etichetta). Scadenza manuale; il riposo non la chiude. Un solo comando e un solo Annulla."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -22182,9 +22193,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-MAXHP"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -22192,7 +22201,7 @@
         "mode": "discrete",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Modifica reversibile PF massimi e valore corrente, rimozione di riduzione o bonus con durata, stacking e clamp: manca ownership del modificatore. Riutilizzare hp/hpMax e ActorVitals."
+        "required": "CAP-MAXHP: il caster e fino a 12 creature, ognuna col suo 2d10 scritto nella sua riga; cura malattie (anche la riduzione di Ferire) e veleno nello stesso comando, poi la pill «Banchetto degli eroi» per 24 ore: PF massimi e attuali +tiro, immune ai danni da veleno, ad Avvelenato e a Spaventato, vantaggio ai TS di Saggezza (etichetta). Scadenza manuale; il riposo non la chiude. Un solo comando e un solo Annulla."
       },
       "concentration": false,
       "durationLifecycle": {
@@ -22221,8 +22230,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "MAX-HP",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-MAXHP",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "heroes-feast",
@@ -22250,7 +22259,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Modifica reversibile PF massimi e valore corrente, rimozione di riduzione o bonus con durata, stacking e clamp: manca ownership del modificatore. Riutilizzare hp/hpMax e ActorVitals.",
+        "reason": "CAP-MAXHP: il caster e fino a 12 creature, ognuna col suo 2d10 scritto nella sua riga; cura malattie (anche la riduzione di Ferire) e veleno nello stesso comando, poi la pill «Banchetto degli eroi» per 24 ore: PF massimi e attuali +tiro, immune ai danni da veleno, ad Avvelenato e a Spaventato, vantaggio ai TS di Saggezza (etichetta). Scadenza manuale; il riposo non la chiude. Un solo comando e un solo Annulla.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -62942,6 +62951,10 @@
     {
       "date": "2026-11-03",
       "note": "CAP-TERRAIN: Crescita vegetale, Muro d'Acqua, Trasmutare Roccia e Simbolo completi; Parlare con i vegetali tra i tracciati e Boschetto Druidico tra i su misura (T6)."
+    },
+    {
+      "date": "2026-11-13",
+      "note": "CAP-MAXHP: Aiuto, Ferire, Banchetto degli eroi e Ristorare superiore completi; la memoria dei PG tiene il massimo senza i bonus delle pill (M0)."
     }
   ]
 }

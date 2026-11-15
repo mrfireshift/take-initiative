@@ -1,4 +1,5 @@
 import { ID } from "./constants.js";
+import { MAX_HP_SUMMARY_PART_SUFFIX, maxHpModifiersOf, maxHpSummaryLabel } from "./maxHpModifierCore.js";
 
 // CAP-HP-BRANCH (docs/PIANO_AUTOMAZIONE_INCANTESIMI.md, PHB 2014 texts): spells whose effect is read from the hit
 // points of the creature. Before the damage, its current hit points (Power Word Kill, Divine Word); after it, whether
@@ -15,6 +16,8 @@ export const HP_BRANCH_SPELL_IDS = Object.freeze([
   "disintegrate",
   "finger-of-death",
   "xanathar-flusso-di-energia-negativa",
+  // CAP-MAXHP, lotto X2: a failed save lowers the maximum by the damage taken (harmReductionPill).
+  "harm",
 ]);
 export const HP_BRANCH_SPELL_ID_SET = new Set(HP_BRANCH_SPELL_IDS);
 
@@ -109,10 +112,47 @@ export function planHpBranchBeforeDamage({ spellId = "", outcome = "", item = nu
   return { pills, death: null };
 }
 
+// CAP-MAXHP, lotto X2 (docs/PIANO_CAP_MAXHP.md, 2014): Harm's failed save lowers the maximum "by an amount equal to the
+// necrotic damage it took" for 1 hour: the damage after its save and its defenses, the part the temporary hit points took
+// included, whatever the 1 HP floor kept (decision M5). The maximum stays at least 1: the amount is cut there, counting an
+// earlier Harm, which this one takes the place of when stronger (M2). A disease (M10): a cure that ends one ends it.
+export const HARM_REDUCTION_EFFECT_ID = "harm-reduction";
+
+export function harmReductionAmount({ damage = 0, item = null } = {}) {
+  const value = meta(item);
+  const hpMax = Math.floor(Number(value?.hpMax));
+  if (!Number.isFinite(hpMax) || hpMax <= 0) return 0;
+  const earlier = maxHpModifiersOf(value).find((modifier) => modifier.stack === "harm");
+  const room = hpMax - (earlier ? earlier.amount : 0) - 1;
+  return Math.max(0, Math.min(Math.floor(Number(damage) || 0), room));
+}
+
+export function harmReductionPill(amount) {
+  const value = Math.max(0, Math.floor(Number(amount) || 0));
+  if (!value) return null;
+  return {
+    condition: "Ferire",
+    expiry: { mode: "manual" },
+    effectId: HARM_REDUCTION_EFFECT_ID,
+    effectDetail: `${maxHpSummaryLabel(-value)}. Malattia virulenta: il massimo resta ridotto per 1 ora, o finché un effetto che cura `
+      + "una malattia non la toglie (Ristorare inferiore, Guarigione, Ristorare superiore). Quando finisce togli la pill: il massimo torna "
+      + "com'era; il riposo del gruppo, breve o lungo, la chiude da solo.",
+    summaryParts: [{ id: `harm${MAX_HP_SUMMARY_PART_SUFFIX}`, label: maxHpSummaryLabel(-value) }],
+    // restEnds (decision M11): any rest of the party outlasts its hour.
+    mechanics: { maxHp: { amount: -value, stack: "harm", restEnds: "short" }, disease: true },
+    manualRemoval: true,
+    options: { parentEffectId: "", spellId: "harm", spellName: "Ferire" },
+  };
+}
+
 // After the damage: change is the area command's HP change for the creature (calculateQuickHPChange).
 export function planHpBranchAfterDamage({
   spellId = "", outcome = "", item = null, change = null, context = {}, casterId = "", casterName = "",
 } = {}) {
+  if (spellId === "harm") {
+    const pill = outcome === "failed" ? harmReductionPill(harmReductionAmount({ damage: change?.requested, item })) : null;
+    return { pills: pill ? [pill] : [], death: null };
+  }
   const value = meta(item);
   const before = Number(change?.hp);
   const after = Number(change?.afterHP);

@@ -940,6 +940,8 @@ const SPELL_EXPIRY = Object.freeze({
   "sending": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
   "shield": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
   "power-word-stun": Object.freeze({ mode: "manual" }),
+  // CAP-MAXHP, decision M8: 8 hours, ended by hand. A count of rounds would end it in a command without Undo.
+  "aid": Object.freeze({ mode: "manual" }),
   // 2014: until it is dispelled.
   "imprisonment": Object.freeze({ mode: "manual" }),
   // Lotto P3-8: until dispelled, or until something the plugin does not see. With no rounds to count, their pill fell back
@@ -1039,6 +1041,26 @@ const SPELL_END_CONSEQUENCES = Object.freeze({
 });
 
 const SPELL_EFFECTS = Object.freeze({
+  // CAP-MAXHP, lotto X1 (2014, docs/PIANO_CAP_MAXHP.md): +5 to the hit point maximum and to the hit points for 8 hours,
+  // 5 more for each slot above the 2nd. The pill keeps the amount of its cast (maxHpModifierCore.js); the coordinator
+  // writes the maximum when it arrives and when it ends. It ends only by hand (decision M8: no rounds to count).
+  "aid": Object.freeze([
+    Object.freeze({
+      id: "aid-vitality",
+      kind: "buff",
+      label: "Aiuto",
+      detail: "PF massimi e PF attuali aumentati per 8 ore: il bonus è già compreso nel massimo. Quando l'incantesimo finisce togli la pill e il massimo torna com'era; il riposo lungo del gruppo la chiude da solo.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "aid-max-hp", label: "PF max +5" }),
+      ]),
+      mechanics: Object.freeze({
+        // restEnds (decision M11): the party's long rest outlasts its 8 hours and ends it.
+        maxHp: Object.freeze({ base: 5, baseSlot: 2, perSlotAbove: 5, raisesCurrent: true, restEnds: "long" }),
+      }),
+      manualRemoval: true,
+      endsParentOnRemoval: true,
+    }),
+  ]),
   // CAP-REACTION, lotto 2 (2014): the first drop to 0 hit points leaves 1, a death without damage is negated, and the
   // ward ends (reactionHpCore.js, in the command of the damage).
   "death-ward": Object.freeze([

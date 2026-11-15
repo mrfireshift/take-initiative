@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { groupRestMemberSummary, groupRestMembers, planGroupRestHpWrites, planGroupRestReturnFromDeath } from "../src/groupRestCore.js";
+import {
+  groupRestMemberSummary,
+  groupRestMembers,
+  planGroupRestHpWrites,
+  planGroupRestPillEndings,
+  planGroupRestReturnFromDeath,
+} from "../src/groupRestCore.js";
 
 // Lot U6' of the system UX audit: "Riposo del gruppo", the party's short and long rest in one command.
 const META_KEY = "com.thebigpicture.initiative/meta";
@@ -107,4 +113,48 @@ test("U6': il riepilogo dice cosa è cambiato", () => {
   const [update] = planGroupRestHpWrites({ members: [omar], longRest: true });
   assert.equal(groupRestMemberSummary(omar, update, { resourcesRestored: true }), "PF 30 → 40 · PF temporanei tolti · risorse ripristinate");
   assert.equal(groupRestMemberSummary(omar, null), "nulla da ripristinare");
+});
+
+// CAP-MAXHP, decision M11: the rest ends the pills of the maximum it outlasts, in its own command, the HP on the maximum
+// that comes back.
+const maxHpPill = (id, condition, amount, restEnds = "") => ({ id, condition, active: true,
+  mechanics: { maxHp: { amount, ...(amount > 0 ? { raisesCurrent: true } : {}), ...(restEnds ? { restEnds } : {}) } } });
+
+test("M11: il riposo lungo chiude Aiuto e Ferire, i PF sul massimo che torna; il Banchetto resta", () => {
+  const members = groupRestMembers([
+    token("omar", "Omar", { attitude: "pc", hp: 35, hpMax: 35, conditions: { instances: [maxHpPill("aid-1", "Aiuto", 5, "long")] } }),
+    token("lavera", "Lavera", { attitude: "pc", hp: 31, hpMax: 51, conditions: { instances: [maxHpPill("harm-1", "Ferire", -49, "short")] } }),
+    token("brann", "Brann", { attitude: "pc", hp: 50, hpMax: 62, conditions: { instances: [maxHpPill("feast-1", "Banchetto degli eroi", 12)] } }),
+  ]);
+  const updates = planGroupRestHpWrites({ members, longRest: true, eventId: "e1" });
+  assert.deepEqual(updates.map((update) => [update.itemId, update.hp, update.hpMax, update.maxHpAware === true]),
+    [["brann", 62, 62, false], ["lavera", 100, 100, true], ["omar", 30, 30, true]]);
+  assert.deepEqual(planGroupRestPillEndings({ members, longRest: true }), [{ type: "condition:remove-instances", removals: [
+    { itemId: "lavera", instanceId: "harm-1" }, { itemId: "omar", instanceId: "aid-1" }] }]);
+  const omar = members.find((member) => member.id === "omar");
+  assert.equal(groupRestMemberSummary(omar, updates.find((update) => update.itemId === "omar"), { longRest: true }),
+    "PF 35 → 30 · Aiuto finito");
+});
+
+test("M11: il riposo breve chiude solo Ferire, con i PF recuperati fino al massimo che torna", () => {
+  const members = groupRestMembers([
+    token("omar", "Omar", { attitude: "pc", hp: 30, hpMax: 35, conditions: { instances: [maxHpPill("aid-1", "Aiuto", 5, "long")] } }),
+    token("lavera", "Lavera", { attitude: "pc", hp: 31, hpMax: 51, conditions: { instances: [maxHpPill("harm-1", "Ferire", -49, "short")] } }),
+  ]);
+  const updates = planGroupRestHpWrites({ members, longRest: false, recovered: { omar: 3, lavera: 8 } });
+  assert.deepEqual(updates.map((update) => [update.itemId, update.hp, update.hpMax, update.maxHpAware === true]),
+    [["lavera", 39, 100, true], ["omar", 33, 35, false]]);
+  assert.deepEqual(planGroupRestPillEndings({ members, longRest: false }), [{ type: "condition:remove-instances",
+    removals: [{ itemId: "lavera", instanceId: "harm-1" }] }]);
+});
+
+test("M11: il tempo passa anche per chi è a 0 PF, che non scrive PF; per un morto no", () => {
+  const members = groupRestMembers([
+    token("omar", "Omar", { attitude: "pc", hp: 0, hpMax: 35, conditions: { instances: [maxHpPill("aid-1", "Aiuto", 5, "long")] } }),
+    token("lavera", "Lavera", { attitude: "pc", hp: 0, hpMax: 51, conditions: { instances: [maxHpPill("harm-1", "Ferire", -49, "short"),
+      { id: "dead", condition: "Morto", active: true }] } }),
+  ]);
+  assert.deepEqual(planGroupRestHpWrites({ members, longRest: true }), []);
+  assert.deepEqual(planGroupRestPillEndings({ members, longRest: true }), [{ type: "condition:remove-instances",
+    removals: [{ itemId: "omar", instanceId: "aid-1" }] }]);
 });

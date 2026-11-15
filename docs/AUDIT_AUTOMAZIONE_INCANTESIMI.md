@@ -644,9 +644,9 @@ da questo audit.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **477**; disconnessi: **0**; fragili: **0**.
 - Opzioni trackable del runtime: **361**; definizioni con tracking persistente verificate dall'audit: **361**; definizioni con regole d'area: **144** (162 regole).
-- Workflow che richiedono smoke test runtime: **420**.
-- Lacune RAW confermate P1: **7**; discrepanze ad alta confidenza P2: **2**.
-- Impronta deterministica: `f61761dd6c0822ff`.
+- Workflow che richiedono smoke test runtime: **423**.
+- Lacune RAW confermate P1: **7**; discrepanze ad alta confidenza P2: **1**.
+- Impronta deterministica: `933392077331517e`.
 
 ## Decisioni di prodotto chiuse
 
@@ -659,9 +659,9 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | FULL | 66 |
-| MANUAL | 54 |
-| PARTIAL | 249 |
-| TRACK_ONLY | 108 |
+| MANUAL | 51 |
+| PARTIAL | 253 |
+| TRACK_ONLY | 107 |
 
 ### Stato di copertura (coverageStatus)
 
@@ -671,8 +671,8 @@ da questo audit.
 | --- | ---: |
 | ACCEPTED | 72 |
 | CLOSED | 15 |
-| GAP | 10 |
-| UNREVIEWED | 380 |
+| GAP | 9 |
+| UNREVIEWED | 381 |
 
 ### Livello di automazione target (targetAutomationLevel)
 
@@ -702,8 +702,8 @@ da questo audit.
 | --- | ---: |
 | ACTIVE_ACTION | 61 |
 | AREA_GEOMETRY | 144 |
-| CAST | 281 |
-| CLEANUP | 134 |
+| CAST | 285 |
+| CLEANUP | 135 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 361 |
 | TURN_TRIGGER | 111 |
@@ -712,8 +712,8 @@ da questo audit.
 
 | Stato | Totale |
 | --- | ---: |
-| partial | 10 |
-| reachable | 467 |
+| partial | 9 |
+| reachable | 468 |
 
 ### Problemi di integrazione
 
@@ -747,7 +747,6 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 
 | Incantesimo | Fonte | Lacune | Evidenza/valutazione |
 | --- | --- | --- | --- |
-| Ferire | SRD 5.1 | effetto persistente di una spell istantanea assente | Segnalazione strutturale senza estratto testuale breve. |
 | Manto del Crociato | Legacy | testo regolamentare locale mancante | Segnalazione strutturale senza estratto testuale breve. |
 
 ## P3 — candidate da revisionare
@@ -763,7 +762,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Abilità Potenziata | `xanathar-abilita-potenziata` | Xanathar / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Abito Ultraterreno di Tasha | `tasha-abito-ultraterreno-di-tasha` | Tasha / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Aculeo Mentale | `xanathar-aculeo-mentale` | Xanathar / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Aiuto | `aid` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Aiuto | `aid` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Alba | `xanathar-alba` | Xanathar / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Allarme | `alarm` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Alleato planare | `planar-ally` | SRD 5.1 / 6 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -795,7 +794,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Bacche benefiche | `goodberry` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Bagliore lunare | `moonbeam` | SRD 5.1 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Bagliore solare | `sunbeam` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Banchetto degli eroi | `heroes-feast` | SRD 5.1 / 6 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Banchetto degli eroi | `heroes-feast` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Barriera di lame | `blade-barrier` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Beffa crudele | `vicious-mockery` | SRD 5.1 / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Benedizione | `bless` | SRD 5.1 / 1 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
@@ -918,7 +917,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Faro di speranza | `beacon-of-hope` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Fatale | `weird` | SRD 5.1 / 9 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Favore divino | `divine-favor` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Ferire | `harm` | SRD 5.1 / 6 | MANUAL | GAP | UNREVIEWED | UNIFIED | partial | P2 | effetto persistente di una spell istantanea assente |
+| Ferire | `harm` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Fermare il tempo | `time-stop` | SRD 5.1 / 9 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Ferocia Primordiale | `xanathar-ferocia-primordiale` | Xanathar / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Fiamma perenne | `continual-flame` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1131,7 +1130,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Risata incontenibile | `hideous-laughter` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Riscaldare il metallo | `heat-metal` | SRD 5.1 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Ristorare inferiore | `lesser-restoration` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Ristorare superiore | `greater-restoration` | SRD 5.1 / 5 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Ristorare superiore | `greater-restoration` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Risveglio | `awaken` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Ritirata rapida | `expeditious-retreat` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Rombo di Tuono | `xanathar-rombo-di-tuono` | Xanathar / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

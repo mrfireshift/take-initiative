@@ -1,4 +1,5 @@
 import { spellEffectConditionOptions } from "./spellEffectCore.js";
+import { maxHpEffectForCast } from "./maxHpModifierCore.js";
 
 const uniqueIds = (values = []) => Array.from(new Set(
   (Array.isArray(values) ? values : [])
@@ -165,8 +166,9 @@ export function catalogSpellApplicationOperations({
       ? effect.kind
       : "";
     if (!effectLabel || !effectKind) continue;
+    // CAP-MAXHP: a bonus to the maximum that grows with the slot (Aid) gets the amount of this cast.
     const effectOptions = spellEffectConditionOptions(
-      effect,
+      maxHpEffectForCast(effect, castContext?.slotLevel),
       conditionOptions,
       persistSpell === true ? instanceId : "",
     );

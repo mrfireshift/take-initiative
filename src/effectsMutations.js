@@ -109,6 +109,7 @@ import {
   normalizeElevation,
 } from "./distance3dCore.js";
 import { planZoneLandings, zoneFallConditionOperation } from "./zoneLandingCore.js";
+import { maxHpConditionOptionsAsLabel, planMaxHpChange } from "./maxHpModifierCore.js";
 import {
   ELEVATION_FIELD,
   readElevation,
@@ -1116,6 +1117,152 @@ function applyMetadataPatchesToPlan(plan, sceneItems, metadataPatches = []) {
   return plan;
 }
 
+// CAP-MAXHP (docs/PIANO_CAP_MAXHP.md): the creatures in a pool of shared hit points, the source and the linked ones.
+function sharedHpMemberIds(sceneItems = []) {
+  const ids = new Set();
+  for (const item of sceneItems) {
+    const source = String(item?.metadata?.[META_KEY]?.sharedHpSourceId || "").trim();
+    if (!source) continue;
+    ids.add(String(item.id || "").trim());
+    ids.add(source);
+  }
+  return ids;
+}
+
+// Where the coordinator writes a bonus to the maximum: tracked hit points, not a pool's, not a spell's token.
+function maxHpWritable(item, sharedIds) {
+  const meta = item?.metadata?.[META_KEY] || {};
+  return !!item && meta.hp !== undefined && meta.hp !== null && Number.isFinite(Number(meta.hp))
+    && Number(meta.hpMax) > 0 && !spellBoardTokenHpTarget(item) && !sharedIds.has(item.id);
+}
+
+// Decision M9: a pill that changes the maximum keeps its bonus only where the coordinator writes it; elsewhere it arrives
+// as a label, and its detail says why (maxHpConditionOptionsAsLabel).
+function withMaxHpTargetsChecked(operations, sceneItems) {
+  if (!operations.some((operation) => operation?.type === "condition:add" && operation.options?.mechanics?.maxHp)) {
+    return operations;
+  }
+  const byId = new Map(sceneItems.map((item) => [item.id, item]));
+  const sharedIds = sharedHpMemberIds(sceneItems);
+  return operations.flatMap((operation) => {
+    if (operation?.type !== "condition:add" || !operation.options?.mechanics?.maxHp) return [operation];
+    const targetIds = uniqueIds(operation.targetIds);
+    const kept = targetIds.filter((targetId) => maxHpWritable(byId.get(targetId), sharedIds));
+    if (kept.length === targetIds.length) return [operation];
+    const labels = targetIds.filter((targetId) => !kept.includes(targetId));
+    return [
+      ...(kept.length ? [{ ...operation, targetIds: kept }] : []),
+      { ...operation, operationId: createId("effect-operation"), targetIds: labels,
+        options: maxHpConditionOptionsAsLabel(operation.options) },
+    ];
+  });
+}
+
+// The hit points a command leaves on a creature, from its own patches over the stored ones; aware: a patch already wrote
+// them knowing the pills of the command (a rest, a cure: maxHpAware).
+function maxHpProjectedFields(meta, patchLists, id) {
+  const fields = {};
+  for (const field of ["hp", "hpMax", "tempHp"]) {
+    if (Object.prototype.hasOwnProperty.call(meta, field)) fields[field] = meta[field];
+  }
+  let aware = false;
+  for (const list of patchLists) {
+    for (const patch of list) {
+      if (patch?.id !== id) continue;
+      if (patch.maxHpAware === true) aware = true;
+      for (const field of ["hp", "hpMax", "tempHp"]) {
+        const descriptor = patch.fields?.[field];
+        if (!descriptor || descriptor.mode === "assert") continue;
+        if (descriptor.mode === "delete") delete fields[field];
+        else fields[field] = descriptor.value;
+      }
+    }
+  }
+  return { fields, aware };
+}
+
+// Lotto X1 (decisions M1–M3): a pill that raises or lowers the maximum, arrived or ended in this command, writes the
+// maximum and the hit points in this command too, on top of what the command writes for that creature (planMaxHpChange):
+// the command's own patches are rewritten, so the last word is one, and a patch is added where there is none. The old
+// encoding moves to its own field in the same write. A creature it raises from 0 HP leaves its death saves as with a
+// cure: riseOperations end Stabile and the automatic Privo di sensi, and the plan is built again with them.
+function planCommandMaxHpWrites({ plan, sceneItems, patchLists }) {
+  const patches = [];
+  const riseOperations = [];
+  const byId = new Map(sceneItems.map((item) => [item.id, item]));
+  const sharedIds = sharedHpMemberIds(sceneItems);
+  for (const change of Array.isArray(plan?.changes) ? plan.changes : []) {
+    const item = byId.get(change?.id);
+    if (!item || !maxHpWritable(item, sharedIds)) continue;
+    const meta = item.metadata?.[META_KEY] || {};
+    const { fields, aware } = maxHpProjectedFields(meta, patchLists, item.id);
+    if (aware || !(Number(fields.hpMax) > 0) || !Number.isFinite(Number(fields.hp))) continue;
+    const state = quickHPStateOf(fields);
+    const write = planMaxHpChange({
+      beforeInstances: change.before?.conditions,
+      afterInstances: change.after?.conditions,
+      state,
+    });
+    if (!write) continue;
+    const rising = state.hp <= 0 && write.hp > 0;
+    const consequence = rising ? planDeathSaveHpChange({
+      meta: { ...meta, hp: state.hp, hpMax: state.hpMax },
+      instances: change.after?.conditions || [],
+      hpAfter: write.hp,
+      hpMax: write.hpMax,
+    }) : null;
+    let wroteHp = false;
+    let wroteMax = false;
+    let wroteTemp = false;
+    let wroteDeathSaves = false;
+    for (const list of patchLists) {
+      for (const [index, patch] of list.entries()) {
+        if (patch?.id !== item.id) continue;
+        const next = { ...patch.fields };
+        let touched = false;
+        if (next.hp && next.hp.mode !== "assert" && next.hp.mode !== "delete") {
+          next.hp = { ...next.hp, value: write.hp };
+          wroteHp = touched = true;
+        }
+        if (next.hpMax && next.hpMax.mode !== "assert" && next.hpMax.mode !== "delete") {
+          next.hpMax = { ...next.hpMax, value: write.hpMax };
+          wroteMax = touched = true;
+        }
+        if (next.tempHp && next.tempHp.mode !== "assert") wroteTemp = true;
+        if (consequence?.deathSaves && next[DEATH_SAVES_FIELD] && next[DEATH_SAVES_FIELD].mode !== "assert") {
+          next[DEATH_SAVES_FIELD] = { ...consequence.deathSaves, expected: next[DEATH_SAVES_FIELD].expected };
+          wroteDeathSaves = touched = true;
+        }
+        if (touched) list[index] = { ...patch, fields: next };
+      }
+    }
+    const added = {};
+    if (!wroteHp) added.hp = { value: write.hp, expected: metadataFieldSnapshot(meta, "hp") };
+    if (!wroteMax) added.hpMax = { value: write.hpMax, expected: metadataFieldSnapshot(meta, "hpMax") };
+    // The old encoding keeps temporary hit points above the maximum: they go to their own field, never lost.
+    if (!wroteTemp && Number(fields.hp) > Number(fields.hpMax)) {
+      const tempHpField = quickHPTempHpPatchField(meta, state.tempHp);
+      if (tempHpField) added.tempHp = tempHpField;
+    }
+    if (consequence?.deathSaves && !wroteDeathSaves) {
+      added[DEATH_SAVES_FIELD] = { ...consequence.deathSaves, expected: metadataFieldSnapshot(meta, DEATH_SAVES_FIELD) };
+    }
+    if (Object.keys(added).length) patches.push({ id: item.id, fields: added });
+    if (rising) {
+      if (consequence?.removeInstanceIds?.length) {
+        riseOperations.push({ type: "condition:remove-instances",
+          removals: consequence.removeInstanceIds.map((instanceId) => ({ itemId: item.id, instanceId })) });
+      }
+      const risen = { ...item, metadata: { ...item.metadata, [META_KEY]: { ...meta, hp: write.hp, hpMax: write.hpMax,
+        conditions: { instances: change.after?.conditions || [] } } } };
+      riseOperations.push(...expandStateDependentOperations([{ type: "condition:reconcile-zero-hp", targetIds: [item.id] }],
+        [risen]));
+    }
+  }
+  // The History keeps the hit points and the maximum before and after: the combat log reads them there.
+  return { patches, riseOperations: riseOperations.map(prepareOperation) };
+}
+
 function expandStateDependentOperations(operations, sceneItems, derived = null) {
   const byId = new Map(sceneItems.map((item) => [item.id, item]));
   return operations.flatMap((operation) => {
@@ -1476,7 +1623,8 @@ export async function prepareEffectsMutation(operations = [], {
         if (ending) hpOperations.push(ending);
       }
       if (tempHpSource !== null) tempHpSourceAfterById.set(item.id, tempHpSource);
-      hpPatches.push({ id: item.id, fields: {
+      // CAP-MAXHP: a write that already knows the pills of the command (a rest that ends Aid) is left as it is.
+      hpPatches.push({ id: item.id, ...(update.maxHpAware === true ? { maxHpAware: true } : {}), fields: {
         hp: { value: update.hp, ...(update.expectedHP ? { expected: update.expectedHP } : {}) },
         hpMax: { value: update.hpMax, ...(update.expectedHPMax ? { expected: update.expectedHPMax } : {}) },
         ...(tempHpField ? { tempHp: tempHpField } : {}),
@@ -1613,6 +1761,8 @@ export async function prepareEffectsMutation(operations = [], {
     knownConditionNames: CONDITION_LIST,
     maxCustomConditions: 3,
   };
+  // CAP-MAXHP, decision M9: a bonus to the maximum only where the coordinator writes the hit points.
+  effectsOperations.splice(0, effectsOperations.length, ...withMaxHpTargetsChecked(effectsOperations, sceneItems));
   let plan = buildEffectsMutationPlan(
     sceneItems.map(normalizedSceneItem),
     effectsOperations,
@@ -1661,6 +1811,14 @@ export async function prepareEffectsMutation(operations = [], {
     }
     tempHpRecords.push({ id: change.id, before: tempHp, after: 0, mode: "expired" });
   }
+  // CAP-MAXHP, lotto X1 (docs/PIANO_CAP_MAXHP.md): the maximum of a pill that arrives or ends, written in this command over
+  // what it already writes (planCommandMaxHpWrites). A creature it raises from 0 HP leaves Privo di sensi: the plan is
+  // built again with that, as for the falls above.
+  const maxHpPlan = planCommandMaxHpWrites({ plan, sceneItems, patchLists: [hpPatches, metadataPatches, tempHpExpiryPatches] });
+  if (maxHpPlan.riseOperations.length) {
+    effectsOperations.push(...maxHpPlan.riseOperations);
+    plan = buildEffectsMutationPlan(sceneItems.map(normalizedSceneItem), effectsOperations, planOptions);
+  }
   const patchedPlan = applyMetadataPatchesToPlan(
     plan,
     sceneItems,
@@ -1668,6 +1826,7 @@ export async function prepareEffectsMutation(operations = [], {
       ...hpPatches,
       ...metadataPatches,
       ...tempHpExpiryPatches,
+      ...maxHpPlan.patches,
       ...classFeatureStatePlan.patches,
     ],
   );
