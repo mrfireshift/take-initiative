@@ -462,8 +462,9 @@ export function pcAttackOpenSpellCast({ sourceItem, spellId = "", turnState = nu
   const live = sourceItem?.metadata?.[META_KEY]?.[PC_ATTACK_STATE_FIELD]?.spellCast || null;
   if (!live || live.spellId !== spellId) return null;
   if ((live.turnKey || "") !== (attackTurn(turnState)?.turnKey || "")) return null;
-  // Steel Wind Strike: after its last attack the cast stays open for the teleport (teleportPending).
-  return live.index < live.total || live.leapPending === true || live.teleportPending === true
+  // Steel Wind Strike: after its last attack the cast stays open for the teleport (teleportPending). A complete cast
+  // (lot DM1 of docs/STUDIO_GIOCO_ONLINE.md) stays too, so that only «Nuovo lancio» starts another one.
+  return live.index < live.total || live.leapPending === true || live.teleportPending === true || live.complete === true
     ? { ...live, targetIds: [...(live.targetIds || [])] } : null;
 }
 
@@ -498,6 +499,13 @@ export function pcAttackSpellCastPlan({ attack, sourceItem, targetItem = null, s
   const requested = Math.floor(Number(release ? Math.max(spell.level, release.slotLevel || spell.level) : spellCast?.slotLevel));
   const slotLevel = continuing ? live.slotLevel : (Number.isInteger(requested) && requested >= spell.level && requested <= 9 ? requested : null);
   if (!slotLevel) return blocked("Scegli il livello dello slot.");
+  // Lot DM1 of docs/STUDIO_GIOCO_ONLINE.md (G6): all the darts or rays of the cast are registered. Another one is a new
+  // cast, which the GM starts with «Nuovo lancio» (a new cast id): never a slot spent without it. A readied release is
+  // its own cast.
+  if (!continuing && !release && live && live.complete === true && live.castId === castId && live.spellId === spell.spellId
+    && (live.turnKey || "") === turnKey) {
+    return blocked(`${spell.name}: lancio completo (${live.index}/${live.total}). Premi «Nuovo lancio» per spendere un altro slot.`);
+  }
   // Steel Wind Strike: its five attacks are registered; what is left is the teleport, or a new cast.
   if (!continuing && live && live.castId === castId && live.spellId === spell.spellId && live.teleportPending === true
     && (live.turnKey || "") === turnKey) {
@@ -517,10 +525,10 @@ export function pcAttackSpellCastPlan({ attack, sourceItem, targetItem = null, s
   const pact = continuing ? live.pact === true : !release && spellCast?.pact === true;
   // Steel Wind Strike: the cast stays open after any of its attacks, for the teleport the caster may take.
   const teleportPending = !!spell.teleportAfter;
-  const next = index < total || leapPending || teleportPending
-    ? { castId, spellId: spell.spellId, slotLevel, index, total, targetIds: [...targetIds, ...(targetItem ? [targetItem.id] : [])], turnKey, leapPending,
-      ...(pact ? { pact: true } : {}), ...(teleportPending ? { teleportPending: true } : {}) }
-    : null;
+  // DM1: the cast stays after its last dart or ray, marked complete, until another attack or another turn.
+  const complete = !(index < total || leapPending || teleportPending);
+  const next = { castId, spellId: spell.spellId, slotLevel, index, total, targetIds: [...targetIds, ...(targetItem ? [targetItem.id] : [])], turnKey,
+    leapPending, ...(pact ? { pact: true } : {}), ...(teleportPending ? { teleportPending: true } : {}), ...(complete ? { complete: true } : {}) };
   return { ok: true, spell, slotLevel, dice: pcAttackSpellDice(spell, slotLevel), firstOfCast: !continuing, index, total,
     ...(continuing && live.leapPending ? { leap: true } : {}), ...(pact ? { pact: true } : {}), leapPending, next,
     ...(release ? { readiedRelease: { instanceId: release.instanceId } } : {}) };

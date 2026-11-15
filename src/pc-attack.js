@@ -583,8 +583,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(spellControls){spellControls.replaceChildren(...controls);spellControls.hidden=!controls.length;}
     const pills=spell && !spell.fromActiveSpell?pcAttackCantripPillLabels(spell.spellId):[];
     const slotLevel=draft.spell.slotLevel ?? spell?.level;
-    const progress=open?`${open.leapPending?"Balzo del dardo":open.index>=open.total?`Attacchi registrati: ${open.index}/${open.total}`
-      :`Lancio in corso: ${open.index}/${open.total} registrati`} · slot di ${open.slotLevel}° già speso. ${open.leapPending?"Scegli un'altra creatura entro 9 metri.":""}`
+    // Lot DM1 of docs/STUDIO_GIOCO_ONLINE.md: a complete cast stays until «Nuovo lancio».
+    const progress=open?`${open.leapPending?"Balzo del dardo":open.complete?`Lancio completo: ${open.index}/${open.total}`:open.index>=open.total?`Attacchi registrati: ${open.index}/${open.total}`
+      :`Lancio in corso: ${open.index}/${open.total} registrati`} · slot di ${open.slotLevel}° già speso. ${open.leapPending?"Scegli un'altra creatura entro 9 metri.":open.complete?"Per un altro lancio premi «Nuovo lancio».":""}`
       // A readied spell's release (lot T6d): no slot, the hold ends with this attack; its rays go on as a cast's.
       :release?`Rilascio dell'incantesimo preparato: slot di ${slotLevel}° già speso alla preparazione; questo attacco chiude la presa.${spell.count?` ${spell.count.noun || (spell.spellId==="magic-missile"?"Dardi":"Raggi")}: ${spell.count.base+spell.count.perSlot*Math.max(0,(slotLevel || spell.level)-spell.level)}.`:""}`
       :spell?.count?`${spell.count.noun || (spell.spellId==="magic-missile"?"Dardi":"Raggi")}: ${spell.count.base+spell.count.perSlot*Math.max(0,(slotLevel || spell.level)-spell.level)} con questo slot; il primo spende lo slot.`:"";

@@ -645,7 +645,10 @@ test("Scorching Ray: three rays, one slot spent with the first; one Undo of the 
   assert.deepEqual([third.spell.index, third.spell.total, third.spell.firstOfCast], [3, 3, false]);
   assert.equal(slots()["spell-slot-2"].current, 2, "only the first ray spent a slot");
   assert.equal(meta("ghoul").hp, 18);
-  assert.equal(meta("aria").pcAttackState.spellCast, undefined);
+  // Lot DM1 of docs/STUDIO_GIOCO_ONLINE.md: the cast stays, complete, until «Nuovo lancio»; a fourth ray is refused.
+  assert.equal(meta("aria").pcAttackState.spellCast.complete, true);
+  await assert.rejects(castSpell("scorching-ray", { attackInstanceId: "ray-4", spellCast }), /lancio completo \(3\/3\)/u);
+  assert.equal(slots()["spell-slot-2"].current, 2, "no slot spent by the refused ray");
 });
 
 test("a spell without a slot left is refused, unless the GM confirms the cast without one", async () => {

@@ -476,7 +476,10 @@ Fonte: [AUDIT_UX_PANNELLO_ATTACCHI.md](AUDIT_UX_PANNELLO_ATTACCHI.md), «Prova i
 - [ ] **Elenco lungo:** con molti incantesimi `Dettagli` si vede subito e si apre al primo clic. Aperto, l'elenco si accorcia e il testo scorre nella scheda; richiuso, torna tutto come prima.
 - [ ] **Testata:** maniglia e nome ben distinti, entrambi staccati dal bordo. Il trascinamento funziona come prima.
 - [ ] **Attacco di un PG:** `Mischia` sul selettore, non nelle righe del menu, e nessuna riga sotto.
-- [ ] **Dardo incantato:** nessun pulsante di esito, sopra il danno `Senza tiro per colpire`, e il bersaglio segue ancora la mappa. Scrivi il danno e premi Invio: il dardo dopo è pronto, sullo stesso bersaglio, con lo slot speso una volta sola. Chiudendo prima di scrivere non chiede conferma.
+- [ ] **Dardo incantato:** nessun pulsante di esito, sopra il danno `Senza tiro per colpire`, e il bersaglio segue ancora la mappa. Scrivi il danno e premi Invio: il dardo dopo è pronto, sullo stesso bersaglio, con lo slot speso una volta sola. Chiudendo prima di scrivere non chiede conferma. Dopo il terzo dardo (DM1 e DM2 di STUDIO_GIOCO_ONLINE.md):
+  - la nota dice «Lancio completo: 3/3» e **Registra** resta spento, anche con un danno scritto: nessuno slot in più;
+  - **Nuovo lancio** apre un lancio nuovo, e il suo primo dardo spende un altro slot;
+  - la nota ricorda che un Dardo incantato lanciato dal pannello è già registrato.
 - [ ] **Dardo incantato al turno di un altro:** con la console aperta sul dardo e nessun danno scritto, al cambio di turno la console segue il turno senza fermarsi; con un danno scritto si ferma e aspetta il GM.
 - [ ] **Attacco di un mostro:** `+14 al tiro · portata 3 m` in cima al riquadro del danno, sopra `Perforanti`; sotto il selettore solo `Multiattacco`.
 - [ ] **Incantesimo con slot:** prima il selettore dello slot, poi `Senza tiro per colpire`, poi il danno.

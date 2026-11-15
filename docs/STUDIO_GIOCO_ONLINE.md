@@ -12,8 +12,10 @@ come raccomandate. Primo passo: la prova in stanza G1.
   la prova in stanza è nella voce L1 di `PROVE_IN_STANZA.md`, E1.
 - **Piano di SB3 scritto il 15/11** nel §5; G19–G23 approvate il 16/11 come
   raccomandate («Sì, tutte»).
-- **SB3 fatto il 16/11.** Il §5 dice cosa è cambiato; la prova in stanza è
-  nella stessa voce L1 di E1.
+- **SB3 fatto il 16/11** (in `3c9aab96`). Il §5 dice cosa è cambiato; la
+  prova in stanza è nella stessa voce L1 di E1.
+- **DM1 e DM2 fatti il 16/11.** Il §2 dice cosa è cambiato; la prova in stanza
+  è nella voce «Dardo incantato» di `PROVE_IN_STANZA.md` (B2).
 
 I sei punti vengono da una sessione di gioco online. Per ognuno: com'è oggi, la
 causa (o la conferma che funziona), la proposta, i rischi secondo AGENTS.md e i
@@ -266,6 +268,32 @@ La nota dice «Registra un dardo alla volta, anche sullo stesso bersaglio».
 
 **DM2 · Nota sul pannello:** nella nota del Dardo incantato, «Lanciato dal
 pannello incantesimi? È già registrato: non registrarlo qui».
+
+**Fatto il 16/11 (DM1 e DM2):**
+
+- **DM1** (`src/pcAttackCore.js`):
+  - `pcAttackSpellCastPlan` lascia lo stato `spellCast` dopo l'ultimo colpo,
+    segnato `complete`;
+  - un altro colpo con lo stesso lancio è rifiutato con «Premi «Nuovo lancio»
+    per spendere un altro slot»;
+  - il rilascio di un incantesimo preparato (T6d) passa comunque;
+  - `pcAttackOpenSpellCast` tiene il lancio completo; la console scrive
+    «Lancio completo: 3/3 · slot di 1° già speso. Per un altro lancio premi
+    «Nuovo lancio»» (`src/pc-attack.js`);
+  - il teletrasporto del Colpo del Vento d'Acciaio e il balzo del Dardo di caos
+    restano come prima;
+  - il lancio completo sparisce al turno dopo o con un altro attacco.
+- **DM2:** la nota del catalogo (`src/pcAttackSpellCatalog.js`) dice che un
+  Dardo incantato lanciato dal pannello è già registrato.
+- **Prove:**
+  - i test che fissavano la chiusura sono aggiornati (`pcAttackSpells`,
+    `pcAttackExecutionIntegration`), con il rifiuto senza slot speso e il
+    lancio nuovo; la nota in `pcAttackPopover`;
+  - suite completa verde in una copia pulita (6191 test);
+  - build di controllo riuscita;
+  - banco: tre dardi spendono uno slot (da 4 a 3); il quarto è rifiutato
+    anche con il danno scritto; con «Nuovo lancio» spende il secondo slot
+    (da 3 a 2).
 
 ### Rischi
 

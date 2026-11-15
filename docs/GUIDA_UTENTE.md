@@ -157,7 +157,10 @@ quel personaggio.
   rovente, Globo cromatico, Dardo di caos e Tocco del vampiro aprono la console
   sull'incantesimo scelto. Nella console si sceglie lo slot (o il Patto): lo
   spende il primo raggio o dardo, i successivi dello stesso lancio no, e la
-  console dice quanti ne restano. Dardo incantato colpisce senza tiro (Scudo lo
+  console dice quanti ne restano. Registrato l'ultimo, il lancio resta
+  «completo» fino alla fine del turno: un altro raggio o dardo vuole **Nuovo
+  lancio**, che spende un altro slot. Un Dardo incantato lanciato dal pannello
+  incantesimi è già registrato: non va registrato anche qui. Dardo incantato colpisce senza tiro (Scudo lo
   blocca): non c'è un esito da scegliere, si scrive il danno del dardo e si preme
   Invio, e il dardo dopo è pronto sullo stesso bersaglio. Globo cromatico e
   Dardo di caos chiedono il tipo, e con due d8

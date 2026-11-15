@@ -27,7 +27,8 @@ export const PC_ATTACK_SPELLS = Object.freeze([
     ruleNote: "Il tipo è quello di uno dei due d8: 1 acido, 2 forza, 3 freddo, 4 fulmine, 5 fuoco, 6 psichico, 7 tuono, 8 veleno. Con due d8 uguali il dardo balza su un'altra creatura entro 9 metri." }),
   Object.freeze({ spellId: "magic-missile", name: "Dardo incantato", level: 1, range: "ranged", delivery: "auto", type: "force",
     dice: "1d4+1", count: Object.freeze({ base: 3, perSlot: 1 }),
-    ruleNote: "Registra un dardo alla volta, anche sullo stesso bersaglio." }),
+    // Lot DM2 of docs/STUDIO_GIOCO_ONLINE.md: the spell panel's cast is already recorded, slot and darts.
+    ruleNote: "Registra un dardo alla volta, anche sullo stesso bersaglio. Lanciato dal pannello incantesimi è già registrato: non registrarlo qui." }),
   Object.freeze({ spellId: "scorching-ray", name: "Raggio rovente", level: 2, range: "ranged", type: "fire",
     dice: "2d6", count: Object.freeze({ base: 3, perSlot: 1 }),
     ruleNote: "Un tiro per colpire per raggio: registra un raggio alla volta, anche sullo stesso bersaglio." }),

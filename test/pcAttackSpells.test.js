@@ -86,7 +86,15 @@ test("Scorching Ray: the first ray opens the cast and spends the slot, the next 
     assert.deepEqual([next.causality.spell.firstOfCast, next.causality.spell.index, next.causality.spell.slotLevel], [false, index, 3]);
     caster = withState(caster, next);
   }
-  assert.equal(caster.metadata[META].pcAttackState.spellCast, undefined, "the fourth ray closes the cast");
+  // Lot DM1 of docs/STUDIO_GIOCO_ONLINE.md: the fourth ray completes the cast, which stays until «Nuovo lancio».
+  assert.equal(caster.metadata[META].pcAttackState.spellCast.complete, true, "the fourth ray completes the cast");
+  assert.equal(pcAttackOpenSpellCast({ sourceItem: caster, spellId: "scorching-ray", turnState }).complete, true, "the console keeps it");
+  assert.throws(() => cast("scorching-ray", { sourceItem: caster, id: "a5" }), /lancio completo \(4\/4\).*Nuovo lancio/u,
+    "a fifth ray with the same cast spends no slot: it is refused");
+  assert.equal(cast("scorching-ray", { sourceItem: caster, id: "a5", spellCast: { castId: "cast-2", slotLevel: 2 } }).causality.spell.firstOfCast, true,
+    "«Nuovo lancio» (another cast id) opens a new cast with its slot");
+  assert.equal(pcAttackOpenSpellCast({ sourceItem: caster, spellId: "scorching-ray", turnState: { ...turnState, current: 1 } }), null,
+    "on the next turn it is gone");
   // Another cast id, or the next turn, opens a new cast.
   assert.equal(cast("scorching-ray", { sourceItem: withState(wizard(), first), spellCast: { castId: "cast-2" } }).causality.spell.firstOfCast, true);
   assert.equal(pcAttackOpenSpellCast({ sourceItem: withState(wizard(), first), spellId: "scorching-ray", turnState: { ...turnState, current: 1 } }), null);
