@@ -65,9 +65,28 @@ riga in ogni pannello che chiede un TS su Destrezza:
 La regola sta in `attackAdvantagePillsCore.js` (`dodgeSaveAdvantage`). Prove in
 `PROVE_IN_STANZA.md`, sezione B13.
 
+**T6a fatto il 15/11:** le basi dell'incantesimo preparato (§9), ancora senza
+niente di visibile:
+
+- l'elenco degli incantesimi SRD da 1 azione nell'estratto
+  (`spell-reference-it-runtime.json`, `oneActionIds`: 242 con i trucchetti),
+  tenuto uguale al riferimento completo da un test. Per il PHB 2014 e i
+  supplementi vale il tempo di lancio dei loro dati;
+- la fase generica in `spellCastPhaseCore.js`, segnata da `castContext.readied`.
+  Alla preparazione mette sul caster la pill «Azione preparata · Palla di fuoco
+  (3°)», con la scadenza di Scudo (inizio del suo prossimo turno). Al rilascio la
+  concentrazione continua se l'incantesimo la richiede, altrimenti finisce (P7);
+- la concentrazione nella preparazione, per qualunque incantesimo
+  (`spellForCastContext`, P4). Un incantesimo d'attacco preparato non tira e la
+  sua presa resta.
+
+Simbolo, Frecce Infuocate e le punizioni restano fuori; Sfera congelante si
+prepara nella forma «Scaglia subito».
+
 Scritti lo stesso giorno, con decisioni nuove in attesa:
 
-- §9, l'incantesimo preparato: decisioni **P1–P12** (§9.8);
+- §9, l'incantesimo preparato: decisioni **P1–P12** (§9.8), approvate dall'utente
+  il 15/11 come raccomandate;
 - §10, l'audit delle capacità: decisioni **A1–A7** (§10.9).
 
 Richiesta dell'utente (15/11), dopo la sessione del giorno prima:
@@ -608,6 +627,8 @@ Ogni lotto ha test che falliscono senza la patch, la CI completa su una copia
 pulita, le voci in `PROVE_IN_STANZA.md` e la prova in vista compatta ed estesa.
 
 ### 9.8 Decisioni per l'utente
+
+**Decisione dell'utente del 15/11:** P1–P12 approvate come raccomandate.
 
 | # | Decisione | Raccomandazione |
 |---|---|---|

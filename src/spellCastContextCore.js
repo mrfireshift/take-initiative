@@ -9,6 +9,11 @@ const uniqueIds = (values = []) => Array.from(new Set(
 // panel switched to another spell casts it as usual.
 export function spellForCastContext(spell, castContext = {}) {
   if (!spell || typeof spell !== "object") return spell;
+  // A readied spell held on the caster (docs/STUDIO_AZIONI_DI_TURNO.md §9, lot T6a, decision P4): holding its energy is
+  // concentration, whatever the spell and its slot. Released (phase "resolve"), the spell is itself again.
+  if (castContext?.readied === true && String(castContext?.phase || "").trim() === "prepare") {
+    return spell.concentration === true ? spell : { ...spell, concentration: true };
+  }
   if (spell.concentration === true) {
     const exempt = String(castContext?.withoutConcentration || "").trim();
     if (exempt && exempt === String(spell.id || "").trim()) return { ...spell, concentration: false };

@@ -174,11 +174,15 @@ export function buildSpellApplicationIntent({
   let persistedCastContext = spell?.id === "blink"
     ? blinkInitialCastContext(baseCastContext)
     : baseCastContext;
-  const attackResolution = getSpellAttackResolution(
-    spell,
-    selectedChoice,
-    persistedCastContext,
-  );
+  // A readied spell is held, not yet cast at anyone (lot T6a of docs/STUDIO_AZIONI_DI_TURNO.md): no attack roll at its
+  // preparation, so its record and its concentration are kept like any other hold's.
+  const attackResolution = resolvedPhasePlan.readied === true && resolvedPhasePlan.phase === "prepare"
+    ? null
+    : getSpellAttackResolution(
+      spell,
+      selectedChoice,
+      persistedCastContext,
+    );
   const normalizedAttackOutcome = normalizeAttackOutcome(attackOutcome);
   const attackContract = resolvedPhasePlan.attack && typeof resolvedPhasePlan.attack === "object"
     ? resolvedPhasePlan.attack

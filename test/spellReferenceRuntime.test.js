@@ -11,6 +11,11 @@ test("the runtime excerpt matches the full Italian reference", () => {
   }
   const rituals = Object.values(reference.spells).filter((spell) => spell.ritual === true).map((spell) => spell.id).sort();
   assert.deepEqual(excerpt.ritualIds, rituals);
+  // The spells the Ready action can hold (docs/STUDIO_AZIONI_DI_TURNO.md §9, lot T6a): cast with 1 action, cantrips too.
+  const oneAction = Object.values(reference.spells).filter((spell) => /^1 azione(?! bonus)/u.test(String(spell.castingTime || "")))
+    .map((spell) => spell.id).sort();
+  assert.deepEqual(excerpt.oneActionIds, oneAction);
+  assert.equal(oneAction.length, 242);
 });
 
 test("the reference window and the spell details load the full reference only on demand", async () => {

@@ -1,3 +1,6 @@
+import spellReferenceRuntime from "./spell-reference-it-runtime.json" with { type: "json" };
+import { READIED_ACTION_CONDITION } from "./reactionTrackerCore.js";
+
 const freezeEffect = (effect) => Object.freeze({
   kind: "buff",
   manualRemoval: true,
@@ -315,6 +318,86 @@ function spellId(value) {
   return String(value?.id || value || "").trim();
 }
 
+// The readied spell (docs/STUDIO_AZIONI_DI_TURNO.md §9, lot T6a, decisions P1–P12): the Ready action holds a spell cast
+// with 1 action (PHB 2014, chapter 9). It is cast on the caster's turn (phase "prepare": the slot spent, the other
+// concentrations ended), its energy held with concentration whatever the spell (spellCastContextCore.js), until the
+// start of the caster's next turn; it is released with the reaction (phase "resolve": no slot, the targets then, the
+// concentration going on with the spell if it needs it, ended otherwise). castContext.readied marks it, on both phases.
+// Its pill on the caster is the creature's «Azione preparata» (P5: the card's menu reads it), with the spell in its label.
+export const READIED_SPELL_CONDITION = READIED_ACTION_CONDITION;
+// Until the start of the caster's next turn, as Shield's: its spell record and its pill end there (and the hold's
+// concentration with the record).
+export const READIED_SPELL_EXPIRY = Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" });
+const SRD_ONE_ACTION_IDS = new Set(spellReferenceRuntime.oneActionIds || []);
+const ONE_ACTION = /^1 azione(?! bonus)/u;
+// Two-phase spells that stay out: Symbol is traced, not held; Flame Arrows and the smites keep their own phases.
+// Freezing Sphere is readied in its «Scaglia subito» form, the globe stays its own phase.
+const READIED_SPELL_EXCLUDED = new Set(Object.keys(PHASED_SPELLS).filter((id) => id !== "freezing-sphere"));
+
+// Cast with 1 action: the SRD's from the runtime excerpt, the others' from their Italian reference.
+export function spellCastWithOneAction(spell) {
+  const id = spellId(spell);
+  if (!id) return false;
+  if (SRD_ONE_ACTION_IDS.has(id)) return true;
+  return ONE_ACTION.test(String(spell?.italianReference?.castingTime || spell?.castingTime || "").trim());
+}
+
+export function spellCanBeReadied(spell) {
+  return spellCastWithOneAction(spell) && !READIED_SPELL_EXCLUDED.has(spellId(spell));
+}
+
+export function isReadiedSpellCastContext(castContext = null) {
+  return castContext?.readied === true;
+}
+
+// "Azione preparata · Palla di fuoco (3°)": the spell and, for a leveled one, the slot spent.
+export function readiedSpellLabel(spell, castContext = {}) {
+  const name = String(spell?.displayName || spell?.name || spellId(spell) || "Incantesimo").trim();
+  const level = Math.max(0, Math.floor(Number(spell?.level) || 0));
+  return `${READIED_SPELL_CONDITION} · ${name}${level > 0 ? ` (${slotLevel(spell, castContext)}°)` : ""}`;
+}
+
+function readiedSpellEffect(spell, castContext = {}) {
+  const name = String(spell?.displayName || spell?.name || spellId(spell) || "Incantesimo").trim();
+  return freezeEffect({
+    id: "readied-spell",
+    label: READIED_SPELL_CONDITION,
+    displayLabel: readiedSpellLabel(spell, castContext),
+    detail: `${name} preparato: si rilascia con la reazione, quando avviene ciò che si è scelto al tavolo, prima dell'inizio del prossimo turno del caster. La concentrazione lo trattiene: se si rompe, l'incantesimo svanisce e lo slot resta speso.`,
+    summaryParts: Object.freeze([Object.freeze({ id: "readied-spell", label: `Preparato: ${name}` })]),
+  });
+}
+
+// The two phases of a readied spell. Prepare: on the caster, the pill only, no automation of the spell, its
+// concentration replacing the others. Resolve: the spell as a cast, on its targets, its concentration extended to them
+// when it has one (P7), dismissed otherwise.
+function readiedSpellPhasePlan(spell, requestedPhase = "", castContext = {}) {
+  const phase = String(requestedPhase || castContext?.phase || "").trim() === "resolve" ? "resolve" : "prepare";
+  if (phase === "prepare") {
+    return {
+      phase,
+      readied: true,
+      subjectMode: "caster",
+      useCatalogAutomation: false,
+      attack: null,
+      effects: [readiedSpellEffect(spell, castContext)],
+      resolution: null,
+      concentrationAction: "replace",
+      preparedExpiry: { ...READIED_SPELL_EXPIRY },
+    };
+  }
+  return {
+    phase,
+    readied: true,
+    subjectMode: spell?.targetMode || "selected",
+    useCatalogAutomation: true,
+    effects: null,
+    resolution: null,
+    attack: null,
+    concentrationAction: spell?.concentration === true ? "extend" : "dismiss",
+  };
+}
+
 function slotLevel(spell, castContext = {}) {
   const base = Math.max(1, Math.floor(Number(spell?.level) || 1));
   const requested = Math.floor(Number(castContext?.slotLevel));
@@ -383,6 +466,8 @@ export function spellPreparedResolutionLabel(spell) {
 }
 
 export function getSpellCastPhasePlan(spell, requestedPhase = "", castContext = {}) {
+  // A readied spell has its own two phases, whatever its table (lot T6a).
+  if (isReadiedSpellCastContext(castContext) && spellCanBeReadied(spell)) return readiedSpellPhasePlan(spell, requestedPhase, castContext);
   const rule = PHASED_SPELLS[spellId(spell)];
   if (!rule) {
     return {
