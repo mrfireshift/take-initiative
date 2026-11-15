@@ -3,6 +3,7 @@ import { DAMAGE_TYPES, damageTypeLabel } from "./damageDefensesCore.js";
 import { hasReactionUsed } from "./reactionTrackerCore.js";
 import { spellbookGroupsForProfile } from "./spellbookCatalog.js";
 import { speciesFeaturesForProfile } from "./speciesTraitCore.js";
+import { featFeaturesForProfile } from "./featCatalog.js";
 import { totalCharacterLevel } from "./abilityModifiersCore.js";
 
 // CAP-REACTION, lotto 1 (PHB and Xanathar 2014): what an attack recorded in the PC attack console or the Boss console
@@ -54,7 +55,8 @@ export function creatureCastableSpellIds(item) {
   for (const action of Array.isArray(card.quickActions) ? card.quickActions : []) {
     if (action?.kind === "spell" && text(action.spellId)) ids.add(text(action.spellId));
   }
-  for (const feature of speciesFeaturesForProfile(card, totalCharacterLevel(card.characterBuild))) {
+  // The innate spells of the species and those a feat grants (lot F3a of docs/STUDIO_TALENTI.md).
+  for (const feature of [...speciesFeaturesForProfile(card, totalCharacterLevel(card.characterBuild)), ...featFeaturesForProfile(card)]) {
     if (text(feature?.innateSpell?.spellId)) ids.add(text(feature.innateSpell.spellId));
   }
   return ids;

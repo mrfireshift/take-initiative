@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **177** |
+| **B. Console attacchi, mostri e capacità** | **182** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -58,6 +58,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B20. Incantesimo preparato: le perdite | 5 |
 | B21. Talenti: le fondamenta | 7 |
 | B23. Talenti nella console attacchi | 6 |
+| B24. Incantesimi dei talenti | 5 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -83,7 +84,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **540** |
+| **Totale** | **545** |
 
 ## A. Incantesimi
 
@@ -759,6 +760,16 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F1 (decisione D9). Le voci 
 - [ ] **Martello Vivente:** un colpo con il maglio scrive «Spostato di 1,5 m in uno spazio libero»; su un critico la pill «Martello Vivente» va sul bersaglio, e chi lo attacca legge «Martello Vivente: vantaggio all'attacco».
 - [ ] **I promemoria:** con Aggressore Selvaggio, sotto il bersaglio di un attacco in mischia compare il ritiro dei dadi. Dopo un critico in mischia, o un nemico portato a 0 PF, Maestro d'Armi Possenti ricorda l'attacco bonus; con Esperto di Balestre, dopo un attacco con un'arma, compare l'attacco bonus con la balestra a mano.
 - [ ] **Pelle di Drago:** la card del talento ha **Aggiungi agli Attacchi**; gli Artigli, 1d4 + Forza taglienti, compaiono negli Attacchi.
+
+### B24. Incantesimi dei talenti
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3a (decisioni D6, D7). Le voci sono nuove: nessuna lista le aveva. Serve un PG con un livello e i modificatori nella scheda, e i talenti Contaminazione Fatata (con Carisma), Alta Magia Drow e Teletrasporto Fatato.
+
+- [ ] **Lancia dalla card:** in Capacità, «Contaminazione Fatata: Passo velato» dice «Senza slot · CD … (Carisma); l'uso si spende al lancio.». **Lancia** apre il pannello incantesimi su Passo velato senza slot; il lancio porta l'uso a 0/1 e **Annulla** lo restituisce. Anche dal menu della card, in vista compatta ed estesa.
+- [ ] **A volontà:** Individuazione del magico di Alta Magia Drow dice «a volontà» e il lancio non spende niente; Levitazione e Dissolvi magie hanno un uso ciascuno.
+- [ ] **I riposi:** dopo il lancio, l'uso di Teletrasporto Fatato torna con **Riposo breve**, quelli degli altri talenti solo con **Riposo lungo**.
+- [ ] **Il libro:** Passo velato compare nel libro come «Talento: Contaminazione Fatata», preparato; lanciato dal libro chiede uno slot come gli altri.
+- [ ] **Il doppione:** con un'azione rapida di Passo velato, la riga del talento in Modifica → Capacità avvisa che va tolta da lì; **Salva** non è bloccato.
 
 ## C. Tracker e UX
 

@@ -9,6 +9,7 @@ import { QUICK_ACTION_VERSION, sanitizeQuickAction } from "./quickActionsCore.js
 import { sanitizeSpellbook, spellbookAttackActionId, spellbookQuickActionId } from "./spellbookCore.js";
 import { preparesSpells, spellPreparationClasses, spellPreparationLimit } from "./spellPreparationCore.js";
 import { subclassGrantedSpells } from "./subclassSpellsCatalog.js";
+import { featGrantedSpells } from "./featCatalog.js";
 import spellReferenceRuntime from "./spell-reference-it-runtime.json" with { type: "json" };
 
 let launchOptionsById = null;
@@ -216,7 +217,8 @@ export function spellbookQuickAction(spellId, { launchMode = "auto", cost = "slo
 export function spellbookGroupsForProfile(profile) {
   return spellbookGroups(profile?.spellbook, {
     preparing: preparesSpells(profile?.characterBuild),
-    granted: subclassGrantedSpells(profile),
+    // The subclass's spells, and those a feat lets cast with the slots too (Fey Touched's Misty Step: lot F3a).
+    granted: [...subclassGrantedSpells(profile), ...featGrantedSpells(profile)],
   });
 }
 

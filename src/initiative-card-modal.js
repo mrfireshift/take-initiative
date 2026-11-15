@@ -2264,9 +2264,11 @@ function buildSpeciesSpellControls(feature, state) {
   controls.className = "class-feature-special-controls";
   const cast = speciesSpellCast({ actionId: speciesSpellActionId(feature.id), card: profile, resources: state?.resources });
   const note = document.createElement("small");
+  // A feat's spell may be at will (Drow High Magic's Detect Magic): no use to spend.
+  const spending = cast?.uses ? "l'uso si spende al lancio." : "a volontà.";
   note.textContent = cast?.dc !== null && cast?.dc !== undefined
-    ? `Senza slot · CD ${cast.dc} (${cast.abilityLabel}); l'uso si spende al lancio.`
-    : "Senza slot; l'uso si spende al lancio.";
+    ? `Senza slot · CD ${cast.dc} (${cast.abilityLabel}); ${spending}`
+    : `Senza slot; ${spending}`;
   const button = document.createElement("button");
   button.type = "button";
   button.textContent = "Lancia";
@@ -5220,7 +5222,14 @@ function syncFeatWarnings() {
     id: row.querySelector("[data-feat-field='id']").value,
     choice: { damageType: row.querySelector("[data-feat-field='damageType']").value },
   }));
-  const warnings = featWarnings(entries, collectSpecies());
+  // A granted spell also among the quick actions (decision D7): the editor's rows, or the saved ones while a row is incomplete.
+  let quickActions = [];
+  try {
+    quickActions = collectQuickActions();
+  } catch {
+    quickActions = Array.isArray(profile?.quickActions) ? profile.quickActions : [];
+  }
+  const warnings = featWarnings(entries, collectSpecies(), quickActions);
   rows.forEach((row, index) => {
     const id = entries[index].id;
     const unknown = id && !getFeat(id) ? ["Questa versione del plugin non conosce il talento: resta com'è."] : [];

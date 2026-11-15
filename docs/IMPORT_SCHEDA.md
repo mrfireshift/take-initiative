@@ -74,9 +74,13 @@ testo (`"+7"`, `"15"`).
 | `attacks` | Come l'import della scheda Attacchi: `label`, `range` (`melee` o `ranged`), `attackBonus` (facoltativo: il bonus al tiro per colpire, da −30 a +30, che la console mostra sopra il danno), `components` (1-3, con `type` e `formula` facoltativa). Il tipo di danno può essere anche in italiano. I trucchetti e gli incantesimi d'attacco del libro non servono qui: la console li risolve da sola. Per un trucchetto fuori dal libro, da una specie o da un talento: `source: { "kind": "cantrip", "spellIds": ["ray-of-frost"] }`. |
 | `notes` | Testo breve, fino a 280 caratteri. |
 
-Gli incantesimi concessi da talenti, specie o oggetti vanno nelle **Azioni
-rapide**, non nel libro: non includerli in `spells`. Per ora vale anche per i
-talenti di `feats`: il talento compare tra le capacità, i suoi incantesimi
+Gli incantesimi concessi da specie o oggetti vanno nelle **Azioni rapide**, non
+nel libro: non includerli in `spells`. Quelli propri di un talento di `feats`
+arrivano con il talento, tra le capacità: non vanno né in `spells` né nelle
+Azioni rapide. Sono quelli di Alta Magia Drow, Magia degli Elfi dei Boschi,
+Teletrasporto Fatato, Telecinesi e Telepatia, e il primo delle due
+Contaminazioni. Quelli a scelta (Iniziato alla Magia, l'incantesimo di 1°
+livello delle Contaminazioni, il trucchetto degli Elfi dei Boschi), per ora,
 restano nelle Azioni rapide.
 
 ## Prompt per un assistente

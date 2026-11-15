@@ -64,10 +64,15 @@ const ON_SHEET = "Le competenze vanno riportate nella scheda del personaggio.";
 // timing, movement }), as Lance of Lethargy's; parts: the records of a second effect, "talento-<feat>-<key>" (Slasher's
 // critical); naturalWeapon: the attack the card adds, as a species' claws (speciesNaturalWeaponCore.js). pool.rest
 // "breve": back with a short rest too.
+// Lot F3a (the spells a feat grants, its own and not chosen): spells: [{ key, spellId, name, activation, uses ("lungo",
+// "breve", or "" at will), slots (also with the character's slots: the book lists it as "Talento"), self }], each a
+// record "talento-<feat>-<key>" cast like a species' innate spell (speciesInnateSpellCore.js); spellAbility: their
+// casting ability ("feat": the one the half feat raises, featSpellAbility).
 const feat = (book, page, name, english, { prerequisite = "", abilities = [], choices = [], species = [], speciesOptions = [],
-  repeatable = false, plugin = LATER, pool = null, srdEntryId = "", srdText = "", effect = null, parts = [], naturalWeapon = null } = {}) => ({
+  repeatable = false, plugin = LATER, pool = null, srdEntryId = "", srdText = "", effect = null, parts = [], naturalWeapon = null,
+  spells = [], spellAbility = "" } = {}) => ({
   book, page, name, english, prerequisite, abilities, choices, species, speciesOptions, repeatable, plugin, pool, srdEntryId, srdText,
-  effect, parts, naturalWeapon,
+  effect, parts, naturalWeapon, spells, spellAbility,
 });
 // Until the start of the attacker's next turn: Slasher's and Crusher's pills.
 const UNTIL_NEXT_TURN = "next-turn";
@@ -149,7 +154,13 @@ const DEFINITIONS = [
   // Guida Omnicomprensiva di Xanathar, capitolo 1, pp. 73–75: the racial feats.
   feat("xge", 74, "Agilità Tarchiata", "Squat Nimbleness", { prerequisite: "Nano o specie di taglia Piccola",
     species: [...DWARVES, ...SMALL], abilities: ["str", "dex"] }),
-  feat("xge", 74, "Alta Magia Drow", "Drow High Magic", { prerequisite: "Elfo (drow)", species: ["elfo"], speciesOptions: ["drow"] }),
+  feat("xge", 74, "Alta Magia Drow", "Drow High Magic", { prerequisite: "Elfo (drow)", species: ["elfo"], speciesOptions: ["drow"],
+    plugin: "Individuazione del magico a volontà, Levitazione e Dissolvi magie una volta per riposo lungo ciascuno, senza slot e con Carisma: si lanciano dalle loro card.",
+    spellAbility: "cha", spells: [
+      { key: "individuazione-del-magico", spellId: "detect-magic", name: "Individuazione del magico", uses: "" },
+      { key: "levitazione", spellId: "levitate", name: "Levitazione", uses: "lungo" },
+      { key: "dissolvi-magie", spellId: "dispel-magic", name: "Dissolvi magie", uses: "lungo" },
+    ] }),
   feat("xge", 74, "Costituzione Infernale", "Infernal Constitution", { prerequisite: "Tiefling", species: TIEFLINGS,
     abilities: ["con"] }),
   feat("xge", 74, "Fiamme di Flegesto", "Flames of Phlegethos", { prerequisite: "Tiefling", species: TIEFLINGS,
@@ -160,7 +171,12 @@ const DEFINITIONS = [
     plugin: "Nella console attacchi, su un colpo con un'arma: un dado dell'arma in più, una volta per riposo breve o lungo. L'attacco con la reazione dopo Tenacia implacabile resta al tavolo.",
     pool: { key: "dado", name: "Furia Orchesca", count: 1, rest: "breve" } }),
   feat("xge", 74, "Magia degli Elfi dei Boschi", "Wood Elf Magic", { prerequisite: "Elfo (dei boschi)", species: ["elfo"],
-    speciesOptions: ["boschi"] }),
+    speciesOptions: ["boschi"],
+    plugin: "Passo veloce e Passare senza tracce una volta per riposo lungo ciascuno, senza slot e con Saggezza: si lanciano dalle loro card. Il trucchetto da druido, per ora, va nel libro.",
+    spellAbility: "wis", spells: [
+      { key: "passo-veloce", spellId: "longstrider", name: "Passo veloce", uses: "lungo" },
+      { key: "passare-senza-tracce", spellId: "pass-without-trace", name: "Passare senza tracce", uses: "lungo" },
+    ] }),
   feat("xge", 74, "Paura Draconica", "Dragon Fear", { prerequisite: "Dragonide", species: DRAGONBORN, abilities: ["str", "con", "cha"] }),
   feat("xge", 75, "Pelle di Drago", "Dragon Hide", { prerequisite: "Dragonide", species: DRAGONBORN, abilities: ["str", "con", "cha"],
     plugin: "Gli artigli si aggiungono agli Attacchi da questa card (1d4 + Forza, taglienti); la CA va scritta nella scheda.",
@@ -173,7 +189,9 @@ const DEFINITIONS = [
   feat("xge", 75, "Seconda Possibilità", "Second Chance", { prerequisite: "Halfling", species: HALFLINGS,
     abilities: ["dex", "con", "cha"] }),
   feat("xge", 75, "Teletrasporto Fatato", "Fey Teleportation", { prerequisite: "Elfo (alto)", species: ["elfo"],
-    speciesOptions: ["alto"], abilities: ["int", "cha"] }),
+    speciesOptions: ["alto"], abilities: ["int", "cha"],
+    plugin: "Passo velato una volta per riposo breve o lungo, senza slot e con Intelligenza: si lancia dalla sua card. La lingua silvana va nella scheda.",
+    spellAbility: "int", spells: [{ key: "passo-velato", spellId: "misty-step", name: "Passo velato", uses: "breve", activation: "azione_bonus", self: true }] }),
   feat("xge", 75, "Tempra Nanica", "Dwarven Fortitude", { prerequisite: "Nano", species: DWARVES, abilities: ["con"] }),
 
   // Calderone Omnicomprensivo di Tasha, capitolo 1, pp. 79–81.
@@ -188,8 +206,12 @@ const DEFINITIONS = [
       description: "Su un critico con danni taglienti: svantaggio ai tiri per colpire del bersaglio fino all'inizio del tuo prossimo turno.",
       effect: { conditionName: SLASHER_CRITICAL_CONDITION, timing: UNTIL_NEXT_TURN,
         detail: "Svantaggio ai tiri per colpire fino all'inizio del prossimo turno di chi l'ha colpito." } }] }),
-  feat("tce", 80, "Contaminazione Fatata", "Fey Touched", { abilities: ["int", "wis", "cha"] }),
-  feat("tce", 80, "Contaminazione Ombrosa", "Shadow Touched", { abilities: ["int", "wis", "cha"] }),
+  feat("tce", 80, "Contaminazione Fatata", "Fey Touched", { abilities: ["int", "wis", "cha"],
+    plugin: "Passo velato una volta per riposo lungo senza slot, o con i tuoi slot, con la caratteristica del talento: si lancia dalla sua card. L'incantesimo di 1° livello scelto, per ora, va nelle Azioni rapide.",
+    spellAbility: "feat", spells: [{ key: "passo-velato", spellId: "misty-step", name: "Passo velato", uses: "lungo", slots: true, activation: "azione_bonus", self: true }] }),
+  feat("tce", 80, "Contaminazione Ombrosa", "Shadow Touched", { abilities: ["int", "wis", "cha"],
+    plugin: "Invisibilità una volta per riposo lungo senza slot, o con i tuoi slot, con la caratteristica del talento: si lancia dalla sua card. L'incantesimo di 1° livello scelto, per ora, va nelle Azioni rapide.",
+    spellAbility: "feat", spells: [{ key: "invisibilita", spellId: "invisibility", name: "Invisibilità", uses: "lungo", slots: true }] }),
   feat("tce", 80, "Cuoco", "Chef", { abilities: ["con", "wis"] }),
   feat("tce", 80, "Maestria dei Veleni", "Poisoner"),
   feat("tce", 80, "Martello Vivente", "Crusher", { abilities: ["str", "con"],
@@ -203,8 +225,13 @@ const DEFINITIONS = [
   feat("tce", 81, "Rudimenti da Guerriero", "Fighting Initiate", { prerequisite: "Competenza in un'arma da guerra" }),
   feat("tce", 81, "Stile Penetrante", "Piercer", { abilities: ["str", "dex"],
     plugin: "Nella console attacchi: al critico con danni perforanti, un dado di danno in più; sui colpi perforanti il promemoria di ritirare un dado, una volta per turno." }),
-  feat("tce", 81, "Telecinesi", "Telekinetic", { abilities: ["int", "wis", "cha"] }),
-  feat("tce", 81, "Telepatia", "Telepathic", { abilities: ["int", "wis", "cha"] }),
+  feat("tce", 81, "Telecinesi", "Telekinetic", { abilities: ["int", "wis", "cha"],
+    plugin: "Mano magica a volontà, invisibile, con la caratteristica del talento: si lancia dalla sua card. La spinta telecinetica (azione bonus, TS su Forza), per ora, si gestisce al tavolo.",
+    spellAbility: "feat", spells: [{ key: "mano-magica", spellId: "mage-hand", name: "Mano magica", uses: "" }] }),
+  feat("tce", 81, "Telepatia", "Telepathic", { abilities: ["int", "wis", "cha"],
+    plugin: "Individuazione dei pensieri una volta per riposo lungo senza slot, o con i tuoi slot, con la caratteristica del talento: si lancia dalla sua card. La telepatia si gestisce al tavolo.",
+    spellAbility: "feat", spells: [{ key: "individuazione-dei-pensieri", spellId: "detect-thoughts", name: "Individuazione dei pensieri", uses: "lungo",
+      slots: true, self: true }] }),
 ];
 
 // "Maestro d'Armi Possenti" -> "maestro-d-armi-possenti": the slug of the pack's entries (generate-srd-rules-reference.mjs).
@@ -242,6 +269,8 @@ export const FEATS = Object.freeze(DEFINITIONS.map((definition) => {
     effect: definition.effect ? Object.freeze({ ...definition.effect }) : null,
     parts: Object.freeze(definition.parts.map((part) => Object.freeze({ ...part, effect: part.effect ? Object.freeze({ ...part.effect }) : null }))),
     naturalWeapon: definition.naturalWeapon ? Object.freeze({ ...definition.naturalWeapon }) : null,
+    spells: Object.freeze(definition.spells.map((spell) => Object.freeze({ ...spell }))),
+    spellAbility: definition.spellAbility,
   });
 }));
 const FEAT_BY_ID = new Map(FEATS.map((entry) => [entry.id, entry]));
@@ -263,8 +292,15 @@ const pool = (id, name, capacity, shortRest = false) => Object.freeze({
 });
 const featPoolId = (entry) => `${featFeatureId(entry.id)}-${entry.pool.key}-usi`;
 
-export const FEAT_RESOURCE_POOLS = Object.freeze(FEATS.filter((entry) => entry.pool)
-  .map((entry) => pool(featPoolId(entry), entry.pool.name, entry.pool.count, entry.pool.rest === "breve")));
+// A granted spell's use: "talento-<feat>-<key>-usi", one per long rest (or short, Fey Teleportation).
+const featSpellPoolId = (entry, spell) => (spell.uses ? `${featFeatureId(entry.id)}-${spell.key}-usi` : "");
+
+export const FEAT_RESOURCE_POOLS = Object.freeze([
+  ...FEATS.filter((entry) => entry.pool)
+    .map((entry) => pool(featPoolId(entry), entry.pool.name, entry.pool.count, entry.pool.rest === "breve")),
+  ...FEATS.flatMap((entry) => entry.spells.filter((spell) => spell.uses)
+    .map((spell) => pool(featSpellPoolId(entry, spell), `${entry.name}: ${spell.name}`, 1, spell.uses === "breve"))),
+]);
 
 const NOT_AUTOMATED = Object.freeze({ status: "not-automated", adapter: null, reason: "adapter-not-implemented" });
 // A use resolved at the table: the button only spends it (speciesTraitCore.js, RESOURCE_ONLY).
@@ -350,7 +386,46 @@ function featPartRecord(entry, part) {
   });
 }
 
-export const FEAT_FEATURES = Object.freeze(FEATS.flatMap((entry) => [featRecord(entry), ...entry.parts.map((part) => featPartRecord(entry, part))]));
+// A granted spell (lot F3a): a record with the shape of a species' innate spell, its use spent by the cast's command.
+function featSpellRecord(entry, spell) {
+  const poolId = featSpellPoolId(entry, spell);
+  return Object.freeze({
+    id: `${featFeatureId(entry.id)}-${spell.key}`,
+    name: `${entry.name}: ${spell.name}`,
+    description: `Lanci ${spell.name} senza slot, ${spell.uses === "breve" ? "una volta per riposo breve o lungo"
+      : spell.uses ? "una volta per riposo lungo" : "a volontà"}${spell.slots ? ", e anche con i tuoi slot" : ""}.`,
+    classId: "",
+    subclassId: "",
+    featId: entry.id,
+    featPart: true,
+    minimumLevel: 1,
+    source: entry.source,
+    sourceLabel: entry.sourceLabel,
+    page: entry.page,
+    collection: "talenti",
+    defaultEnabled: true,
+    automationLevel: "manuale",
+    completenessStatus: "partial",
+    runtimeRequirements: Object.freeze([]),
+    missingForExecution: Object.freeze([]),
+    runtimeSupport: RESOURCE_ONLY,
+    activation: Object.freeze({ primary: spell.activation || "azione" }),
+    trackedResourcePoolIds: Object.freeze(poolId ? [poolId] : []),
+    targetMode: "self",
+    targeting: SELF_TARGETING,
+    theme: FEAT_THEME,
+    effectPlan: null,
+    breaksConcentration: false,
+    duration: Object.freeze({ rounds: null }),
+    trackingMode: "instant",
+    resourceCosts: Object.freeze(poolId ? [Object.freeze({ poolId, amount: 1 })] : []),
+    innateSpell: Object.freeze({ spellId: spell.spellId, slotLevel: null, ability: entry.spellAbility, self: spell.self === true,
+      ...(spell.slots ? { slots: true } : {}) }),
+  });
+}
+
+export const FEAT_FEATURES = Object.freeze(FEATS.flatMap((entry) => [featRecord(entry), ...entry.parts.map((part) => featPartRecord(entry, part)),
+  ...entry.spells.map((spell) => featSpellRecord(entry, spell))]));
 const FEATURES_BY_FEAT = new Map(FEATS.map((entry) => [entry.id, FEAT_FEATURES.filter((feature) => feature.featId === entry.id)]));
 
 const FEAT_ID = /^[a-z0-9][a-z0-9-]{0,47}$/u;
@@ -417,6 +492,30 @@ export function featFeaturesForProfile(profile) {
   return result;
 }
 
+// The casting ability of a granted spell whose feat says "feat" (Fey Touched, Telepathic): the ability the sheet chose for
+// the half feat, else the highest of those it offers (the first on a tie).
+export function featSpellAbility(feature, card = {}) {
+  const definition = getFeat(feature?.featId);
+  if (!definition) return "";
+  if (definition.spellAbility !== "feat") return definition.spellAbility;
+  const chosen = sanitizeFeats(card?.[FEATS_FIELD]).find((entry) => entry.id === definition.id)?.ability;
+  if (chosen && definition.abilityChoices.includes(chosen)) return chosen;
+  const modifier = (key) => {
+    const value = Number(card?.abilityModifiers?.[key]);
+    return Number.isFinite(value) ? value : null;
+  };
+  return definition.abilityChoices.reduce((best, key) => (
+    modifier(key) !== null && (modifier(best) === null || modifier(key) > modifier(best)) ? key : best
+  ), definition.abilityChoices[0] || "");
+}
+
+// The spells the profile's feats let it cast with its slots too (lot F3a): always prepared in its book, as
+// "Talento: <feat>", like a subclass's (spellbookGroups' granted).
+export function featGrantedSpells(profile) {
+  return featFeaturesForProfile(profile).filter((feature) => feature.innateSpell?.slots)
+    .map((feature) => ({ spellId: feature.innateSpell.spellId, source: `Talento: ${getFeat(feature.featId)?.name || feature.name}` }));
+}
+
 // "Robusto", "Adepto Elementale · fuoco", "Atleta · Des"; an unknown id says so.
 export function featDisplayName(entry) {
   const clean = sanitizeFeatEntry(entry);
@@ -454,11 +553,14 @@ export function featPluginLine(feature, profile = null) {
 }
 
 // The sheet's warnings, never blocks (decision D8), one list per entry: a racial feat on another species, a feat
-// taken twice (Elemental Adept only with another type).
-export function featWarnings(entries, species = null) {
+// taken twice (Elemental Adept only with another type), a granted spell also among the quick actions (decision D7: the
+// sheet points it out and removes nothing).
+export function featWarnings(entries, species = null, quickActions = []) {
   const list = (Array.isArray(entries) ? entries : []).map(sanitizeFeatEntry);
   const speciesId = String(species?.id || "").trim();
   const optionId = String(species?.ancestryId || "").trim();
+  const quickSpellIds = new Set((Array.isArray(quickActions) ? quickActions : [])
+    .filter((action) => action?.kind === "spell" && action.spellId).map((action) => String(action.spellId)));
   return list.map((entry, index) => {
     const definition = entry ? getFeat(entry.id) : null;
     if (!definition) return [];
@@ -470,6 +572,9 @@ export function featWarnings(entries, species = null) {
     const twin = list.slice(0, index).some((other) => other?.id === entry.id
       && (!definition.repeatable || (other.choice?.damageType || "") === (entry.choice?.damageType || "")));
     if (twin) warnings.push(definition.repeatable ? "Già scelto con lo stesso tipo di danno." : "Già scelto.");
+    for (const spell of twin ? [] : definition.spells.filter((candidate) => quickSpellIds.has(candidate.spellId))) {
+      warnings.push(`${spell.name} arriva con il talento ed è anche nelle Azioni rapide: toglila da lì, o gli usi contano due volte.`);
+    }
     return warnings;
   });
 }

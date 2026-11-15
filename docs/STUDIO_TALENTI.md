@@ -2,7 +2,7 @@
 
 Data: 15 novembre 2026. Stato: **studio, decisioni D1–D15 approvate
 dall'utente il 15/11** (§9); **F0 fatto il 15/11** (§7.1), **F1 il 16/11**
-(§7.2).
+(§7.2), **la prima parte di F3 il 16/11** (§7.3).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -880,6 +880,52 @@ Attacchi dalla card, come le armi naturali delle specie.
 - i dadi che si ritirano.
 
 I PF non cambiano strada: i danni passano dal comando dell'attacco di sempre.
+
+### 7.3 F3, prima parte (F3a), fatta il 16/11
+
+F2 aspetta: due dei suoi file (`speedCheckCore.js`,
+`initiativeMovementPresentation.js`) sono in lavorazione in un'altra sessione,
+e lo studio fa partire F2 dopo quei lavori (§6). F3 si divide in due:
+
+- **F3a**, gli incantesimi propri dei talenti;
+- **F3b**, quelli che sceglie il giocatore.
+
+**F3a.** Sette talenti hanno incantesimi propri. Ognuno è una voce
+`talento-<talento>-<incantesimo>` con `innateSpell` e il suo uso, lanciata come
+un incantesimo di specie (`speciesInnateSpellCore.js`):
+
+| Talento | Incantesimi | Uso |
+|---|---|---|
+| Alta Magia Drow | Individuazione del magico; Levitazione, Dissolvi magie | a volontà; 1 per riposo lungo ciascuno |
+| Magia degli Elfi dei Boschi | Passo veloce, Passare senza tracce | 1 per riposo lungo ciascuno |
+| Teletrasporto Fatato | Passo velato | 1 per riposo breve o lungo |
+| Contaminazione Fatata, Contaminazione Ombrosa, Telepatia | Passo velato, Invisibilità, Individuazione dei pensieri | 1 per riposo lungo, e con gli slot |
+| Telecinesi | Mano magica | a volontà |
+
+- L'uso si spende nel comando del lancio. La CD è 8 + competenza + la
+  caratteristica del talento: quella scelta per il mezzo talento, altrimenti la
+  più alta fra quelle che offre. Alta Magia Drow, Elfi dei Boschi e
+  Teletrasporto Fatato hanno la loro.
+- Gli incantesimi che il talento lascia lanciare anche con gli slot stanno nel
+  libro, sempre preparati, come «Talento: …» (D6).
+- `creatureCastableSpellIds` li conosce, per gli avvisi di reazione.
+- D7: se lo stesso incantesimo è anche fra le Azioni rapide, la riga del talento
+  lo dice e non toglie niente.
+- `docs/IMPORT_SCHEDA.md` e la nota sotto il libro: gli incantesimi propri dei
+  talenti non vanno più nelle Azioni rapide.
+
+**F3b, da fare.** Gli incantesimi scelti:
+
+- Iniziato alla Magia, con la classe;
+- l'incantesimo di 1° livello delle due Contaminazioni;
+- il trucchetto degli Elfi dei Boschi;
+- Rudimenti da Artefice;
+- il trucchetto di Cecchino Magico;
+- i rituali di Incantatore Rituale.
+
+Servono i selettori nella scheda, filtrati per livello e scuola (D8), e le
+chiavi dell'import. Poi la gittata doppia di Cecchino Magico e la spinta di
+Telecinesi.
 
 ---
 

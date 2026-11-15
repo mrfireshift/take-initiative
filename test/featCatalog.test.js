@@ -43,14 +43,15 @@ test("the catalog holds the 72 feats of the three manuals, 34 of them half feats
     assert.ok(entry.english && entry.aliases.includes(entry.english), entry.id);
     assert.ok(entry.plugin.length > 10 && entry.plugin.length < 220, entry.id);
   }
-  // The 23 feats of lot F0 and the 9 of lot F1 have a line of their own; the others wait for their lot.
-  assert.equal(FEATS.filter((entry) => !entry.plugin.startsWith("Per ora solo riferimento")).length, 23 + 9);
+  // The 23 feats of lot F0, the 9 of lot F1 and the 7 of lot F3a have a line of their own; the others wait for their lot.
+  assert.equal(FEATS.filter((entry) => !entry.plugin.startsWith("Per ora solo riferimento")).length, 23 + 9 + 7);
 });
 
 test("feats resolve by id like the species traits, but stay out of the class catalog", () => {
-  // One record per feat, and one for each second effect (the criticals of Slasher and Crusher, lot F1).
-  assert.equal(FEAT_FEATURES.length, 72 + 2);
-  assert.deepEqual(FEAT_FEATURES.filter((record) => record.featPart).map((record) => record.id),
+  // One record per feat, one for each second effect (the criticals of Slasher and Crusher, lot F1) and one for each spell
+  // a feat grants (lot F3a, test/featSpells.test.js).
+  assert.equal(FEAT_FEATURES.length, 72 + 2 + 10);
+  assert.deepEqual(FEAT_FEATURES.filter((record) => record.featPart && !record.innateSpell).map((record) => record.id),
     ["talento-bisturi-da-battaglia-critico", "talento-martello-vivente-critico"]);
   for (const record of FEAT_FEATURES) {
     assert.ok(record.featPart ? record.id.startsWith(`talento-${record.featId}-`) : record.id === `talento-${record.featId}`, record.id);
@@ -83,7 +84,7 @@ test("the sheet's feats follow the species traits, each once; an unknown id give
 test("Fortunato's three points: a button that spends one, back with the long rest", () => {
   const lucky = feature("fortunato");
   const pool = CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("talento-fortunato-punti-usi");
-  assert.deepEqual(FEAT_RESOURCE_POOLS.map((entry) => entry.id), ["talento-fortunato-punti-usi", "talento-furia-orchesca-dado-usi"]);
+  assert.deepEqual(FEAT_RESOURCE_POOLS.map((entry) => entry.id).slice(0, 2), ["talento-fortunato-punti-usi", "talento-furia-orchesca-dado-usi"]);
   assert.deepEqual(pool.capacity, { type: "fixed", value: 3 });
   assert.deepEqual(pool.refresh.map((entry) => entry.event), ["riposo_lungo"]);
   assert.equal(classFeatureRuntimeSupport(lucky).ready, true);

@@ -12,11 +12,14 @@ import {
   sanitizeSpeciesSpellAbility,
   speciesFeaturesForProfile,
 } from "./speciesTraitCore.js";
+// Lot F3a of docs/STUDIO_TALENTI.md: a feat's own spells (Fey Touched's Misty Step, Drow High Magic's) are cast the same
+// way, with the feat's use and its ability.
+import { FEAT_FEATURES, FEAT_RESOURCE_POOLS, featFeaturesForProfile, featSpellAbility } from "./featCatalog.js";
 
 export const SPECIES_SPELL_ACTION_PREFIX = "species-spell:";
 
-const FEATURE_BY_ID = new Map(SPECIES_FEATURES.filter((feature) => feature.innateSpell).map((feature) => [feature.id, feature]));
-const POOL_BY_ID = new Map(SPECIES_RESOURCE_POOLS.map((pool) => [pool.id, pool]));
+const FEATURE_BY_ID = new Map([...SPECIES_FEATURES, ...FEAT_FEATURES].filter((feature) => feature.innateSpell).map((feature) => [feature.id, feature]));
+const POOL_BY_ID = new Map([...SPECIES_RESOURCE_POOLS, ...FEAT_RESOURCE_POOLS].map((pool) => [pool.id, pool]));
 const ABILITY_LABELS = Object.freeze({ str: "Forza", dex: "Destrezza", con: "Costituzione", int: "Intelligenza", wis: "Saggezza", cha: "Carisma" });
 const CHOICE_ABILITIES = Object.freeze(["int", "wis", "cha"]);
 
@@ -34,8 +37,9 @@ export function getSpeciesSpellFeature(featureId) {
 }
 
 // The casting ability: the trait's, or for "a scelta" the one stored on the card, else the highest of Intelligence,
-// Wisdom and Charisma (the first of them on a tie).
+// Wisdom and Charisma (the first of them on a tie). A feat's "feat": the ability its half feat raises.
 export function speciesSpellAbility(feature, card = {}) {
+  if (feature?.featId) return featSpellAbility(feature, card);
   return speciesChosenAbility(feature?.innateSpell?.ability, card);
 }
 
@@ -89,7 +93,8 @@ export function speciesSpellCast({ actionId = "", card = {}, resources = {}, spe
   if (!feature) return null;
   if (spellId && feature.innateSpell.spellId !== spellId) return null;
   const level = totalCharacterLevel(card?.characterBuild);
-  if (!speciesFeaturesForProfile(card, level).some((entry) => entry.id === feature.id)) return null;
+  const available = feature.featId ? featFeaturesForProfile(card) : speciesFeaturesForProfile(card, level);
+  if (!available.some((entry) => entry.id === feature.id)) return null;
   const ability = speciesSpellAbility(feature, card);
   const dc = speciesSpellSaveDC(feature, card);
   const uses = speciesSpellUses(feature, card, resources);
@@ -103,7 +108,7 @@ export function speciesSpellCast({ actionId = "", card = {}, resources = {}, spe
     abilityLabel: ABILITY_LABELS[ability] || "",
     dc,
     uses,
-    label: `Incantesimo di specie: ${feature.name}${dc !== null ? ` · CD ${dc} (${ABILITY_LABELS[ability]})` : ""}${usesText}`,
+    label: `${feature.featId ? "Incantesimo di talento" : "Incantesimo di specie"}: ${feature.name}${dc !== null ? ` · CD ${dc} (${ABILITY_LABELS[ability]})` : ""}${usesText}`,
   };
 }
 
