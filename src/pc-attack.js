@@ -39,6 +39,7 @@ import { pcAttackPickerDefault, pcAttackPickerEntries, pcAttackPickerEntryFor, p
 import { spellGrantedActionsForItem } from "./spellGrantedActionsCore.js";
 import { PC_MANEUVER_CONTEST, PC_MANEUVER_NOTES, PC_MANEUVER_OUTCOMES, PC_MANEUVER_OUTCOME_LABELS, PC_SHOVE_EFFECTS, PC_SHOVE_EFFECT_LABELS,
   pcAttackManeuverEntries, pcGrappleHolds, pcGrapplesOn, pcManeuverBlocker, pcManeuverLabel } from "./pcAttackManeuverCore.js";
+import { PC_TURN_ACTION_NOTES, pcAttackTargetNotes, pcAttackTurnActionEntries, pcTurnActionBlocker, pcTurnActionLabel } from "./pcAttackTurnActionCore.js";
 import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
 import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageShortNotice, mirrorImageState } from "./mirrorImageCore.js";
@@ -193,6 +194,17 @@ export function maneuverSummary(result) {
   return `Registrato: ${name} riuscita, ${effect}.`;
 }
 
+// Dash, Disengage and Dodge (Azioni tab): what was registered.
+export function turnActionSummary(result) {
+  const action=result?.turnAction || {};
+  const name=pcTurnActionLabel(action.kind) || "Azione";
+  const actor=result?.target?.name || "la creatura";
+  if(action.kind==="dash") return `Registrato: ${name} di ${actor}, uno scatto in più nel riquadro Movimento.`;
+  if(action.kind==="disengage") return `Registrato: ${name} di ${actor}, niente attacchi di opportunità fino alla fine del turno.`;
+  if(action.kind==="dodge") return `Registrato: ${name} di ${actor}, fino all'inizio del suo prossimo turno.`;
+  return `Registrato: ${name}.`;
+}
+
 export function bootPcAttack(documentRef=document,overrides={}) {
   const api=overrides.api || OBR;
   const lifecycle=overrides.lifecycle || createSceneLifecycleAdapter({obr:api});
@@ -236,6 +248,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   });
   const $=id=>documentRef.getElementById(id);
   const form=$("pc-attack-form"),status=$("pc-attack-status"),targetSelect=$("pc-attack-target"),hint=$("pc-attack-target-hint");
+  const targetNote=$("pc-attack-target-note");
   const outcomes=$("pc-attack-outcomes"),damage=$("pc-attack-damage"),defensesBox=$("pc-attack-defenses");
   const total=$("pc-attack-total"),apply=$("pc-attack-apply"),undoButton=$("pc-attack-undo");
   const extrasSection=$("pc-attack-extras-section"),ridersBox=$("pc-attack-riders"),extrasBox=$("pc-attack-extras"),addExtra=$("pc-attack-add-extra");
@@ -322,6 +335,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const entry=currentEntry();
     if(!launching() || !entry) return;
     if(entry.mode==="maneuver") void registerManeuver(entry);
+    else if(entry.mode==="turn-action") void registerTurnAction(entry);
     else if(entry.mode==="activate") void runFeature(entry);else void launchSpell(entry);
   });
   // The turn moved on while this attack holds decisions: the actor it waits to move to ({sourceId, name}).
@@ -385,7 +399,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const creatureById=id=>id===presentation?.item?.id?presentation.item:targetById(id);
 
   function showUndo(entry) {
-    lastUndo=entry?.undoAvailable && entry.historyEntryId ? {historyEntryId:entry.historyEntryId} : null;
+    // A turn action names itself when it is undone (Annullato: Schivata); an attack keeps the general line.
+    lastUndo=entry?.undoAvailable && entry.historyEntryId ? {historyEntryId:entry.historyEntryId,
+      ...(entry.turnAction?{undoneText:`Annullato: ${pcTurnActionLabel(entry.turnAction.kind) || "azione"}.`}:{})} : null;
     undoButton.hidden=!lastUndo;
   }
   // Lotto L4: the spell cast this registration opens or continues, as the core expects it.
@@ -1141,7 +1157,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const asList=["spells","features"].includes(current.tab) && !!pickerList;
     // A row or the menu's button names the entry; a tab with a single entry has neither.
     pickerNamesEntry=asList || inTab.length>=2;
-    if(pickerCaption) pickerCaption.textContent=current.tab==="cantrips"?"Trucchetto":"Attacco";
+    if(pickerCaption) pickerCaption.textContent=current.tab==="cantrips"?"Trucchetto":current.tab==="actions"?"Azione":"Attacco";
     // A leveled spell cast left open (rays or darts still to register) says so in its entry.
     const inProgress=entry=>entry.mode==="attack" && entry.tab==="spells"
       && !!pcAttackOpenSpellCast({sourceItem:presentation.item,spellId:entry.spellId,turnState:presentation.turnState});
@@ -1715,6 +1731,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     launchBox.hidden=false;
     const entry=currentEntry();
     if(entry?.mode==="monster"){renderMonsterTrait(entry);return;}
+    if(entry?.mode==="turn-action"){renderTurnAction(entry);return;}
     const level=entry?.level;
     const isFeature=entry?.mode==="activate" || entry?.mode==="reference";
     $("pc-attack-title").textContent=actorName();
@@ -1812,6 +1829,51 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     children.push(node("p",entry.text || "Testo non disponibile.","spell-text"));
     if(entry.group==="monster-legendary") children.push(node("p","Le azioni leggendarie si segnano sui diamanti del tracker.","launch-details"));
     launchBox.replaceChildren(...children);
+  }
+  // Dash, Disengage or Dodge (Azioni tab): what it does, why it is off (not the creature's turn, already taken), and
+  // Registra in the fixed row. No target, no outcome: the action is the creature's own.
+  let turnActionId=newAttackId();
+  function renderTurnAction(entry) {
+    $("pc-attack-title").textContent=actorName();
+    $("pc-attack-subtitle").textContent=pickerNamesEntry?"":`${plainLabel(entry.label)} · Azione`;
+    const blocker=pcTurnActionBlocker({kind:entry.turnAction,sourceItem:presentation?.item,turnState:presentation?.turnState});
+    if(applyRow) applyRow.hidden=false;
+    apply.hidden=true;
+    if(launchButton) {
+      launchButton.hidden=false;
+      launchButton.textContent=committing?"Registro…":"Registra";
+      launchButton.disabled=busy || invalidated || !!blocker;
+    }
+    total.replaceChildren();
+    total.dataset.kind=blocker?"warning":"";
+    total.textContent=blocker || {dash:"Uno scatto in più nel riquadro Movimento.",
+      disengage:"Disimpegno fino alla fine del turno: niente avvisi di attacco di opportunità.",
+      dodge:"Schivata fino all'inizio del suo prossimo turno."}[entry.turnAction] || "";
+    total.title=total.textContent;
+    const signature=JSON.stringify(["turn-action",entry.key]);
+    if(signature===launchSignature) return;
+    launchSignature=signature;
+    launchBox.replaceChildren(launchHead(entry,pickerNamesEntry?[]:["Azione"]),node("p",PC_TURN_ACTION_NOTES[entry.turnAction] || "","launch-details"));
+  }
+  async function registerTurnAction(entry) {
+    return perform(async operation=>{
+      const blocker=pcTurnActionBlocker({kind:entry.turnAction,sourceItem:presentation?.item,turnState:presentation?.turnState});
+      if(blocker) throw new Error(blocker);
+      try {
+        const result=await runtime.executePcTurnAction({sourceId,kind:entry.turnAction,attackInstanceId:turnActionId,
+          sceneIdentity:presentation.sceneIdentity});
+        if(!lifecycle.isCurrent(operation)) return;
+        showUndo(result);
+        setStatus([turnActionSummary(result),...(result.warnings || [])].join("\n"),"ok");
+        markPendingReady();
+        turnActionId=newAttackId();
+        await refresh(operation);
+      } catch(error) {
+        // A definitive rejection needs a new identity; an uncertain acknowledgement keeps it for the retry.
+        if(["conflict","rejected"].includes(error?.status) && error.result?.committed!==true) turnActionId=newAttackId();
+        throw error;
+      }
+    },{commit:true});
   }
   // Lancia: the tracker casts the spell as the 🪄 menu does (the spell panel, or the cast at once when nothing is asked).
   function askTrackerToLaunch(entry,{ackTimeoutMs=overrides.launchAckTimeoutMs ?? LAUNCH_ACK_TIMEOUT_MS}={}) {
@@ -2109,6 +2171,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // Nothing selected is the normal start: the fixed row asks for the target. A hint only says what is wrong with the selection.
     const message=draft.targetId || selection.status==="none"?"":pcAttackSelectionHint(selection.status);
     hint.textContent=message;hint.hidden=!message;
+    // What the target's state means for this attack (a creature in Dodge): a reminder, the dice stay the table's.
+    if(targetNote) {
+      const notes=pcAttackTargetNotes({attack:resolved(),targetItem:targetById(draft.targetId)});
+      targetNote.textContent=notes.join(" ");targetNote.hidden=!notes.length;
+    }
   }
   // The focus follows the GM's own click to what is typed next, never a live update: after an outcome that deals
   // damage, the first damage field still empty; after ticking an extra, its amount.
@@ -2501,7 +2568,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!lifecycle.isCurrent(operation) || asked!==actionId || askedSource!==sourceId) return;
     // A monster's traits join the Capacità tab; Grapple and Shove: every creature can try them (never counted as
     // something to show by pcAttackPickerEntries).
-    loaded.picker=[...(loaded.picker || []),...traits,...pcAttackManeuverEntries()];
+    loaded.picker=[...(loaded.picker || []),...traits,...pcAttackTurnActionEntries(),...pcAttackManeuverEntries()];
     // Without an action asked for, the runtime picked one (the last attack, else the first weapon).
     const switched=!!presentation && loaded.actionId!==undefined && loaded.actionId!==presentation.actionId;
     if(loaded.actionId) actionId=loaded.actionId;
@@ -2846,7 +2913,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     return perform(async operation=>{
       const outcome=await undoEntry(entry.historyEntryId,{epoch:operation.epoch});
       if(!lifecycle.isCurrent(operation)) return;
-      showUndo(null);setStatus(outcome?.ok?"Ultimo attacco annullato.":outcome?.message || "Annullamento non applicato.",outcome?.ok?"ok":"error");
+      showUndo(null);setStatus(outcome?.ok?entry.undoneText || "Ultimo attacco annullato.":outcome?.message || "Annullamento non applicato.",outcome?.ok?"ok":"error");
       await refresh(operation);
     });
   });

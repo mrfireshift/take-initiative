@@ -1019,3 +1019,26 @@ test("L26: Prono e scalata si sommano: 1,5 m costano 4,5 m, non 6", async () => 
   await move(api, 0, 1);
   assert.equal(env.snapshot.totalMeters, 4.5);
 });
+
+// Azioni → Scatto (pcAttackTurnActionCore.js, lot T1 of docs/STUDIO_AZIONI_DI_TURNO.md): the attack console's dashes of
+// the turn, in the actor's console state, count with the panel's own, and in the limit; the state put back by a History
+// Undo takes them away; another turn's count is none.
+test("the attack console's dashes count in the movement panel and go with their Undo", async () => {
+  const api = await runtime();
+  await ready();
+  const speed = env.snapshot.allowanceMeters;
+  assert.equal(env.snapshot.dashCount, 0);
+  await metadataEdit((meta) => { meta.pcAttackState = { version: 1, turnActions: { turnKey: "1:0:hero", dashes: 1 } }; });
+  await until(() => env.snapshot.dashCount === 1);
+  assert.equal(env.snapshot.allowanceMeters, speed * 2, "one more speed in the allowance");
+  api.adjustSpeedCheckDash(1);
+  assert.equal(env.snapshot.dashCount, 2, "the panel's ＋ adds its own");
+  api.adjustSpeedCheckDash(-1);
+  api.adjustSpeedCheckDash(-1);
+  assert.equal(env.snapshot.dashCount, 1, "its − never takes the console's away");
+  await metadataEdit((meta) => { delete meta.pcAttackState.turnActions; });
+  await until(() => env.snapshot.dashCount === 0);
+  await metadataEdit((meta) => { meta.pcAttackState.turnActions = { turnKey: "2:0:hero", dashes: 3 }; });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(env.snapshot.dashCount, 0, "another turn's dashes");
+});

@@ -11,6 +11,7 @@ import {
 } from "./conditionSpeedCore.js";
 import { readSceneItemsSnapshot, subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { suppressMovementHistory } from "./history.js";
+import { consoleDashCount } from "./pcAttackTurnDashCore.js";
 import { getSpellBoardTokenRule, SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch, subscribeSceneEpoch } from "./sceneEpoch.js";
 import {
@@ -254,8 +255,25 @@ function requestMovementSnapshot(turnKey = currentTurn?.turnKey || "") {
   }, { destination: "ALL" }).catch(() => {});
 }
 
+// The dashes registered in the attack console (Azioni → Scatto) count with the panel's own: its count and the limit of
+// the movement read this snapshot. They live in the actor's console state, so a History Undo takes them back
+// (pcAttackTurnDashCore.js); the panel's ＋ and − change only its own.
+function movementSnapshot(state, enabled, limited) {
+  const extra = Number(state?.actionDashCount) || 0;
+  return buildSpeedCheckSnapshot(extra > 0 ? { ...state, dashCount: (Number(state.dashCount) || 0) + extra } : state, enabled, limited);
+}
+
+// The console's dashes of the movement turn, read again from the actor's token after a change (or its Undo).
+function syncConsoleDashes(state, item) {
+  if (!state || state.disabled || state.boardToken) return false;
+  const dashes = consoleDashCount(item, state.turnKey);
+  if (dashes === (Number(state.actionDashCount) || 0)) return false;
+  state.actionDashCount = dashes;
+  return true;
+}
+
 function notifyMovementState() {
-  const snapshot = buildSpeedCheckSnapshot(
+  const snapshot = movementSnapshot(
     movementState || currentTurn,
     speedCheckEnabled,
     movementLimitEnabled,
@@ -267,7 +285,7 @@ function notifyMovementState() {
 export function subscribeSpeedCheckState(listener) {
   if (typeof listener !== "function") return () => {};
   movementStateListeners.add(listener);
-  const local = buildSpeedCheckSnapshot(movementState, speedCheckEnabled, movementLimitEnabled);
+  const local = movementSnapshot(movementState, speedCheckEnabled, movementLimitEnabled);
   listener(local.available ? local : remoteMovementSnapshot || local);
   return () => movementStateListeners.delete(listener);
 }
@@ -281,7 +299,7 @@ export function mountSpeedCheckStateBroadcast() {
     if (data?.type === "request-speed-state") {
       const requestedTurnKey = String(data.turnKey || "");
       if (processorEnabled && (!requestedTurnKey || requestedTurnKey === currentTurn?.turnKey)) {
-        broadcastMovementSnapshot(buildSpeedCheckSnapshot(movementState, speedCheckEnabled, movementLimitEnabled));
+        broadcastMovementSnapshot(movementSnapshot(movementState, speedCheckEnabled, movementLimitEnabled));
       }
       return;
     }
@@ -704,6 +722,7 @@ function mountSpeedMetadataListener() {
       return;
     }
     syncMovementAudience(state, item);
+    if (syncConsoleDashes(state, item)) notifyMovementState();
     if (event.flags.speedCheck) applyPersistedMovementItem(item);
     if (event.flags.conditions || event.flags.concentration || event.flags.tracker) {
       void applyConditionSpeedItem(item, { refreshProfile }).catch(() => {});
@@ -893,6 +912,8 @@ async function loadMovementState(turn, { itemId: requestedItemId = "", boardToke
     cycle,
     cycleMeters: Math.max(0, totalMeters - (cycle * speedMeters)),
     dashCount: 0,
+    // The attack console's dashes of this turn (Azioni → Scatto), added to the count in movementSnapshot.
+    actionDashCount: boardTokenRule ? 0 : consoleDashCount(item, turnKey),
     bonusMeters: 0,
     name: String(item.name || "Personaggio").trim() || "Personaggio",
     portrait: portraitUrl(item),
@@ -1295,7 +1316,7 @@ async function processSpeedCheckMovement(movement, turn) {
     terrainModifiers,
   });
   const chargedCells = movementCost.chargedCells;
-  const beforeSnapshot = buildSpeedCheckSnapshot(state, true, movementLimitEnabled);
+  const beforeSnapshot = movementSnapshot(state, true, movementLimitEnabled);
   const rejection = limitedMovementRejection(beforeSnapshot, chargedCells);
   if (rejection) {
     if (verticalMovement) {
@@ -1358,7 +1379,7 @@ async function processSpeedCheckMovement(movement, turn) {
   if (state.path.length > MAX_MOVEMENT_SEGMENTS) {
     state.path.splice(0, state.path.length - MAX_MOVEMENT_SEGMENTS);
   }
-  const afterSnapshot = buildSpeedCheckSnapshot(state, true, movementLimitEnabled);
+  const afterSnapshot = movementSnapshot(state, true, movementLimitEnabled);
   if (state.blocked && state.speedMeters <= 0) {
     notifyMovementState();
     const persistTask = sample.toolSynthetic ? null : persistMovementState(state);

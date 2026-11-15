@@ -15,6 +15,7 @@ import { spellbookActiveSpellIds, spellbookAttackAction } from "./spellbookCatal
 import { isSpellbookAttackActionId } from "./spellbookCore.js";
 import { isSpellGrantActionId, spellGrantedActionForItem, spellGrantedActionsForItem } from "./spellGrantedActionsCore.js";
 import { buildPcGrappleEndMutation, buildPcManeuverMutation } from "./pcAttackManeuverCore.js";
+import { buildPcTurnActionMutation } from "./pcAttackTurnActionCore.js";
 import { bossFeetPerCell } from "./bossActionsViewCore.js";
 import { getEffectsMutationSceneContext, runEffectsMutation, requireAppliedEffectsMutation } from "./effectsMutations.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
@@ -560,6 +561,7 @@ export function createPcAttackRuntime({
         catch(error) {warnings.push(String(error?.message || error));}
       }
       draft.result={...result,attackInstanceId,maneuver:structuredClone(plan.causality.maneuver),warnings,
+        ...(plan.causality.turnAction?{turnAction:structuredClone(plan.causality.turnAction)}:{}),
         target:{id:plan.causality.targets[0].id,name:plan.causality.targets[0].name},
         ...(plan.manualText?{manualText:plan.manualText}:{}),
         historyEntryId:result.historyEntry?.id || null,
@@ -576,6 +578,12 @@ export function createPcAttackRuntime({
         return buildPcManeuverMutation({kind:request.kind,sourceItem:scope.item,targetItem,outcome:request.outcome,effect:request.effect,
           attackInstanceId,turnState:scope.turnState});
       });
+  }
+  // Dash, Disengage or Dodge of the creature whose turn it is (Azioni tab): one command, as a Grapple, with its Undo.
+  async function executePcTurnAction(request={}) {
+    const {sourceId}=request;
+    return runManeuver(request,{kind:"turn-action",sourceId,turnAction:request.kind || ""},
+      async(scope,attackInstanceId)=>buildPcTurnActionMutation({kind:request.kind,sourceItem:scope.item,attackInstanceId,turnState:scope.turnState}));
   }
   async function endPcGrapple(request={}) {
     const {sourceId,grappledId,instanceId}=request;
@@ -608,7 +616,7 @@ export function createPcAttackRuntime({
       return {magical:magical===true};
     } finally {busy.delete(sourceId);}
   }
-  return {getPcAttackPresentation,executePcAttack,endQuiveringPalm,executePcAttackArea,getPcAttackNearby,executePcManeuver,endPcGrapple,
+  return {getPcAttackPresentation,executePcAttack,endQuiveringPalm,executePcAttackArea,getPcAttackNearby,executePcManeuver,executePcTurnAction,endPcGrapple,
     executePcAttackSpellTeleport,setPcAttackActionMagical};
 }
 const runtime=createPcAttackRuntime();
@@ -619,3 +627,4 @@ export const executePcAttackArea=(...args)=>runtime.executePcAttackArea(...args)
 export const getPcAttackNearby=(...args)=>runtime.getPcAttackNearby(...args);
 export const executePcManeuver=(...args)=>runtime.executePcManeuver(...args);
 export const endPcGrapple=(...args)=>runtime.endPcGrapple(...args);
+export const executePcTurnAction=(...args)=>runtime.executePcTurnAction(...args);

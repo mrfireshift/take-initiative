@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **117** |
+| **B. Console attacchi, mostri e capacità** | **122** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -45,6 +45,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B7. Difese dalle capacità di classe | 7 |
 | B8. Attacchi dei mostri: ciò che il banco non copre | 4 |
 | B9. Danni extra degli incantesimi | 5 |
+| B10. Azioni di turno nella console | 5 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -70,7 +71,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **480** |
+| **Totale** | **485** |
 
 ## A. Incantesimi
 
@@ -618,6 +619,16 @@ Fonte: segnalazione dell'utente del 15/11 (il danno di Marchio del Cacciatore ma
 - [ ] **Sul proprio corpo:** con Favore Divino, e con Arma Elementale lanciata al 5° livello, un attacco con arma propone **Favore Divino** (1d4 radiosi) e **Arma Elementale** (2d4 del tipo scelto), già spuntati.
 - [ ] **Sudario Spirituale:** in mischia la casella è già spuntata; a distanza c'è, non spuntata, con «Solo se il bersaglio è entro 3 m».
 - [ ] **Assorbire Elementi:** il primo colpo in mischia propone il danno extra del tipo assorbito; registrato, l'etichetta e l'incantesimo spariscono e **Annulla** li riporta. Con un attacco a distanza la casella è spenta.
+
+### B10. Azioni di turno nella console
+
+Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T1 (decisioni D1, D3, D4, D5, D12). Le voci sono nuove: nessuna lista le aveva. Serve un combattimento con un PG e un goblin in iniziativa.
+
+- [ ] **La scheda:** la console di ogni creatura ha la scheda **Azioni** con Scatto, Disimpegno, Schivata, Lotta e Spinta. Lotta e Spinta non sono più fra gli Attacchi. Una creatura con sola arma mostra le schede Attacchi e Azioni.
+- [ ] **Scatto:** nel turno di un PG, con il Movimento acceso, **Registra** mette «Scatto ×1» nel riquadro Movimento e il movimento disponibile cresce di una velocità. **Annulla**, dalla console o dalla Cronologia, lo toglie; il − del riquadro no. Da provare in vista compatta ed estesa.
+- [ ] **Disimpegno:** con gli avvisi di reazione e il Movimento accesi, un PG disimpegnato esce dalla portata di un goblin e non parte l'avviso di attacco di opportunità. Alla fine del suo turno la pill sparisce.
+- [ ] **Schivata:** un goblin in Schivata attaccato dalla console: sotto il bersaglio «Schivata: svantaggio all'attacco, se il bersaglio vede chi attacca»; con Fiamma sacra, «vantaggio al TS su Destrezza». All'inizio del turno del goblin la pill sparisce.
+- [ ] **Fuori turno:** le azioni di una creatura che non è di turno restano spente, con «Solo nel turno della creatura».
 
 ## C. Tracker e UX
 

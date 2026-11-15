@@ -3,13 +3,16 @@
 // - Leaving a reach (Opportunity Attack): a creature had the mover within its reach at a point of the movement and not
 //   at a later one (J2: with the Movimento tool every square counts, so leaving and coming back in one drag provokes).
 // - Entering (Halo of Spores, 3 m): the mover is within 3 m at the end and was not at the start.
-// The mover with "Movimento: no AdO" (Zephyr Strike) provokes nothing; Disengage the plugin cannot know (J3).
+// The mover with "Movimento: no AdO" (Zephyr Strike) or "Disimpegno" (the Disengage action of the attack console's Azioni
+// tab, docs/STUDIO_AZIONI_DI_TURNO.md, D4) provokes nothing; a Disengage taken at the table the plugin cannot know (J3).
 import { ID } from "./constants.js";
 
 const META_KEY = `${ID}/meta`;
 export const DEFAULT_REACH_METERS = 1.5;
 export const HALO_RANGE_METERS = 3;
 export const NO_OPPORTUNITY_PILL = "Movimento: no AdO";
+// pcAttackTurnActionCore.js: DISENGAGE_CONDITION.
+export const DISENGAGE_PILL = "Disimpegno";
 const FEET_TO_METERS = 0.3;
 
 const text = (value, limit = 220) => String(value ?? "").trim().slice(0, limit);
@@ -33,7 +36,7 @@ function hasNoOpportunityPill(item) {
   const spells = Array.isArray(meta[`${ID}/spells`]) ? meta[`${ID}/spells`] : [];
   const conditions = Array.isArray(meta.conditions?.instances) ? meta.conditions.instances : [];
   return spells.some((pill) => text(pill?.spellId) === ZEPHYR_STRIKE_SPELL_ID || JSON.stringify(pill || {}).includes(NO_OPPORTUNITY_PILL))
-    || conditions.some((entry) => entry?.active !== false && text(entry?.condition, 80) === NO_OPPORTUNITY_PILL);
+    || conditions.some((entry) => entry?.active !== false && [NO_OPPORTUNITY_PILL, DISENGAGE_PILL].includes(text(entry?.condition, 80)));
 }
 
 const validPoint = (point) => point && Number.isFinite(Number(point.x)) && Number.isFinite(Number(point.y));

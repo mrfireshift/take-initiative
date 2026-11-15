@@ -17,7 +17,7 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 const facts = (f) => f.$("pc-attack-facts").textContent.replaceAll("\u00a0", " ");
 const nameLine = (f) => f.$("pc-attack-subtitle").textContent.replaceAll("\u00a0", " ");
 
-const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-picker-search", "pc-attack-minimize", "pc-attack-picker-dropdown", "pc-attack-picker-dropdown-button", "pc-attack-picker-menu", "pc-attack-use-selected-row", "pc-attack-title", "pc-attack-subtitle", "pc-attack-facts", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
+const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-picker-search", "pc-attack-minimize", "pc-attack-picker-dropdown", "pc-attack-picker-dropdown-button", "pc-attack-picker-menu", "pc-attack-use-selected-row", "pc-attack-title", "pc-attack-subtitle", "pc-attack-facts", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint", "pc-attack-target-note",
   "pc-attack-outcomes", "pc-attack-damage", "pc-attack-defenses", "pc-attack-total", "pc-attack-apply", "pc-attack-status", "pc-attack-undo",
   "pc-attack-extras-section", "pc-attack-riders", "pc-attack-extras", "pc-attack-add-extra", "pc-attack-cantrip-row", "pc-attack-cantrip",
   "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven", "pc-attack-activations", "pc-attack-activations-caption",
@@ -90,6 +90,11 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
       return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [], target: { id: request.targetId, name: "Ghoul" },
         maneuver: { kind: request.kind, outcome: request.outcome, ...(request.effect ? { effect: request.effect } : {}) },
         ...(request.effect === "push" && request.outcome === "success" ? { manualText: "Sposta Ghoul di 1,5 m lontano da Aria sulla mappa." } : {}) };
+    },
+    executePcTurnAction: async (request) => {
+      calls.push({ turnAction: request });
+      return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [], target: { id: request.sourceId, name: "Aria" },
+        turnAction: { kind: request.kind, ...(request.kind === "dash" ? { dashes: 1 } : {}) } };
     },
     endPcGrapple: async (request) => {
       calls.push({ grappleEnd: request });
@@ -824,13 +829,19 @@ const attackSpells = sanitizeQuickAction({ id: "spells", label: "Incantesimi", k
 const pickerTabs = (f) => f.$("pc-attack-picker-tabs").querySelectorAll("button");
 const pickerOptions = (f) => f.$("pc-attack-picker-select").children.map((option) => option.value);
 async function pick(f, value) { const select = f.$("pc-attack-picker-select"); select.value = value; await select.emit("change"); await tick(); }
+// Grapple and Shove live in the Azioni tab (docs/STUDIO_AZIONI_DI_TURNO.md, D1): the tab first, then the entry.
+async function pickAction(f, value) {
+  const tab = [...pickerTabs(f)].find((button) => button.textContent === "Azioni");
+  if (tab && tab.getAttribute("aria-pressed") !== "true") { await tab.click(); await tick(); }
+  await pick(f, value);
+}
 
 test("the picker: one tab per kind, the entries of the current tab, the cantrip select gives way to it", async () => {
   const f = fixture({ actions: [sword, axe, knownCantrips, attackSpells] }); await f.controller.ready; await tick();
   assert.equal(f.$("pc-attack-picker").hidden, false);
   assert.deepEqual(pickerTabs(f).map((button) => [button.textContent, button.getAttribute("aria-pressed")]),
-    [["Attacchi", "true"], ["Trucchetti", "false"], ["Incantesimi", "false"]]);
-  assert.deepEqual(pickerOptions(f), ["holy-sword", "axe", "maneuver::grapple", "maneuver::shove"], "Lotta and Spinta after the weapons");
+    [["Attacchi", "true"], ["Trucchetti", "false"], ["Incantesimi", "false"], ["Azioni", "false"]]);
+  assert.deepEqual(pickerOptions(f), ["holy-sword", "axe"], "Lotta and Spinta are in the Azioni tab");
   assert.equal(f.$("pc-attack-picker-select").value, "holy-sword");
   await pickerTabs(f)[1].click(); await tick();
   assert.equal(f.$("pc-attack-title").textContent, "Aria");
@@ -846,7 +857,7 @@ test("the picker: one tab per kind, the entries of the current tab, the cantrip 
 test("another weapon loads its action with a fresh draft; the target stays and the attack registers on it", async () => {
   const f = fixture({ actions: [sword, axe] }); await f.controller.ready;
   await f.select(["ghoul"]);
-  assert.equal(f.$("pc-attack-picker-tabs").hidden, true, "a single tab shows no tabs");
+  assert.equal(f.$("pc-attack-picker-tabs").hidden, false, "Attacchi and Azioni: every creature has the turn's actions");
   await pick(f, "axe");
   assert.equal(f.$("pc-attack-title").textContent, "Aria");
   assert.equal(f.$("pc-attack-picker-select").value, "axe");
@@ -967,11 +978,11 @@ test("the attack spells tab and a single entry", async () => {
   assert.equal(pickerTabs(f)[1].textContent, "Incantesimi");
   assert.equal(f.controller.getDraft().spellId, "guiding-bolt");
   assert.equal(f.$("pc-attack-picker-select").hidden, true, "one entry in the tab: no select");
-  // A single weapon still shows the picker: Lotta and Spinta follow it in the Attacchi tab.
+  // A single weapon still shows the picker: the Azioni tab beside Attacchi (Scatto, Disimpegno, Schivata, Lotta, Spinta).
   const single = fixture({ actions: [sword] }); await single.controller.ready;
   assert.equal(single.$("pc-attack-picker").hidden, false);
-  assert.deepEqual(pickerOptions(single), ["holy-sword", "maneuver::grapple", "maneuver::shove"]);
-  assert.equal(single.$("pc-attack-picker-tabs").hidden, true, "a single tab shows no tabs");
+  assert.deepEqual(pickerOptions(single), ["holy-sword"]);
+  assert.deepEqual(pickerTabs(single).map((button) => button.textContent), ["Attacchi", "Azioni"]);
 });
 
 test("the console answers the turn controller's ping while it is open, and stops once closed", async () => {
@@ -1062,7 +1073,7 @@ test("a spell the console does not resolve shows its card instead of the form; t
   await f.select(["ghoul"]);
   await f.outcome("hit").click();
   const tabs = pickerTabs(f).map((button) => button.textContent);
-  assert.deepEqual(tabs, ["Attacchi", "Trucchetti", "Incantesimi", "Capacità"], "a cleric has its features too");
+  assert.deepEqual(tabs, ["Attacchi", "Trucchetti", "Incantesimi", "Capacità", "Azioni"], "a cleric has its features too");
   await pickerTabs(f)[2].click(); await tick();
   assert.equal(f.$("pc-attack-attack-view").hidden, true);
   assert.equal(f.$("pc-attack-launch").hidden, false);
@@ -1274,7 +1285,7 @@ test("the Capacità tab lists the features by group with their activation and us
   const runtime = fakeFeatureRuntime();
   const f = fixture({ card: barbarianCard, attacker: { initiativeCard: barbarianCard }, featureState: rageStatus(), featureRuntime: runtime.runtime });
   await f.controller.ready; await tick();
-  assert.deepEqual(pickerTabs(f).map((button) => button.textContent), ["Attacchi", "Capacità"]);
+  assert.deepEqual(pickerTabs(f).map((button) => button.textContent), ["Attacchi", "Capacità", "Azioni"]);
   await pickerTabs(f)[1].click(); await tick();
   const list = f.$("pc-attack-picker-list");
   assert.equal(list.hidden, false, "the features tab is a list");
@@ -1550,7 +1561,7 @@ test("the target's menu with the keyboard, a click elsewhere and a live update",
 
 test("a maneuver's target menu: the same rows, the choice in the maneuver's own draft", async () => {
   const f = fixture({ actions: [sword] }); await f.controller.ready; await tick();
-  await pick(f, "maneuver::grapple");
+  await pickAction(f, "maneuver::grapple");
   const button = f.$("pc-attack-maneuver-button"), menu = f.$("pc-attack-maneuver-menu");
   await button.click(); await tick();
   assert.equal(menu.hidden, false);
@@ -1666,10 +1677,11 @@ const ownCard = { quickActions: [gazeAction, blessedAction] };
 
 test("the ⚡ quick actions stay out of the console: a card of quick actions only shows no Capacità tab", async () => {
   const f = fixture({ card: ownCard, attacker: { initiativeCard: { quickActions: ownCard.quickActions } }, actionId: "" }); await f.controller.ready; await tick();
-  // Only what every creature can do: Lotta and Spinta, no Capacità tab, no quick action.
-  assert.deepEqual(pickerOptions(f), ["maneuver::grapple", "maneuver::shove"]);
+  // Only what every creature can do: the Azioni tab (Scatto, Disimpegno, Schivata, Lotta, Spinta), no Capacità tab, no
+  // quick action. It opens on Scatto.
+  assert.deepEqual(pickerOptions(f), ["turn-action::dash", "turn-action::disengage", "turn-action::dodge", "maneuver::grapple", "maneuver::shove"]);
   assert.equal(f.$("pc-attack-picker-tabs").hidden, true);
-  assert.equal(f.$("pc-attack-maneuver").hidden, false);
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Registra");
 });
 
 // Off-turn actions: the console on another actor than the turn's (a reaction, an opportunity attack).
@@ -1981,7 +1993,7 @@ const maneuverButton = (f, box, key, value) => f.$(box).querySelector(`[data-${k
 test("Lotta: the target from the map, the contest's outcome, Registra; the next attempt starts afresh on the same target", async () => {
   const f = fixture({ actions: [sword] }); await f.controller.ready; await tick();
   await f.select(["ghoul"]);
-  await pick(f, "maneuver::grapple");
+  await pickAction(f, "maneuver::grapple");
   assert.equal(f.$("pc-attack-maneuver").hidden, false);
   assert.equal(f.$("pc-attack-attack-view").hidden, true);
   assert.equal(nameLine(f), "", "its kind on the menu's button, the note says the rest");
@@ -2017,7 +2029,7 @@ test("Lotta: the target from the map, the contest's outcome, Registra; the next 
 
 test("Spinta: the effect is required; a push says the token is moved by hand", async () => {
   const f = fixture({ actions: [sword] }); await f.controller.ready; await tick();
-  await pick(f, "maneuver::shove");
+  await pickAction(f, "maneuver::shove");
   assert.equal(f.$("pc-attack-maneuver-hint").hidden, true, "no target yet: the fixed row asks");
   f.$("pc-attack-maneuver-target").value = "ghoul"; await f.$("pc-attack-maneuver-target").emit("change");
   await maneuverButton(f, "pc-attack-maneuver-outcomes", "outcome", "success").click();
@@ -2034,7 +2046,7 @@ test("off turn a maneuver never offers the reaction (not an opportunity attack)"
   const f = fixture({ actions: [sword], turnState: { order: ["ghoul", "aria"], current: 0, round: 1 } }); await f.controller.ready; await tick();
   await f.select(["ghoul"]);
   assert.equal(f.$("pc-attack-reaction").hidden, false, "the weapon attack offers it");
-  await pick(f, "maneuver::grapple");
+  await pickAction(f, "maneuver::grapple");
   assert.equal(f.$("pc-attack-reaction").hidden, true);
 });
 
@@ -2249,4 +2261,39 @@ test("a pill's label ending with its own dot does not double it in the summary",
   const hit = { outcome: "hit", target: { name: "Ghoul" }, damageComponents: [{ amount: 5 }], hpChange: { before: 30, after: 25 } };
   assert.equal(resultSummary({ ...hit, conditions: ["Prossimo attacco: vant."] }), "Registrato: Colpito, 5 danni a Ghoul. PF 30 → 25. Ghoul: Prossimo attacco: vant.");
   assert.equal(resultSummary({ ...hit, conditions: ["Velocità −3 m"] }), "Registrato: Colpito, 5 danni a Ghoul. PF 30 → 25. Ghoul: Velocità −3 m.");
+});
+
+// The Azioni tab (lot T1 of docs/STUDIO_AZIONI_DI_TURNO.md): Scatto, Disimpegno and Schivata, each a card with Registra.
+test("the Azioni tab: an action's card, Registra on the creature's own turn, refused off it", async () => {
+  const f = fixture({ actions: [sword], turnState: { round: 2, order: ["aria", "ghoul"], current: 0 } }); await f.controller.ready; await tick();
+  await pickAction(f, "turn-action::dodge");
+  assert.equal(f.$("pc-attack-attack-view").hidden, true, "no attack form");
+  assert.match(textOf(f.$("pc-attack-launch")), /Schivata/);
+  assert.match(textOf(f.$("pc-attack-launch")), /svantaggio, se vede chi attacca/);
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Registra");
+  assert.equal(f.$("pc-attack-launch-button").disabled, false);
+  assert.equal(f.$("pc-attack-total").textContent, "Schivata fino all'inizio del suo prossimo turno.");
+  await f.$("pc-attack-launch-button").click(); await tick(); await tick();
+  const call = f.calls.find((entry) => entry.turnAction)?.turnAction;
+  assert.deepEqual([call.sourceId, call.kind, call.sceneIdentity], ["aria", "dodge", "scene-A"]);
+  assert.match(f.$("pc-attack-status").textContent, /Registrato: Schivata di Aria/);
+  // Its Undo names it (an attack's says «Ultimo attacco annullato.»).
+  assert.equal(f.$("pc-attack-undo").hidden, false);
+  await f.$("pc-attack-undo").click(); await tick(); await tick();
+  assert.equal(f.$("pc-attack-status").textContent, "Annullato: Schivata.");
+  // Another creature's turn: the card says why, Registra waits.
+  await f.turn({ round: 2, order: ["aria", "ghoul"], current: 1 });
+  await pickAction(f, "turn-action::dash");
+  assert.equal(f.$("pc-attack-launch-button").disabled, true);
+  assert.equal(f.$("pc-attack-total").textContent, "Solo nel turno della creatura.");
+});
+
+test("a target in Dodge: the attack reminds the disadvantage under the target", async () => {
+  const dodging = { conditions: { instances: [{ id: "dodge-1", condition: "Schivata", sourceId: "ghoul", active: true }] } };
+  const f = fixture({ metas: { ghoul: dodging } }); await f.controller.ready;
+  await f.select(["ghoul"]);
+  assert.equal(f.$("pc-attack-target-note").hidden, false);
+  assert.equal(f.$("pc-attack-target-note").textContent, "Schivata: svantaggio all'attacco, se il bersaglio vede chi attacca.");
+  await f.select(["imp"]);
+  assert.equal(f.$("pc-attack-target-note").hidden, true, "a target not in Dodge");
 });

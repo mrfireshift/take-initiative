@@ -546,6 +546,27 @@ rapida, nello stesso passo annullabile dello slot. Succede solo in
 combattimento, con un ordine di iniziativa. Se la reazione è già usata, il
 plugin chiede conferma prima di lanciare.
 
+### Azioni di turno nella console
+
+La scheda **Azioni** della console attacchi, per ogni creatura, raccoglie le azioni
+del turno che non sono un attacco: **Scatto**, **Disimpegno** e **Schivata**, poi
+**Lotta** e **Spinta**, che restano «al posto di un attacco dell'azione Attacco».
+**Registra** fa di ogni azione una voce della Cronologia e del registro, con il suo
+**Annulla**. Il plugin non conta le azioni del turno: se non le registri, non
+cambia nulla. Scatto, Disimpegno e Schivata si registrano solo nel turno della
+creatura, in combattimento.
+
+- **Scatto**: uno scatto in più nel riquadro Movimento del turno («Scatto ×N»).
+  Il − del riquadro toglie solo gli scatti messi lì; quello registrato si toglie
+  con Annulla.
+- **Disimpegno**: la pill «Disimpegno» fino alla fine del turno; gli avvisi di
+  attacco di opportunità non partono per chi si muove disimpegnato.
+- **Schivata**: la pill «Schivata» fino all'inizio del prossimo turno della
+  creatura, la stessa di Difesa Paziente. Chi la attacca dalla console legge sotto
+  il bersaglio «svantaggio all'attacco, se il bersaglio vede chi attacca»; un TS
+  su Destrezza, «vantaggio». Se la creatura diventa incapacitata o resta senza
+  velocità, la pill si toglie a mano.
+
 ### Console attacchi fuori turno
 
 Quando sulla mappa è selezionata un'altra creatura, sotto l'intestazione della console attacchi compare **⇄ Agisci con…**: la console passa a quella creatura per un'azione fuori turno (un attacco di opportunità, una reazione). L'intestazione dice **Fuori turno** e, sulla stessa riga di **⇄ Agisci con…**, **⇄ Torna a…** riporta alla creatura di turno; se la creatura selezionata è proprio quella, il pulsante è uno solo. Un nome troppo lungo si taglia sul pulsante, e il suggerimento lo scrive intero. Un attacco fuori turno propone la casella **Usa la reazione (attacco di opportunità)**, già spuntata: togli la spunta se l'attacco non usa la reazione; se la reazione è già usata nel round la console lo dice e l'attacco non la segna. Se la console era già sulla creatura durante il suo turno e il turno passa, la casella parte spenta. Gli esiti di un attacco ad area non ancora registrati vengono chiesti prima di cambiare creatura.

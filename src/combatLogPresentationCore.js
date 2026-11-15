@@ -726,6 +726,14 @@ function maneuverLogLines(maneuver) {
     + `${contest ? ` (${contest})` : ""}: ${result}${ended}`];
 }
 
+function turnActionLogLines(turnAction) {
+  const dashes = finiteNumber(turnAction.dashes);
+  if (turnAction.kind === "dash") return [`Azione: Scatto · ${dashes > 1 ? `${numberText(dashes)} scatti` : "uno scatto"} in più nel movimento del turno`];
+  if (turnAction.kind === "disengage") return ["Azione: Disimpegno · niente attacchi di opportunità fino alla fine del turno"];
+  if (turnAction.kind === "dodge") return ["Azione: Schivata · fino all'inizio del suo prossimo turno"];
+  return [];
+}
+
 // Where the creatures of an area ticked by hand were: a breath's cone or line, a monster's area.
 const MANUAL_AREA_SHAPE_TEXT = Object.freeze({
   cone: "nel cono", line: "sulla linea", target: "come bersaglio", sphere: "nella sfera", cube: "nel cubo", cylinder: "nel cilindro",
@@ -888,6 +896,8 @@ function causalityDetailLines(event) {
   }
   // Grapple and Shove (pcAttackManeuverCore.js): the contest and its result; the end of a grapple.
   if (rawAttack?.maneuver && typeof rawAttack.maneuver === "object") lines.push(...maneuverLogLines(rawAttack.maneuver));
+  // Dash, Disengage and Dodge (pcAttackTurnActionCore.js): what the action left in the plugin.
+  if (rawAttack?.turnAction && typeof rawAttack.turnAction === "object") lines.push(...turnActionLogLines(rawAttack.turnAction));
   for (const note of Array.isArray(rawAttack?.notes) ? rawAttack.notes : []) {
     if (stringValue(note)) lines.push(`Nota: ${note}`);
   }

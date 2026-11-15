@@ -113,9 +113,9 @@ test.after(() => { effects.unmountEffectsMutationCoordinatorService(); historyOw
 
 const maneuver = (decisions) => runtime.executePcManeuver({ sourceId: "aria", targetId: "ghoul", ...decisions });
 
-test("the picker entries: Lotta and Spinta in the Attacchi tab, resolved by the console", () => {
+test("the picker entries: Lotta and Spinta in the Azioni tab (D1 of docs/STUDIO_AZIONI_DI_TURNO.md), resolved by the console", () => {
   assert.deepEqual(pcAttackManeuverEntries().map((entry) => [entry.key, entry.tab, entry.mode, entry.label]),
-    [["maneuver::grapple", "attacks", "maneuver", "Lotta"], ["maneuver::shove", "attacks", "maneuver", "Spinta"]]);
+    [["maneuver::grapple", "actions", "maneuver", "Lotta"], ["maneuver::shove", "actions", "maneuver", "Spinta"]]);
 });
 
 test("blockers: target, outcome, the Shove's effect, an incapacitated attacker, a creature already held", () => {
@@ -244,4 +244,50 @@ test("the end-of-grapple builder refuses a grapple already over and an unknown o
   const ghoul = creature("ghoul", "Ghoul");
   assert.throws(() => buildPcGrappleEndMutation({ sourceItem: aria, grappledItem: ghoul, instanceId: "g", outcome: "release", attackInstanceId: "x" }), /già finita/);
   assert.throws(() => buildPcGrappleEndMutation({ sourceItem: aria, grappledItem: ghoul, instanceId: "g", outcome: "nope", attackInstanceId: "x" }), /come finisce/);
+});
+
+// The turn's actions of the Azioni tab (lot T1 of docs/STUDIO_AZIONI_DI_TURNO.md): one command each, with its Undo.
+const turnAction = (decisions) => runtime.executePcTurnAction({ sourceId: "aria", ...decisions });
+
+test("Scatto: one more dash of Aria's turn in her console state, a History entry and a log line; each Undo takes one back", async () => {
+  const first = await turnAction({ kind: "dash", attackInstanceId: "dash-1" });
+  assert.equal(first.undoAvailable, true);
+  assert.deepEqual(first.turnAction, { kind: "dash", dashes: 1 });
+  assert.deepEqual(meta("aria").pcAttackState.turnActions, { turnKey: "2:0:aria", dashes: 1 }, "the movement panel's turn key");
+  assert.deepEqual(meta("aria").pcAttackState.lastAttack, { quickActionId: "sword" }, "the last attack stays");
+  assert.deepEqual(pillNames("aria"), [], "no pill");
+  await turnAction({ kind: "dash", attackInstanceId: "dash-2" });
+  assert.equal(meta("aria").pcAttackState.turnActions.dashes, 2);
+  const [, second] = await entries();
+  assert.equal(second.label, "Aria: Scatto");
+  assert.match(logLines(second), /Azione: Scatto · 2 scatti in più/);
+  await history.undoHistoryThrough(second.id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(meta("aria").pcAttackState.turnActions.dashes, 1);
+  const [firstEntry] = await entries();
+  await history.undoHistoryThrough(firstEntry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(meta("aria").pcAttackState.turnActions, undefined);
+});
+
+test("Schivata and Disimpegno: pills on Aria from Aria with their expiry; once each; Undo removes them", async () => {
+  const dodge = await turnAction({ kind: "dodge", attackInstanceId: "dodge-1" });
+  assert.equal(dodge.undoAvailable, true);
+  assert.deepEqual(pills("aria").map((instance) => [instance.condition, instance.sourceId, instance.expiry?.mode, instance.expiry?.actor]),
+    [["Schivata", "aria", "turn-start", "target"]]);
+  assert.deepEqual(labels, ["aria"], "the map labels of the creature");
+  await assert.rejects(turnAction({ kind: "dodge", attackInstanceId: "dodge-2" }), /già in Schivata/);
+  await turnAction({ kind: "disengage", attackInstanceId: "disengage-1" });
+  assert.deepEqual(pills("aria").map((instance) => [instance.condition, instance.expiry?.mode]), [["Schivata", "turn-start"], ["Disimpegno", "turn-end"]]);
+  const [dodgeEntry, disengageEntry] = await entries();
+  assert.equal(disengageEntry.label, "Aria: Disimpegno");
+  assert.match(logLines(disengageEntry), /Azione: Disimpegno/);
+  await history.undoHistoryThrough(disengageEntry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual(pillNames("aria"), ["Schivata"]);
+  await history.undoHistoryThrough(dodgeEntry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual(pillNames("aria"), []);
+});
+
+test("a turn action off the creature's turn is refused before any write", async () => {
+  await assert.rejects(runtime.executePcTurnAction({ sourceId: "ghoul", kind: "dodge", attackInstanceId: "off-1" }), /Solo nel turno della creatura/);
+  assert.deepEqual(pillNames("ghoul"), []);
+  assert.deepEqual(await entries(), []);
 });

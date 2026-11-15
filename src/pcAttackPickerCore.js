@@ -22,6 +22,8 @@ export const PC_ATTACK_PICKER_TABS = Object.freeze([
   Object.freeze({ id: "cantrips", label: "Trucchetti" }),
   Object.freeze({ id: "spells", label: "Incantesimi" }),
   Object.freeze({ id: "features", label: "Capacità" }),
+  // The turn's actions every creature has: Dash, Disengage, Dodge, Grapple and Shove (docs/STUDIO_AZIONI_DI_TURNO.md, D1).
+  Object.freeze({ id: "actions", label: "Azioni" }),
 ]);
 
 export function pcAttackPickerKey(actionId, spellId = "") {
@@ -37,7 +39,8 @@ const attackLabel = (spellId) => getPcAttackCantrip(spellId)?.name || getPcAttac
 export function pcAttackPickerEntries(card, { activeSpellIds = [], grantedActions = [] } = {}) {
   const profile = Array.isArray(card) ? { quickActions: card } : (card && typeof card === "object" ? card : {});
   const quickActions = sanitizeQuickActions(profile.quickActions, { limit: 64, attackLimit: 64 });
-  const entries = { attacks: [], cantrips: [], spells: [], features: [] };
+  // actions: the turn's actions and Grapple and Shove, the same for every creature, which the console adds itself.
+  const entries = { attacks: [], cantrips: [], spells: [], features: [], actions: [] };
   const seen = new Set();
   const add = (tab, actionId, spellId, label, extra = {}) => {
     const unique = spellId ? `${tab}::${spellId}` : pcAttackPickerKey(actionId);

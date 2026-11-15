@@ -37,10 +37,11 @@ export function pcManeuverLabel(kind) {
   return LABELS[kind] || "";
 }
 
-// The console's picker entries (Attacchi tab, after the weapons): every creature can grapple and shove. Never part of
-// pcAttackPickerEntries, which decides whether an actor has something to show (the turn's auto-open).
+// The console's picker entries (Azioni tab, after Dash, Disengage and Dodge: docs/STUDIO_AZIONI_DI_TURNO.md, D1): every
+// creature can grapple and shove. Never part of pcAttackPickerEntries, which decides whether an actor has something to
+// show (the turn's auto-open).
 export function pcAttackManeuverEntries() {
-  return PC_MANEUVER_KINDS.map((kind) => ({ key: `${PC_MANEUVER_KEY_PREFIX}${kind}`, tab: "attacks", actionId: "", spellId: "",
+  return PC_MANEUVER_KINDS.map((kind) => ({ key: `${PC_MANEUVER_KEY_PREFIX}${kind}`, tab: "actions", actionId: "", spellId: "",
     maneuver: kind, label: LABELS[kind], mode: "maneuver", level: null, concentration: false, ritual: false, recordOnly: false, pinned: false }));
 }
 
