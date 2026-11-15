@@ -345,6 +345,39 @@ test("Nascondersi: the pill on Aria with her Stealth; her attack reveals her; Un
   assert.equal(meta("ghoul").hp, 20);
 });
 
+// Ready (lot T3): the card menu's pill; off turn, the attack registered with the reaction sets it off in its own command.
+const offTurn = () => { sceneMetadata["com.thebigpicture.initiative/state"] = { round: 2, order: ["aria", "ghoul", "yeti"], current: 1 }; };
+
+test("Preparare: «Azione preparata» on Aria; off turn her attack with the reaction removes it with «Reazione usata», one Undo", async () => {
+  const ready = await turnAction({ kind: "ready", attackInstanceId: "ready-1" });
+  assert.deepEqual(ready.turnAction, { kind: "ready", condition: "Azione preparata" });
+  assert.deepEqual(pills("aria").map((instance) => [instance.condition, instance.sourceId, instance.expiry?.mode, instance.expiry?.actor]),
+    [["Azione preparata", "aria", "turn-start", "target"]]);
+  await assert.rejects(turnAction({ kind: "ready", attackInstanceId: "ready-2" }), /Ha già un'azione preparata/);
+  const [readyEntry] = await entries();
+  assert.equal(readyEntry.label, "Aria: Preparare");
+  assert.match(logLines(readyEntry), /Azione: Preparare · fino all'inizio del suo prossimo turno/);
+  offTurn();
+  const attack = await swing("aria", { useReaction: true, attackInstanceId: "readied-swing" });
+  assert.deepEqual(attack.reaction, { spent: true, alreadyUsed: false, readied: true });
+  assert.deepEqual(pillNames("aria"), ["Reazione usata"], "the readied action went off with the attack");
+  const swingEntry = (await entries()).at(-1);
+  await history.undoHistoryThrough(swingEntry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual(pillNames("aria"), ["Azione preparata"], "one Undo: the readied action back, the reaction free");
+});
+
+test("off turn: an attack without the reaction leaves the readied action; with the reaction already used it goes", async () => {
+  await turnAction({ kind: "ready", attackInstanceId: "ready-3" });
+  offTurn();
+  const plain = await swing("aria", { attackInstanceId: "no-reaction" });
+  assert.equal(plain.reaction, undefined);
+  assert.deepEqual(pillNames("aria"), ["Azione preparata"]);
+  meta("aria").conditions.instances.push({ id: "used-1", condition: "Reazione usata", sourceId: "aria", active: true });
+  const late = await swing("aria", { useReaction: true, attackInstanceId: "late" });
+  assert.deepEqual(late.reaction, { spent: false, alreadyUsed: true, readied: true });
+  assert.deepEqual(pillNames("aria"), ["Reazione usata"], "without its reaction it could not go off any more");
+});
+
 test("an enemy hides: its pill is the GM's only (D11)", async () => {
   sceneMetadata["com.thebigpicture.initiative/state"] = { round: 2, order: ["aria", "ghoul", "yeti"], current: 1 };
   meta("ghoul").attitude = "enemy";

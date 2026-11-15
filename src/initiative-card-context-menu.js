@@ -358,7 +358,14 @@ function render(payload) {
         : "Dura fino all'inizio del suo prossimo turno",
     });
     if (payload.hasReadiedAction) {
-      makeAction(root, "Innesca azione preparata", "mark.svg", "readied-action-trigger", {
+      // With an attack: the attack console on the creature, off turn, its reaction ticked; the attack registered with the
+      // reaction removes the readied action. Without: the pill goes and the reaction is marked, in one step.
+      if (payload.readiedAttack) {
+        makeAction(root, "Innesca con un attacco", "mark.svg", "readied-action-attack", {
+          title: "Apre la console attacchi fuori turno, con la reazione: l'attacco registrato toglie l'azione preparata",
+        });
+      }
+      makeAction(root, payload.readiedAttack ? "Innesca senza attacco" : "Innesca azione preparata", "mark.svg", "readied-action-trigger", {
         title: "Toglie l'azione preparata e segna la reazione come usata",
       });
     }

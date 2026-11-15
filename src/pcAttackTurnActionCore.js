@@ -12,21 +12,25 @@
 //   attack, «Bersaglio dell'aiuto» on the enemy, which the first attack roll of the helper's allies spends
 //   (attackAdvantagePillsCore.js). Both until the start of the helper's next turn;
 // - Hide (Nascondersi, T2): «Nascosto» on the creature, with its Stealth total if the GM gives it; advantage to its attack
-//   roll, which ends it; an enemy's only the GM sees (D11).
+//   roll, which ends it; an enemy's only the GM sees (D11);
+// - Ready (Preparare, T3, D8): «Azione preparata» on the creature until the start of its next turn, the pill of the card's
+//   menu. What and when stay at the table. It goes off with the reaction: the card's «Innesca con un attacco» opens this
+//   console off turn, and the attack registered with the reaction removes it (pcAttackExecution.js).
 // Pure: no SDK, DOM or runtime state.
 import { ID } from "./constants.js";
 import { bossConditionAppliedAt, bossGroupConditionInstanceId, bossMetadataSnapshot } from "./bossActionExecutionCore.js";
 import { PC_ATTACK_HISTORY_KIND, PC_ATTACK_STATE_FIELD, PC_ATTACK_STATE_VERSION, pcAttackSave } from "./pcAttackCore.js";
-import { NEXT_OWN_TURN_START_EXPIRY, initiativeTurnCreatureId } from "./reactionTrackerCore.js";
+import { NEXT_OWN_TURN_START_EXPIRY, READIED_ACTION_CONDITION, conditionInstancesNamed, initiativeTurnCreatureId } from "./reactionTrackerCore.js";
 import { resolveSpeedCheckTurn } from "./speedCheckCore.js";
 import { MAX_TURN_DASHES, TURN_ACTIONS_STATE_KEY, consoleDashCount } from "./pcAttackTurnDashCore.js";
 import { HELPED_CONDITION, HELP_TARGET_CONDITION, HIDDEN_CONDITION, consumedAdvantagePills, hiddenPills } from "./attackAdvantagePillsCore.js";
 
 const META_KEY = `${ID}/meta`;
 
-export const PC_TURN_ACTION_KINDS = Object.freeze(["dash", "disengage", "dodge", "help", "hide"]);
+export const PC_TURN_ACTION_KINDS = Object.freeze(["dash", "disengage", "dodge", "help", "hide", "ready"]);
 export const PC_TURN_ACTION_KEY_PREFIX = "turn-action::";
-const LABELS = Object.freeze({ dash: "Scatto", disengage: "Disimpegno", dodge: "Schivata", help: "Aiuto", hide: "Nascondersi" });
+const LABELS = Object.freeze({ dash: "Scatto", disengage: "Disimpegno", dodge: "Schivata", help: "Aiuto", hide: "Nascondersi",
+  ready: "Preparare" });
 export const DISENGAGE_CONDITION = "Disimpegno";
 // The name Patient Defense's pill has: a Dodge from either is the same pill.
 export const DODGE_CONDITION = "Schivata";
@@ -46,6 +50,7 @@ export const PC_TURN_ACTION_NOTES = Object.freeze({
   dodge: "Fino all'inizio del suo prossimo turno gli attacchi contro hanno svantaggio, se vede chi attacca, e i TS su Destrezza hanno vantaggio. Finisce prima se è incapacitato o la sua velocità scende a 0: allora toglila a mano.",
   help: "Fino all'inizio del suo prossimo turno: un alleato ha vantaggio alla prossima prova del compito in cui lo aiuta, oppure il primo attacco di un alleato contro un nemico entro 1,5 m da lui ha vantaggio. La distanza resta al tavolo.",
   hide: "Una prova di Destrezza (Furtività): il totale fa da CD per chi lo cerca. Nascosto, ha vantaggio al primo attacco e si rivela attaccando; se viene trovato, togli la pill a mano.",
+  ready: "Che cosa e quando si dice al tavolo. Fino all'inizio del suo prossimo turno si innesca con la reazione, dal menu della card: «Innesca con un attacco» apre questa console fuori turno, «Innesca senza attacco» segna solo la reazione.",
 });
 
 export function pcTurnActionLabel(kind) {
@@ -69,6 +74,10 @@ function activeConditions(item, condition) {
 }
 function hasActiveCondition(item, condition) {
   return activeConditions(item, condition).length > 0;
+}
+// The readied action as the card's menu reads it (reactionTrackerCore.js: the name, whatever its case).
+function hasReadied(item) {
+  return conditionInstancesNamed({ instances: conditionInstancesOf(item) }, READIED_ACTION_CONDITION).length > 0;
 }
 function friendly(item) {
   const attitude = String(item?.metadata?.[META_KEY]?.attitude || "neutral").toLocaleLowerCase("it");
@@ -101,6 +110,7 @@ export function pcTurnActionBlocker({ kind = "", sourceItem = null, turnState = 
     if (activeConditions(targetItem, condition).some((instance) => String(instance.sourceId || "") === sourceItem.id))
       return `${targetItem.name || "La creatura"} ha già il suo aiuto.`;
   }
+  if (kind === "ready" && hasReadied(sourceItem)) return "Ha già un'azione preparata.";
   if (kind === "hide") {
     if (hasActiveCondition(sourceItem, HIDDEN_CONDITION)) return "È già nascosto.";
     if (Number.isNaN(stealthTotal(stealth))) return `Furtività: un numero intero da 0 a ${MAX_STEALTH}, o niente.`;
@@ -121,6 +131,8 @@ function dashStatePatch(sourceItem, turnKey, dashes) {
 function actionPill({ kind, sourceItem, targetItem, mode, stealth, sourceName }) {
   if (kind === "disengage") return { condition: DISENGAGE_CONDITION, holder: sourceItem, options: { expiry: { ...DISENGAGE_EXPIRY } } };
   if (kind === "dodge") return { condition: DODGE_CONDITION, holder: sourceItem, options: { expiry: { ...NEXT_OWN_TURN_START_EXPIRY } } };
+  // The card menu's own pill and expiry (initiativeList.js, reactionConditionOptions).
+  if (kind === "ready") return { condition: READIED_ACTION_CONDITION, holder: sourceItem, options: { expiry: { ...NEXT_OWN_TURN_START_EXPIRY } } };
   if (kind === "help" && mode === "attack") return { condition: HELP_TARGET_CONDITION, holder: targetItem, options: {
     expiry: { ...HELP_EXPIRY },
     effectDetail: `Il primo attacco di un alleato di ${sourceName} contro questa creatura, prima del prossimo turno di ${sourceName}, ha vantaggio. Si toglie da sola con quell'attacco.`,
@@ -139,7 +151,8 @@ function actionPill({ kind, sourceItem, targetItem, mode, stealth, sourceName })
   return null;
 }
 
-// One Dash, Disengage, Dodge, Help or Hide of the creature whose turn it is. targetItem and mode: Help's; stealth: Hide's.
+// One Dash, Disengage, Dodge, Help, Hide or Ready of the creature whose turn it is. targetItem and mode: Help's; stealth:
+// Hide's.
 export function buildPcTurnActionMutation({ kind = "", sourceItem, attackInstanceId, turnState = null, targetItem = null, mode = "", stealth = null } = {}) {
   if (!attackInstanceId || typeof attackInstanceId !== "string") throw new Error("Identità dell'azione mancante.");
   const blocker = pcTurnActionBlocker({ kind, sourceItem, turnState, targetItem, mode, stealth });

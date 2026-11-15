@@ -38,6 +38,7 @@ test("the Azioni tab: Scatto, Disimpegno and Schivata first, then Lotta and Spin
     ["turn-action::dodge", "actions", "turn-action", "Schivata"],
     ["turn-action::help", "actions", "turn-action", "Aiuto"],
     ["turn-action::hide", "actions", "turn-action", "Nascondersi"],
+    ["turn-action::ready", "actions", "turn-action", "Preparare"],
   ]);
   assert.deepEqual(PC_ATTACK_PICKER_TABS.map((tab) => tab.label), ["Attacchi", "Trucchetti", "Incantesimi", "Capacità", "Azioni"]);
   assert.ok(pcAttackManeuverEntries().every((entry) => entry.tab === "actions"), "Lotta and Spinta moved there (D1)");

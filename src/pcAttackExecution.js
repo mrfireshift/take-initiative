@@ -25,7 +25,7 @@ import { planSpellSlotSpend, spellSlotSpendOperation } from "./spellSlotSpendCor
 import { CLASS_FEATURE_STATE_FIELD, planClassFeatureResourceAdjustment } from "./classFeatureCore.js";
 import { getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import { pcAttackFeatureState } from "./pcAttackFeatureFormCore.js";
-import { isOffTurn, planReactionSpend } from "./reactionTrackerCore.js";
+import { READIED_ACTION_CONDITION, conditionInstancesNamed, isOffTurn, planReactionSpend } from "./reactionTrackerCore.js";
 import { planReactionFeatureSpend } from "./reactionFeatureRuntime.js";
 import { committedHpFor } from "./sharedHpViewCore.js";
 
@@ -77,13 +77,23 @@ export function pcAttackSpellSlotPlan(item,spell) {
 
 // An attack off turn with the reaction (an opportunity attack, a readied attack): "Reazione usata" in the attack's own
 // command, so its Undo gives it back. Read again at the commit: in combat, still off turn, the reaction still free.
+// The creature's readied action goes with it (lot T3 of docs/STUDIO_AZIONI_DI_TURNO.md): the reaction was the one it
+// waited for, and without the reaction it could not go off any more. Its pill leaves in the same command.
 function spendAttackReaction(item,plan,turnState,useReaction=false) {
   if(!useReaction || !isOffTurn(turnState,item?.id)) return null;
-  const reaction=planReactionSpend({casterId:item.id,casterName:item.name,conditions:item.metadata?.[`${ID}/meta`]?.conditions,initiativeState:turnState});
+  const conditions=item.metadata?.[`${ID}/meta`]?.conditions;
+  const reaction=planReactionSpend({casterId:item.id,casterName:item.name,conditions,initiativeState:turnState});
   if(!reaction.applies) return null;
   plan.operations.push(...reaction.operations);
-  if(reaction.operations.length) plan.labelTargetIds=[...new Set([...(plan.labelTargetIds || []),item.id])];
-  return {spent:!reaction.alreadyUsed,alreadyUsed:reaction.alreadyUsed};
+  const readied=conditionInstancesNamed({instances:Array.isArray(conditions)?conditions:conditions?.instances || []},READIED_ACTION_CONDITION);
+  if(readied.length) {
+    plan.operations.push({type:"condition:remove-instances",removals:readied.map(instance=>({itemId:item.id,instanceId:String(instance.id)}))});
+    plan.causality.linkEnds=[...(plan.causality.linkEnds || []),...readied.map(instance=>({itemId:item.id,condition:instance.condition,
+      reason:"Azione preparata innescata con l'attacco."}))];
+    if(plan.options) plan.options.targetIds=[...new Set([...(plan.options.targetIds || []),item.id])];
+  }
+  if(reaction.operations.length || readied.length) plan.labelTargetIds=[...new Set([...(plan.labelTargetIds || []),item.id])];
+  return {spent:!reaction.alreadyUsed,alreadyUsed:reaction.alreadyUsed,...(readied.length?{readied:true}:{})};
 }
 
 function spendSpellCastSlot(item,plan,castWithoutSlot=false) {

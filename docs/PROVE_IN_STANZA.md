@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **128** |
+| **B. Console attacchi, mostri e capacità** | **132** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -47,6 +47,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B9. Danni extra degli incantesimi | 5 |
 | B10. Azioni di turno nella console | 5 |
 | B11. Aiuto, Nascondersi e il vantaggio che si consuma | 6 |
+| B12. Preparare e Innesca | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -72,7 +73,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **491** |
+| **Totale** | **495** |
 
 ## A. Incantesimi
 
@@ -625,7 +626,7 @@ Fonte: segnalazione dell'utente del 15/11 (il danno di Marchio del Cacciatore ma
 
 Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T1 (decisioni D1, D3, D4, D5, D12). Le voci sono nuove: nessuna lista le aveva. Serve un combattimento con un PG e un goblin in iniziativa.
 
-- [ ] **La scheda:** la console di ogni creatura ha la scheda **Azioni** con Scatto, Disimpegno, Schivata, Aiuto, Nascondersi, Lotta e Spinta. Lotta e Spinta non sono più fra gli Attacchi. Una creatura con sola arma mostra le schede Attacchi e Azioni. *Aiuto e Nascondersi aggiunti con il lotto T2.*
+- [ ] **La scheda:** la console di ogni creatura ha la scheda **Azioni** con Scatto, Disimpegno, Schivata, Aiuto, Nascondersi, Preparare, Lotta e Spinta. Lotta e Spinta non sono più fra gli Attacchi. Una creatura con sola arma mostra le schede Attacchi e Azioni. *Aiuto e Nascondersi aggiunti con il lotto T2, Preparare con il lotto T3.*
 - [ ] **Scatto:** nel turno di un PG, con il Movimento acceso, **Registra** mette «Scatto ×1» nel riquadro Movimento e il movimento disponibile cresce di una velocità. **Annulla**, dalla console o dalla Cronologia, lo toglie; il − del riquadro no. Da provare in vista compatta ed estesa.
 - [ ] **Disimpegno:** con gli avvisi di reazione e il Movimento accesi, un PG disimpegnato esce dalla portata di un goblin e non parte l'avviso di attacco di opportunità. Alla fine del suo turno la pill sparisce.
 - [ ] **Schivata:** un goblin in Schivata attaccato dalla console: sotto il bersaglio «Schivata: svantaggio all'attacco, se il bersaglio vede chi attacca»; con Fiamma sacra, «vantaggio al TS su Destrezza». All'inizio del turno del goblin la pill sparisce.
@@ -641,6 +642,15 @@ Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T2 (decisio
 - [ ] **Nascondersi:** scrivi 17 in Furtività e **Registra**: la pill «Nascosto · Furtività 17» sul PG. Con 75 **Registra** resta spento, con «Furtività: un numero intero da 0 a 60, o niente.». Il PG nascosto attacca: sotto il bersaglio «Nascosto: vantaggio all'attacco; attaccando si rivela»; registrato, la pill sparisce e **Annulla** la riporta. Una Lotta o una Spinta la tolgono anche.
 - [ ] **Il nemico nascosto:** un goblin si nasconde dalla sua console: il GM vede la pill, lo schermo del tavolo no, né nel tracker né sulla mappa. Un PG che lo attacca legge «Bersaglio nascosto: svantaggio all'attacco, se chi attacca non lo vede».
 - [ ] **Colpo Distraente e Dardo tracciante:** un guerriero Maestro di Battaglia usa Colpo Distraente su un goblin: il suo attacco seguente non toglie la pill, quello di un altro PG sì, con il promemoria sotto il bersaglio. Dopo un Dardo tracciante a segno, il prossimo attacco con tiro per colpire contro quel bersaglio, di chiunque, toglie la pill; un TS (Fiamma sacra) no.
+
+### B12. Preparare e Innesca
+
+Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T3 (decisione D8). Le voci sono nuove: nessuna lista le aveva. Serve un combattimento con un PG armato e un goblin in iniziativa; l'incantesimo preparato arriverà con i lotti T6.
+
+- [ ] **Preparare dalla console:** nel turno del PG, Azioni → **Preparare** → **Registra**: sul PG compare «Azione preparata», la stessa pill del menu della card, che ora offre **Annulla azione preparata**. Una seconda volta la console dice «Ha già un'azione preparata.». All'inizio del prossimo turno del PG la pill sparisce.
+- [ ] **Innesca con un attacco:** nel turno del goblin, menu della card del PG → **Innesca con un attacco**: si apre la console sul PG, fuori turno, con **Usa la reazione (azione preparata)** già spuntata. Registrato l'attacco al goblin, nello stesso passo il PG ha «Reazione usata» e non ha più «Azione preparata»; la console scrive «Reazione segnata: azione preparata innescata.». **Annulla** rimette l'azione preparata e libera la reazione. Da provare in vista compatta ed estesa.
+- [ ] **Innesca senza attacco:** con l'azione preparata attiva, **Innesca senza attacco** toglie la pill e segna la reazione, come prima. Una creatura che la console non mostra (senza attacchi né incantesimi) ha la sola voce **Innesca azione preparata**.
+- [ ] **Attacco di opportunità:** il PG con l'azione preparata fa un attacco di opportunità dalla console, con la reazione: l'azione preparata sparisce con lui. Togliendo la spunta della reazione resta.
 
 ## C. Tracker e UX
 

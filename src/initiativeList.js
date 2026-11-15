@@ -8808,6 +8808,15 @@ async function __triggerReadiedActionFromContext(entry) {
   await refreshConditionLabels([itemId]);
 }
 
+// The readied action goes off with an attack (lot T3 of docs/STUDIO_AZIONI_DI_TURNO.md): the attack console on the
+// creature, as its card's 🗡️ opens it, off turn with the reaction ticked. Nothing is written here: the attack registered
+// with the reaction removes the readied action in its own command (pcAttackExecution.js).
+async function __triggerReadiedActionWithAttackFromContext(entry) {
+  const itemId = __reactionTrackerTargetId(entry);
+  if (!itemId || !conditionInstancesNamed(entry?.conditions, READIED_ACTION_CONDITION).length) return;
+  await openPcAttackConsoleForActor(itemId);
+}
+
 function __pendingTerminationRecord(value) {
   return value?.pendingTermination && typeof value.pendingTermination === "object"
     ? value.pendingTermination
@@ -9268,6 +9277,7 @@ async function __handleInitiativeCardContextMenuAction(context, data, sceneEpoch
     setPlayer: (entry, playerId) => __setCardPlayer(entry, playerId, sceneEpoch),
     toggleReadiedAction: __toggleReadiedActionFromContext,
     triggerReadiedAction: __triggerReadiedActionFromContext,
+    triggerReadiedActionWithAttack: __triggerReadiedActionWithAttackFromContext,
     removeFromInitiative: (ids) => __removeCardFromInitiative(ids, sceneEpoch),
   });
 }

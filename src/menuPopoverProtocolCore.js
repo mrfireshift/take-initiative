@@ -29,6 +29,7 @@ export const INITIATIVE_CARD_MENU_ACTIONS = Object.freeze([
   "assign-player",
   "readied-action",
   "readied-action-trigger",
+  "readied-action-attack",
   "remove",
 ]);
 

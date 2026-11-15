@@ -31,7 +31,7 @@ import { getClassFeatureDefinition } from "./classFeatureCatalog.js";
 import { classFeatureTargeting } from "./classFeatureCore.js";
 import { pcAttackFeatureForm, pcAttackFeatureRequest } from "./pcAttackFeatureFormCore.js";
 import { getSpellCatalog } from "./spells-srd.js";
-import { hasReactionUsed, isOffTurn, isReactionClassFeature } from "./reactionTrackerCore.js";
+import { hasReactionUsed, hasReadiedAction, isOffTurn, isReactionClassFeature } from "./reactionTrackerCore.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { WILD_MAGIC_SURGE_POPOVER_HEIGHT } from "./wildMagicSurgeCore.js";
 import { classFeatureDescription, classFeatureDescriptionsLoaded, classFeatureMissingText, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
@@ -195,8 +195,8 @@ export function maneuverSummary(result) {
   return `Registrato: ${name} riuscita, ${effect}.`;
 }
 
-// Dash, Disengage, Dodge, Help and Hide (Azioni tab): what was registered. The result's target is the pill's bearer: the
-// creature itself, or the one its Help is for; actor: the console's actor, the helper.
+// Dash, Disengage, Dodge, Help, Hide and Ready (Azioni tab): what was registered. The result's target is the pill's
+// bearer: the creature itself, or the one its Help is for; actor: the console's actor, the helper.
 export function turnActionSummary(result,actor="") {
   const action=result?.turnAction || {};
   const name=pcTurnActionLabel(action.kind) || "Azione";
@@ -209,6 +209,7 @@ export function turnActionSummary(result,actor="") {
     ?`Registrato: ${name} di ${self} contro ${holder}, il primo attacco di un alleato ha vantaggio.`
     :`Registrato: ${name} di ${self} a ${holder}, vantaggio alla prossima prova del compito.`;
   if(action.kind==="hide") return `Registrato: ${name} di ${self}${Number.isFinite(action.stealth)?`, Furtività ${action.stealth}`:""}; attaccando si rivela.`;
+  if(action.kind==="ready") return `Registrato: ${name} di ${self}, fino all'inizio del suo prossimo turno; si innesca dal menu della card.`;
   return `Registrato: ${name}.`;
 }
 
@@ -1899,7 +1900,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       disengage:"Disimpegno fino alla fine del turno: niente avvisi di attacco di opportunità.",
       dodge:"Schivata fino all'inizio del suo prossimo turno.",
       help:turnActionDraft.mode==="attack"?`${targetName}: il primo attacco di un alleato contro di lui ha vantaggio.`:`${targetName}: vantaggio alla prossima prova del compito.`,
-      hide:request.stealth!==undefined?`Nascosto, Furtività ${request.stealth}.`:"Nascosto, senza il totale di Furtività."}[kind] || "";
+      hide:request.stealth!==undefined?`Nascosto, Furtività ${request.stealth}.`:"Nascosto, senza il totale di Furtività.",
+      ready:"Azione preparata fino all'inizio del suo prossimo turno."}[kind] || "";
     total.title=total.textContent;
     // Help's creature and mode, Hide's Stealth: above the card, their state from the draft.
     if(turnActionBox) turnActionBox.hidden=kind!=="help" && kind!=="hide";
@@ -2364,7 +2366,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // above Registra, on by default; with the reaction already used, a warning instead (the attack marks nothing).
   function attackReaction() {
     if(!presentation || !draft || launching() || isArea() || !isOffTurn(presentation.turnState,sourceId)) return null;
-    return {used:hasReactionUsed(presentation.item?.metadata?.[META_KEY]?.conditions)};
+    const conditions=presentation.item?.metadata?.[META_KEY]?.conditions;
+    const instances={instances:Array.isArray(conditions)?conditions:conditions?.instances || []};
+    // A readied action (lot T3): the attack registered with the reaction makes it go off.
+    return {used:hasReactionUsed(instances),readied:hasReadiedAction(instances)};
   }
   function renderReaction() {
     if(!reactionRow) return;
@@ -2376,14 +2381,14 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const quiet=!!reaction?.used && reactionSpentBy===sourceId && (!draft?.outcome || !!draft.onlyOutcome);
     reactionRow.hidden=!reaction || quiet;
     if(!reaction || quiet){reactionSignature="";return;}
-    const signature=JSON.stringify([reaction.used,useReaction,busy]);
+    const signature=JSON.stringify([reaction.used,reaction.readied,useReaction,busy]);
     if(signature===reactionSignature) return;
     reactionSignature=signature;
     if(reaction.used){reactionRow.replaceChildren(node("span","Reazione già usata in questo round: l'attacco non la segna.","reaction-warning"));return;}
     const label=node("label","","reaction-toggle");
     const box=node("input");box.type="checkbox";box.checked=useReaction;box.disabled=busy || invalidated;
     box.addEventListener("change",()=>{useReaction=box.checked;reactionSignature="";});
-    label.append(box,node("span","Usa la reazione (attacco di opportunità)"));
+    label.append(box,node("span",reaction.readied?"Usa la reazione (azione preparata)":"Usa la reazione (attacco di opportunità)"));
     reactionRow.replaceChildren(label);
   }
   const damageReactionsBox=$("pc-attack-damage-reactions");
@@ -2941,7 +2946,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!lifecycle.isCurrent(operation)) return;
     showUndo(result);
     if(result.reaction?.spent) reactionSpentBy=sourceId;
-    setStatus([resultSummary(result),...(result.spell?[spellResultSummary(result.spell)]:[]),...(result.reaction?.spent?["Reazione segnata."]:[]),
+    setStatus([resultSummary(result),...(result.spell?[spellResultSummary(result.spell)]:[]),...(result.reaction?.spent || result.reaction?.readied
+      ?[result.reaction.readied?(result.reaction.spent?"Reazione segnata: azione preparata innescata.":"Azione preparata innescata."):"Reazione segnata."]:[]),
       ...(result.followUps || []),...(result.warnings || [])].join("\n"),"ok");
     rememberEntry(currentEntry()?.key);
     markPendingReady();

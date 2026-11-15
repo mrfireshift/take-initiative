@@ -1682,10 +1682,10 @@ const ownCard = { quickActions: [gazeAction, blessedAction] };
 
 test("the ⚡ quick actions stay out of the console: a card of quick actions only shows no Capacità tab", async () => {
   const f = fixture({ card: ownCard, attacker: { initiativeCard: { quickActions: ownCard.quickActions } }, actionId: "" }); await f.controller.ready; await tick();
-  // Only what every creature can do: the Azioni tab (Scatto, Disimpegno, Schivata, Aiuto, Nascondersi, Lotta, Spinta), no
-  // Capacità tab, no quick action. It opens on Scatto.
+  // Only what every creature can do: the Azioni tab (Scatto, Disimpegno, Schivata, Aiuto, Nascondersi, Preparare, Lotta,
+  // Spinta), no Capacità tab, no quick action. It opens on Scatto.
   assert.deepEqual(pickerOptions(f), ["turn-action::dash", "turn-action::disengage", "turn-action::dodge", "turn-action::help", "turn-action::hide",
-    "maneuver::grapple", "maneuver::shove"]);
+    "turn-action::ready", "maneuver::grapple", "maneuver::shove"]);
   assert.equal(f.$("pc-attack-picker-tabs").hidden, true);
   assert.equal(f.$("pc-attack-launch-button").textContent, "Registra");
 });
@@ -2374,6 +2374,33 @@ test("Nascondersi: the Stealth total, optional; one out of range keeps Registra 
   assert.equal(input.value, "", "the next Hide starts empty");
   await pickAction(f, "turn-action::dodge");
   assert.equal(f.$("pc-attack-turn-action").hidden, true, "another action: no controls");
+});
+
+// Ready (lot T3 of docs/STUDIO_AZIONI_DI_TURNO.md): the card menu's pill from the Azioni tab; off turn, the attack
+// registered with the reaction sets it off (the card's «Innesca con un attacco» opens the console there).
+test("Preparare in the Azioni tab: Registra on the creature's own turn sends it, the card says how it goes off", async () => {
+  const f = fixture({ actions: [sword], turnState: ownTurn }); await f.controller.ready; await tick();
+  await pickAction(f, "turn-action::ready");
+  assert.match(textOf(f.$("pc-attack-launch")), /Innesca con un attacco/);
+  assert.equal(f.$("pc-attack-turn-action").hidden, true, "nothing to choose");
+  assert.equal(f.$("pc-attack-total").textContent, "Azione preparata fino all'inizio del suo prossimo turno.");
+  await f.$("pc-attack-launch-button").click(); await tick(); await tick();
+  assert.equal(f.calls.find((entry) => entry.turnAction)?.turnAction.kind, "ready");
+  assert.equal(f.$("pc-attack-status").textContent, "Registrato: Preparare di Aria, fino all'inizio del suo prossimo turno; si innesca dal menu della card.");
+});
+
+test("off turn with a readied action: the reaction box names it, and the status says it went off", async () => {
+  const readiedAction = { conditions: { version: 2, instances: [{ id: "p1", condition: "Azione preparata", active: true }] } };
+  const f = fixture({ actions: [sword], turnState: { order: ["ghoul", "aria"], current: 0, round: 1 }, attacker: readiedAction });
+  await f.controller.ready; await tick();
+  const register = f.runtime.executePcAttack;
+  f.runtime.executePcAttack = async (request) => ({ ...(await register(request)), reaction: { spent: true, alreadyUsed: false, readied: true } });
+  assert.match(textOf(f.$("pc-attack-reaction")), /Usa la reazione \(azione preparata\)/);
+  assert.equal(f.$("pc-attack-reaction").querySelector("input").checked, true);
+  await f.select(["ghoul"]); await f.outcome("miss").click();
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.equal(f.calls.at(-1).useReaction, true);
+  assert.match(f.$("pc-attack-status").textContent, /Reazione segnata: azione preparata innescata\./);
 });
 
 test("a hidden attacker, a target with an ally's Help: the attack reminds the advantage and what it spends", async () => {

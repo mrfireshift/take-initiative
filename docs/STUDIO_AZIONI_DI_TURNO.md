@@ -37,6 +37,21 @@ dalla raccomandazione di A4 e A5:
 
 Prove in `PROVE_IN_STANZA.md`, sezione B11.
 
+**T3 fatto il 15/11:** Preparare nella scheda Azioni mette la pill «Azione
+preparata» del menu della card. Nel menu, con la pill attiva:
+
+- **Innesca con un attacco** apre la console sulla creatura, fuori turno, con la
+  reazione già spuntata («Usa la reazione (azione preparata)»);
+- **Innesca senza attacco** fa ciò che faceva «Innesca azione preparata»: toglie
+  la pill e segna la reazione. Il nome di prima resta per una creatura che la
+  console non mostra, dove la voce è una sola.
+
+Un attacco registrato con la reazione toglie l'azione preparata nello stesso
+comando, con un solo Annulla, anche se è un attacco di opportunità: la reazione
+era quella che aspettava. La reazione spesa per altre vie (un incantesimo a
+reazione, il clic sull'icona della card) per ora non la toglie. Prove in
+`PROVE_IN_STANZA.md`, sezione B12.
+
 Scritti lo stesso giorno, con decisioni nuove in attesa:
 
 - §9, l'incantesimo preparato: decisioni **P1–P12** (§9.8);

@@ -531,9 +531,22 @@ degli alleati, mentre nel profilo Online i giocatori non la vedono. La reazione 
 creatura.
 
 Dal menu contestuale della card, **Azione preparata** la segna fino
-all'inizio del prossimo turno della creatura; quando è attiva compaiono
-**Innesca azione preparata** (toglie l'azione preparata e segna la reazione
-come usata, in un solo passo annullabile) e **Annulla azione preparata**.
+all'inizio del prossimo turno della creatura; lo stesso fa **Preparare** nella
+scheda Azioni della console attacchi. Quando è attiva, nel menu compaiono:
+
+- **Innesca con un attacco**: apre la console attacchi su quella creatura, fuori
+  turno, con **Usa la reazione (azione preparata)** già spuntata. Scegli lì
+  l'attacco: registrato con la reazione, toglie l'azione preparata e segna la
+  reazione nello stesso passo, con un solo Annulla;
+- **Innesca senza attacco**: per un'azione preparata che non è un attacco, toglie
+  l'azione preparata e segna la reazione come usata, in un solo passo
+  annullabile. Per una creatura che la console non mostra resta questa sola
+  voce, con il nome **Innesca azione preparata**;
+- **Annulla azione preparata**.
+
+Ogni attacco registrato con la reazione toglie l'azione preparata della
+creatura, anche un attacco di opportunità: la reazione era quella che
+aspettava.
 
 Entrambe sono condizioni normali: compaiono come etichette sulla card e sulla
 mappa, si annullano dalla Cronologia e seguono le opzioni di visibilità degli
@@ -550,8 +563,8 @@ plugin chiede conferma prima di lanciare.
 
 La scheda **Azioni** della console attacchi, per ogni creatura, raccoglie le azioni
 del turno che non sono un attacco: **Scatto**, **Disimpegno**, **Schivata**,
-**Aiuto** e **Nascondersi**, poi **Lotta** e **Spinta**, che restano «al posto di
-un attacco dell'azione Attacco». **Registra** fa di ogni azione una voce della
+**Aiuto**, **Nascondersi** e **Preparare**, poi **Lotta** e **Spinta**, che
+restano «al posto di un attacco dell'azione Attacco». **Registra** fa di ogni azione una voce della
 Cronologia e del registro, con il suo **Annulla**. Il plugin non conta le azioni
 del turno: se non le registri, non cambia nulla. Le azioni di turno si registrano
 solo nel turno della creatura, in combattimento.
@@ -582,6 +595,9 @@ solo nel turno della creatura, in combattimento.
   attacca una creatura nascosta legge «svantaggio all'attacco, se chi attacca non
   lo vede». Se la creatura viene trovata, togli la pill a mano. Quella di un nemico
   la vede solo il GM: non compare né nel tracker dei giocatori né sulla mappa.
+- **Preparare**: la pill «Azione preparata», la stessa del menu della card, fino
+  all'inizio del prossimo turno della creatura. Che cosa e quando si dice al
+  tavolo. Si innesca dal menu della card (vedi «Reazione e azione preparata»).
 
 Le pill che danno vantaggio al prossimo attacco contro chi le porta si tolgono con
 quell'attacco, se la console lo registra con un tiro per colpire, colpito o
@@ -595,7 +611,7 @@ Prima di registrare, la console ricorda il vantaggio sotto il bersaglio.
 
 ### Console attacchi fuori turno
 
-Quando sulla mappa è selezionata un'altra creatura, sotto l'intestazione della console attacchi compare **⇄ Agisci con…**: la console passa a quella creatura per un'azione fuori turno (un attacco di opportunità, una reazione). L'intestazione dice **Fuori turno** e, sulla stessa riga di **⇄ Agisci con…**, **⇄ Torna a…** riporta alla creatura di turno; se la creatura selezionata è proprio quella, il pulsante è uno solo. Un nome troppo lungo si taglia sul pulsante, e il suggerimento lo scrive intero. Un attacco fuori turno propone la casella **Usa la reazione (attacco di opportunità)**, già spuntata: togli la spunta se l'attacco non usa la reazione; se la reazione è già usata nel round la console lo dice e l'attacco non la segna. Se la console era già sulla creatura durante il suo turno e il turno passa, la casella parte spenta. Gli esiti di un attacco ad area non ancora registrati vengono chiesti prima di cambiare creatura.
+Quando sulla mappa è selezionata un'altra creatura, sotto l'intestazione della console attacchi compare **⇄ Agisci con…**: la console passa a quella creatura per un'azione fuori turno (un attacco di opportunità, una reazione). L'intestazione dice **Fuori turno** e, sulla stessa riga di **⇄ Agisci con…**, **⇄ Torna a…** riporta alla creatura di turno; se la creatura selezionata è proprio quella, il pulsante è uno solo. Un nome troppo lungo si taglia sul pulsante, e il suggerimento lo scrive intero. Un attacco fuori turno propone la casella **Usa la reazione (attacco di opportunità)**, già spuntata, che diventa **Usa la reazione (azione preparata)** quando la creatura ne ha una: togli la spunta se l'attacco non usa la reazione; se la reazione è già usata nel round la console lo dice e l'attacco non la segna. Se la console era già sulla creatura durante il suo turno e il turno passa, la casella parte spenta. Gli esiti di un attacco ad area non ancora registrati vengono chiesti prima di cambiare creatura.
 
 ### Console attacchi per i mostri
 

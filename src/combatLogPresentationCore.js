@@ -739,6 +739,7 @@ function turnActionLogLines(turnAction) {
     const stealth = finiteNumber(turnAction.stealth);
     return [`Azione: Nascondersi · ${stealth !== null ? `Furtività ${numberText(stealth)}` : "senza il totale di Furtività"}`];
   }
+  if (turnAction.kind === "ready") return ["Azione: Preparare · fino all'inizio del suo prossimo turno, si innesca con la reazione"];
   return [];
 }
 
@@ -904,7 +905,7 @@ function causalityDetailLines(event) {
   }
   // Grapple and Shove (pcAttackManeuverCore.js): the contest and its result; the end of a grapple.
   if (rawAttack?.maneuver && typeof rawAttack.maneuver === "object") lines.push(...maneuverLogLines(rawAttack.maneuver));
-  // Dash, Disengage, Dodge, Help and Hide (pcAttackTurnActionCore.js): what the action left in the plugin.
+  // Dash, Disengage, Dodge, Help, Hide and Ready (pcAttackTurnActionCore.js): what the action left in the plugin.
   if (rawAttack?.turnAction && typeof rawAttack.turnAction === "object") lines.push(...turnActionLogLines(rawAttack.turnAction));
   for (const note of Array.isArray(rawAttack?.notes) ? rawAttack.notes : []) {
     if (stringValue(note)) lines.push(`Nota: ${note}`);

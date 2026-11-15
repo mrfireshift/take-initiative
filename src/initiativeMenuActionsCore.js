@@ -85,9 +85,11 @@ export function buildInitiativeCardContextMenuPayload({
     ...(showTableSideMenu && Array.isArray(playerChoices)
       ? { showPlayerMenu: true, playerChoices: playerChoices.slice(0, 24), playerId: playerId || "none" }
       : {}),
-    // Readied action (reactionTrackerCore.js), one creature at a time.
+    // Readied action (reactionTrackerCore.js), one creature at a time. readiedAttack: a creature the attack console shows
+    // (the card's 🗡️) can set it off with an attack, there (lot T3 of docs/STUDIO_AZIONI_DI_TURNO.md).
     ...(!isBulkScope && !sourceEntry?.__groupCollapsed
-      ? { showReadiedActionMenu: true, hasReadiedAction: hasReadiedAction(sourceEntry?.conditions) }
+      ? { showReadiedActionMenu: true, hasReadiedAction: hasReadiedAction(sourceEntry?.conditions),
+        ...(hasReadiedAction(sourceEntry?.conditions) && sourceEntry?.pcAttackConsole ? { readiedAttack: true } : {}) }
       : {}),
   };
 }
@@ -161,6 +163,9 @@ export async function routeInitiativeCardContextMenuAction(
   }
   if (action === "readied-action-trigger") {
     return invoke("triggerReadiedAction", sourceEntry);
+  }
+  if (action === "readied-action-attack") {
+    return invoke("triggerReadiedActionWithAttack", sourceEntry);
   }
   if (action === "remove") {
     return invoke("removeFromInitiative", scopeIds);
