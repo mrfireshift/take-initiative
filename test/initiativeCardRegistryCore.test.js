@@ -451,6 +451,25 @@ const monsterEntry = (name, updatedAt, extra = {}) => ({
   updatedAt,
 });
 
+// Lotto SB1 di docs/STUDIO_GIOCO_ONLINE.md: la scheda di un mostro appartiene al suo nome. Trovata con la sola immagine
+// (un altro mostro disegnato uguale), non è di questo token; quella di un PG si trova ancora con l'immagine.
+test("la scheda di un mostro si trova solo col suo nome, anche con la stessa immagine", () => {
+  const image = { url: "https://assets.test/goblin.png" };
+  const boss = monsterEntry("Goblin Boss", 300, { armorClass: 17 });
+  const goblin = monsterEntry("Goblin", 200);
+  const assetKey = "asset:https://assets.test/goblin.png";
+  assert.equal(findInitiativeCardRegistryEntry({ [assetKey]: boss, goblin }, { name: "(2) Goblin", image }), goblin,
+    "the Boss saved last with the same image is not this Goblin's");
+  assert.equal(findInitiativeCardRegistryEntry({ [assetKey]: boss }, { name: "Goblin", image }), null);
+  assert.equal(findInitiativeCardRegistryEntry({ [assetKey]: boss }, { name: "goblin boss", image }), boss);
+  // By its identity too: a monster's entry under another name is not this token's card.
+  const tagged = { name: "Goblin", image, metadata: { [`com.thebigpicture.initiative/meta`]: { actorProfileId: "actor-Goblin Boss" } } };
+  assert.equal(findInitiativeCardRegistryEntry({ [assetKey]: boss }, tagged), null);
+  // A character's card is found by its image under any name, as before.
+  const hero = { profile: { armorClass: 18 }, name: "Edelbrand", updatedAt: 100 };
+  assert.equal(findInitiativeCardRegistryEntry({ [assetKey]: hero }, { name: "Nome di scena", image }), hero);
+});
+
 test("registry Room: le schede dei mostri e i loro alias restano fuori, PG e alias dei PG intatti", () => {
   const goblin = monsterEntry("Goblin", 300);
   const registry = { ...roomAliasRegistry(), "asset:https://assets.test/goblin.png": goblin, goblin };

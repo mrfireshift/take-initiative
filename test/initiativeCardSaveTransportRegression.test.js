@@ -722,13 +722,54 @@ test("D1: un omonimo di un mostro non eredita l'actorProfileId della sua scheda 
     assert.ok(actorOf("g1"), "the saved monster keeps an identity of its own");
     assert.ok(local.get(`${ID}/initiativeCards/local`)?.includes(actorOf("g1")), "its card is in the local registry");
 
-    await runtime.cards.saveInitiativeCard("g2", "(2) Goblin", statblock, { commandId: "d1-save-g2", transportTimeoutMs: 100 });
+    // (2) saved last, exhausted: its registry entry is the one a new namesake finds.
+    await runtime.cards.saveInitiativeCard("g2", "(2) Goblin", { ...statblock, exhaustion: 2 }, { commandId: "d1-save-g2", transportTimeoutMs: 100 });
     assert.notEqual(actorOf("g2"), actorOf("g1"), "the namesake's save does not take (1)'s identity");
 
     const profile = await runtime.cards.loadInitiativeCard(clone(scene.items[2]), { hydrate: true });
     assert.notEqual(profile.actorProfileId || "", actorOf("g1"), "the namesake's opening does not take it either");
     assert.notEqual(actorOf("g3"), actorOf("g1"));
+    // Lot SB2 of docs/STUDIO_GIOCO_ONLINE.md: nor the identity or the exhaustion of the namesake saved last.
+    assert.equal(profile.armorClass, 15, "the stat block does come");
+    assert.notEqual(profile.actorProfileId || "", actorOf("g2"), "not (2)'s identity at the opening");
+    assert.notEqual(actorOf("g3"), actorOf("g2"), "nor on the token");
+    assert.ok(actorOf("g3"), "an identity of its own, as the namesakes the sheet's Salva reaches: hpMemory skips it");
+    assert.equal(profile.exhaustion, 0, "nor (2)'s exhaustion");
+    assert.doesNotMatch(JSON.stringify(scene.items[2].metadata[META_KEY].conditions || {}), /Indebolimento|Esaust/u);
     assert.deepEqual(scene.items.map((item) => item.metadata[META_KEY].hp), [7, 3, 0], "no hit points move");
+  } finally {
+    await stopRuntime(runtime);
+    if (previousStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = previousStorage;
+  }
+});
+
+// Lot SB1 of docs/STUDIO_GIOCO_ONLINE.md: the sheet saves a monster's card before it renames the token with the stat
+// block's name. The card goes into the registry under that final name: a new token named so finds it on another map, a
+// token still named as before does not get it.
+test("SB1: la scheda del mostro va nel registro col nome finale; un altro mostro la trova solo con quel nome", async () => {
+  reset();
+  const token = (id, name) => ({ id, name, layer: "CHARACTER", metadata: { [META_KEY]: { attitude: "enemy", inInitiative: true, hp: 11, hpMax: 11 } } });
+  scene.items = [token("t1", "Goblin"), token("t2", "Hobgoblin"), token("t3", "Goblin")];
+  const local = new Map();
+  const previousStorage = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: (key) => local.has(key) ? local.get(key) : null,
+    setItem: (key, value) => { local.set(key, String(value)); },
+    removeItem: (key) => { local.delete(key); },
+  };
+  const runtime = await startRuntime();
+  try {
+    const hobgoblin = { monster: { source: "manual", ref: "Hobgoblin|MM" }, armorClass: 18 };
+    await runtime.cards.saveInitiativeCard("t1", "Goblin", hobgoblin, { commandId: "sb1-save", transportTimeoutMs: 100, registryName: "Hobgoblin" });
+    const registry = JSON.parse(local.get(`${ID}/initiativeCards/local`) || "{}");
+    assert.equal(registry.hobgoblin?.profile?.armorClass, 18, "under the final name");
+    assert.equal(registry.hobgoblin?.name, "Hobgoblin");
+    assert.equal(registry.goblin, undefined, "not under the name the token had");
+    const named = await runtime.cards.loadInitiativeCard(clone(scene.items[1]), { hydrate: true });
+    assert.equal(named.armorClass, 18, "a Hobgoblin finds it");
+    const other = await runtime.cards.loadInitiativeCard(clone(scene.items[2]), { hydrate: true });
+    assert.notEqual(other.armorClass, 18, "a Goblin does not");
   } finally {
     await stopRuntime(runtime);
     if (previousStorage === undefined) delete globalThis.localStorage;

@@ -737,7 +737,10 @@ preparazione al tavolo: basta importarne lo statblock.
      nelle Opzioni).
 4. **Salva**: la scheda, poi nome, ritratto, dimensione, PF e Leggendario. I token con lo
    stesso nome ricevono lo stesso statblock; i loro PF, condizioni e usi
-   restano i loro.
+   restano i loro. La scheda resta nel browser del GM sotto il nome dello
+   statblock: su una mappa nuova, un token con quel nome la riceve quando entra
+   nell'iniziativa, con un'identità e un Indebolimento suoi. Un mostro con un
+   altro nome non la riceve, nemmeno con la stessa immagine.
 
 Dello statblock la scheda tiene anche gli **incantesimi** (classe e livello
 per gli slot, con le capacità di classe spente; il libro; gli innati come

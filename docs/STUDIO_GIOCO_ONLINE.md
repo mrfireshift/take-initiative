@@ -5,8 +5,11 @@
 **Stato:** lo stesso giorno l'utente ha approvato tutte le decisioni G1–G18
 come raccomandate. Primo passo: la prova in stanza G1.
 
-- **BA1, BA2 e BA3 fatti il 15/11** (BA1 e BA2 in `22a25e43`). Il §6 dice cosa
-  è cambiato; le prove in stanza sono in `PROVE_IN_STANZA.md`, B17.
+- **BA1, BA2 e BA3 fatti il 15/11** (BA1 e BA2 in `22a25e43`, BA3 in
+  `69394243`). Il §6 dice cosa è cambiato; le prove in stanza sono in
+  `PROVE_IN_STANZA.md`, B17.
+- **SB1 e SB2 fatti il 15/11.** Il §5 dice cosa è cambiato; la prova in stanza
+  è nella voce L1 di `PROVE_IN_STANZA.md`, E1.
 
 I sei punti vengono da una sessione di gioco online. Per ognuno: com'è oggi, la
 causa (o la conferma che funziona), la proposta, i rischi secondo AGENTS.md e i
@@ -613,6 +616,36 @@ Lasciati fuori:
 - l'idratazione quando un token è solo trascinato sulla mappa: scriverebbe anche
   su oggetti di scena e rischia cicli (S7);
 - gli omonimi numerati (S6): «Goblin 2» può essere un mostro diverso.
+
+**Fatto il 15/11 (SB1 e SB2):**
+
+- **SB1:**
+  - `saveInitiativeCard` (`src/initiativeCards.js`) accetta `registryName`:
+    le chiavi del registro e il nome della voce usano il nome finale. La scheda
+    lo passa quando sta per rinominare il token con il nome dello statblock;
+  - `findInitiativeCardRegistryEntry` (`src/initiativeCardRegistryCore.js`):
+    una voce di mostro vale solo col suo nome, che la si trovi per immagine o
+    per identità. Quelle dei PG restano come prima.
+- **SB2:** in `loadInitiativeCard`, un omonimo di mostro idratato dal registro
+  prende lo statblock senza l'identità e l'Indebolimento del token che l'ha
+  salvato.
+  - Con l'idratazione riceve un'identità sua, come gli omonimi che il Salva
+    raggiunge.
+  - Senza nessuna identità un alleato omonimo (un lupo evocato) entrerebbe in
+    `hpMemory`, condivisa per nome e immagine. Così resta fuori, come oggi;
+    ActorVitals ignora comunque i mostri.
+- **Limite:** le voci salvate prima di SB1 sotto il nome vecchio restano finché
+  non le sovrascrive un nuovo Salva di quel mostro.
+- **Prove:**
+  - test nuovi: SB1 e D1 esteso in
+    `test/initiativeCardSaveTransportRegression.test.js`, la regola del nome in
+    `test/initiativeCardRegistryCore.test.js`. Prima della correzione tutti e
+    tre fallivano;
+  - suite completa verde in una copia pulita (6163 test);
+  - build di controllo riuscita;
+  - banco: statblock dell'Hobgoblin importato su un «Goblin» rinominato. Un
+    nuovo «Hobgoblin» riceve la scheda con un'identità sua; un nuovo «Goblin»
+    niente.
 
 ### Rischi
 

@@ -358,12 +358,21 @@ export function decodeInitiativeCardRegistryFromRoom(value, defaultClassFeatureI
   );
 }
 
+// Lot SB1 of docs/STUDIO_GIOCO_ONLINE.md: a monster's card belongs to its name. Found by the image alone (another
+// monster drawn the same) or by an identity taken from a namesake, under another name it is not this token's card.
+// A character's card is found by its image or identity under any name, as before.
+function registryEntryFitsItem(entry, item) {
+  const profile = entry?.profile && typeof entry.profile === "object" ? entry.profile : entry;
+  if (!isMonsterProfileCard(profile)) return true;
+  return normalizedItemName(entry?.name) === normalizedItemName(item);
+}
+
 export function findInitiativeCardRegistryEntry(registry, item) {
   const actorProfileId = actorProfileIdFromItem(item);
   if (actorProfileId) {
     let actorWinner = null;
     for (const entry of Object.values(normalizeInitiativeCardRegistry(registry))) {
-      if (actorProfileIdFromRegistryEntry(entry) !== actorProfileId) continue;
+      if (actorProfileIdFromRegistryEntry(entry) !== actorProfileId || !registryEntryFitsItem(entry, item)) continue;
       if (!actorWinner || Number(entry.updatedAt || 0) > Number(actorWinner.updatedAt || 0)) {
         actorWinner = entry;
       }
@@ -374,7 +383,7 @@ export function findInitiativeCardRegistryEntry(registry, item) {
   let winner = null;
   for (const key of initiativeCardRegistryKeys(item)) {
     const entry = registry?.[key];
-    if (!entry || typeof entry !== "object") continue;
+    if (!entry || typeof entry !== "object" || !registryEntryFitsItem(entry, item)) continue;
     if (!winner || Number(entry.updatedAt || 0) > Number(winner.updatedAt || 0)) {
       winner = entry;
     }

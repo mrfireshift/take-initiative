@@ -5462,6 +5462,8 @@ $("form").addEventListener("submit", async (event) => {
       isCurrent: () => sceneLifecycle.isCurrent(operation),
       commandId: ownerSceneContext.commandId,
       sceneIdentity: ownerSceneContext.sceneIdentity,
+      // Lot SB1 of docs/STUDIO_GIOCO_ONLINE.md: the stat block's name, which the token gets right after, keys the card.
+      ...(pendingMonsterName ? { registryName: pendingMonsterName } : {}),
     });
     if (!sceneLifecycle.isCurrent(operation)) return;
     // The monster's name for this token (fase 4, lotto 2): before the hit points, so its namesakes are those of the new

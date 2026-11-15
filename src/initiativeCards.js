@@ -591,6 +591,15 @@ async function runInitiativeCardHydrationWrites(writes, deferWrites) {
   return undefined;
 }
 
+// Lot SB2: the registry's card of a monster for one of its namesakes, without the identity of the token it was saved
+// from and with this token's own exhaustion (its stored base, else none: its conditions give it).
+function namesakeRegistryProfile(winner, tokenRaw) {
+  const { [ACTOR_PROFILE_ID_FIELD]: _identity, exhaustion: _exhaustion, ...rest } = winner;
+  return tokenRaw && typeof tokenRaw === "object" && Object.hasOwn(tokenRaw, "exhaustion")
+    ? { ...rest, exhaustion: tokenRaw.exhaustion }
+    : rest;
+}
+
 export async function loadInitiativeCard(item, { hydrate = false, registry, deferWrites = false } = {}) {
   const resolvedRegistry = registry === undefined
     ? (await readInitiativeCardRegistry()).registry
@@ -633,9 +642,15 @@ export async function loadInitiativeCard(item, { hydrate = false, registry, defe
     tokenUpdatedAt,
   });
   const winner = roomWins ? (roomDeleted ? null : roomProfile) : (hasTokenProfile ? tokenRaw : null);
-  const winnerWithIdentity = winner && actorProfileId
-    ? { ...winner, [ACTOR_PROFILE_ID_FIELD]: actorProfileId }
-    : winner;
+  // Lot SB2 of docs/STUDIO_GIOCO_ONLINE.md: a monster's namesake found in the registry takes the stat block, never the
+  // identity nor the exhaustion of the token whose card it was (decision D1 of the bugfix pass). Hydrated, it gets an
+  // identity of its own, as the namesakes the sheet's Salva reaches: hpMemory keeps skipping it, ActorVitals ignores it.
+  const namesakeFromRegistry = roomWins && !!winner && !inheritsRegistryIdentity;
+  const ownWinner = namesakeFromRegistry ? namesakeRegistryProfile(winner, tokenRaw) : winner;
+  if (namesakeFromRegistry && !actorProfileId && hydrate) actorProfileId = createActorProfileId();
+  const winnerWithIdentity = ownWinner && actorProfileId
+    ? { ...ownWinner, [ACTOR_PROFILE_ID_FIELD]: actorProfileId }
+    : ownWinner;
   const profile = profileWithConditionFallback(item?.name, winnerWithIdentity, tokenConditions);
   if (actorProfileId) profile[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
   const hydrationQuickActions = roomWins && roomDeleted
@@ -867,6 +882,9 @@ export async function saveInitiativeCard(
     preserveExhaustion = false,
     // The exhaustion base to store as it is (the sheet's − and +), instead of the effective level minus contributions.
     baseExhaustion = undefined,
+    // Lot SB1 of docs/STUDIO_GIOCO_ONLINE.md: the name the sheet is about to give the token (a monster's stat block),
+    // for the registry's keys; the token itself is renamed by the sheet after the save.
+    registryName = "",
   } = {},
 ) {
   if (!isCurrent()) throw new Error("scene-stale-before-card-save");
@@ -902,7 +920,10 @@ export async function saveInitiativeCard(
         ? initiativeCardBaseExhaustion(sourceItem)
         : Math.max(0, Number(profile.exhaustion || 0) - contributionLevel),
   };
-  const identity = sourceItem || { name };
+  // Lot SB1: a monster's card goes into the registry under the stat block's name, so a token named so finds it on
+  // another map and a token still named as before does not.
+  const finalName = String(registryName || "").trim();
+  const identity = finalName ? { ...(sourceItem || {}), name: finalName } : (sourceItem || { name });
   const keys = initiativeCardRegistryKeys(identity);
   if (!keys.length) throw new Error("Identità del personaggio non valida");
   const updatedAt = Date.now();
@@ -915,7 +936,7 @@ export async function saveInitiativeCard(
       const entry = {
         ...previousEntry,
         [ACTOR_PROFILE_ID_FIELD]: actorProfileId,
-        name: String(sourceItem?.name || name || ""),
+        name: String(identity?.name || name || ""),
         profile: {
           ...mergeStoredCardProfile(previousProfile, storedBaseProfile),
           [ACTOR_PROFILE_ID_FIELD]: actorProfileId,
