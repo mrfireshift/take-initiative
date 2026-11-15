@@ -661,6 +661,15 @@ con un chip accanto al bersaglio; contro di loro non contano le difese limitate 
 armi non magiche. Un mostro importato prima di questa versione riceve queste
 difese reimportandolo.
 
+Fra gli extra al colpo compaiono anche gli incantesimi che aggiungono danni a
+un colpo, finché la loro etichetta è sulla mappa: **Marchio del Cacciatore** e
+**Sortilegio** sul bersaglio, lanciati da chi attacca; **Favore Divino**, **Arma
+Elementale**, **Sudario Spirituale** e **Assorbire Elementi** su chi attacca.
+Dadi e tipo sono quelli dell'etichetta, già al livello dello slot. Sono spuntati
+da soli; il Sudario Spirituale solo in mischia, perché la console non misura i
+3 m. Il primo colpo in mischia con Assorbire Elementi toglie la sua etichetta e
+chiude l'incantesimo, nello stesso passo annullabile dell'attacco.
+
 Nel menu **⋯** dell'intestazione della console, **Apri da sola a ogni turno**
 (solo questo browser) ha due caselle: **Personaggi e alleati** apre la console
 al turno di un personaggio o alleato, **Mostri** a quello di un mostro. Finché

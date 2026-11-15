@@ -112,6 +112,27 @@ export const PC_ATTACK_RIDERS = Object.freeze([
     anyAttack: true, requires: Object.freeze({ activeFeatureId: id }) })),
 ]);
 
+// Spells whose pill adds damage to a hit (2014 texts): the console offers them only while the pill is there and reads
+// the dice and the type from it, resolved at the cast for its slot ("2d4 acido" for Elemental Weapon at 5th level).
+// pill: "target" for a pill on the creature hit, cast by the attacker (Hunter's Mark, Hex); "source" for a pill on the
+// attacker (Divine Favor, Elemental Weapon, Spirit Shroud, Absorb Elements). auto: the rules add it to every hit it
+// applies to; "melee" only to melee attacks (Spirit Shroud: a creature within 3 m, which the console does not measure).
+// consumes: the pill goes with the hit (Absorb Elements: the first melee hit), and its spell with it.
+const spellRider = (id, spellId, label, { pill, anyAttack = false, requires = {}, auto = true, consumes = false, warning = "" }) => Object.freeze({
+  id, spellId, label, pill, type: "spell", limit: null, auto, anyAttack, requires: Object.freeze({ ...requires }),
+  ...(consumes ? { consumes: true } : {}), ...(warning ? { warning } : {}),
+});
+export const PC_ATTACK_SPELL_RIDERS = Object.freeze([
+  spellRider("incantesimo-marchio-del-cacciatore", "hunters-mark", "Marchio del Cacciatore", { pill: "target" }),
+  spellRider("incantesimo-sortilegio", "phb2014-sortilegio", "Sortilegio", { pill: "target", anyAttack: true, requires: { attackRoll: true } }),
+  spellRider("incantesimo-favore-divino", "divine-favor", "Favore Divino", { pill: "source" }),
+  spellRider("incantesimo-arma-elementale", "phb2014-arma-elementale", "Arma Elementale", { pill: "source" }),
+  spellRider("incantesimo-sudario-spirituale", "tasha-sudario-spirituale", "Sudario Spirituale", { pill: "source", anyAttack: true,
+    requires: { attackRoll: true }, auto: "melee", warning: "Solo se il bersaglio è entro 3 m." }),
+  spellRider("incantesimo-assorbire-elementi", "xanathar-assorbire-elementi", "Assorbire Elementi", { pill: "source", anyAttack: true,
+    requires: { attackRoll: true, range: "melee" }, consumes: true }),
+]);
+
 // Potent Cantrip (School of Evocation, 6th level): a creature that passes the save against a damaging cantrip
 // takes half the damage instead of none. Not a rider: it changes what a passed save deals.
 export const PC_ATTACK_POTENT_CANTRIP_FEATURE_ID = "mago-scuola-di-invocazione-trucchetto-potente";
@@ -124,7 +145,7 @@ export const PC_ATTACK_SLOT_LEVELS = Object.freeze([1, 2, 3, 4, 5]);
 // Pact Magic: every warlock slot has the same level (PHB 2014 warlock table).
 const PACT_SLOT_LEVEL = Object.freeze({ 1: 1, 3: 2, 5: 3, 7: 4, 9: 5 });
 
-const RIDER_BY_ID = new Map(PC_ATTACK_RIDERS.map((rider) => [rider.id, rider]));
+const RIDER_BY_ID = new Map([...PC_ATTACK_RIDERS, ...PC_ATTACK_SPELL_RIDERS].map((rider) => [rider.id, rider]));
 
 export function getPcAttackRider(id) {
   return RIDER_BY_ID.get(String(id || "")) || null;

@@ -34,7 +34,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A15. PF temporanei (CAP-TEMP) | 6 |
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
-| **B. Console attacchi, mostri e capacità** | **112** |
+| **B. Console attacchi, mostri e capacità** | **117** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -43,6 +43,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B6. Difese contro le armi non magiche | 11 |
 | B7. Difese dalle capacità di classe | 7 |
 | B8. Attacchi dei mostri: ciò che il banco non copre | 4 |
+| B9. Danni extra degli incantesimi | 5 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -68,7 +69,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **463** |
+| **Totale** | **468** |
 
 ## A. Incantesimi
 
@@ -543,6 +544,16 @@ Fonte: [PIANO_ATTACCHI_MOSTRI_FASE_5.md](PIANO_ATTACCHI_MOSTRI_FASE_5.md) («Da 
 - [ ] **Tiro ripetuto:** Frightful Presence dell'Ancient Black Dragon su un PG che fallisce: Spaventato, senza durata a round, e a fine del suo turno il promemoria del TS su Saggezza (CD 19). Superato, la condizione sparisce e compare la pillola «Immune · azione»; la volta dopo il PG parte su Immune. (voce nuova: PIANO_ATTACCHI_MOSTRI_FASE_5.md, lotto 3)
 - [ ] **Leggendario:** importa un mostro con azioni leggendarie, per esempio Adult Silver Dragon: il token e gli omonimi hanno il **Leggendario** (3/3). La carta del boss Leggendario si vede giusta anche sullo schermo dei giocatori. (voce nuova: PIANO_ATTACCHI_MOSTRI_FASE_5.md; PIANO_ATTACCHI_MOSTRI_FASE_4.md, lotto 5)
 - [ ] **Un avviso per turno:** con l'apertura automatica della console per PG e Mostri, a ogni cambio di turno l'avviso di turno si apre una volta sola. Nella misura del 26/10 si era riaperto 5 volte, con i timer di Chrome rallentati. (voce nuova: PIANO_ATTACCHI_MOSTRI_FASE_1.md, lotto 8)
+
+### B9. Danni extra degli incantesimi
+
+Fonte: segnalazione dell'utente del 15/11 (il danno di Marchio del Cacciatore mancava nella console). Le voci sono nuove: nessuna lista le aveva. Serve un PG con l'incantesimo nel libro e un bersaglio in iniziativa; l'incantesimo si lancia dal pannello incantesimi, l'attacco dalla console.
+
+- [ ] **Marchio del Cacciatore:** un ranger lancia Marchio del Cacciatore su un goblin, poi lo attacca con un'arma dalla console: fra gli extra compare **Marchio del Cacciatore**, già spuntato, con 1d6 e il tipo dell'arma. Su un altro bersaglio non compare; con un trucchetto è spento («Solo per gli attacchi con arma»).
+- [ ] **Sortilegio:** un warlock con Sortilegio sul bersaglio attacca con Deflagrazione occulta: compare **Sortilegio**, già spuntato, 1d6 necrotici. Sul bersaglio di un altro warlock non compare.
+- [ ] **Sul proprio corpo:** con Favore Divino, e con Arma Elementale lanciata al 5° livello, un attacco con arma propone **Favore Divino** (1d4 radiosi) e **Arma Elementale** (2d4 del tipo scelto), già spuntati.
+- [ ] **Sudario Spirituale:** in mischia la casella è già spuntata; a distanza c'è, non spuntata, con «Solo se il bersaglio è entro 3 m».
+- [ ] **Assorbire Elementi:** il primo colpo in mischia propone il danno extra del tipo assorbito; registrato, l'etichetta e l'incantesimo spariscono e **Annulla** li riporta. Con un attacco a distanza la casella è spenta.
 
 ## C. Tracker e UX
 

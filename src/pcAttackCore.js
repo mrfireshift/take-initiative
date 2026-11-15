@@ -22,7 +22,7 @@ import { bossDefendedDamage, bossDefenseCounts } from "./bossActionsViewCore.js"
 import { getSpellDefinition, getSpellEffects, getSpellSummaryParts } from "./spells-srd.js";
 import { catalogSpellApplicationOperations } from "./spellLifecycleOperationsCore.js";
 import { spellEffectThemeFor } from "./spellColorCore.js";
-import { actorHasEvasion, creatureConditionImmunities, damageDefenseCount, damageDefenseTag, damageDefensesForItem, damageTypeLabel, evasionFactor,
+import { DAMAGE_TYPES, actorHasEvasion, creatureConditionImmunities, damageDefenseCount, damageDefenseTag, damageDefensesForItem, damageTypeLabel, evasionFactor,
   markNonmagicalDefenses, nonmagicalDefenseMarkerForItem, relevantDamageDefenses, withSpellDamageResistance } from "./damageDefensesCore.js";
 import { MONSTER_PROFILE_FIELD } from "./monsterProfileCore.js";
 import { CLASS_FEATURE_RESOURCE_POOL_BY_ID, getClassFeatureDefinition, getClassFeatureResourcePool, getEnabledClassFeatures } from "./classFeatureCatalog.js";
@@ -39,7 +39,7 @@ import { areaHitsBounds, buildFootprintEmanationArea, gridFootprintCells } from 
 import { PC_ATTACK_CANTRIPS, PC_ATTACK_SAVE_LABELS, getPcAttackCantrip, pcAttackCantripDice, pcAttackWeaponCantripDice } from "./pcAttackCantripCatalog.js";
 import { PC_ATTACK_SPELLS, getPcAttackSpell, pcAttackSpellCount, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
 import { abilitySaveDC, totalCharacterLevel } from "./abilityModifiersCore.js";
-import { PC_ATTACK_RIDERS, getPcAttackRider, pcAttackHasPotentCantrip, pcAttackRiderDice, pcAttackRiderFeatureActive, pcAttackRidersForCard, pcAttackRiderSlotLevels } from "./pcAttackRiderCatalog.js";
+import { PC_ATTACK_RIDERS, PC_ATTACK_SPELL_RIDERS, getPcAttackRider, pcAttackHasPotentCantrip, pcAttackRiderDice, pcAttackRiderFeatureActive, pcAttackRidersForCard, pcAttackRiderSlotLevels } from "./pcAttackRiderCatalog.js";
 
 export const PC_ATTACK_HISTORY_KIND = "pc-attack";
 // The attacker's last attack and the riders it used in the current turn. Every attack rewrites it,
@@ -664,6 +664,8 @@ function riderOptionsFor(attack, { sourceItem, targetItem = null, turnState = nu
   const own = pcAttackRidersForCard(card);
   const granted = PC_ATTACK_RIDERS.filter((rider) => rider.grantedByCondition && !own.includes(rider)
     && conditionInstancesOf(sourceItem).some((instance) => instance?.active !== false && instance?.condition === rider.grantedByCondition));
+  const spellOptions = PC_ATTACK_SPELL_RIDERS.map((rider) => spellRiderOptionFor(rider, { attack, sourceItem, targetItem, turn, uses,
+    turnState, weaponTypes })).filter(Boolean);
   return [...own, ...granted].map((rider) => {
     const slotLevels = pcAttackRiderSlotLevels(rider, card);
     const reason = riderBlocker(rider, { attack, sourceItem, targetItem, turn, uses, round: turnState?.round ?? null, turnState })
@@ -680,7 +682,33 @@ function riderOptionsFor(attack, { sourceItem, targetItem = null, turnState = nu
       ...(rider.auto ? { auto: true } : {}),
       ...(rider.limit && !turn ? { warning: "Fuori dal combattimento: il limite per turno non viene contato." } : {}),
     };
-  });
+  }).concat(spellOptions);
+}
+
+// A spell's pill that adds damage to the hit (PC_ATTACK_SPELL_RIDERS): offered only while the pill is there, on the
+// target and cast by this attacker, or on the attacker. Its dice and type are the pill's, resolved at the cast; a type
+// that is only "danni" (Hunter's Mark) is the weapon's.
+const SPELL_RIDER_TYPES = new Map(DAMAGE_TYPES.map((type) => [type.label, type.id]));
+function spellRiderPill(rider, { sourceItem, targetItem }) {
+  const holder = rider.pill === "target" ? targetItem : sourceItem;
+  if (!holder?.id) return null;
+  return linkedSpellPills(holder, rider.spellId).find((instance) => instance?.mechanics?.damageBonus?.dice
+    && (rider.pill !== "target" || String(instance.sourceId || "") === sourceItem.id)) || null;
+}
+function spellRiderOptionFor(rider, { attack, sourceItem, targetItem, turn, uses, turnState, weaponTypes }) {
+  const pill = spellRiderPill(rider, { sourceItem, targetItem });
+  if (!pill) return null;
+  const bonus = pill.mechanics.damageBonus;
+  const typeWords = String(bonus.type || "").trim().toLocaleLowerCase("it").replace(/^danni\s*/u, "");
+  const types = typeWords && SPELL_RIDER_TYPES.has(typeWords) ? [SPELL_RIDER_TYPES.get(typeWords)] : weaponTypes;
+  const reason = riderBlocker(rider, { attack, sourceItem, targetItem, turn, uses, round: turnState?.round ?? null, turnState });
+  const auto = rider.auto === "melee" ? attack.range === "melee" : rider.auto === true;
+  return {
+    id: rider.id, label: rider.label, dice: String(bonus.dice), types, limit: null, available: !reason, reason,
+    ...(auto ? { auto: true } : {}),
+    ...(rider.warning && attack.range !== "melee" ? { warning: rider.warning } : {}),
+    ...(rider.consumes ? { consumes: { itemId: sourceItem.id, instanceId: pill.id, spellId: rider.spellId } } : {}),
+  };
 }
 
 // The cantrip's on-hit (or failed-save) pills, built by the spell pipeline the spell panel uses: the spell
@@ -1049,8 +1077,13 @@ function attackComponents(attack, riders = [], extras = [], woven = null, activa
     ...attack.components.map((component) => ({ ...component, source: { kind: "weapon" } })),
     // A weapon cantrip's extra dice on the hit (from 5th level): a component of its own type.
     ...(woven ? [{ id: `w:${woven.spellId}`, type: woven.type, source: { kind: "cantrip", spellId: woven.spellId, name: woven.name } }] : []),
-    ...riders.map((rider) => ({ id: `r:${rider.id}`, type: rider.type,
-      source: { kind: "class-feature", featureId: rider.id, name: getPcAttackRider(rider.id)?.label || rider.id } })),
+    // A spell's pill (Hunter's Mark, Hex…) is a spell's damage; the others are class features'.
+    ...riders.map((rider) => {
+      const definition = getPcAttackRider(rider.id);
+      return { id: `r:${rider.id}`, type: rider.type, source: definition?.spellId
+        ? { kind: "spell", spellId: definition.spellId, name: definition.label }
+        : { kind: "class-feature", featureId: rider.id, name: definition?.label || rider.id } };
+    }),
     ...activations.filter((activation) => activation.option?.damage).map((activation) => ({ id: `a:${activation.id}`, type: activation.type,
       source: { kind: "class-feature", featureId: activation.id, name: activation.option.label, activation: true } })),
     ...extras.map((extra, index) => ({ id: `x${index + 1}`, type: extra.type, ...(extra.label ? { label: extra.label } : {}),
@@ -1590,6 +1623,11 @@ export function buildPcAttackMutation({
     ? [{ type: "condition:add-instances", instancesByTarget: activationPlan.instancesByTarget }] : [];
   // CAP-LINK: Invisibility and Compelled Duel ended by this attack, in its own command (one Undo brings them back).
   const linkEnds = pcAttackLinkEnds({ sourceItem, targetItem, linkItems, damaged: !!change?.changed && change.requested > 0 });
+  // A spell's pill spent by the hit (Absorb Elements' first melee hit) goes with it, its spell too, in the same command.
+  for (const rider of chosenRiders) {
+    const consumed = rider.option.consumes;
+    if (consumed) linkEnds.push({ ...consumed, reason: `Usato con il colpo: ${rider.option.label}.` });
+  }
   if (linkEnds.length) causality.linkEnds = linkEnds.map(({ itemId, spellId, featureId, reason }) => ({ itemId, ...(spellId ? { spellId } : {}), ...(featureId ? { featureId } : {}), reason }));
   // The ids whose pills the attack changes outside the damaged creatures (a self pill on the attacker, an ended link).
   const pillTargetIds = [...new Set([...Object.keys(activationPlan.instancesByTarget), ...linkEnds.map((end) => end.itemId)])];
