@@ -142,7 +142,11 @@ quel personaggio.
   Dardo incantato con tutti i dardi insieme.
 - Un attacco con arma può avere il suo **Bonus al tiro**: si scrive nella riga
   dell'attacco della scheda Attacchi, o arriva con `attackBonus` dall'import. La
-  console lo mostra sopra il danno («+5 al tiro»), come per i mostri.
+  console lo mostra sopra il danno («+5 al tiro»), come per i mostri. Con la
+  casella vuota, sotto compare la proposta della scheda («Usa +5 · For +3, comp.
+  +2»): Forza in mischia, Destrezza a distanza, più la competenza del livello. Un
+  clic la scrive; armi accurate o magiche e stili di combattimento restano da
+  controllare.
 - I trucchetti d'attacco del libro aprono la console attacchi, che li risolve con
   dadi, esito e danno: sulla scheda non serve nessuna azione. Creare Falò, che è una
   zona, si lancia nel pannello; Lama Roboante e Lama Verdefiamma si scelgono

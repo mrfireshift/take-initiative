@@ -26,7 +26,7 @@ import {
   SPECIES_SPELL_ABILITY_FIELD, sanitizeSpeciesSpellAbility, speciesHasSpellAbilityChoice,
   speciesDisplayName, speciesOptionMissing, supernaturalGiftDisplayName,
 } from "./speciesTraitCore.js";
-import { ABILITY_KEYS, ABILITY_MODIFIERS_FIELD, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
+import { ABILITY_KEYS, ABILITY_MODIFIERS_FIELD, sanitizeAbilityModifiers, hasAbilityModifiers, weaponAttackBonusSuggestion } from "./abilityModifiersCore.js";
 import {
   MAX_QUICK_ACTIONS,
   MAX_QUICK_ACTION_ATTACKS,
@@ -333,6 +333,8 @@ function syncCardTabs() {
   $("attacksEditPane").hidden = !editing || !attacksActive;
   $("classFeaturesEditPane").hidden = !editing || !classFeaturesActive;
   $("form").classList.toggle("active", editing);
+  // Lotto BA3: the weapons' suggested bonus follows the modifiers and classes edited in the other tabs.
+  if (editing && attacksActive) refreshAttackBonusSuggestions();
   $("edit").style.display = isGM && !editing ? "inline-block" : "none";
   $("sheetImportToggle").hidden = !isGM || !editing;
   requestPopoverHeight(editing
@@ -3403,6 +3405,23 @@ function quickActionFeatureOptions(currentId = "") {
 
 // attack: a row of the Attacks tab (kind fixed to "attack", no Type field); otherwise a quick action row,
 // whose Type offers no attack.
+// Lotto BA3 di docs/STUDIO_GIOCO_ONLINE.md: the bonus to hit the sheet suggests for a weapon, from the form as it is now
+// (modifiers and classes not saved yet count). None on a monster's card: its stat block prints its bonuses.
+function formWeaponAttackBonusSuggestion(range) {
+  if (draftMonsterProfile) return null;
+  const abilityModifiers = sanitizeAbilityModifiers(
+    Object.fromEntries(ABILITY_KEYS.map((key) => [key, $(`ability-${key}`)?.value ?? ""])),
+  );
+  return weaponAttackBonusSuggestion({ [ABILITY_MODIFIERS_FIELD]: abilityModifiers, characterBuild: collectCharacterBuildEditor() }, range);
+}
+
+// The attack rows' suggestions again, when the Attacchi tab shows while editing: modifiers or classes may have changed.
+function refreshAttackBonusSuggestions() {
+  for (const input of $("attackEditorList").querySelectorAll("[data-quick-action-field='attackBonus']")) {
+    input.dispatchEvent(new Event("attack-bonus-suggestion"));
+  }
+}
+
 function buildQuickActionEditorRow(action = null, { attack: attackRow = false } = {}) {
   const current = action || {
     id: quickActionId(),
@@ -3692,6 +3711,31 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
   const durationLabel = makeLabel("Occorrenze", durationInput);
   const sourceLabel = makeLabel("Fonte", sourceSelect);
   const attackBonusLabel = makeLabel("Bonus al tiro", attackBonusInput);
+  // Lotto BA3: under an empty box, the bonus the sheet suggests. Only a click writes it: a finesse or magic weapon, or a
+  // fighting style, the sheet cannot know.
+  const attackBonusSuggestion = document.createElement("button");
+  attackBonusSuggestion.type = "button";
+  attackBonusSuggestion.className = "attack-bonus-suggestion";
+  attackBonusSuggestion.hidden = true;
+  attackBonusSuggestion.title = "Dalla scheda. Armi accurate o magiche e stili di combattimento restano da controllare.";
+  const syncAttackBonusSuggestion = () => {
+    const suggestion = attackBonusInput.value.trim() || monsterFields.save
+      ? null : formWeaponAttackBonusSuggestion(sourceSelect.value === "ranged" ? "ranged" : "melee");
+    attackBonusSuggestion.hidden = !suggestion;
+    if (!suggestion) return;
+    const signed = (value) => `${value >= 0 ? "+" : ""}${value}`;
+    attackBonusSuggestion.dataset.value = signed(suggestion.bonus);
+    attackBonusSuggestion.textContent = `Usa ${signed(suggestion.bonus)} · ${suggestion.ability === "dex" ? "Des" : "For"} `
+      + `${signed(suggestion.modifier)}, comp. ${signed(suggestion.proficiency)}`;
+  };
+  attackBonusSuggestion.addEventListener("click", () => {
+    attackBonusInput.value = attackBonusSuggestion.dataset.value || "";
+    syncAttackBonusSuggestion();
+    attackBonusInput.focus();
+  });
+  attackBonusInput.addEventListener("input", syncAttackBonusSuggestion);
+  attackBonusInput.addEventListener("attack-bonus-suggestion", syncAttackBonusSuggestion);
+  attackBonusLabel.append(attackBonusSuggestion);
   grid.append(
     kindLabel,
     sourceLabel,
@@ -3746,6 +3790,7 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
     attackSpellsBox.hidden = !attackSpell;
     // Weapons only: a cantrip or a spell takes the card's spell attack bonus, a save action has no attack roll.
     attackBonusLabel.hidden = !attack || cantrip || attackSpell || !!monsterFields.save;
+    syncAttackBonusSuggestion();
   };
 
   kindSelect.addEventListener("change", () => {

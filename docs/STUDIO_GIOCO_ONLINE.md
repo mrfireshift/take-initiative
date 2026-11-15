@@ -5,8 +5,8 @@
 **Stato:** lo stesso giorno l'utente ha approvato tutte le decisioni G1–G18
 come raccomandate. Primo passo: la prova in stanza G1.
 
-- **BA1 e BA2 fatti il 15/11**, non committati. Il §6 dice cosa è cambiato; le
-  prove in stanza sono in `PROVE_IN_STANZA.md`, B17.
+- **BA1, BA2 e BA3 fatti il 15/11** (BA1 e BA2 in `22a25e43`). Il §6 dice cosa
+  è cambiato; le prove in stanza sono in `PROVE_IN_STANZA.md`, B17.
 
 I sei punti vengono da una sessione di gioco online. Per ognuno: com'è oggi, la
 causa (o la conferma che funziona), la proposta, i rischi secondo AGENTS.md e i
@@ -685,7 +685,7 @@ Lasciati fuori:
 Il bonus non si calcola da solo in console quando manca: un numero sbagliato al
 tavolo è peggio di nessun numero.
 
-**Fatto il 15/11 (BA1 e BA2), non committato:**
+**Fatto il 15/11 (BA1 e BA2, in `22a25e43`):**
 
 - `quickActionAttackFieldsWithBonus` in `src/quickActionsCore.js`: la funzione
   pura mette il valore della casella al posto del bonus conservato nella riga.
@@ -708,7 +708,28 @@ tavolo è peggio di nessun numero.
   - build di controllo riuscita;
   - banco: scheda e console di Dars con «+5»; il valore fuori limite rifiutato;
     la riapertura che ripresenta «+5».
-- BA3 (la proposta calcolata) resta da fare.
+
+**Fatto il 15/11 (BA3):**
+
+- `weaponAttackBonusSuggestion` in `src/abilityModifiersCore.js`: Forza in
+  mischia, Destrezza a distanza, più la competenza del livello totale; `null`
+  senza livello o senza modificatore.
+- Nella scheda, sotto la casella vuota, il pulsantino «Usa +6 · For +3, comp.
+  +3». I conti usano i modificatori e le classi del modulo in quel momento,
+  anche non ancora salvati.
+  - Un clic scrive il numero; senza clic non si salva niente.
+  - Su una scheda di mostro la proposta non c'è.
+  - La scheda Attacchi, aperta in modifica, rifà i conti.
+- Le etichette della griglia dell'editor si allineano in alto
+  (`align-content:start`): con la proposta la cella del bonus è più alta, e
+  «Fonte» restava più in basso.
+- Prove:
+  - test nuovo in `test/abilityModifiersP1.test.js`;
+  - suite completa verde in una copia pulita (6151 test);
+  - build di controllo riuscita;
+  - banco: Guerriero 5 con For +3 e Des +1 dà +6 in mischia e +4 a distanza; il
+    clic, la casella svuotata, il Trucchetto, la Forza portata a +4 (+7 al
+    ritorno sulla scheda Attacchi), il salvataggio senza clic, il mostro.
 
 ### Rischi
 

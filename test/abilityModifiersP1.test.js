@@ -11,6 +11,7 @@ const {
   hasAbilityModifiers,
   proficiencyBonusForLevel,
   sanitizeAbilityModifiers,
+  weaponAttackBonusSuggestion,
 } = await import("../src/abilityModifiersCore.js");
 const {
   classFeatureConditionInstancesForActivation,
@@ -99,6 +100,20 @@ test("le formule con modificatore risolvono il massimo solo se il modificatore c
   // 2 × livello da mago + Int.
   assert.equal(resolveClassFeatureResourceMaximum(pool(ARCANE_WARD_POOL), wizard, { int: 4 }).maximum, 16);
   assert.equal(resolveClassFeatureResourceMaximum(pool(ARCANE_WARD_POOL), bard, { int: 4 }).maximum, null);
+});
+
+// Lotto BA3 di docs/STUDIO_GIOCO_ONLINE.md: la proposta della casella «Bonus al tiro» di un'arma.
+test("il bonus al tiro proposto per un'arma: Forza in mischia, Destrezza a distanza, più la competenza", () => {
+  const fighter = { characterBuild: [{ classId: "guerriero", level: 3 }, { classId: "ladro", level: 2 }],
+    [ABILITY_MODIFIERS_FIELD]: { str: 3, dex: 1 } };
+  assert.deepEqual(weaponAttackBonusSuggestion(fighter, "melee"), { bonus: 6, ability: "str", modifier: 3, proficiency: 3 },
+    "fifth level in all: +3 proficiency");
+  assert.deepEqual(weaponAttackBonusSuggestion(fighter, "ranged"), { bonus: 4, ability: "dex", modifier: 1, proficiency: 3 });
+  assert.equal(weaponAttackBonusSuggestion({ ...fighter, [ABILITY_MODIFIERS_FIELD]: { str: -1 } }, "melee").bonus, 2);
+  // Without a level or without the modifier there is nothing to propose.
+  assert.equal(weaponAttackBonusSuggestion({ [ABILITY_MODIFIERS_FIELD]: { str: 3 } }, "melee"), null);
+  assert.equal(weaponAttackBonusSuggestion({ ...fighter, [ABILITY_MODIFIERS_FIELD]: { str: 3 } }, "ranged"), null);
+  assert.equal(weaponAttackBonusSuggestion(null), null);
 });
 
 test("il massimo calcolato prende il posto di quello inserito a mano; senza modificatori resta quello manuale", () => {

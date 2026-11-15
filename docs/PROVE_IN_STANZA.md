@@ -698,7 +698,7 @@ Fonte: [STUDIO_IMPORT_STATBLOCK_TESTO.md](STUDIO_IMPORT_STATBLOCK_TESTO.md), lot
 
 Fonte: [STUDIO_GIOCO_ONLINE.md](STUDIO_GIOCO_ONLINE.md), lotti BA1 e BA2 (decisione G13). Le voci sono nuove: nessuna lista le aveva. Serve un PG con un attacco con arma nella scheda Attacchi.
 
-- [ ] **La casella:** scheda del PG → Modifica → Attacchi. La riga di un'arma ha **Bonus al tiro** accanto a **Fonte**; con Trucchetto o Incantesimo d'attacco la casella sparisce. Scrivi «+5» e salva: riaprendo, la casella dice «+5». Con «+40» il salvataggio si ferma e dice «il bonus al tiro va da −30 a +30». (voce nuova: STUDIO_GIOCO_ONLINE.md, BA1)
+- [ ] **La casella:** scheda del PG → Modifica → Attacchi. La riga di un'arma ha **Bonus al tiro** accanto a **Fonte**; con Trucchetto o Incantesimo d'attacco la casella sparisce. Scrivi «+5» e salva: riaprendo, la casella dice «+5». Con «+40» il salvataggio si ferma e dice «il bonus al tiro va da −30 a +30». Con la casella vuota, sotto c'è **Usa +N · For…, comp. …** (Des per un'arma a distanza), con i modificatori e il livello della scheda; un clic scrive il numero, e senza clic non si salva niente. Su un mostro la proposta non c'è. (voce nuova: STUDIO_GIOCO_ONLINE.md, BA1 e BA3)
 - [ ] **Nella console:** la console attacchi del PG su quell'arma dice «Mischia · +5 al tiro» sopra il danno, come per i mostri. Svuotata la casella e salvata la scheda, il «+5 al tiro» sparisce. (voce nuova: STUDIO_GIOCO_ONLINE.md, BA1)
 - [ ] **Dall'import:** Importa, con un attacco che ha `"attackBonus": "+7"`: dopo **Applica al modulo** la riga dell'attacco dice «+7». (voce nuova: STUDIO_GIOCO_ONLINE.md, BA2)
 

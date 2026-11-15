@@ -79,3 +79,15 @@ export function abilitySaveDC(profile, ability) {
   if (proficiency === null || modifier === null) return null;
   return 8 + proficiency + modifier;
 }
+
+// Lotto BA3 di docs/STUDIO_GIOCO_ONLINE.md: il bonus al tiro che la scheda fa pensare per un'arma, proposto nella casella
+// vuota dell'editor e salvato solo se il GM lo usa. Forza in mischia, Destrezza a distanza, più la competenza del livello
+// totale. Non conosce armi accurate o magiche né stili di combattimento: per questo resta una proposta. null se manca il
+// livello o il modificatore.
+export function weaponAttackBonusSuggestion(profile, range = "melee") {
+  const ability = range === "ranged" ? "dex" : "str";
+  const proficiency = proficiencyBonusForLevel(totalCharacterLevel(profile?.characterBuild));
+  const modifier = abilityModifier(profile?.[ABILITY_MODIFIERS_FIELD], ability);
+  if (proficiency === null || modifier === null) return null;
+  return { bonus: modifier + proficiency, ability, modifier, proficiency };
+}
