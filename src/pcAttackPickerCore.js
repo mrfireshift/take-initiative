@@ -30,6 +30,13 @@ export function pcAttackPickerKey(actionId, spellId = "") {
   return spellId ? `${actionId}::${spellId}` : String(actionId || "");
 }
 
+// The cost of an attack in Attacchi: a monster's bonus action, imported with "(bonus action)" after its name
+// (fiveToolsMonsterToStatblock, 5eTools and pasted text alike), or with "(azione bonus)" in a JSON written by hand or by an
+// assistant (IMPORT_SCHEDA.md), is "azione bonus"; any other attack is an action ("").
+export function pcAttackActionActivation(label) {
+  return /\((?:bonus action|azione bonus)\)\s*$/i.test(String(label || "")) ? "azione bonus" : "";
+}
+
 const attackLabel = (spellId) => getPcAttackCantrip(spellId)?.name || getPcAttackSpell(spellId)?.name || spellId;
 
 // [{ key, tab, actionId, spellId, label, mode, level, concentration, ritual, recordOnly, pinned }], grouped by tab.
@@ -59,7 +66,9 @@ export function pcAttackPickerEntries(card, { activeSpellIds = [], grantedAction
   };
   // A magic weapon (✦ Magica, lotto M5) says so in its entry.
   for (const action of attackActions) {
-    if (!["cantrip", "spell"].includes(action.source?.kind)) add("attacks", action.id, "", action.label || action.id, action.magical === true ? { magical: true } : {});
+    if (["cantrip", "spell"].includes(action.source?.kind)) continue;
+    const activation = pcAttackActionActivation(action.label);
+    add("attacks", action.id, "", action.label || action.id, { ...(action.magical === true ? { magical: true } : {}), ...(activation ? { activation } : {}) });
   }
   for (const action of pcAttackBreathActionsForCard(profile)) add("attacks", action.id, "", action.label || action.id);
   for (const action of (Array.isArray(grantedActions) ? grantedActions : []).map(pcAttackAction).filter(Boolean)) {

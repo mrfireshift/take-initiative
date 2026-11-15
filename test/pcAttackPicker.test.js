@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { pcAttackPickerDefault, pcAttackPickerEntries, pcAttackPickerEntryFor, pcAttackPickerTabs } from "../src/pcAttackPickerCore.js";
+import { pcAttackActionActivation, pcAttackPickerDefault, pcAttackPickerEntries, pcAttackPickerEntryFor, pcAttackPickerTabs } from "../src/pcAttackPickerCore.js";
 
 const sword = { id: "sword", label: "Spada lunga", kind: "attack", range: "melee", components: [{ type: "slashing", formula: "1d8+3" }] };
 const bow = { id: "bow", label: "Arco lungo", kind: "attack", range: "ranged", components: [{ type: "piercing", formula: "1d8+2" }] };
@@ -125,4 +125,18 @@ test("the Capacità tab lists the actor's class features and species traits: the
   assert.equal(pcAttackPickerDefault(entries, { attackOnly: true }).key, "sword", "a feature is never the runtime's default");
   const dragonborn = pcAttackPickerEntries({ characterBuild: [{ classId: "paladino", level: 6 }], species: { id: "dragonide", ancestryId: "rosso" } });
   assert.ok(dragonborn.filter((entry) => entry.tab === "features").every((entry) => !entry.species), "only the breath among this species' traits, and it stays in Attacchi");
+});
+
+test("un'azione bonus di un mostro importato costa «azione bonus» negli Attacchi (lotto ST3)", () => {
+  const grip = { id: "grip", label: "Crushing Grip (bonus action)", kind: "attack", range: "melee", components: [{ type: "bludgeoning", formula: "3d6" }] };
+  const entries = pcAttackPickerEntries({ quickActions: [sword, grip] });
+  assert.deepEqual(entries.filter((entry) => entry.tab === "attacks").map((entry) => [entry.label, entry.activation]),
+    [["Spada lunga", undefined], ["Crushing Grip (bonus action)", "azione bonus"]]);
+});
+
+test("il costo si legge solo dal «(bonus action)» in fondo al nome", () => {
+  assert.equal(pcAttackActionActivation("Tail Swipe (Bella Only) (bonus action)"), "azione bonus");
+  assert.equal(pcAttackActionActivation("Stretta (azione bonus)"), "azione bonus", "a JSON written in Italian");
+  assert.equal(pcAttackActionActivation("Bonus Action Surge"), "");
+  assert.equal(pcAttackActionActivation(""), "");
 });

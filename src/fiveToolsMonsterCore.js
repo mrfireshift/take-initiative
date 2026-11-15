@@ -9,7 +9,7 @@ import { monsterImportConditionName } from "./monsterStatblockImportCore.js";
 import { damageTypeLabel, nonmagicalDefenseText } from "./damageDefensesCore.js";
 import { fiveToolsTokenPath } from "./fiveToolsArchiveCore.js";
 import { spellSlotMaximums } from "./spellSlotCore.js";
-import { fiveTools2024TagText, monsterActionAreaOrigin, monsterHitEffects, monsterSave2024, monsterSaveEffects } from "./monsterActionHeuristicsCore.js";
+import { FAILURE_SENTENCE, SAVE_HALF, fiveTools2024TagText, monsterActionAreaOrigin, monsterHitEffects, monsterSave2024, monsterSaveEffects } from "./monsterActionHeuristicsCore.js";
 
 const ABILITY_BY_NAME = Object.freeze({ strength: "str", dexterity: "dex", constitution: "con", intelligence: "int", wisdom: "wis", charisma: "cha" });
 const SOURCES_2024 = new Set(["XMM", "XPHB", "XDMG"]);
@@ -99,7 +99,8 @@ function hitDamage(text) {
 }
 
 // "to hit." with a dot (the girallon's Claw) reads as "to hit,".
-const ATTACK = /^\{@atk ([a-z,]+)\} \{@hit (-?\d+)\} to hit(?: \([^)]*\))?[,.] (?:reach (\d+) ft\.(?: or ranged? (\d+)(?:\/(\d+))? ft\.)?|ranged? (\d+)(?:\/(\d+))? ft\.).*?\{@h\}(.*)$/;
+// The feet spelled out too ("range 120 feet", the star spawn seer's Psychic Orb; statblock da testo, lotto ST3).
+const ATTACK = /^\{@atk ([a-z,]+)\} \{@hit (-?\d+)\} to hit(?: \([^)]*\))?[,.] (?:reach (\d+) (?:ft\.|feet)(?: or ranged? (\d+)(?:\/(\d+))? (?:ft\.|feet))?|ranged? (\d+)(?:\/(\d+))? (?:ft\.|feet)).*?\{@h\}(.*)$/;
 // The 2024 attack roll (fase 3, lotto 6): "{@atkr m} {@hit 4}, reach 5 ft.", "{@atkr m,r} {@hit 6}, reach 5 ft. or range 120
 // ft.", "{@atkr r} {@hit 4}, range 80/320 ft."; a few still say "to hit" or add "(with Advantage if …)". The same groups as
 // the 2014 one: "m" and "r" read as its codes.
@@ -111,7 +112,10 @@ function attackAction(name, text, extra, { magicWeapons = false } = {}) {
   if (!match) return null;
   const [, codes, bonus, reach, meleeRange, meleeLong, range, long, printed] = match;
   // "13 ({@damage 3d6 + 3} necrotic damage)": the parenthesis closed after the type (the deathlock mastermind's Claw).
-  const hit = printed.replace(/(\d+) \(\{@damage ([^}]+)\} (\w+) damage\)/g, "$1 ({@damage $2}) $3 damage");
+  // "Hit: The target takes 55 ({@damage 10d10}) piercing damage" (the mind flayer's Extract Brain, statblock da testo,
+  // lotto ST3): the damage opens the hit, as the other attacks print it.
+  const hit = printed.replace(/(\d+) \(\{@damage ([^}]+)\} (\w+) damage\)/g, "$1 ({@damage $2}) $3 damage")
+    .replace(/^(?:The target|The creature|It) takes (?=\d+ \(\{@damage )/i, "");
   const ranged = !reach;
   const normal = Number(range || meleeRange) || null;
   const longRange = Number(long || meleeLong) || null;
@@ -164,23 +168,41 @@ function attackAction(name, text, extra, { magicWeapons = false } = {}) {
   return [{ ...base, damage: components, ...(remainder ? { note: remainder } : {}), ...(Object.keys(onHit).length ? { onHit } : {}), status }];
 }
 
-// The sentences of a save that tell what a failure does: the one with the DC and those that open with "On a failed save"
-// or "On a failure". Damage told only for a success (the banshee's Wail) is never read as a failure's.
-const sentencesOf = (text) => text.split(/(?<=\.)\s+(?=[A-Z{])/);
+// The sentences of a save that tell what a failure does: the one with the DC and those of FAILURE_SENTENCE ("On a failed
+// save", "On a failure", "A target takes 7 (2d6) fire damage on a failed save", lotto ST3). Damage told only for a success
+// (the banshee's Wail) is never read as a failure's.
+// A sentence can open with a parenthesis ("(A dazed creature can move or take one action on its turn, not both.)").
+const sentencesOf = (text) => text.split(/(?<=\.)\s+(?=\(?[A-Z{])/);
 const OUTCOME_SENTENCE = /^On a (?:fail(?:ed save|ure)|success(?:ful save)?)/;
+// "The creature takes 10 (3d6) bludgeoning damage on a failure, and half as much damage on a success" (Werewolf Brawler).
+const FAILURE_DAMAGE_SENTENCE = /^(?!.*\brepeats? the sav).*?\bon a (?:failed (?:save|saving throw)|failure)\b/i;
 function failureText(text) {
   const sentences = sentencesOf(text);
   const start = sentences.findIndex((sentence) => /\{@dc \d+\}/.test(sentence));
   if (start < 0) return "";
-  return [sentences[start], ...sentences.slice(start + 1).filter((sentence) => /^On a fail(?:ed save|ure)/.test(sentence))].join(" ");
+  // Up to the next save: a second DC (the Ice Devil's frigid air) is not this one's, unless it is inside a failure's own
+  // sentence ("On a failure, the target takes … (… a DC 15 Constitution saving throw each time …)").
+  const next = sentences.findIndex((sentence, index) => index > start && /\{@dc \d+\}/.test(sentence) && !/^On a fail/i.test(sentence));
+  // From the DC on: the damage before it in the same sentence comes anyway ("The target takes 14 (4d6) psychic damage, and
+  // it must make a DC 16 Intelligence saving throw", the hydroloth's Steal Memory), never only on a failure.
+  const first = sentences[start].slice(sentences[start].search(/\{@dc \d+\}/));
+  return [first, ...sentences.slice(start + 1, next < 0 ? undefined : next).filter((sentence) => FAILURE_SENTENCE.test(sentence))].join(" ");
+}
+
+// The DC's sentence when damage comes before the DC ("On a hit, the target takes an extra 18 (4d8) lightning damage, and
+// the target must succeed on a DC 13 Constitution saving throw…"): not a failure's, so it stays in the note.
+function damageBeforeSave(text) {
+  const sentence = sentencesOf(text).find((entry) => /\{@dc \d+\}/.test(entry)) || "";
+  return /\(\{@damage [^}]+\}\) \w+ damage/.test(sentence.slice(0, sentence.search(/\{@dc \d+\}/))) ? sentence : "";
 }
 
 // What the console does not automate in a save: the sentences after the DC's, but its outcomes (a repeated save, an
-// immunity for 24 hours).
+// immunity for 24 hours) and the sentence with a failure's damage, which the action registers.
 function saveRemainder(text) {
   const sentences = sentencesOf(text);
   const start = sentences.findIndex((sentence) => /\{@dc \d+\}/.test(sentence));
-  return note(sentences.slice(start + 1).filter((sentence) => !OUTCOME_SENTENCE.test(sentence)).join(" "));
+  return note(sentences.slice(start + 1).filter((sentence) => !OUTCOME_SENTENCE.test(sentence)
+    && !(FAILURE_DAMAGE_SENTENCE.test(sentence) && /\(\{@damage [^}]+\}\) \w+ damage/.test(sentence))).join(" "));
 }
 
 function saveArea(text) {
@@ -189,9 +211,20 @@ function saveArea(text) {
     const width = match[2] === "line" ? text.match(/(\d+) feet wide/) : null;
     return { shape: match[2], size: Number(match[1]), ...(width ? { width: Number(width[1]) } : {}) };
   }
-  match = text.match(/(\d+)-foot-radius (sphere|cylinder)/) || text.match(/(\d+)-foot (sphere|cylinder)/);
+  // "a 5-foot-wide, 100-foot-long beam" (statblock da testo, lotto ST3).
+  match = text.match(/(\d+)-foot-wide, (\d+)-foot-long (?:beam|line)\b/);
+  if (match) return { shape: "line", size: Number(match[2]), width: Number(match[1]) };
+  // "10-foot radius sphere" without its hyphen too (lotto ST3).
+  match = text.match(/(\d+)-foot[- ]radius (sphere|cylinder)/) || text.match(/(\d+)-foot (sphere|cylinder)/);
   if (match) return { shape: match[2], size: Number(match[1]) };
-  match = text.match(/(?:[Ee]ach|[Aa]ll|[Ee]very)[^.]*? within (\d+) feet of/);
+  // "Each creature within a 5-foot radius of Anastrasya", "in a 5-foot radius around him" (lotto ST3).
+  match = text.match(/\b(?:within|in) a (\d+)-foot radius\b/);
+  if (match) return { shape: "sphere", size: Number(match[1]) };
+  // "chooses up to three creatures it can see within 60 feet of it": the creatures to choose among, around the monster.
+  match = text.match(/\bup to (?:one|two|three|four|five|six|\d+) (?:creatures|targets)\b[^.]*? within (\d+) feet of\b/i);
+  if (match) return { shape: "sphere", size: Number(match[1]) };
+  // Whole words: the "all" of "magically", "wall" or "smaller" is not "all creatures".
+  match = text.match(/\b(?:[Ee]ach|[Aa]ll|[Ee]very)\b[^.]*? within (\d+) (?:feet|ft\.) of/);
   if (match) return { shape: "sphere", size: Number(match[1]) };
   return null;
 }
@@ -240,9 +273,9 @@ function saveAction(name, text, extra) {
   const effects = monsterSaveEffects(text);
   // The note keeps what no field holds (fase 5, lotto 3): the repeated save that ends the effect and the 24-hour
   // immunity are fields now, their sentences leave it.
-  const noteOf = ({ repeat, immuneHours }) => note(sentencesOf(saveRemainder(text) || "").filter((sentence) =>
+  const noteOf = ({ repeat, immuneHours }) => note([damageBeforeSave(text), ...sentencesOf(saveRemainder(text) || "").filter((sentence) =>
     !(repeat?.ends && /\brepeat the saving throw at the (?:end|start) of each of/i.test(sentence))
-    && !(immuneHours && /\bimmune to\b[^.]*\bfor the next \d+ hours/i.test(fiveToolsPlainText(sentence)))).join(" "));
+    && !(immuneHours && /\bimmune to\b[^.]*\bfor the next \d+ hours/i.test(fiveToolsPlainText(sentence))))].filter(Boolean).join(" "));
   const condition = effects.conditions[0] || tagged?.[1] || "";
   if (!components.length && !condition) return [{ name, status: "manual", text }];
   const area = saveArea(text);
@@ -250,7 +283,7 @@ function saveAction(name, text, extra) {
   const onFail = condition ? { condition, ...(effects.conditions.length > 1 ? { also: effects.conditions.slice(1) } : {}),
     ...(effects.duration ? { duration: effects.duration } : {}), ...(effects.repeat ? { repeat: effects.repeat } : {}),
     ...(effects.endsOnDamage ? { endsOnDamage: true } : {}) } : null;
-  return [{ name, save: { ability: ABILITY_BY_NAME[dc[2].toLowerCase()], dc: Number(dc[1]), half: /half as much damage/.test(text) },
+  return [{ name, save: { ability: ABILITY_BY_NAME[dc[2].toLowerCase()], dc: Number(dc[1]), half: SAVE_HALF.test(text) },
     ...(area ? { area: { ...area, ...(origin ? { origin } : {}), ...(choice ? { choice: true } : {}) } } : {}), ...(onFail ? { onFail } : {}),
     ...(effects.immuneHours ? { immuneHours: effects.immuneHours } : {}),
     damage: components, ...extra, ...(noteOf(effects) ? { note: noteOf(effects) } : {}), status: "full" }];
@@ -628,11 +661,13 @@ export function fiveToolsStatblockSections(monster) {
   // A 2024 spellcasting is an action, a bonus action, a reaction or a legendary action (displayAs): it stands there.
   const spellcasting = (place) => asList(monster.spellcasting).filter((block) => block && typeof block === "object" && (block.displayAs || "trait") === place)
     .map((block) => ({ name: fiveToolsPlainText(block.name || "Spellcasting"), text: spellcastingText(block) }));
+  // The paragraph that opens a section ("The vampire can take up to three reactions per round"), as a nameless entry.
+  const opening = (value) => (value ? [{ name: "", text: fiveToolsPlainText(entriesText(value)) }].filter((entry) => entry.text) : []);
   const sections = [
     { title: "", entries: [...named(monster.trait), ...spellcasting("trait")] },
-    { title: "Actions", entries: [...named(monster.action), ...spellcasting("action")] },
-    { title: "Bonus Actions", entries: [...named(monster.bonus), ...spellcasting("bonus")] },
-    { title: "Reactions", entries: [...named(monster.reaction), ...spellcasting("reaction")] },
+    { title: "Actions", entries: [...opening(monster.actionHeader), ...named(monster.action), ...spellcasting("action")] },
+    { title: "Bonus Actions", entries: [...opening(monster.bonusHeader), ...named(monster.bonus), ...spellcasting("bonus")] },
+    { title: "Reactions", entries: [...opening(monster.reactionHeader), ...named(monster.reaction), ...spellcasting("reaction")] },
     { title: "Legendary Actions", entries: monster.legendary || spellcasting("legendary").length
       ? [{ name: "", text: legendaryIntro }, ...named(monster.legendary), ...spellcasting("legendary")] : [] },
     { title: "Mythic Actions", entries: monster.mythic ? [...(monster.mythicHeader ? [{ name: "", text: fiveToolsPlainText(entriesText(monster.mythicHeader)) }] : []), ...named(monster.mythic)] : [] },

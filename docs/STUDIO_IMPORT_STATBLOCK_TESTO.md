@@ -1,6 +1,6 @@
 # Studio: statblock da testo e da altre fonti
 
-Data: 15 novembre 2026. Stato: **approvato**; ST1 in `2a53bf55` (§12), ST2 committato il 15/11 (§13). Base dello studio: `main` a `617c6353`.
+Data: 15 novembre 2026. Stato: **approvato**; ST1 in `2a53bf55` (§12), ST2 committato il 15/11 (§13); ST3, prima parte (Strahd Reloaded), fatta il 15/11 e non committata (§14). Base dello studio: `main` a `617c6353`.
 
 Decisioni dell'utente del 15/11: **approvate tutte**, da D1 a D10 (§10).
 
@@ -373,3 +373,181 @@ La CI completa è verde su un worktree di `22a25e43` con i soli file del lotto: 
 - **Statblock originale:** Statistiche → **Statblock originale** mostra il mostro diviso in voci; in Capacità ci sono i tratti, le reazioni e le leggendarie; un mostro con Parry accende l'avviso di reazione.
 - **I rifiuti:** un testo in italiano, o uno del 2024, dice perché non si legge e rimanda al JSON di 5eTools o al prompt per un assistente.
 - **Da PDF:** lo stesso mostro copiato da un PDF, con le righe spezzate, dà le stesse azioni di quello copiato da D&D Beyond.
+
+---
+
+## 14. Lotto ST3, prima parte: le schede di Strahd Reloaded (15/11)
+
+I primi campioni veri vengono dalla pagina «Non-Player Characters» delle appendici di Strahd Reloaded, un sito pubblicato con Obsidian. Sono 38 statblock di PNG, con il testo che il browser dà copiando la pagina. Restano fuori dal repository (D9): nei test entrano solo mostri inventati scritti nello stesso modo. PDF, D&D Beyond e Homebrewery/GM Binder vengono dopo, con i loro campioni.
+
+### 14.1 Che cosa c'era di diverso
+
+Sono statblock delle regole 2014 scritti a mano, con abitudini che i manuali non hanno:
+
+- il trattino corto «–» al posto del segno meno: «9 (–1)»;
+- la tabella dei punteggi copiata con le tabulazioni;
+- sulla riga dopo il nome, un tipo senza la taglia;
+- le etichette del 2024 in un blocco 2014: «Resistances», «Vulnerabilities», «Immunities» (danni e condizioni insieme, divisi dal punto e virgola), «Gear», «Initiative»;
+- un'etichetta con il punto: «Proficiency Bonus. +3»;
+- «Speed 40» senza unità, e «fly (hover) 30 ft.»;
+- attacchi senza i due punti, o con una virgola («Melee Weapon Attack, +7 to hit»), con la distanza senza «reach» o con «range» anche in mischia;
+- danni senza la media: «or take 2d6 fire damage»;
+- la forma dopo il punto: «Knife. (Witch Form Only) Melee Weapon Attack …»;
+- la Spellcasting fra le azioni, le azioni bonus o le reazioni;
+- un paragrafo che apre una sezione: «The witch can take up to three reactions per round, …».
+
+### 14.2 La misura
+
+| Sui 38 blocchi | HEAD (dopo ST2) | ST3 |
+|---|---|---|
+| rifiutati | 0 | 0 |
+| azioni registrabili | 103 | 117 |
+| azioni al tavolo | 82 | 67 |
+| righe non lette | 50 | 0 |
+| blocchi con il tratto «Testo non letto» | 32 | 0 |
+| TS registrati | 52 | 54 |
+| di cui con metà danni al successo | 15 | 26 |
+
+Le 67 azioni al tavolo ci restano per buoni motivi:
+- incantesimi lanciati da un'azione che non dice né CD né bonus, perché stanno nel tratto Spellcasting;
+- condizioni inventate dal sito;
+- movimenti e spostamenti.
+
+Le azioni bonus sono analizzate a parte nel §14.8.
+
+L'oracolo non cambia: 815 mostri, 814 identici, 1 solo mancante (Dzaan, §12.2), 0 diversi, con i punteggi su una riga e su due.
+
+### 14.3 Le correzioni del parser
+
+- **F1, il trattino corto:** vale come segno meno nei punteggi, nei PF, nel bonus degli attacchi e in quello della Spellcasting.
+- **F2, le etichette 2024:** Resistances, Vulnerabilities e Immunities si leggono come le etichette 2014. Immunities divide i gruppi al punto e virgola: quelli con un tipo di danno vanno fra le immunità ai danni, gli altri fra le condizioni. Gear e Initiative si riconoscono e restano fuori dalle azioni. Un'etichetta può finire con il punto, e due righe con la stessa etichetta si sommano.
+- **F3, il tipo senza taglia:** si tiene il tipo; la taglia del token non cambia.
+- **F4, la velocità:** il primo valore anche senza unità, e «(hover)» prima del numero.
+- **F5, l'attacco:** senza i due punti o con la virgola. Per un attacco in mischia, la distanza sola o «range 5 ft.» è la portata; per uno a distanza, la distanza sola è la gittata.
+- **F6, il danno senza media:** prende la media che stamperebbe il libro, così la formula si legge come le altre.
+- **F7, la forma dopo il nome:** va nel nome, come in 5eTools: «Knife (Witch Form Only)». Un testo fatto solo di una parentesi, come «(testo omesso)», resta il testo.
+- **F8, la Spellcasting in una sezione:** resta nella sua sezione, con `displayAs`, come fa 5eTools.
+- **F9, il paragrafo che apre una sezione:** va nell'intestazione della sezione (`actionHeader`, `bonusHeader`, `reactionHeader`, come in 5eTools). Lo Statblock originale lo mostra come una voce senza nome, sia per il testo sia per 5eTools. Capacità e gli avvisi di reazione lo saltano.
+- **F10, «… slashing damage»:** nelle difese la parola «damage» non diventa una nota.
+- **F11, gli usi senza il punto (16/11):** «Finger of Death (1/day) Rahadin casts …» comincia una voce sua, invece di finire dentro la voce di prima. Vale solo a inizio paragrafo e solo con gli usi tra parentesi: «(1/day)», «(Recharge 5–6)», «(Costs 2 Actions)».
+
+### 14.4 Le correzioni dell'adattatore e della lettura delle azioni: valgono anche per 5eTools
+
+Alcune frasi delle schede sono anche nei bestiari di 5eTools. Per D1 la regola sta in un posto solo, l'adattatore ([fiveToolsMonsterCore.js](../src/fiveToolsMonsterCore.js)) o la lettura delle azioni ([monsterActionHeuristicsCore.js](../src/monsterActionHeuristicsCore.js)), quindi cambiano tutte e due le strade.
+
+- **I piedi per intero:** «range 90 feet» si legge come «range 90 ft.».
+- **Il colpo con «The target takes»:** «Hit: The target takes 22 (4d10) necrotic damage» si legge come «Hit: 22 (4d10) necrotic damage».
+- **Le frasi del fallimento:** finora contavano la frase con la CD e quelle che aprono con «On a failed save» o «On a failure». Ora contano anche:
+  - la frase con il danno del fallimento («A target takes 7 (2d6) fire damage on a failed save, …»);
+  - quella su chi fallisce («A target that fails the save is also knocked prone»).
+
+  Non conta mai la frase di un fallimento di 5 o più: resta nella nota, e la sua durata non passa alla condizione del fallimento.
+- **Fino al TS seguente:** una seconda CD nella stessa azione appartiene a un altro TS (il muro del Diavolo del ghiaccio). Una CD tra parentesi dentro la frase «On a failure» invece no.
+- **Il danno prima della CD:** in «On a hit, the target takes an extra 9 (2d8) lightning damage, and … DC 13 …» il danno arriva comunque, non solo col fallimento. La frase resta nella nota.
+- **Le aree:**
+  - «all» conta solo come parola intera: «magically», «wall» e «smaller» non danno più un'area;
+  - «up to two creatures it can see within 40 feet of it» è una sfera di 40 piedi attorno al mostro.
+- **La metà dei danni al successo (16/11):** oltre a «half as much damage» valgono «or half as much on a success», «or half damage on a success» e la frase di chi supera il TS: «A creature that succeeds on the saving throw takes half damage», «On a successful save, a creature takes half the damage». Non vale mai la metà di una cura, come «regains hit points equal to half the damage taken». La regola (`SAVE_HALF`) è la stessa per i TS delle azioni e per quelli al colpo. Prima la console avrebbe dato zero danni a chi superava il TS: nelle schede di Strahd succedeva in 8 TS, 6 dei quali in azioni bonus.
+- **Una frase può aprire con una parentesi (16/11):** «… until the start of its next turn. (A dazed creature can move or act on its turn, not both. …)» ha due frasi. Prima la parentesi si attaccava alla frase con la CD, e nella nota ne arrivava solo l'ultimo pezzo.
+
+Le due regole del 16/11 non cambiano niente nei quattro bestiari: le azioni, i blocchi e lo Statblock originale degli 815 mostri restano come con le regole del 15/11.
+
+Sui quattro bestiari, HEAD contro ST3, cambiano 23 azioni su 815 mostri, tutte volute:
+- **9 diventano registrabili:** Death Knight (Hellfire Orb), Fomorian (Evil Eye), Mind Flayer, Mind Flayer Arcanist e Mind Flayer Psion (Extract Brain), Ogre Chain Brute (Chain Sweep), Star Spawn Seer (Psychic Orb), The Lonely (Sorrowful Embrace), Zaratan (Spew Debris);
+- **8 perdono un'area sbagliata:** Behir (Swallow), Djinni (Create Whirlwind), Ice Devil (Wall of Ice), Living Bigby's Hand, Slithering Tracker, Stone Giant Dreamwalker, Trapper, Wastrilith;
+- **3 prendono l'area giusta:** Demilich (Life Drain), Sibriex (Warp Creature), Yuan-ti Pit Master (Merrshaulk's Slumber);
+- **3 spostano il danno dal fallimento alla nota:** Air Elemental Myrmidon, Earth Elemental Myrmidon, Orthon (5. Paralysis).
+
+**Rischi, come chiede AGENTS.md:**
+- PF, barre HP, turno attivo, ordine e metadata non si toccano.
+- I token già importati tengono le azioni che hanno: le regole nuove valgono al prossimo import.
+- Lo Statblock originale si legge invece al momento. Un mostro di 5eTools con il paragrafo che apre una sezione lo mostra da subito, e nessun dato salvato cambia.
+
+### 14.5 Che cosa c'è
+
+| File | Contenuto |
+|---|---|
+| `src/monsterStatblockTextParseCore.js` | F1–F11 |
+| `src/fiveToolsMonsterCore.js` | i piedi per intero, il colpo con «The target takes», le frasi del fallimento fino al TS seguente, il danno prima della CD nella nota, le aree, la metà dei danni al successo, la frase che apre con una parentesi, il paragrafo che apre una sezione nello Statblock originale |
+| `src/monsterActionHeuristicsCore.js` | `FAILURE_SENTENCE` e `SAVE_HALF`, condivise con l'adattatore; le condizioni del fallimento fino al TS seguente; la durata senza il fallimento di 5 o più; la frase che apre con una parentesi |
+| `test/monsterStatblockTextParse.test.js` | 2 test con una strega inventata scritta come le schede del sito: lettura del blocco con gli usi senza il punto, Statblock originale, Capacità e avviso di Parry |
+| `test/fiveToolsMonster.test.js` | 1 test con azioni inventate per le frasi del TS, la metà dei danni al successo, la frase tra parentesi, le aree, il colpo con «The target takes» e i piedi per intero |
+
+Dal 16/11 anche `src/pcAttackPickerCore.js` (`pcAttackActionActivation`), una riga di `src/pc-attack.js` e 2 test in `test/pcAttackPicker.test.js`: il costo delle azioni bonus nella console (§14.8).
+
+I tre test falliscono con il codice di HEAD, e con quello del 15/11 per le regole del 16/11. La CI completa è verde su un worktree di `8641fd03` con i soli file del lotto: verify:version, 6175 test, check:spells, build, checksums e verify:dist.
+
+### 14.6 Limiti e punti aperti
+
+- **Incantesimi da un'azione:** quando la CD o il bonus stanno solo nel tratto Spellcasting, l'azione resta al tavolo. Leggerli da lì è un passo a parte, che vale anche per 5eTools: è la scelta D11 del §14.8.
+- **TS senza danni né condizioni del Manuale:** restano al tavolo, come vuole la regola di oggi. Registrare il solo TS è la scelta D12 del §14.8.
+- **Il resto di ST3:** PDF, D&D Beyond e Homebrewery/GM Binder, ciascuno con i suoi campioni.
+
+### 14.7 Prove in stanza (in [PROVE_IN_STANZA.md](PROVE_IN_STANZA.md), sezione B25)
+
+Le voci sono nuove: nessuna lista le aveva. Serve un nemico e una scheda della pagina dei PNG di Strahd Reloaded, copiata dal browser.
+
+- **Una scheda del sito:** incolla la scheda in **Importa** e premi **Leggi**. La riga «Da testo: …» non nomina righe non lette, e fra i tratti non c'è «Testo non letto». Gli attacchi hanno bonus e portata, e i danni scritti senza media hanno la loro formula.
+- **Le immunità:** in una scheda con «Immunities», i tipi di danno vanno in Difese ai danni e le condizioni fra le immunità alle condizioni.
+- **Le sezioni:** in Statistiche → **Statblock originale**, il paragrafo che apre le reazioni sta prima delle reazioni, senza nome. In Capacità non è una voce. La Spellcasting resta nella sezione dove la scheda la mette.
+- **Metà danni al successo:** in una scheda con un'azione bonus che dice «A creature that succeeds on the saving throw takes half damage», chi supera il TS nella console prende metà danni, non zero.
+- **Werewolf Brawler:** dalla pagina Bestiary, importa il Werewolf Brawler. Nella scheda Attacchi della console c'è «Crushing Grip (bonus action)» con l'etichetta arancione **Azione bonus**, mentre le altre righe dicono Azione: TS di Costituzione CD 14, 3d6 contundenti, metà a chi lo supera. Da provare in vista compatta ed estesa.
+- **Da 5eTools:** importa **Mind Flayer** (MM): Extract Brain si registra con 10d10 perforanti. Importa **Fomorian** (MM): Evil Eye si registra con 6d8 psichici e senza area.
+
+### 14.8 Le azioni bonus (16/11)
+
+La domanda dell'utente, prima del commit: perché le azioni bonus delle schede restano al tavolo.
+
+**Nessuna regola a parte.** L'adattatore legge le azioni bonus con le stesse regole delle azioni (`fiveToolsActions`) e aggiunge «(bonus action)» al nome, sia per il testo sia per 5eTools. Come un'azione, una bonus resta al tavolo quando il testo non dà niente da registrare: né un attacco, né un TS con un danno o con una condizione del Manuale. Nella lista «Al tavolo» il nome porta «(bonus action)», e quel suffisso può sembrare il motivo, ma non lo è.
+
+**La misura.** Nelle 38 schede le azioni bonus sono 79: 37 si registrano e 42 restano al tavolo. Con HEAD erano 78, con 34 registrate e 44 al tavolo; la 79ª è Finger of Death, che prima finiva dentro un'altra voce (F11).
+
+| Perché restano al tavolo | Quante | Esempi |
+|---|---|---|
+| movimento e azioni standard: Scatto, Disimpegno, Nascondersi, Aiuto, salti | 12 | Leap, Swift Step, Cunning Action |
+| trasformazioni ed effetti su di sé | 6 | Shapechange, Duplicate |
+| incantesimi lanciati senza CD né danni nel testo | 7 | Darkness, Blur, Lightning Bolt, Finger of Death |
+| incantesimi della congrega con un danno in più se il bersaglio fallisce il TS dell'incantesimo, ma senza la CD | 5 | Hold Person, Bestow Curse |
+| TS con effetti inventati o a gradi | 8 | «dazed», un −1d4 al tiro successivo, effetti diversi per chi fallisce di 5 e di 10 |
+| prova contrapposta, terreno, evocazione, danno in una frase fuori dalle formule | 4 | Insightful Fighting, Stonemelt, Animate Golems, Telekinetic Thrust |
+
+**Errori trovati fra le azioni registrate, corretti il 16/11:**
+- la metà dei danni al successo scritta come fa il sito (§14.4): 6 azioni bonus e 2 azioni normali avevano `half: false`;
+- «Finger of Death (1/day)», senza il punto dopo il nome, finiva dentro Corrupted Command (F11);
+- la frase tra parentesi che spiega «dazed» arrivava spezzata nella nota di Shrieking Souls (§14.4).
+
+**La pagina Bestiary (16/11).** L'utente importava il Werewolf Brawler dalla pagina «Bestiary» delle appendici, 15 statblock, e l'azione bonus Crushing Grip non c'era nella console. Il motivo: il danno era scritto «… bludgeoning damage on a failure, and half as much damage on a success», con «on a failure» a metà frase. La lettura conosceva solo «on a failed save» a metà frase e «On a failure» a inizio frase; senza danno, e con «dazed» che non è una condizione del Manuale, l'azione restava al tavolo. Correzioni:
+- **«on a failure» a metà frase** vale come «on a failed save», sia per le frasi del fallimento sia per la nota. Non vale mai nella frase del TS ripetuto («The target can repeat the saving throw …, or taking 11 (2d10) psychic damage on a failure»): senza questa esclusione lo Yuan-ti Nightmare Speaker di 5eTools avrebbe sommato due volte il danno.
+- **Il bersaglio prima della portata:** «+6 to hit, one target, reach 5 ft.» (lo Slam degli oggetti animati) torna nell'ordine del libro. Prima lo Slam non era un attacco: in un caso finiva al tavolo, nell'altro diventava un TS senza il danno del colpo.
+
+Sulla pagina Bestiary: 26 azioni registrabili e 10 al tavolo, 0 righe non lette. Le schede dei PNG restano come sopra. Nei quattro bestiari di 5eTools cambiano le stesse 23 azioni del §14.4, nient'altro. Crushing Grip, dopo un nuovo import, sta nella scheda **Attacchi** della console come «Crushing Grip (bonus action)», con TS di Costituzione CD 14, 3d6 contundenti e metà al successo. Capacità mostra solo, da leggere, tratti, reazioni e leggendarie.
+
+**Il costo nella console (16/11).** Nell'elenco degli Attacchi ogni riga diceva «Azione», anche per le azioni bonus. Ora la console legge il «(bonus action)» che l'import mette in fondo al nome, per il testo come per 5eTools: la riga dice **Azione bonus**, in arancione come le altre azioni bonus della console. Il segno sta già nel nome salvato sul token, quindi non serve un campo nuovo nei metadata, e la modifica della scheda non lo perde. La regola è `pcAttackActionActivation()` in [pcAttackPickerCore.js](../src/pcAttackPickerCore.js), e `rowCost` in [pc-attack.js](../src/pc-attack.js) la usa. Provato nel banco con il finto SDK, da una copia pulita sulla porta 5216: il Werewolf Brawler incollato come testo, salvato e aperto nella console mostra «Lob · Azione» e «Crushing Grip (bonus action) · Azione bonus», senza errori. Il plugin non conta le azioni del turno (l'economia d'azione è stata scartata il 23/10), quindi a parte l'etichetta non cambia altro.
+
+**Il controllo prima del commit (16/11).** L'utente ha chiesto se adesso tutte le azioni bonus si leggono e si importano bene. Il controllo, sulle 53 schede delle due pagine, ha seguito ogni azione bonus dal testo all'etichetta nella console:
+- 84 azioni bonus nel testo, 84 lette in `monster.bonus`;
+- 38 registrate e 46 al tavolo, per i motivi della tabella sopra;
+- tutte e 38 arrivano nella scheda con il nome intero (il più lungo è di 60 caratteri, la scheda ne tiene 80), e la console le segna «Azione bonus».
+
+Le 38 registrate sono state rilette una per una contro il loro testo: CD, caratteristica, dadi, tipi, metà danni, usi e ricarica sono giusti. Il controllo ha trovato quattro difetti, corretti:
+- **«falling prone»:** «taking 9 (2d8) bludgeoning damage and falling prone on a failure» (Tail Swipe) perdeva il prono;
+- **l'area su un punto:** «to a point within 30 feet … within 5 feet of that point» (Wisplight Flare) metteva l'area attorno al mostro; ora sono sul punto anche «of that point», «to a point» e «centered on that point»;
+- **le aree scritte in altro modo:** «within 10 ft. of that point», «10-foot radius sphere» senza trattino, «within a 5-foot radius of …», «a 5-foot-wide, 100-foot-long beam»;
+- **il titolo al singolare:** sotto «Bonus Action», o «Reaction», le voci diventavano azioni normali. Ora i titoli valgono anche al singolare.
+
+Queste regole cambiano 5 azioni di 5eTools in più, tutte in meglio. Devourer (Soul Rend) e Vine Blight (Entangling Plants) prendono l'area attorno al mostro. Hellfire Engine (Thunder Cannon) ha l'area sul punto, non più attorno a sé. Jackalwere (Sleep Gaze) si registra: privo di sensi per 10 minuti, perché il testo dice «falling unconscious». Flail Snail (Scintillating Shell) prende il raggio di 30 piedi della luce. In tutto le azioni di 5eTools cambiate rispetto a HEAD sono 28.
+
+Per il JSON scritto a mano o da un assistente non c'è un campo per le azioni bonus. Vale il nome, e [IMPORT_SCHEDA.md](IMPORT_SCHEDA.md) lo dice: "(bonus action)" o "(azione bonus)" in fondo.
+
+Restano due limiti, senza numeri sbagliati:
+- **Aree solo approssimate:** Wind Strike colpisce lungo un percorso, e il plugin gli dà una sfera attorno al mostro.
+- **Effetti a gradi nella nota:** gli effetti di chi fallisce di 5 o di 10 restano nella nota, e così i «dazed» e gli «slowed» del sito.
+
+La CI completa è verde su un worktree di `8641fd03` con i soli file del lotto: 6176 test. Una prima corsa aveva fallito su `spellAreaPlacementClient.test.js`, un test di tempi che non tocca questi file: da solo passa cinque volte su cinque, e la corsa intera dopo è verde.
+
+**Due scelte aperte, per un lotto a parte.** Toccano anche 5eTools.
+
+| # | Scelta | Possibilità | Raccomandazione |
+|---|---|---|---|
+| D11 | Incantesimi lanciati da un'azione (12 azioni bonus, più azioni normali come Lightning Bolt) | (a) prendere la CD e il bonus dal tratto Spellcasting della scheda e le regole dell'incantesimo dal catalogo: «Morgantha casts lightning bolt» diventa un fulmine con la CD della congrega, e il danno in più della congrega si somma; (b) lasciarle al tavolo come oggi | **(a)**, come lotto a sé dopo ST3 |
+| D12 | TS senza danni né condizioni del Manuale (8 azioni bonus) | (a) registrare il solo TS con l'effetto nella nota: la console tira i TS e dice chi fallisce, e di quanto; (b) lasciarli al tavolo, come vuole la regola di oggi | **(a)**: sono tiri da fare per più bersagli, e l'effetto resta al tavolo |

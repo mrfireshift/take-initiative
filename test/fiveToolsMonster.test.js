@@ -281,3 +281,65 @@ test("testi fuori forma: versatile abbreviato con il «plus» sommato, «to hit.
   const [choice] = fiveToolsActions({ name: "Sledgehammer", entries: ["{@atk mw} {@hit 9} to hit, reach 5 ft., one target. {@h}27 ({@damage 6d6 + 6}) bludgeoning or force damage (tomb tapper's choice)."] });
   assert.equal(choice.status, "manual", "a choice of type stays at the table");
 });
+
+// Statblock da testo, lotto ST3: the sentences of a save as some books and homebrew write them, the areas, a hit that
+// opens with "The target takes", the feet spelled out. Invented actions; the 5eTools import reads them the same way.
+test("le frasi del tiro salvezza, le aree e il colpo che comincia con «The target takes» (lotto ST3)", () => {
+  const save = (...entries) => fiveToolsActions({ name: "Prova", entries })[0];
+  // The failure's damage in a sentence of its own; who fails is also knocked prone; a failure by 5 or more stays a note.
+  const blast = save("Each creature in a 10-foot-radius sphere centered on that point must make a {@dc 13} Dexterity saving throw. A target takes 7 ({@damage 2d6}) fire damage on a failed save, or half as much damage on a successful one. A target that fails the save is also knocked {@condition prone}. A creature that fails the save by 5 or more is {@condition stunned} until the end of its next turn.");
+  assert.deepEqual([blast.status, blast.save, blast.damage, blast.onFail], ["full", { ability: "dex", dc: 13, half: true }, [{ type: "fire", formula: "2d6" }], { condition: "prone" }]);
+  assert.match(blast.note, /by 5 or more is stunned/);
+  assert.doesNotMatch(blast.note, /on a failed save/, "the damage's sentence is registered, not noted");
+  // A second save, with its own DC, is not this one's (as in the Ice Devil's wall).
+  const wall = save("Each creature in the wall's area makes a {@dc 15} Dexterity saving throw, taking 28 ({@damage 8d6}) cold damage on a failed save, or half as much damage on a successful one.",
+    "Whenever a creature ends its turn inside the freezing mist, it must make a {@dc 15} Constitution saving throw, taking 14 ({@damage 4d6}) cold damage on a failed save, or half as much damage on a successful one.");
+  assert.deepEqual(wall.damage, [{ type: "cold", formula: "8d6" }]);
+  // A DC inside a failure's own sentence does not end it.
+  const curse = save("The witch curses one creature she can see within 30 feet, which must make a {@dc 15} Charisma saving throw. On a failure, the target takes 12 ({@damage 2d8 + 3}) necrotic damage and its hands wither (while withered, it must succeed on a {@dc 15} Constitution saving throw to hold a weapon).");
+  assert.deepEqual(curse.damage, [{ type: "necrotic", formula: "2d8+3" }]);
+  // Damage before the DC in its sentence comes anyway: not the failure's, and its sentence stays in the note.
+  const strike = save("The sentinel makes one halberd attack. On a hit, the target takes an extra 9 ({@damage 2d8}) lightning damage, and the target must succeed on a {@dc 13} Strength saving throw or be knocked {@condition prone}.");
+  assert.deepEqual([strike.status, strike.damage, strike.onFail], ["full", [], { condition: "prone" }]);
+  assert.match(strike.note, /extra 9 \(2d8\) lightning damage/);
+  // Areas: never the "all" of "magically"; "up to two creatures … within 40 feet of it" are chosen around the monster.
+  const glare = save("The hag magically compels one creature she can see within 40 feet of her to make a {@dc 13} Wisdom saving throw. The creature takes 22 ({@damage 5d8}) psychic damage on a failed save, or half as much damage on a successful one.");
+  assert.deepEqual([glare.area, glare.damage], [undefined, [{ type: "psychic", formula: "5d8" }]]);
+  const wail = save("The specter picks up to two creatures it can see within 40 feet of it. Each target must succeed on a {@dc 12} Wisdom saving throw or take 9 ({@damage 2d8}) psychic damage.");
+  assert.deepEqual(wail.area, { shape: "sphere", size: 40, origin: "self" });
+  // Half damage on a success as homebrew writes it; never the half of a healing.
+  const sweep = save("Each creature in a 15-foot cone must make a {@dc 15} Dexterity saving throw, taking 10 ({@damage 3d6}) slashing damage on a failure or half as much on a success.");
+  assert.equal(sweep.save.half, true);
+  const lash = save("The hag lashes one creature within 10 feet, which must make a {@dc 14} Strength saving throw or take 9 ({@damage 2d8}) necrotic damage and be knocked {@condition prone}. A creature that succeeds on the saving throw takes half damage and isn't knocked prone.");
+  assert.deepEqual([lash.save.half, lash.onFail], [true, { condition: "prone" }]);
+  const sip = save("One creature within 5 feet must succeed on a {@dc 13} Constitution saving throw or take 7 ({@damage 2d6}) necrotic damage. The hag regains hit points equal to half the damage taken.");
+  assert.equal(sip.save.half, false);
+  // "… damage on a failure" in the middle of its sentence; never the repeated save's own failure.
+  const squeeze = save("The ogre forces a creature it's grappling to make a {@dc 13} Constitution saving throw. The creature takes 7 ({@damage 2d6}) bludgeoning damage on a failure, and half as much damage on a success.");
+  assert.deepEqual([squeeze.status, squeeze.save.half, squeeze.damage], ["full", true, [{ type: "bludgeoning", formula: "2d6" }]]);
+  const dread = save("One creature the ghost can see must make a {@dc 14} Wisdom saving throw, taking 9 ({@damage 2d8}) psychic damage on a failed save. The target can repeat the saving throw at the end of each of its turns, ending the dread on a success, or taking 9 ({@damage 2d8}) psychic damage on a failure.");
+  assert.deepEqual(dread.damage, [{ type: "psychic", formula: "2d8" }]);
+  assert.match(dread.note, /repeat the saving throw/);
+  // "falling prone"; an area on a point ("to a point … within 5 feet of that point", "within 10 ft. of that point"); the
+  // radius without its hyphen, around the monster; a beam.
+  const swipe = save("The hag swipes her tail in a 10-foot cone. Each creature in that area must make a {@dc 15} Dexterity saving throw, taking 9 ({@damage 2d8}) bludgeoning damage and falling {@condition prone} on a failure.");
+  assert.deepEqual([swipe.onFail, swipe.area], [{ condition: "prone" }, { shape: "cone", size: 10, origin: "self" }]);
+  const flare = save("The hag sends a wisp to a point within 30 feet. Each creature within 5 feet of that point must succeed on a {@dc 14} Constitution saving throw or take 7 ({@damage 2d6}) radiant damage.");
+  assert.deepEqual(flare.area, { shape: "sphere", size: 5, origin: "point" });
+  const volley = save("Fiery orbs rain down on a point within 60 ft. that the hag can see. Each creature within 10 ft. of that point must make a {@dc 13} Dexterity saving throw or take 7 ({@damage 2d6}) fire damage.");
+  assert.deepEqual(volley.area, { shape: "sphere", size: 10, origin: "point" });
+  const pyre = save("The hag hurls a ball of black flame that explodes at a point she can see. Each creature in a 10-foot radius sphere centered on that point must make a {@dc 15} Dexterity saving throw, taking 10 ({@damage 3d6}) fire damage on a failed save, or half as much damage on a successful one.");
+  assert.deepEqual(pyre.area, { shape: "sphere", size: 10, origin: "point" });
+  const stomp = save("The hag stomps. Each creature within a 5-foot radius of the hag must make a {@dc 15} Dexterity saving throw, taking 11 ({@damage 2d10}) bludgeoning damage on a failure.");
+  assert.deepEqual(stomp.area, { shape: "sphere", size: 5 });
+  const beam = save("A 5-foot-wide, 60-foot-long beam of shadow bursts from the hag. Each creature in that area must make a {@dc 15} Dexterity saving throw, taking 14 ({@damage 4d6}) necrotic damage on a failed save, or half as much damage on a success.");
+  assert.deepEqual(beam.area, { shape: "line", size: 60, width: 5, origin: "self" });
+  // A sentence that opens with a parenthesis is a sentence: whole in the note.
+  const daze = save("Each creature within 5 feet of the hag must succeed on a {@dc 13} Constitution saving throw or take 4 ({@damage 1d8}) thunder damage and be dazed until the start of the hag's next turn. (A dazed creature can move or act on its turn, not both. It can't take reactions.)");
+  assert.equal(daze.note, "(A dazed creature can move or act on its turn, not both. It can't take reactions.)");
+  // The hit that opens with "The target takes"; the feet spelled out.
+  const [drain] = fiveToolsActions({ name: "Drain Marrow", entries: ["{@atk mw} {@hit 6} to hit, reach 5 ft., one restrained creature. {@h}The target takes 22 ({@damage 4d10}) necrotic damage."] });
+  assert.deepEqual([drain.status, drain.damage], ["full", [{ type: "necrotic", formula: "4d10" }]]);
+  const [mote] = fiveToolsActions({ name: "Mote of Frost", entries: ["{@atk rs} {@hit 8} to hit, range 90 feet, one target. {@h}13 ({@damage 3d8}) cold damage."] });
+  assert.deepEqual([mote.status, mote.attack], ["full", { bonus: 8, type: "ranged", range: { normal: 90 } }]);
+});

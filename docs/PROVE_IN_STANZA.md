@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **182** |
+| **B. Console attacchi, mostri e capacità** | **188** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -59,6 +59,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B21. Talenti: le fondamenta | 7 |
 | B23. Talenti nella console attacchi | 6 |
 | B24. Incantesimi dei talenti | 5 |
+| B25. Statblock da testo: le schede di Strahd Reloaded | 6 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -84,7 +85,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **545** |
+| **Totale** | **551** |
 
 ## A. Incantesimi
 
@@ -770,6 +771,17 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3a (decisioni D6, D7). Le 
 - [ ] **I riposi:** dopo il lancio, l'uso di Teletrasporto Fatato torna con **Riposo breve**, quelli degli altri talenti solo con **Riposo lungo**.
 - [ ] **Il libro:** Passo velato compare nel libro come «Talento: Contaminazione Fatata», preparato; lanciato dal libro chiede uno slot come gli altri.
 - [ ] **Il doppione:** con un'azione rapida di Passo velato, la riga del talento in Modifica → Capacità avvisa che va tolta da lì; **Salva** non è bloccato.
+
+### B25. Statblock da testo: le schede di Strahd Reloaded
+
+Fonte: [STUDIO_IMPORT_STATBLOCK_TESTO.md](STUDIO_IMPORT_STATBLOCK_TESTO.md), lotto ST3 (§14.7 e §14.8). Le voci sono nuove: nessuna lista le aveva. Serve un nemico e le schede delle pagine «Non-Player Characters» e «Bestiary» delle appendici di Strahd Reloaded, copiate dal browser.
+
+- [ ] **Una scheda del sito:** incolla la scheda in **Importa** e premi **Leggi**. La riga «Da testo: …» non nomina righe non lette, e fra i tratti non c'è «Testo non letto». Gli attacchi hanno bonus e portata, e i danni scritti senza media hanno la loro formula.
+- [ ] **Le immunità:** in una scheda con «Immunities», i tipi di danno vanno in Difese ai danni e le condizioni fra le immunità alle condizioni.
+- [ ] **Le sezioni:** in Statistiche → **Statblock originale**, il paragrafo che apre le reazioni sta prima delle reazioni, senza nome. In Capacità non è una voce. La Spellcasting resta nella sezione dove la scheda la mette.
+- [ ] **Metà danni al successo:** in una scheda con un'azione bonus che dice «A creature that succeeds on the saving throw takes half damage», chi supera il TS nella console prende metà danni, non zero.
+- [ ] **Werewolf Brawler:** dalla pagina Bestiary, importa il Werewolf Brawler. Nella scheda Attacchi della console c'è «Crushing Grip (bonus action)» con l'etichetta arancione **Azione bonus**, mentre le altre righe dicono Azione: TS di Costituzione CD 14, 3d6 contundenti, metà a chi lo supera. Da provare in vista compatta ed estesa.
+- [ ] **Da 5eTools:** importa **Mind Flayer** (MM): Extract Brain si registra con 10d10 perforanti. Importa **Fomorian** (MM): Evil Eye si registra con 6d8 psichici e senza area.
 
 ## C. Tracker e UX
 

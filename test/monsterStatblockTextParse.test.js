@@ -7,6 +7,8 @@ import { readFileSync } from "node:fs";
 import { fiveToolsMonsterToStatblock, fiveToolsStatblockSections } from "../src/fiveToolsMonsterCore.js";
 import { isStatblockEntryName, looksLikeStatblockText, MAX_STATBLOCK_TEXT, parseStatblockText, UNREAD_TEXT_TRAIT } from "../src/monsterStatblockTextParseCore.js";
 import { printedStatblockText } from "../test-support/statblockTextPrint.js";
+import { pcAttackMonsterTraitEntries } from "../src/pcAttackMonsterTraitsCore.js";
+import { monsterReactionsFromView } from "../src/monsterReactionParseCore.js";
 
 const srd = JSON.parse(readFileSync(new URL("../test-support/fivetools-srd-monsters.json", import.meta.url), "utf8"));
 const withoutOrigin = ({ ref: _ref, source: _source, portrait: _portrait, ...block }) => block;
@@ -324,4 +326,96 @@ test("le difese come nel libro: i gruppi con una nota dopo il punto e virgola (D
   assert.equal(line("Damage Resistances"), "cold; bludgeoning, piercing, and slashing from nonmagical attacks that aren't silvered");
   assert.equal(line("Damage Immunities"), "fire, poison");
   assert.equal(line("Condition Immunities"), "charmed, poisoned");
+});
+
+// Lotto ST3: an invented stat block written as homebrew sites print it (Strahd Reloaded's NPCs, copied from the page): a
+// type without a size, the scores in a table copied with tabs and an en dash for the minus, the 2024 labels, a label with
+// a period, attacks without the colon or the reach, a damage without its average, a spellcasting among the actions, the
+// paragraph that opens the reactions.
+const tab = String.fromCharCode(9);
+const homebrew = [
+  "Ash Witch, Second Form",
+  "Swarm of three crows, neutral evil",
+  "Armor Class 15 (natural armor)",
+  "Hit Points 82 (11d8 + 33)",
+  "Speed 40, fly (hover) 30 ft.",
+  ["STR", "DEX", "CON", "INT", "WIS", "CHA"].join(tab),
+  ["9 (–1)", "18 (+4)", "16 (+3)", "16 (+3)", "14 (+2)", "14 (+2)"].join(tab),
+  "Saving Throws Dex +7, Wis +5",
+  "Resistances bludgeoning, piercing, and slashing damage",
+  "Immunities poison; charmed, poisoned",
+  "Senses darkvision 60 ft., passive Perception 15",
+  "Languages Common",
+  "Challenge 6 (2,300 XP)",
+  "Proficiency Bonus. +3",
+  "",
+  "Blood Frenzy. The witch has advantage on melee attack rolls against any creature that doesn't have all its hit points.",
+  "",
+  "Actions",
+  "",
+  "Knife. (Witch Form Only) Melee Weapon Attack +7 to hit, 5 ft., one target. Hit: 6 (1d4 + 4) piercing damage.",
+  "",
+  "Claw. Melee Weapon Attack, +7 to hit, range 5 ft., 1 target. Hit: 8 (1d8 + 4) slashing damage.",
+  "",
+  "Broom. Melee Weapon Attack: +7 to hit, one target, reach 10 ft. Hit: 7 (1d6 + 4) bludgeoning damage.",
+  "",
+  "Firebomb (1/day). The witch hurls a flask at a point within 30 feet. Each creature within 10 feet of that point must succeed on a DC 14 Dexterity saving throw or take 2d6 fire damage.",
+  "",
+  "Cackle (1/day) The witch cackles. Each creature within 30 feet that can hear her must succeed on a DC 14 Wisdom saving throw or be frightened until the end of its next turn.",
+  "",
+  "Spellcasting. The witch casts one of the following spells, using Charisma as the spellcasting ability (spell save DC 14):",
+  "At will: mage hand, minor illusion",
+  "2/day each: hold person, misty step",
+  "",
+  "Reactions",
+  "",
+  "The witch can take up to three reactions per round, but only one per turn.",
+  "",
+  "Parry. The witch adds 3 to its AC against one melee attack that would hit it.",
+].join("\n");
+
+test("un sito homebrew (lotto ST3): tipo senza taglia, tabella con tabulazioni, etichette 2024, attacchi scritti male", () => {
+  const { monster, block, report } = read(homebrew);
+  assert.deepEqual(report.filter((entry) => /non lett/.test(entry)), []);
+  assert.equal(monster.type, "Swarm of three crows, neutral evil");
+  assert.equal(monster.size, undefined, "no size, the token's stays");
+  assert.deepEqual(monster.trait.map((trait) => trait.name), ["Blood Frenzy"], "«Proficiency Bonus. +3» is a label");
+  assert.deepEqual(block.abilities, { str: 9, dex: 18, con: 16, int: 16, wis: 14, cha: 14 });
+  assert.deepEqual(monster.speed, { walk: 40, fly: { number: 30, condition: "(hover)" }, canHover: true });
+  assert.deepEqual([monster.resist, monster.immune, monster.conditionImmune], [["bludgeoning", "piercing", "slashing"], ["poison"], ["charmed", "poisoned"]]);
+  const action = (name) => block.actions.find((entry) => entry.name === name);
+  assert.deepEqual(action("Knife (Witch Form Only)").attack, { bonus: 7, type: "melee", reach: 5 });
+  assert.deepEqual(action("Claw").attack, { bonus: 7, type: "melee", reach: 5 }, "a melee attack's «range 5 ft.» is its reach");
+  assert.deepEqual([action("Broom").attack, action("Broom").damage], [{ bonus: 7, type: "melee", reach: 10 }, [{ type: "bludgeoning", formula: "1d6+4" }]],
+    "the target before the reach");
+  assert.deepEqual([action("Firebomb").save, action("Firebomb").damage, action("Firebomb").uses],
+    [{ ability: "dex", dc: 14, half: false }, [{ type: "fire", formula: "2d6" }], 1]);
+  assert.match(monster.action.find((entry) => entry.name.startsWith("Firebomb")).entries[0], /take 7 \(\{@damage 2d6\}\) fire damage/, "the average the book would print");
+  // "Cackle (1/day) The witch …": the period after the uses forgotten, at the start of a paragraph; an entry of its own.
+  assert.doesNotMatch(monster.action.find((entry) => entry.name.startsWith("Firebomb")).entries.join(" "), /Cackle/);
+  assert.deepEqual([action("Cackle").save, action("Cackle").uses, action("Cackle").onFail.condition], [{ ability: "wis", dc: 14, half: false }, 1, "frightened"]);
+});
+
+test("un sito homebrew (lotto ST3): «Bonus Action» e «Reaction» al singolare sono titoli di sezione", () => {
+  const singular = homebrew.replace("\nReactions\n", "\nReaction\n")
+    .replace("\nSpellcasting.", "\nBonus Action\n\nShove. Melee Weapon Attack: +7 to hit, reach 5 ft., one target. Hit: 6 (1d4 + 4) bludgeoning damage.\n\nActions\n\nSpellcasting.");
+  const { monster, block } = read(singular);
+  assert.deepEqual(monster.bonus.map((entry) => entry.name), ["Shove"]);
+  assert.ok(block.actions.some((entry) => entry.name === "Shove (bonus action)"));
+  assert.deepEqual(monster.reaction.map((entry) => entry.name), ["Parry"]);
+});
+
+test("un sito homebrew (lotto ST3): la Spellcasting fra le azioni e il paragrafo che apre le reazioni", () => {
+  const { monster, block } = read(homebrew);
+  assert.deepEqual(monster.spellcasting.map((entry) => entry.displayAs), ["action"]);
+  assert.equal(block.spellSaveDC, 14);
+  assert.deepEqual(block.innateSpells, [{ name: "mage hand" }, { name: "minor illusion" }, { name: "hold person", perDay: 2 }, { name: "misty step", perDay: 2 }]);
+  assert.deepEqual(monster.reactionHeader, ["The witch can take up to three reactions per round, but only one per turn."]);
+  assert.deepEqual(monster.reaction.map((entry) => entry.name), ["Parry"]);
+  const view = fiveToolsStatblockSections(monster);
+  const reactions = view.sections.find((section) => section.title === "Reactions").entries;
+  assert.deepEqual(reactions.map((entry) => entry.name), ["", "Parry"], "the opening paragraph first, without a name");
+  assert.ok(view.sections.find((section) => section.title === "Actions").entries.some((entry) => entry.name === "Spellcasting"));
+  assert.deepEqual(pcAttackMonsterTraitEntries(view).filter((entry) => entry.group === "monster-reaction").map((entry) => entry.label), ["Parry"]);
+  assert.deepEqual(monsterReactionsFromView(view).map((reaction) => [reaction.name, reaction.amount]), [["Parry", 3]]);
 });

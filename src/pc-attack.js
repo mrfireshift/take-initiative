@@ -1222,7 +1222,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // listed apart, names its level. A legendary action says only a cost above 1: its group's title says the rest.
     const favourite=entry=>entry.tab==="spells" && entry.pinned;
     const legendaryCost=text=>{const cost=String(text || "").match(/^leggendaria(?: \((\d+)\))?$/u);return cost?(cost[1]?`costo ${cost[1]}`:""):text;};
-    const rowCost=entry=>entry.tab==="features"?legendaryCost(entry.activation):entry.tab==="attacks"?"azione":castingTimeLabel(entry.spellId);
+    const rowCost=entry=>entry.tab==="features"?legendaryCost(entry.activation):entry.tab==="attacks"?(entry.activation || "azione"):castingTimeLabel(entry.spellId);
     const rowParts=entry=>(entry.tab==="features"
       ?[featureActive(entry)?{text:"attiva",title:"Capacità attiva"}:null,
         ...featureUses(entry).map(row=>({text:`${row.current}/${row.maximum}`,title:row.name,uses:true,zero:row.current===0}))]

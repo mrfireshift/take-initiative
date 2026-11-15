@@ -19,8 +19,9 @@ const WIDE_SPACES = new RegExp(`[${[0x9, 0xa0, 0x2007, 0x2009, 0x202f].map(char)
 const LIGATURES = Object.freeze([[0xfb00, "ff"], [0xfb01, "fi"], [0xfb02, "fl"], [0xfb03, "ffi"], [0xfb04, "ffl"]].map(([code, text]) => [char(code), text]));
 const SINGLE_QUOTES = new RegExp(`[${char(0x2018)}${char(0x2019)}]`, "g");
 const DOUBLE_QUOTES = new RegExp(`[${char(0x201c)}${char(0x201d)}]`, "g");
-// The minus sign stays in the prose, as the book prints it, and becomes "-" only in the numbers the plugin reads.
-const MINUS = new RegExp(char(0x2212), "g");
+// The minus sign (and the en dash a web page often puts in its place, "9 (–1)") stays in the prose, as the book prints
+// it, and becomes "-" only in the numbers the plugin reads.
+const MINUS = new RegExp(`[${char(0x2212)}${char(0x2013)}]`, "g");
 const hyphenMinus = (text) => String(text).replace(MINUS, "-");
 
 const SIZE_CODES = Object.freeze({ tiny: "T", small: "S", medium: "M", large: "L", huge: "H", gargantuan: "G" });
@@ -35,21 +36,26 @@ const HEADER_LABELS = Object.freeze([
   ["damage vulnerabilities", "vulnerable"], ["damage resistances", "resist"], ["damage immunities", "immune"],
   ["condition immunities", "conditionImmune"], ["senses", "senses"], ["languages", "languages"], ["challenge", "cr"],
   ["proficiency bonus", "pb"],
+  // The labels of the 2024 layout that homebrew 2014 stat blocks borrow: "Immunities" holds damage types and conditions.
+  ["resistances", "resist"], ["vulnerabilities", "vulnerable"], ["immunities", "immunities"], ["gear", "gear"], ["initiative", "initiative"],
 ]);
+// The headings in the singular too ("Bonus Action", "Reaction"): a bonus action under one is never an action (lotto ST3).
 const HEADINGS = Object.freeze({ ACTIONS: "action", BONUSACTIONS: "bonus", REACTIONS: "reaction", LEGENDARYACTIONS: "legendary",
-  MYTHICACTIONS: "mythic", LAIRACTIONS: "lair", REGIONALEFFECTS: "regional" });
+  MYTHICACTIONS: "mythic", LAIRACTIONS: "lair", REGIONALEFFECTS: "regional", ACTION: "action", BONUSACTION: "bonus",
+  REACTION: "reaction", LEGENDARYACTION: "legendary", MYTHICACTION: "mythic", LAIRACTION: "lair" });
 const UNREAD_SECTIONS = Object.freeze({ lair: "Lair Actions", regional: "Regional Effects" });
 const ABILITY_KEYS = Object.freeze(["str", "dex", "con", "int", "wis", "cha"]);
 const ABILITY_BY_NAME = Object.freeze({ str: "str", strength: "str", dex: "dex", dexterity: "dex", con: "con", constitution: "con",
   int: "int", intelligence: "int", wis: "wis", wisdom: "wis", cha: "cha", charisma: "cha" });
-const ABILITY_LINE = /^(?:\s|\||STR|DEX|CON|INT|WIS|CHA|\d+|\(\s*[+\-−]?\s*\d+\s*\))+$/i;
+const ABILITY_LINE = /^(?:\s|\||STR|DEX|CON|INT|WIS|CHA|\d+|\(\s*[+\-−–]?\s*\d+\s*\))+$/i;
 const DAMAGE_TYPES = "acid|bludgeoning|cold|fire|force|lightning|necrotic|piercing|poison|psychic|radiant|slashing|thunder";
 const DAMAGE_RUN = new RegExp(String.raw`^(.*?)\b((?:${DAMAGE_TYPES})(?:(?:,\s*(?:and\s+|or\s+)?|\s+and\s+|\s+or\s+)(?:${DAMAGE_TYPES}))*)\b(.*)$`, "i");
 const PHYSICAL_TYPES = new Set(["bludgeoning", "piercing", "slashing"]);
 const CONDITION_WORDS = /\b(blinded|charmed|deafened|exhaustion|frightened|grappled|incapacitated|invisible|paralyzed|petrified|poisoned|prone|restrained|stunned|unconscious)\b/g;
 const ATTACK_CODES = Object.freeze({ "melee or ranged weapon attack": "mw,rw", "melee or ranged spell attack": "ms,rs", "melee weapon attack": "mw",
   "ranged weapon attack": "rw", "melee spell attack": "ms", "ranged spell attack": "rs" });
-const ATTACK_LEAD = /^(Melee or Ranged Weapon Attack|Melee or Ranged Spell Attack|Melee Weapon Attack|Ranged Weapon Attack|Melee Spell Attack|Ranged Spell Attack):\s*([+\-−]?\d+) to hit\b/i;
+// The colon after "Attack" is sometimes forgotten, or a comma ("Melee Weapon Attack +7 to hit", "Melee Weapon Attack, +9").
+const ATTACK_LEAD = /^(Melee or Ranged Weapon Attack|Melee or Ranged Spell Attack|Melee Weapon Attack|Ranged Weapon Attack|Melee Spell Attack|Ranged Spell Attack)[:,]?\s*([+\-−–]?\d+) to hit\b/i;
 // A spell list: "Cantrips (at will):", "1st level (4 slots):", "1st–5th level (3 5th-level slots):", "At will:", "3/day each:".
 const SPELL_LEVEL_LINE = /^(?:(Cantrips)|(\d)(?:st|nd|rd|th)(?:\s*[-–]\s*(\d)(?:st|nd|rd|th))?[- ]level)\s*\(([^)]*)\)\s*:\s*(.*)$/i;
 const SPELL_USES_LINE = /^(At will|(\d+)\/(day|week|rest)( each)?)\s*:\s*(.*)$/i;
@@ -148,7 +154,10 @@ function joinHyphenated(lines) {
 function headerLabel(text) {
   const lower = text.toLowerCase();
   for (const [label, field] of HEADER_LABELS) {
-    if (lower === label || lower.startsWith(`${label} `) || lower.startsWith(`${label}:`)) return { field, value: text.slice(label.length).replace(/^:?\s*/, "") };
+    // "Proficiency Bonus +3", "Proficiency Bonus: +3", "Proficiency Bonus. +4".
+    if (lower === label || lower.startsWith(`${label} `) || lower.startsWith(`${label}:`) || lower.startsWith(`${label}.`)) {
+      return { field, value: text.slice(label.length).replace(/^[.:]?\s*/, "") };
+    }
   }
   return null;
 }
@@ -163,9 +172,15 @@ function headingOf(text) {
 // anywhere when an attack follows its name ("Javelin. Melee or Ranged Weapon Attack:"), or for a spellcasting. A long name
 // is one with its parentheses ("Psychic Screech (Hybrid Form Only; Recharges after a Short or Long Rest)").
 const PARAGRAPH_LINE = 100;
+// "Finger of Death (1/day) Rahadin casts finger of death.": a site that forgot the period after the uses. Only at the start
+// of a paragraph, and only with the uses in parentheses ("(1/day)", "(Recharge 5–6)", "(Costs 2 Actions)").
+const USES_NAME = /^([A-Z][^.()]{0,60}? \((?:\d+\/(?:[Dd]ay|[Rr]est|[Ww]eek)(?: [Ee]ach)?|Recharge [^)]{1,20}|Recharges after a [^)]{1,40}|Costs \d+ Actions?)\))\s+([A-Z].*)$/;
 function entryStart(text, previous) {
   const match = text.match(/^([A-Z][^.]{0,120}?)\.(?:\s+(.*))?$/);
-  if (!match || !isStatblockEntryName(match[1])) return null;
+  if (!match || !isStatblockEntryName(match[1])) {
+    const uses = previous.kind === "blank" ? text.match(USES_NAME) : null;
+    return uses && isStatblockEntryName(uses[1]) ? { name: uses[1].trim(), rest: uses[2].trim() } : null;
+  }
   const rest = (match[2] || "").trim();
   const after = previous.kind !== "text" || /[.!?:)"']$/.test(previous.text) || previous.text.length >= PARAGRAPH_LINE
     || SPELL_LEVEL_LINE.test(previous.text) || SPELL_USES_LINE.test(previous.text) || ATTACK_LEAD.test(rest) || /\bSpellcasting\b/.test(match[1]);
@@ -211,23 +226,24 @@ function armorClass(text, report) {
 
 // "7 (2d6)", "135 (18d8 + 54)", "1 (1d4 - 1)", "16": { average, formula }; anything else is { special }.
 function hitPoints(text) {
-  const match = text.match(/^(\d+)(?:\s*\((\d+d\d+(?:\s*[+\-−]\s*\d+)?)\))?\s*$/);
+  const match = text.match(/^(\d+)(?:\s*\((\d+d\d+(?:\s*[+\-−–]\s*\d+)?)\))?\s*$/);
   if (!match) return { special: text };
   return { average: Number(match[1]), ...(match[2] ? { formula: hyphenMinus(match[2]).replace(/\s*([+-])\s*/, " $1 ") } : {}) };
 }
 
 // "30 ft., fly 60 ft. (hover), swim 30 ft.": { walk: 30, fly: { number: 60, condition: "(hover)" }, swim: 30, canHover }.
+// Also "fly (hover) 60 ft.", and a number without its unit ("Speed 40"), which is feet.
 function speed(text, report) {
   const out = {};
   for (const part of splitTop(text.replace(/\.$/, ""), ",")) {
-    const match = part.match(/^(?:(walk|fly|swim|climb|burrow)\s+)?(\d+)\s*(?:ft\.?|feet)(?:\s*(\(.*\)))?$/i);
+    const match = part.match(/^(?:(walk|fly|swim|climb|burrow)\s+)?(\(hover\)\s*)?(\d+)\s*(?:ft\.?|feet)?(?:\s*(\(.*\)))?$/i);
     if (!match) {
       report.push(`velocità non letta: «${part}»`);
       continue;
     }
     const mode = (match[1] || "walk").toLowerCase();
-    const number = Number(match[2]);
-    const condition = match[3] || "";
+    const number = Number(match[3]);
+    const condition = match[2] ? "(hover)" : match[4] || "";
     if (/^\(hover\)$/i.test(condition)) out.canHover = true;
     out[mode] = condition ? { number, condition } : number;
   }
@@ -285,7 +301,8 @@ function defenses(text, field) {
     }
     const preNote = match[1].trim();
     const types = match[2].split(/,\s*(?:and\s+|or\s+)?|\s+and\s+|\s+or\s+/).map((type) => type.trim().toLowerCase()).filter(Boolean);
-    const note = match[3].trim();
+    // "bludgeoning, piercing, and slashing damage" is a plain list; "… damage from nonmagical attacks" keeps its note.
+    const note = match[3].trim().replace(/^damage\b\s*/i, "");
     if (!preNote && !note) {
       out.push(...types);
       continue;
@@ -330,14 +347,33 @@ function taggedActionName(name) {
   return name.replace(/\s*\(Recharge (\d)(?:\s*[-–]\s*6)?\)/i, (_, low) => (low === "6" ? " {@recharge}" : ` {@recharge ${low}}`));
 }
 
+// "take 2d6 fire damage", without the average the book prints first: the average, as the book would ("7 (2d6)").
+const BARE_DAMAGE = new RegExp(String.raw`(^|[^(\w])(\d+)d(\d+)(?:\s*([+\-−–])\s*(\d+))?(?= (?:${DAMAGE_TYPES}) damage\b)`, "gi");
+function withAverageDamage(text) {
+  return text.replace(BARE_DAMAGE, (_, before, count, sides, sign, bonus) => {
+    const modifier = bonus ? (hyphenMinus(sign) === "-" ? -Number(bonus) : Number(bonus)) : 0;
+    const average = Math.max(1, Math.floor((Number(count) * (Number(sides) + 1)) / 2) + modifier);
+    return `${before}${average} ({@damage ${count}d${sides}${bonus ? ` ${hyphenMinus(sign)} ${bonus}` : ""}})`;
+  });
+}
+
 function taggedActionText(text) {
   let value = text;
   const lead = value.match(ATTACK_LEAD);
   if (lead) {
-    value = `{@atk ${ATTACK_CODES[lead[1].toLowerCase()]}} {@hit ${Number(hyphenMinus(lead[2]))}} to hit${value.slice(lead[0].length)}`;
+    const code = ATTACK_CODES[lead[1].toLowerCase()];
+    value = `{@atk ${code}} {@hit ${Number(hyphenMinus(lead[2]))}} to hit${value.slice(lead[0].length)}`;
+    // "+6 to hit, one target, reach 5 ft.": the targets before the reach, put back in the book's order.
+    value = value.replace(/^(\{@atk [a-z,]+\} \{@hit -?\d+\} to hit(?: \([^)]*\))?), ((?:one|two|three|four|\d+|any number of) [^,.]{1,60}?), ((?:reach|range) \d+(?:\/\d+)? (?:ft\.|feet)(?: or range \d+(?:\/\d+)? (?:ft\.|feet))?)[,.]?(?= )/,
+      "$1, $3, $2.");
+    // "+7 to hit, 5 ft., one target": the reach of a melee attack, the range of a ranged one; a melee attack's "range 5 ft." is
+    // its reach. ("range 30 feet", spelled out, the adapter reads as it is.)
+    const bare = value.match(/^(\{@atk [a-z,]+\} \{@hit -?\d+\} to hit(?: \([^)]*\))?[,.] )(range )?(\d+(?:\/\d+)? (?:ft\.|feet))/);
+    if (bare && /^m[ws]$/.test(code) && !bare[3].includes("/")) value = `${bare[1]}reach ${bare[3]}${value.slice(bare[0].length)}`;
+    else if (bare && !bare[2] && /^r[ws]$/.test(code)) value = `${bare[1]}range ${bare[3]}${value.slice(bare[0].length)}`;
     value = value.replace(/\bHit: ?/, "{@h}");
   }
-  return value.replace(/(\d+) \((\d+d\d+(?: ?[+\-−] ?\d+)?)\)/g, (_, average, formula) => `${average} ({@damage ${hyphenMinus(formula)}})`)
+  return withAverageDamage(value).replace(/(\d+) \((\d+d\d+(?: ?[+\-−–] ?\d+)?)\)/g, (_, average, formula) => `${average} ({@damage ${hyphenMinus(formula)}})`)
     .replace(/\bDC (\d+)\b/g, "{@dc $1}").replace(CONDITION_WORDS, "{@condition $1}");
 }
 
@@ -470,7 +506,7 @@ function spellcastingBlock(entry, report) {
     block.will = named;
     block.hidden = ["will"];
   }
-  const headerText = textOf(header).replace(/\bDC (\d+)\b/g, "{@dc $1}").replace(/([+\-−]\d+) to hit\b/g, (_, bonus) => `{@hit ${Number(hyphenMinus(bonus))}} to hit`);
+  const headerText = textOf(header).replace(/\bDC (\d+)\b/g, "{@dc $1}").replace(/([+\-−–]\d+) to hit\b/g, (_, bonus) => `{@hit ${Number(hyphenMinus(bonus))}} to hit`);
   if (headerText) block.headerEntries = [headerText];
   if (footer.length) block.footerEntries = [textOf(footer)];
   if (!lists && !named.length) report.push(`${entry.name}: nessun elenco di incantesimi letto`);
@@ -526,6 +562,11 @@ export function parseStatblockText(text) {
   if (kind) {
     Object.assign(monster, kind);
     index += 1;
+  } else if (index < lines.length && !lines[index].name && !headerLabel(lines[index].text) && !/^STR(?:\s|$)/i.test(lines[index].text)
+    && !headingOf(lines[index].text) && !entryStart(lines[index].text, { kind: "header" })) {
+    // A type line without a size ("Trio of three medium fiends, neutral evil"): kept as written, the token's size untouched.
+    monster.type = lines[index].text;
+    index += 1;
   }
 
   // The header: its labels, the scores, a value that runs on the next line; it ends at the first heading or entry.
@@ -573,10 +614,17 @@ export function parseStatblockText(text) {
       if (read) monster.skill = read;
     } else if (["vulnerable", "resist", "immune"].includes(field)) {
       const read = defenses(value, field);
-      if (read) monster[field] = read;
+      if (read) monster[field] = [...(monster[field] || []), ...read];
     } else if (field === "conditionImmune") {
       const read = conditionImmunities(value);
-      if (read) monster.conditionImmune = read;
+      if (read) monster.conditionImmune = [...(monster.conditionImmune || []), ...read];
+    } else if (field === "immunities") {
+      // "Immunities poison; charmed, poisoned": the groups with damage types are damage immunities, the others conditions.
+      for (const group of splitTop(value, ";")) {
+        const read = DAMAGE_RUN.test(group) ? defenses(group, "immune") : null;
+        if (read) monster.immune = [...(monster.immune || []), ...read];
+        else monster.conditionImmune = [...(monster.conditionImmune || []), ...(conditionImmunities(group) || [])];
+      }
     } else if (field === "senses") {
       const read = senses(value);
       if (read.senses.length) monster.senses = read.senses;
@@ -607,7 +655,12 @@ export function parseStatblockText(text) {
     }
     const start = line.name ? { name: line.name, rest: line.text } : entryStart(line.text, previous);
     if (start) {
-      current = { name: start.name, lines: start.rest ? [start.rest] : [] };
+      // "Shortsword. (Humanoid or Hybrid Form Only) Melee Weapon Attack: …": the form goes with the name, as 5eTools has it;
+      // a text that is only a parenthesis ("(testo omesso)") stays the text.
+      const form = start.rest.match(/^\(([^()]{1,60})\)\s*(\S.*)$/);
+      const name = form ? `${start.name} (${form[1]})` : start.name;
+      const rest = form ? form[2] : start.rest;
+      current = { name, lines: rest ? [rest] : [] };
       sectionOf(section).entries.push(current);
     } else if (current) current.lines.push(line.text);
     else sectionOf(section).intro.push(line.text);
@@ -621,14 +674,22 @@ export function parseStatblockText(text) {
     else traits.push({ name: entry.name, entries: [textOf(entry.lines)] });
   }
   if (sections.trait?.intro.length) unread.push(...sections.trait.intro);
-  for (const [key, field] of [["action", "action"], ["bonus", "bonus"]]) {
+  // Actions, bonus actions, reactions: the paragraph that opens a section ("Volenta can take up to three reactions per
+  // round") is its header, as 5eTools keeps it (actionHeader, bonusHeader, reactionHeader); a Spellcasting among them is
+  // a spellcasting shown there (displayAs), as in a 2024 stat block.
+  for (const [key, field] of [["action", "action"], ["bonus", "bonus"], ["reaction", "reaction"]]) {
     if (!sections[key]) continue;
-    if (sections[key].intro.length) unread.push(...sections[key].intro);
-    monster[field] = withListItems(sections[key].entries).map((entry) => ({ name: taggedActionName(entry.name), entries: actionEntries(textOf(entry.lines), entry.items || null) }));
-  }
-  if (sections.reaction) {
-    if (sections.reaction.intro.length) unread.push(...sections.reaction.intro);
-    monster.reaction = sections.reaction.entries.map((entry) => ({ name: entry.name, entries: [textOf(entry.lines)] }));
+    const intro = textOf(sections[key].intro);
+    if (intro) monster[`${field}Header`] = [intro];
+    const entries = sections[key].entries.filter((entry) => {
+      if (!/\bSpellcasting\b/.test(entry.name)) return true;
+      spellcasting.push({ ...spellcastingBlock(entry, report), displayAs: key });
+      return false;
+    });
+    if (!entries.length) continue;
+    monster[field] = key === "reaction"
+      ? entries.map((entry) => ({ name: entry.name, entries: [textOf(entry.lines)] }))
+      : withListItems(entries).map((entry) => ({ name: taggedActionName(entry.name), entries: actionEntries(textOf(entry.lines), entry.items || null) }));
   }
   if (sections.legendary) {
     const intro = textOf(sections.legendary.intro);

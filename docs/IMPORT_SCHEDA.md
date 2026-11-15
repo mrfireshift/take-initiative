@@ -191,7 +191,7 @@ Uno statblock completo:
 
 | Chiave dell'azione | Contenuto |
 | --- | --- |
-| `name` | Nome dell'azione. Un'azione chiamata "Multiattack" o "Multiattacco" diventa il testo del multiattacco (dal suo `note`). |
+| `name` | Nome dell'azione. Un'azione chiamata "Multiattack" o "Multiattacco" diventa il testo del multiattacco (dal suo `note`). Un'azione bonus finisce con "(bonus action)" o "(azione bonus)", per esempio "Crushing Grip (bonus action)": la console la segna **Azione bonus**. Dal testo e da 5eTools il segno arriva da sé. |
 | `attack` | Attacco con tiro per colpire: `bonus`, `type` (`melee` o `ranged`), `reach` (portata) oppure `range: { normal, long }` (gittata). Bonus, portata e gittata si mostrano, non si controllano: i dadi si tirano al tavolo. |
 | `save` | Tiro salvezza al posto del tiro per colpire: `ability` (`str`… o il nome, anche in italiano), `dc`, `half: true` se chi supera subisce metà danni. Senza `area` vale per una creatura. |
 | `area` | `shape` (`cone`, `line`, `sphere`, `cube`, `cylinder` o `target`) e `size` in piedi (raggio per sfera e cilindro, lato per il cubo); `width` per la linea; per `target`, `targets` è il numero di creature. `origin`: `"self"` (un soffio, «each creature within 30 feet of the dragon») o `"point"` (una sfera su un punto); `"choice": true` per «each creature of its choice». La console disegna l'area alla sua misura, o propone da sola le creature attorno al mostro. |

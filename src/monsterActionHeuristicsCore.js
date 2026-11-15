@@ -48,14 +48,31 @@ export function monsterActionPlainText(value) {
   }).replace(/\s+/g, " ").trim();
 }
 
-const sentencesOf = (text) => text.split(/(?<=\.)\s+(?=[A-Z])/);
+// A sentence can open with a parenthesis: "… until the start of its next turn. (A dazed creature can move or take one
+// action on its turn, not both.)" (statblock da testo, lotto ST3).
+const sentencesOf = (text) => text.split(/(?<=\.)\s+(?=\(?[A-Z])/);
+
+// A sentence after the DC's that tells what a failure does: "On a failed save, …", "On a failure, …", one with the damage of
+// a failure ("A target takes 7 (2d6) fire damage on a failed save, or half as much damage on a successful one", statblock
+// da testo, lotto ST3) or one about who fails ("A target that fails the save is also knocked prone"); never a failure by 5
+// or more, which stays in the note.
+// Never the repeated save's own failure ("The target can repeat the saving throw …, or taking 11 (2d10) psychic damage on a
+// failure", the yuan-ti nightmare speaker).
+export const FAILURE_SENTENCE = /^On a fail(?:ed save|ure)\b|^(?!.*\brepeats? the sav).*?(?:\bon a (?:failed (?:save|saving throw)|failure)\b|\bthat fails (?:the|its) (?:save|saving throw)\b(?! by\b))/i;
+
+// Half damage on a success, as the book says it ("or half as much damage on a successful one") and as homebrew writes it
+// ("or half as much on a success", "A creature that succeeds on the saving throw takes half damage", "On a successful
+// save, a creature takes half the damage", "or half damage on a success"; statblock da testo, lotto ST3). Never the half
+// of a healing ("regains hit points equal to half the damage taken").
+export const SAVE_HALF = /\bhalf as much damage\b|\bhalf as much on a success|\bhalf (?:the )?damage on a success|\b(?:succeeds on (?:the|its|a) (?:save|saving throw)|On a successful save|On a success)\b[^.]*?\btakes? half (?:the )?damage\b/i;
 
 // The conditions a failure (or a hit) gives: "or be frightened", "or become poisoned and paralyzed", "is knocked prone",
 // "or fall unconscious", "be magically charmed". Never one the text only names ("can't be charmed", "immune to").
 export function monsterActionConditions(text) {
   const plain = monsterActionPlainText(text);
   const found = [];
-  const pattern = new RegExp(String.raw`\b(?:be|become|becomes|is|are|fall|falls|knocked)(?: \w+ly)?(?: knocked)? ${CONDITION}((?:(?:,| and| or|, and) (?:is |be |become )?${CONDITION})*)`, "gi");
+  // "taking 9 (2d8) bludgeoning damage and falling prone on a failure" (statblock da testo, lotto ST3) too.
+  const pattern = new RegExp(String.raw`\b(?:be|become|becomes|is|are|fall|falls|falling|knocked)(?: \w+ly)?(?: knocked)? ${CONDITION}((?:(?:,| and| or|, and) (?:is |be |become )?${CONDITION})*)`, "gi");
   // The 2024 wording (fase 3, lotto 6): "has the Poisoned condition", "has the Grappled condition (escape DC 13)", "has the
   // Blinded and Deafened conditions"; never a choice ("the Charmed or Poisoned condition (pixie's choice)").
   const pattern2024 = new RegExp(String.raw`\bha(?:s|ve) the ${CONDITION}(?:(?:,| and|, and) ${CONDITION})* conditions?\b`, "gi");
@@ -115,9 +132,10 @@ export function monsterActionAreaOrigin(text, shape = "") {
   const plain = monsterActionPlainText(text);
   const choice = /\bof (?:its|their|the [\w' -]+?'s) choice\b/i.test(plain);
   let origin = null;
-  if (/centered on a point|at a point|on a point (?:it|that it|the [\w' ]+) can see/i.test(plain)) origin = "point";
+  // "directs one of its wisps to a point within 30 feet … Each creature within 5 feet of that point" (lotto ST3) too.
+  if (/centered on (?:a|that) point|at a point|on a point (?:it|that it|the [\w' ]+) can see|\bto a point\b|\bof that point\b/i.test(plain)) origin = "point";
   // "within 120 feet of the dragon", "of it", "of Arveiaturace": a sphere that is not on a point is the monster's own.
-  else if (["cone", "line", "cube"].includes(shape) || /within \d+ feet of\b/i.test(plain)
+  else if (["cone", "line", "cube"].includes(shape) || /within \d+ (?:feet|ft\.) of\b/i.test(plain)
     || /centered on (?:itself|it|the [\w' -]+)\b/i.test(plain)) origin = "self";
   return { origin, choice };
 }
@@ -128,12 +146,18 @@ export function monsterSaveEffects(text) {
   const plain = monsterActionPlainText(text);
   const sentences = sentencesOf(plain);
   const start = sentences.findIndex((sentence) => SAVE.test(sentence));
-  const failure = start < 0 ? "" : [sentences[start], ...sentences.slice(start + 1).filter((sentence) => /^On a fail(?:ed save|ure)/i.test(sentence))].join(" ");
+  // Up to the next save: a second DC in the same action is not this one's failure, unless it is inside a failure's own
+  // sentence ("On a failure, … (… a DC 15 Constitution saving throw each time …)").
+  const next = start < 0 ? -1 : sentences.findIndex((sentence, index) => index > start && /\bDC \d+\b/.test(sentence) && !/^On a fail/i.test(sentence));
+  const failure = start < 0 ? "" : [sentences[start], ...sentences.slice(start + 1, next < 0 ? undefined : next).filter((sentence) => FAILURE_SENTENCE.test(sentence))].join(" ");
   const after = start < 0 ? plain : sentences.slice(start).join(" ");
   const conditions = monsterActionConditions(failure);
+  // A failure by 5 or more has its own condition and its own duration ("A creature that fails the save by 5 or more is
+  // stunned until the end of its next turn"): never this failure's.
+  const lasting = start < 0 ? plain : [sentences[start], ...sentences.slice(start + 1).filter((sentence) => !/\bfails? (?:the |its )?(?:save |saving throw )?by \d+ or more\b/i.test(sentence))].join(" ");
   return {
     conditions,
-    duration: conditions.length ? monsterActionDuration(after) : null,
+    duration: conditions.length ? monsterActionDuration(lasting) : null,
     repeat: monsterActionRepeat(after),
     immuneHours: monsterActionImmunityHours(after),
     endsOnDamage: /\bends? (?:for (?:a|the) creature )?if (?:the|a|that) (?:creature|target) takes (?:any )?damage/i.test(after),
@@ -213,7 +237,7 @@ export function monsterHitEffects(text) {
     const failed = sentencesOf(from)[0] || "";
     const damage = [...failed.matchAll(DAMAGE)].slice(0, 2).map((match) => ({ type: match[3], formula: match[2].replace(/\s+/g, "").replace("−", "-") }));
     const conditions = monsterActionConditions(failed).filter((condition) => condition !== "grappled");
-    effects.save = { ability: ABILITIES[save[2].toLowerCase()], dc: Number(save[1]), half: /half as much damage/i.test(from),
+    effects.save = { ability: ABILITIES[save[2].toLowerCase()], dc: Number(save[1]), half: SAVE_HALF.test(from),
       ...(damage.length ? { damage } : {}), ...(conditions.length ? { conditions } : {}),
       ...(conditions.length && monsterActionDuration(from) ? { duration: monsterActionDuration(from) } : {}),
       ...(monsterActionRepeat(from) ? { repeat: monsterActionRepeat(from) } : {}) };
