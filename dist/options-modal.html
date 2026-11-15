@@ -25,31 +25,31 @@
       .panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; position: relative; }
       * { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.55) transparent; }
     </style>
-    <script type="module" crossorigin src="/assets/optionsModal-dpOyv9Yn.js"></script>
+    <script type="module" crossorigin src="/assets/optionsModal-CV4IpaVW.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
     <link rel="modulepreload" crossorigin href="/assets/index-Bb_Y0rOR.js">
     <link rel="modulepreload" crossorigin href="/assets/popoverDrag-DljkLkjb.js">
     <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
     <link rel="modulepreload" crossorigin href="/assets/roomMetadataBudget-Dhmti3v9.js">
     <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-BzTu5VWf.js">
-    <link rel="modulepreload" crossorigin href="/assets/perfProbe-BRZNzi8O.js">
-    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-DNPEbbmb.js">
-    <link rel="modulepreload" crossorigin href="/assets/factionRegistry-viJgN6Zv.js">
+    <link rel="modulepreload" crossorigin href="/assets/perfProbe-DY8Uujwi.js">
+    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-DvVJu8nW.js">
+    <link rel="modulepreload" crossorigin href="/assets/factionRegistry-DM101KVN.js">
     <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-C9ClnEcH.js">
     <link rel="modulepreload" crossorigin href="/assets/fiveToolsArchiveCore-tLcUxIcx.js">
-    <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-D27kjyro.js">
-    <link rel="modulepreload" crossorigin href="/assets/optionsSelectors-DPLsoGTT.js">
-    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-NGgWiPTm.js">
-    <link rel="modulepreload" crossorigin href="/assets/trackerPopover-CzjO9zrq.js">
+    <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-DFHVk58p.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsSelectors-B_kGsnBf.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-zobPowJg.js">
+    <link rel="modulepreload" crossorigin href="/assets/trackerPopover-CxlQwWek.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-D9UI-Ijo.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeStyle-BBl-cwqV.js">
     <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-BtPRaIe-.js">
     <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-DbzB9Q20.js">
     <link rel="modulepreload" crossorigin href="/assets/sceneEpoch-B8A8dIDk.js">
     <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-gGdnlg7u.js">
-    <link rel="modulepreload" crossorigin href="/assets/buildInfo-BDXm8ZUu.js">
+    <link rel="modulepreload" crossorigin href="/assets/buildInfo-8eJYZvU-.js">
     <link rel="modulepreload" crossorigin href="/assets/reactionTriggerCatalog-Cqu4qVX-.js">
-    <link rel="modulepreload" crossorigin href="/assets/reactionPromptOption-EjWkUuXh.js">
+    <link rel="modulepreload" crossorigin href="/assets/reactionPromptOption-vpB-YCpw.js">
   </head>
   <body>
     <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/options-modal">
@@ -107,8 +107,12 @@
             <input type="checkbox" data-local="pcAttackAutoOpen" />
           </label>
           <label class="option-toggle compact">
-            <span>Apri a ogni turno di un mostro con attacchi (e la console Boss per i boss)</span>
+            <span>Apri a ogni turno di un mostro con attacchi</span>
             <input type="checkbox" data-local="pcAttackAutoOpenMonsters" data-local-fallback="pcAttackAutoOpen" />
+          </label>
+          <label class="option-toggle compact">
+            <span>Apri la console Boss a ogni turno di un boss (anche alle sue Azioni Epiche)</span>
+            <input type="checkbox" data-local="bossConsoleAutoOpen" data-local-fallback="pcAttackAutoOpenMonsters" />
           </label>
           <div class="option-field five-tools-archive">
             <label for="fiveToolsArchiveInput">Archivio 5eTools (indirizzo della cartella dei dati)</label>

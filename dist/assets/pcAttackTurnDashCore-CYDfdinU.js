@@ -1,0 +1,1 @@
+import{I as r}from"./constants-Vbp0f9BE.js";const s=`${r}/meta`,c="pcAttackState",e="turnActions",T=9;function _(n,a){const o=String(a||""),t=n?.metadata?.[s]?.[c]?.[e];return!o||!t||typeof t!="object"||String(t.turnKey||"")!==o?0:Math.max(0,Math.min(T,Math.floor(Number(t.dashes)||0)))}export{T as M,e as T,_ as c};
