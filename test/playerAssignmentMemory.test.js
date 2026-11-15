@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import test, { mock } from "node:test";
 import {
+  adoptedOwnerForItem,
   localPlayerNamesWith,
   normalizePlayerAssignmentMemory,
   playerAssignmentMemoryWith,
   playerMemoryKeyOfItem,
+  playerMemoryKeysOfItem,
+  rememberedOwnerForItem,
   rememberedPlayerForItem,
   retainPlayerAssignmentMemoryWithinByteBudget,
 } from "../src/playerAssignmentMemoryCore.js";
@@ -83,6 +86,10 @@ stub("../src/metadataKeyScoped.js", {
   METADATA_OWNERSHIP: { PLAYER_ASSIGNMENTS: { key: MEMORY_KEY } },
   writeRoomMetadataKey: async (_room, contract, value) => { env.room[contract.key] = structuredClone(value); env.roomWrites += 1; },
 });
+// Lot GA2: the card registry the memory reads to recognise a token with no identity yet.
+stub("../src/initiativeCards.js", {
+  readInitiativeCardRegistry: async () => ({ registry: structuredClone(env.registry || {}) }),
+});
 const { mountPlayerAssignmentMemory, rememberPlayerAssignment } = await import("../src/playerAssignmentMemory.js");
 
 function fakeObr() {
@@ -96,6 +103,9 @@ function fakeObr() {
     },
     scene: {
       items: {
+        async getItems() { return structuredClone(env.items); },
+        // Lot GA3: the raw changes, where the owner is seen.
+        onChange(listener) { env.ownerListener = listener; return () => {}; },
         async updateItems(ids, update) {
           const drafts = env.items.filter((item) => ids.includes(item.id)).map((item) => structuredClone(item));
           update(drafts);
@@ -130,4 +140,64 @@ test("in Online il background del GM ridà al token il giocatore ricordato; in T
   await settle();
   assert.deepEqual(env.items[0].metadata[META_KEY].assignedPlayer, { id: "user-mario", name: "Mario", color: "#ef4444" });
   assert.equal(env.items[0].createdUserId, "user-mario");
+});
+
+// Lot GA2 of docs/STUDIO_GIOCO_ONLINE.md: a character's token with no identity yet is recognised through the card
+// registry; one the tracker does not know gets its player as Owlbear owner only, to move it before the initiative.
+const character = (id, meta, extra = {}) => ({ id, name: "Eroe", type: "IMAGE", layer: "CHARACTER", createdUserId: "user-gm",
+  ...(meta ? { metadata: { [META_KEY]: meta } } : { metadata: {} }), ...extra });
+const heroId = hero.metadata[META_KEY].actorProfileId;
+const heroEntry = { eroe: { actorProfileId: heroId, name: "Eroe", profile: { armorClass: 16, actorProfileId: heroId }, updatedAt: 10 } };
+
+test("GA2: le chiavi del personaggio: la sua, quella che il registro riconosce, il nome", () => {
+  const fresh = character("fresh", null);
+  assert.deepEqual(playerMemoryKeysOfItem(fresh, heroId), [playerMemoryKeyOfItem(hero), playerMemoryKeyOfItem(fresh)]);
+  assert.deepEqual(playerMemoryKeysOfItem(hero, "actor_other"), [playerMemoryKeyOfItem(hero), playerMemoryKeyOfItem(fresh)],
+    "a token with its own identity keeps it first; the registry's is not asked");
+  const memory = { [playerMemoryKeyOfItem(hero)]: "user-mario" };
+  // A character the tracker knows, still without identity (case C): found through the registry.
+  const known = character("known", { attitude: "pc" });
+  assert.equal(rememberedPlayerForItem(known, memory, { registryActorProfileId: heroId })?.id, "user-mario");
+  assert.equal(rememberedPlayerForItem(known, memory), null, "without the registry the keys do not meet");
+});
+
+test("GA2: un PG nuovo senza metadati riceve solo il proprietario ricordato", () => {
+  const memory = { [playerMemoryKeyOfItem(hero)]: "user-mario" };
+  assert.equal(rememberedOwnerForItem(character("fresh", null), memory, { registryActorProfileId: heroId }), "user-mario");
+  assert.equal(rememberedOwnerForItem(character("fresh", null, { createdUserId: "user-mario" }), memory, { registryActorProfileId: heroId }), "",
+    "already theirs");
+  assert.equal(rememberedOwnerForItem(character("known", { attitude: "pc" }), memory, { registryActorProfileId: heroId }), "",
+    "a token the tracker knows takes the usual assignment");
+  assert.equal(rememberedOwnerForItem(character("prop", null, { layer: "PROP" }), memory, { registryActorProfileId: heroId }), "");
+  assert.equal(rememberedOwnerForItem(character("other", null, { name: "Altro" }), memory), "", "nothing remembered for it");
+});
+
+test("GA3: il proprietario dato dal menu Owner di Owlbear diventa il giocatore assegnato", () => {
+  const players = [{ id: "user-mario", name: "Mario", color: "#ef4444", role: "PLAYER" }, { id: "user-gm", name: "GM", role: "GM" }];
+  const pc = (owner, assigned = null) => character("pc", { attitude: "pc", ...(assigned ? { assignedPlayer: assigned } : {}) }, { createdUserId: owner });
+  assert.deepEqual(adoptedOwnerForItem(pc("user-mario"), players), { id: "user-mario", name: "Mario", color: "#ef4444" });
+  assert.equal(adoptedOwnerForItem(pc("user-gm"), players), null, "back to the GM: the assignment stays (G4)");
+  assert.equal(adoptedOwnerForItem(pc("user-mario", { id: "user-mario", name: "Mario" }), players), null, "already theirs");
+  assert.equal(adoptedOwnerForItem(pc("user-gone"), players), null, "not a connected player");
+  assert.equal(adoptedOwnerForItem(character("orc", { attitude: "enemy" }, { createdUserId: "user-mario" }), players), null);
+});
+
+test("GA2 e GA3 nel background del GM: proprietario al PG nuovo, Owner di Owlbear adottato", async () => {
+  env = { room: { [MEMORY_KEY]: { [playerMemoryKeyOfItem(hero)]: "user-mario" } }, items: [character("fresh", null)], roomWrites: 0,
+    registry: heroEntry };
+  const obr = fakeObr();
+  mountPlayerAssignmentMemory({ obr, service: { subscribe: (_selector, listener) => { env.profileListener = listener; return () => {}; } } });
+  env.profileListener(true);
+  await settle();
+  assert.equal(env.items[0].createdUserId, "user-mario", "the new token is the player's at once");
+  assert.deepEqual(env.items[0].metadata, {}, "no plugin metadata on a token the tracker does not know");
+
+  // GA3: a character of the tracker without a player; the GM gives it to Mario from Owlbear's Owner menu.
+  env.items = [character("pc", { attitude: "pc", actorProfileId: "actor_other-1111" })];
+  env.ownerListener(structuredClone(env.items));
+  env.items[0].createdUserId = "user-mario";
+  env.ownerListener(structuredClone(env.items));
+  await settle();
+  assert.deepEqual(env.items[0].metadata[META_KEY].assignedPlayer, { id: "user-mario", name: "Mario", color: "#ef4444" });
+  assert.equal(env.room[MEMORY_KEY][playerMemoryKeyOfItem(env.items[0])], "user-mario", "and it is remembered");
 });

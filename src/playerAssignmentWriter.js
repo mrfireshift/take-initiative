@@ -10,6 +10,27 @@ import { ID } from "./constants.js";
 
 const META_KEY = `${ID}/meta`;
 
+// Lot GA2 of docs/STUDIO_GIOCO_ONLINE.md: the Owlbear owner alone, for a character's token the tracker does not know
+// yet. Checked again on the draft: a token that got the plugin's metadata in between is left to the usual assignment.
+// Returns whether Owlbear took it.
+export async function writeTokenOwner(id, ownerId, { isCurrent = () => true, obr = OBR } = {}) {
+  if (!id || !ownerId || !isCurrent()) return false;
+  let written = false;
+  try {
+    await obr.scene.items.updateItems([id], (items) => {
+      for (const item of items) {
+        if (item.metadata?.[META_KEY] || item.createdUserId === ownerId) continue;
+        item.createdUserId = ownerId;
+        written = true;
+      }
+    });
+  } catch (error) {
+    console.warn("[player-assignment] proprietario non cambiato:", error?.message || error);
+    return false;
+  }
+  return written;
+}
+
 // Returns { written, owner, ownerOnly, canUpdate }: owner says whether Owlbear accepted the new owner, ownerOnly
 // whether the room permission that limits players to their own tokens is on, canUpdate whether players may move
 // characters at all (Character → Update). `fallbackOwnerId` (the GM) takes the token back

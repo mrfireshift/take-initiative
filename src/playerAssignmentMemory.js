@@ -5,14 +5,18 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { METADATA_OWNERSHIP, writeRoomMetadataKey } from "./metadataKeyScoped.js";
 import {
+  adoptedOwnerForItem,
   localPlayerNamesWith,
   normalizePlayerAssignmentMemory,
   playerAssignmentMemoryWith,
   playerMemoryKeyOfItem,
+  rememberedOwnerForItem,
   rememberedPlayerForItem,
   retainPlayerAssignmentMemoryWithinByteBudget,
 } from "./playerAssignmentMemoryCore.js";
-import { writePlayerAssignment } from "./playerAssignmentWriter.js";
+import { writePlayerAssignment, writeTokenOwner } from "./playerAssignmentWriter.js";
+import { actorProfileIdFromItem } from "./actorIdentityCore.js";
+import { resolveInitiativeCardActorMatch } from "./initiativeCardRegistryCore.js";
 import { runtimeOptionsService } from "./options/optionsRuntime.js";
 import { selectOnlineRoomProfile } from "./options/optionsSelectors.js";
 import { readSceneItemsSnapshot, subscribeSceneItemChanges } from "./sceneItemEvents.js";
@@ -69,15 +73,63 @@ export function mountPlayerAssignmentMemory({ obr = OBR, service = runtimeOption
     waits = 0;
     const players = await obr.party.getPlayers().catch(() => []);
     const localNames = readLocalNames();
+    // Lot GA2 of docs/STUDIO_GIOCO_ONLINE.md: a token with no identity yet is recognised through the card registry
+    // (the GM's browser and the room), read once for the pass and only when such a character token is on the map.
+    const needsRegistry = snapshot.items.some((item) => item?.layer === "CHARACTER" && !item.attachedTo && !actorProfileIdFromItem(item));
+    let registry = null;
+    if (needsRegistry) {
+      try {
+        ({ registry } = await (await import("./initiativeCards.js")).readInitiativeCardRegistry());
+      } catch (error) {
+        console.warn("[player-assignment] registro delle schede:", error?.message || error);
+      }
+      if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    }
+    const registryActorOf = (item) => {
+      if (!registry || actorProfileIdFromItem(item)) return "";
+      const match = resolveInitiativeCardActorMatch(registry, item);
+      return match.status === "matched" ? match.actorProfileId : "";
+    };
     for (const item of snapshot.items) {
       if (!isCurrentSceneEpoch(sceneEpoch)) return;
-      const player = rememberedPlayerForItem(item, memory, { players, localNames });
-      if (!player) continue;
+      const registryActorProfileId = registryActorOf(item);
+      const player = rememberedPlayerForItem(item, memory, { players, localNames, registryActorProfileId });
+      if (player) {
+        await writePlayerAssignment([item.id], player, {
+          obr,
+          fallbackOwnerId: obr.player.id,
+          isCurrent: () => isCurrentSceneEpoch(sceneEpoch),
+        }).catch((error) => console.warn("[player-assignment] memoria non applicata:", error?.message || error));
+        continue;
+      }
+      // GA2: a character's token the tracker does not know yet gets its player as Owlbear owner, nothing else.
+      const ownerId = rememberedOwnerForItem(item, memory, { registryActorProfileId });
+      if (ownerId) await writeTokenOwner(item.id, ownerId, { obr, isCurrent: () => isCurrentSceneEpoch(sceneEpoch) });
+    }
+  };
+
+  // Lot GA3: the owners of the tokens, to see the GM give one to a player from Owlbear's Owner menu. The scene's own
+  // change events leave the owner out, so the raw changes are compared here; a scene's first list only fills the map.
+  let owners = new Map();
+  const seedOwners = () => obr.scene.items.getItems()
+    .then((items) => { owners = new Map((Array.isArray(items) ? items : []).map((item) => [item.id, item.createdUserId])); }, () => {});
+  const handleOwners = async (items) => {
+    const list = Array.isArray(items) ? items : [];
+    const changed = list.filter((item) => owners.has(item.id) && owners.get(item.id) !== item.createdUserId);
+    owners = new Map(list.map((item) => [item.id, item.createdUserId]));
+    if (!changed.length) return;
+    const sceneEpoch = currentSceneEpoch();
+    const players = await obr.party.getPlayers().catch(() => []);
+    for (const item of changed) {
+      const player = adoptedOwnerForItem(item, players);
+      if (!player || !isCurrentSceneEpoch(sceneEpoch)) continue;
+      await rememberPlayerAssignment(item, player, { obr })
+        .catch((error) => console.warn("[player-assignment] memoria non salvata:", error?.message || error));
       await writePlayerAssignment([item.id], player, {
         obr,
         fallbackOwnerId: obr.player.id,
         isCurrent: () => isCurrentSceneEpoch(sceneEpoch),
-      }).catch((error) => console.warn("[player-assignment] memoria non applicata:", error?.message || error));
+      }).catch((error) => console.warn("[player-assignment] proprietario non adottato:", error?.message || error));
     }
   };
 
@@ -105,12 +157,18 @@ export function mountPlayerAssignmentMemory({ obr = OBR, service = runtimeOption
         if (event?.flags?.added || event?.flags?.attitude || event?.flags?.tracker || event?.flags?.trackerStructure) schedule();
       }),
       // A new scene: its characters' tokens get their remembered players.
-      subscribeSceneEpoch(({ phase }) => { if (phase === "ready") { waits = 0; schedule(); } }),
+      subscribeSceneEpoch(({ phase }) => {
+        if (phase === "ready") { waits = 0; owners = new Map(); void seedOwners(); schedule(); }
+      }),
+      obr.scene.items.onChange((items) => {
+        void handleOwners(items).catch((error) => console.warn("[player-assignment] proprietari:", error?.message || error));
+      }),
     ];
     void obr.room.getMetadata().then((metadata) => {
       memory = normalizePlayerAssignmentMemory(metadata?.[MEMORY_KEY]);
       schedule();
     }, () => {});
+    void seedOwners();
   };
   const stop = () => {
     for (const unsubscribe of stops) { try { unsubscribe?.(); } catch {} }

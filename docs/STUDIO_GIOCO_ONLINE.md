@@ -14,8 +14,12 @@ come raccomandate. Primo passo: la prova in stanza G1.
   raccomandate («Sì, tutte»).
 - **SB3 fatto il 16/11** (in `3c9aab96`). Il §5 dice cosa è cambiato; la
   prova in stanza è nella stessa voce L1 di E1.
-- **DM1 e DM2 fatti il 16/11.** Il §2 dice cosa è cambiato; la prova in stanza
-  è nella voce «Dardo incantato» di `PROVE_IN_STANZA.md` (B2).
+- **DM1 e DM2 fatti il 16/11** (in `9ff4bc3d`). Il §2 dice cosa è cambiato;
+  la prova in stanza è nella voce «Dardo incantato» di `PROVE_IN_STANZA.md`
+  (B2).
+- **GA2 e GA3 fatti il 16/11**; GA1 tolto dopo la prova G1. Il §1 dice cosa è
+  cambiato; la prova in stanza è nella voce «Assegnazione senza ricaricare»
+  di `PROVE_IN_STANZA.md` (D3).
 
 I sei punti vengono da una sessione di gioco online. Per ognuno: com'è oggi, la
 causa (o la conferma che funziona), la proposta, i rischi secondo AGENTS.md e i
@@ -164,6 +168,31 @@ GA2, nel dettaglio:
   metadata: cambiarne il significato è un rischio inutile.
 - `assignedPlayer` arriva dopo, quando il token entra nel tracker: è il passo
   di oggi.
+
+**Fatto il 16/11 (GA2 e GA3; GA1 tolto dopo la prova G1).**
+
+- **GA2** (`src/playerAssignmentMemoryCore.js`, `src/playerAssignmentMemory.js`):
+  - `playerMemoryKeysOfItem` prova, nell'ordine, la chiave del token, quella
+    del personaggio che il registro delle schede riconosce per un token senza
+    identità (`resolveInitiativeCardActorMatch`), e quella del nome. Questo
+    copre anche il caso C;
+  - `rememberedOwnerForItem`: per un PG che il tracker non conosce ancora, il
+    background del GM scrive solo il proprietario di Owlbear
+    (`writeTokenOwner` in `src/playerAssignmentWriter.js`), senza metadati del
+    plugin. L'assegnazione arriva come prima, quando il token entra
+    nell'iniziativa;
+  - il registro si legge una volta per passata, solo se sulla mappa c'è un
+    token Personaggio senza identità.
+- **GA3:** il background del GM confronta i proprietari a ogni cambio della
+  scena (il dispatcher degli eventi non li guarda).
+  - Se un PG o un alleato del tracker passa a un giocatore collegato,
+    `adoptedOwnerForItem` lo assegna (`writePlayerAssignment`) e lo ricorda.
+  - Il ritorno al GM non tocca niente (G4).
+- **Prove:**
+  - 4 test nuovi in `test/playerAssignmentMemory.test.js`, tre puri e uno del
+    runtime con un Owlbear finto;
+  - suite completa verde in una copia pulita (6210 test);
+  - build di controllo riuscita.
 
 Facoltativo: «Giocatore ›» anche nel menu contestuale del token di Owlbear
 (`src/contextMenu.js`), per assegnare un token non ancora nel tracker. Con GA2 e
@@ -937,6 +966,23 @@ tavolo è peggio di nessun numero.
 | G23 | SB3: le schede importate prima di SB3, senza i tre campi? | Niente: si reimporta una volta. Il ripiego dal testo dell'IndexedDB non vale il costo |
 
 ### Prova in stanza (G1)
+
+**Esito parziale, 16/11 (dall'utente):**
+- **Punto 4:** l'avviso «Attacco di opportunità» compare anche quando muove
+  il giocatore. Restano da provare le due varianti: tracker del GM chiuso, e
+  Ctrl+Z del GM prima del movimento.
+- **Punto 1:**
+  - token già presente in due scene: il proprietario resta il giocatore. È un
+    caso che funzionava già;
+  - **token trascinato dagli asset:** fermo prima dell'iniziativa e libero
+    dopo, come previsto. Il caso B è confermato e **GA2 serve**;
+  - **token copiato e incollato** (già stato in un'iniziativa): il giocatore
+    lo muove nella scena nuova anche fuori dall'iniziativa. Owlbear incolla
+    conservando il proprietario, quindi il caso A (dedotto) è smentito e **GA1
+    non serve più**. Restano GA2, GA3 e GA4.
+- **Accesso alla stanza:** la documentazione di Owlbear prevede solo la sala
+  d'attesa con l'approvazione del GM; l'SDK 3.1.0 non ha API per approvare.
+  Con un account gratuito l'id del giocatore resta stabile.
 
 **Preparazione:** profilo Online; nei permessi di Owlbear, «Owner Only» e
 «Update» accesi per i Character; un PG assegnato a un giocatore nella scena A.

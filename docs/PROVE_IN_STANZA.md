@@ -911,7 +911,9 @@ Serve il profilo **Online** (Opzioni → Vista giocatori, «Modalità di gioco»
 - [ ] **Chi entra dopo (O4b):** un giocatore che entra a combattimento in corso riceve l'avviso del turno in corso. (voce nuova: AUDIT_GIOCO_ONLINE.md, O4b)
 - [ ] **Il tracker del giocatore (O5):** la posizione del tracker del giocatore non segue quella del GM, e la dimensione parte dal 100% o da quella scelta nel suo menu ⚙; nel pannello Opzioni del GM le carte di posizione e dimensione del tavolo sono spente. (voce nuova: AUDIT_GIOCO_ONLINE.md, O5)
 - [ ] **Giocatore senza account (O3):** assegnato a un PG, esce e rientra in un'altra sessione: l'assegnazione è ancora sua, cioè il suo id è rimasto lo stesso. (voce nuova: AUDIT_GIOCO_ONLINE.md, O3)
-- [ ] **Assegnazione senza ricaricare:** dopo **Giocatore ›** la scheda del PG mostra subito il giocatore assegnato, senza ricaricare. Al banco non si riproduce. (voce nuova: memoria online-play-audit, correzione del 30/10)
+- [ ] **Assegnazione senza ricaricare:** dopo **Giocatore ›** la scheda del PG mostra subito il giocatore assegnato, senza ricaricare. Al banco non si riproduce. (voce nuova: memoria online-play-audit, correzione del 30/10) Poi (GA2 e GA3 di STUDIO_GIOCO_ONLINE.md):
+  - un PG già assegnato, trascinato dalla libreria degli asset su una scena nuova, si muove subito col suo giocatore, anche fuori dall'iniziativa; entrato nell'iniziativa ha il pallino del giocatore;
+  - un PG del tracker dato a un giocatore dal menu **Owner** di Owlbear prende il suo pallino e lo ritrova sulla scena dopo. Ridato al GM dallo stesso menu, il pallino resta.
 
 ### D4. Dadi online
 
