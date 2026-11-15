@@ -340,6 +340,23 @@ export function fiveToolsSpellLevel(value) {
   return level >= 1 && level <= 9 ? level : null;
 }
 
+// How many times a day a monster casts a spell of a hidden "at will" list, the spells its header names
+// (STUDIO_IMPORT_STATBLOCK_TESTO.md §12.4, the mephits): the "(1/Day)" of the block's name ("Innate Spellcasting (1/Day).
+// The mephit can innately cast sleep"), when the block has no daily list, or the header's "up to three times per day" or
+// "once per day" right after the spell's name. 0 is at will.
+const USES_PER_DAY_WORDS = Object.freeze({ once: 1, twice: 2, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 });
+function hiddenWillUses(block, spell) {
+  const byName = Number(fiveToolsPlainText(block.name || "").match(/\((\d+)\/Day\)/i)?.[1]);
+  if (byName >= 1 && !block.daily) return byName;
+  const entry = spell && typeof spell === "object" ? spell.entry : spell;
+  const name = (String(entry ?? "").match(/\{@spell ([^}|]+)/)?.[1] || fiveToolsPlainText(entry)).replace(/\*+$/, "").trim().toLowerCase();
+  const text = fiveToolsPlainText(entriesText(block.headerEntries)).toLowerCase();
+  const at = name ? text.indexOf(name) : -1;
+  if (at < 0) return 0;
+  const uses = text.slice(at + name.length).match(/^\s*(?:\([^)]*\)\s*)?(?:up to )?(once|twice|\d+|one|two|three|four|five|six)(?: times)? (?:per|a|each) day\b/);
+  return uses ? USES_PER_DAY_WORDS[uses[1]] || Number(uses[1]) || 0 : 0;
+}
+
 // The spellcasting of a monster as the plugin's stat block reads it: { spellSaveDC, spellAttackBonus, classes, spells,
 // innateSpells }. The block with slots gives the class and level (their slots are the plugin's, as a character's) and
 // the book, all prepared; "at will" and "X/day" give the innate spells, cast without slots. What the plugin cannot keep
@@ -387,7 +404,9 @@ function fiveToolsSpellcasting(monster, report) {
       const level = fiveToolsSpellLevel(spell);
       return { name: fiveToolsSpellName(spell), ...(perDay ? { perDay } : {}), ...(level ? { level } : {}) };
     };
-    for (const spell of asList(block.will)) out.innateSpells.push(innate(spell));
+    // A list the stat block does not print, named by the header, is cast as often as the block's name or the header says.
+    const hiddenWill = asList(block.hidden).includes("will");
+    for (const spell of asList(block.will)) out.innateSpells.push(innate(spell, hiddenWill ? hiddenWillUses(block, spell) : 0));
     // As the stat block prints them, the most uses first ("3/day each", then "1/day each"). The 2024 "1/Long Rest"
     // (restLong) is the same: the uses come back at the long rest.
     const daily = Object.entries({ ...(block.daily && typeof block.daily === "object" ? block.daily : {}),
@@ -485,6 +504,36 @@ function plainList(value) {
   }).filter(Boolean).join(", ");
 }
 
+// The damage defenses and condition immunities as the book prints them (STUDIO_IMPORT_STATBLOCK_TESTO.md, D10): the
+// plain ones joined by commas, a group with its own note after a semicolon, its types joined with "and" ("cold;
+// bludgeoning, piercing, and slashing from nonmagical attacks"), so a reader always knows which types the note is for.
+function defenseList(value) {
+  const parts = [];
+  let plain = [];
+  const flush = () => {
+    if (plain.length) parts.push(plain.join(", "));
+    plain = [];
+  };
+  for (const entry of asList(value)) {
+    if (typeof entry === "string") {
+      plain.push(fiveToolsPlainText(entry));
+      continue;
+    }
+    if (!entry || typeof entry !== "object") continue;
+    flush();
+    if (entry.special) {
+      parts.push(fiveToolsPlainText(entry.special));
+      continue;
+    }
+    const inner = asList(Object.entries(entry).find(([, list]) => Array.isArray(list))?.[1])
+      .map((item) => (typeof item === "string" ? fiveToolsPlainText(item) : defenseList([item]))).filter(Boolean);
+    const types = inner.length < 3 ? inner.join(" and ") : `${inner.slice(0, -1).join(", ")}, and ${inner.at(-1)}`;
+    parts.push([fiveToolsPlainText(entry.preNote || ""), types, fiveToolsPlainText(entry.note || "")].filter(Boolean).join(" "));
+  }
+  flush();
+  return parts.filter(Boolean).join("; ");
+}
+
 // The proficiency bonus of a challenge rating ("1/2", "17", { cr: "17" }): +2 up to 4, +1 every 4 more.
 function crProficiencyBonus(cr) {
   const raw = typeof cr === "object" && cr ? cr.cr : cr;
@@ -530,10 +579,10 @@ function fiveToolsHeader(monster) {
     .map(([key, bonus]) => `${key.length === 3 ? key[0].toUpperCase() + key.slice(1) : key.replace(/^\w/, (letter) => letter.toUpperCase())} ${bonus}`).join(", ");
   add("Saving Throws", bonuses(monster.save));
   add("Skills", bonuses(monster.skill));
-  add("Damage Vulnerabilities", plainList(monster.vulnerable));
-  add("Damage Resistances", plainList(monster.resist));
-  add("Damage Immunities", plainList(monster.immune));
-  add("Condition Immunities", plainList(monster.conditionImmune));
+  add("Damage Vulnerabilities", defenseList(monster.vulnerable));
+  add("Damage Resistances", defenseList(monster.resist));
+  add("Damage Immunities", defenseList(monster.immune));
+  add("Condition Immunities", defenseList(monster.conditionImmune));
   add("Senses", [plainList(monster.senses), Number.isFinite(monster.passive) ? `passive Perception ${monster.passive}` : ""].filter(Boolean).join(", "));
   add("Languages", plainList(monster.languages) || (monster.languages === null ? "—" : ""));
   add("Challenge", typeof monster.cr === "string" ? monster.cr : monster.cr?.cr ? `${monster.cr.cr}${monster.cr.lair ? ` (${monster.cr.lair} in lair)` : ""}` : "");

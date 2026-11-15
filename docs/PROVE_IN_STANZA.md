@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **145** |
+| **B. Console attacchi, mostri e capacità** | **147** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -51,6 +51,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B13. La Schivata nei tiri salvezza | 3 |
 | B14. Incantesimo preparato: la preparazione | 5 |
 | B15. Incantesimo preparato: il rilascio | 5 |
+| B16. Statblock originale e innati dei mefiti | 2 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -76,7 +77,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **508** |
+| **Totale** | **510** |
 
 ## A. Incantesimi
 
@@ -682,6 +683,13 @@ Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T6c (decisi
 - [ ] **Rilascio a concentrazione:** Benedizione rilasciata su due PG chiede la conferma solo se il caster mantiene un'altra concentrazione. Mette le pill e una C nuova, che non finisce all'inizio del prossimo turno del caster ma dopo 10 round. Nella Cronologia c'è «Rilascio: Benedizione».
 - [ ] **Reazione e turno:** con la reazione già usata, **Rilascia** chiede «Rilasciare comunque». All'inizio del turno del caster non si apre nessun popup per la presa; se non è stata rilasciata, la presa sparisce.
 - [ ] **Annulla azione preparata:** sulla presa, l'incantesimo svanisce con pill e C, la reazione resta e lo slot resta speso.
+
+### B16. Statblock originale e innati dei mefiti
+
+Fonte: [STUDIO_IMPORT_STATBLOCK_TESTO.md](STUDIO_IMPORT_STATBLOCK_TESTO.md), lotto ST1 (decisione D10) e §12.4 (i mefiti). Le voci sono nuove: nessuna lista le aveva. Serve un nemico su cui importare da 5eTools; l'import da testo arriva con il lotto ST2.
+
+- [ ] **Difese come nel libro:** importa **Barbed Devil** (MM), poi Statistiche → **Statblock originale**: la riga Damage Resistances dice «cold; bludgeoning, piercing, and slashing from nonmagical attacks that aren't silvered», con il punto e virgola. Le difese della scheda restano quelle di B6.
+- [ ] **Innati dei mefiti:** importa **Dust Mephit** (MM): nel pannello Importa la riga degli innati dice «1/giorno» accanto a Sonno, non «a volontà». Nella console, lanciato una volta, Sonno si blocca fino al riposo lungo. Lo stesso con **Sephek Kaltro** (IDRotF): Passo velato con 3 usi.
 
 ## C. Tracker e UX
 

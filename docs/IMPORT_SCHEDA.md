@@ -256,6 +256,10 @@ una propria:
   `level` (facoltativo) è il livello a cui si lancia, per uno statblock
   2024 con «(level 5 version)»: diventa il livello dello slot dell'azione
   rapida, solo se più alto di quello dell'incantesimo.
+  Da 5eTools, un incantesimo che l'intestazione nomina senza un elenco
+  («The mephit can innately cast sleep») ha gli usi del nome del blocco
+  («Innate Spellcasting (1/Day)») o dell'intestazione («misty step up to
+  three times per day»); se non li dice, è a volontà.
   Le azioni rapide sono al massimo 12: quelle in più vanno in rosso.
 
 Uno statblock di un mostro importato sopra un altro sostituisce anche classe,

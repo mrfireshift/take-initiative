@@ -81,6 +81,22 @@ test("gli innati: a volontà gratuiti, X/giorno con usi propri; i trucchetti a v
   assert.equal(sheetImportSectionSummary("innate", innate).split(", ")[0], `${innate[0].label} a volontà`);
 });
 
+test("gli innati nominati nell'intestazione: gli usi del nome del blocco o dell'intestazione, se no a volontà", () => {
+  const innateOf = (name, header, will, hidden = ["will"]) => fiveToolsMonsterToStatblock({ name: "X", source: "X", ac: [12], hp: { average: 17 },
+    spellcasting: [{ name, type: "spellcasting", headerEntries: [header], will, ...(hidden ? { hidden } : {}) }] }).block.innateSpells;
+  // The mephits of the Monster Manual: "Innate Spellcasting (1/Day)", the spell in the header.
+  const mephit = innateOf("Innate Spellcasting (1/Day)", "The mephit can innately cast {@spell sleep}, requiring no material components.", [spell("sleep")]);
+  assert.deepEqual(mephit, [{ name: "sleep", perDay: 1 }]);
+  assert.deepEqual(innateOf("Innate Spellcasting", "Sephek can innately cast {@spell misty step} up to three times per day, requiring no components.",
+    [spell("misty step")]), [{ name: "misty step", perDay: 3 }]);
+  assert.deepEqual(innateOf("Spellcasting", "The archmage can cast {@spell disguise self} and {@spell invisibility} at will and has the following wizard spells prepared:",
+    [spell("disguise self"), spell("invisibility")]), [{ name: "disguise self" }, { name: "invisibility" }]);
+  assert.deepEqual(innateOf("Innate Spellcasting (1/Day)", "It can innately cast the following spells:", [spell("sleep")], null), [{ name: "sleep" }],
+    "a list the stat block prints keeps its at will");
+  const sheet = parseCharacterSheetImport(JSON.stringify({ kind: "monster", name: "Dust Mephit", innateSpells: mephit, actions: [] }));
+  assert.deepEqual(sheet.sections.innate.map((action) => [action.spellId, action.cost, action.uses]), [["sleep", "uses", 1]]);
+});
+
 test("le CD diverse tra i blocchi: la scheda tiene quella del blocco a slot, l'altra è segnalata", () => {
   const drowMage = { ...structuredClone(mage), spellcasting: [...structuredClone(innateCaster.spellcasting), ...structuredClone(mage.spellcasting)] };
   const { block, report } = fiveToolsMonsterToStatblock(drowMage);
