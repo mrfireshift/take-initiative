@@ -4,7 +4,7 @@
   "ruleset": "D&D 5e SRD 5.1 (2014)",
   "source": "https://media.wizards.com/2023/downloads/dnd/SRD_CC_v5.1_IT.pdf",
   "license": "CC-BY-4.0",
-  "generatedAt": "2026-10-27",
+  "generatedAt": "2026-11-15",
   "topics": [
     {
       "id": "personaggio",
@@ -33,6 +33,10 @@
         {
           "id": "background",
           "name": "Background"
+        },
+        {
+          "id": "talenti",
+          "name": "Talenti"
         }
       ]
     },
@@ -744,6 +748,38 @@
         "nave"
       ],
       "related": [],
+      "optional": false
+    },
+    {
+      "id": "talenti",
+      "topic": "personaggio",
+      "section": "talenti",
+      "name": "Talenti",
+      "page": 84,
+      "text": "Un talento rappresenta una dote o un'area di esperienza che conferisce a un personaggio alcune capacità speciali. Incarna un genere di addestramento, esperienza e capacità che va oltre ciò che una classe fornisce.\n\nCerti livelli di classe forniscono al personaggio il privilegio Aumento dei Punteggi di Caratteristica. Usando la regola facoltativa dei talenti, il personaggio può rinunciare a quel privilegio e acquisire invece un talento a sua scelta. Può prendere ogni talento soltanto una volta, a meno che la descrizione di quel talento non specifichi diversamente.\n\nUn personaggio deve soddisfare gli eventuali prerequisiti specificati in un talento al fine di acquisire quel talento. Se perde il prerequisito di un talento, non può più usare quel talento finché non recupera il relativo prerequisito. Per esempio, il talento Lottatore richiede al personaggio una Forza pari o superiore a 13. Se la sua Forza scende sotto 13 per qualche motivo (per esempio a causa di una potente maledizione), il personaggio non potrà beneficiare del talento Lottatore finché la sua forza non verrà ripristinata.",
+      "aliases": [
+        "talento",
+        "feat"
+      ],
+      "related": [],
+      "optional": false
+    },
+    {
+      "id": "lottatore",
+      "topic": "personaggio",
+      "section": "talenti",
+      "name": "Lottatore",
+      "page": 84,
+      "text": "Prerequisito: Forza 13 o superiore\n\nIl personaggio ha sviluppato le abilità necessarie per farsi valere nella lotta corpo a corpo. Ottiene i seguenti benefici:\n• Dispone di vantaggio ai tiri per colpire contro una creatura con cui sta lottando.\n• Può usare la sua azione per tentare di immobilizzare una creatura da lui afferrata. Per farlo deve effettuare un'altra prova di lotta. Se la supera, il personaggio e la creatura sono entrambi trattenuti fino alla fine della lotta.",
+      "aliases": [
+        "grappler",
+        "talento lottatore"
+      ],
+      "related": [
+        "lottare",
+        "condition:Afferrato",
+        "condition:Trattenuto"
+      ],
       "optional": false
     },
     {

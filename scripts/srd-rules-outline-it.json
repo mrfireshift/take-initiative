@@ -1,5 +1,11 @@
 {
   "source": "https://media.wizards.com/2023/downloads/dnd/SRD_CC_v5.1_IT.pdf",
+  "corrections": [
+    {
+      "from": "^(Prerequisito: Forza 13 o superiore) (Il personaggio ha sviluppato)",
+      "to": "$1\n$2"
+    }
+  ],
   "nodes": [
     {
       "kind": "topic",
@@ -348,6 +354,34 @@
       "kind": "exclude",
       "heading": "Merci",
       "page": 81
+    },
+    {
+      "kind": "topic",
+      "id": "personaggio",
+      "name": "Personaggio"
+    },
+    {
+      "kind": "section",
+      "heading": "Talenti",
+      "page": 84,
+      "aliases": [
+        "talento",
+        "feat"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Lottatore",
+      "page": 84,
+      "aliases": [
+        "grappler",
+        "talento lottatore"
+      ],
+      "related": [
+        "lottare",
+        "condition:Afferrato",
+        "condition:Trattenuto"
+      ]
     },
     {
       "kind": "topic",

@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **170** |
+| **B. Console attacchi, mostri e capacità** | **171** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -56,7 +56,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B18. Incantesimo preparato: il rilascio nella console | 5 |
 | B19. Statblock da testo nel pannello Importa | 4 |
 | B20. Incantesimo preparato: le perdite | 5 |
-| B21. Talenti: le fondamenta | 6 |
+| B21. Talenti: le fondamenta | 7 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -82,7 +82,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **533** |
+| **Totale** | **534** |
 
 ## A. Incantesimi
 
@@ -743,6 +743,7 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F0 (decisioni D2–D5, D8, 
 - [ ] **Fortunato:** Risorse mostra «Punti fortuna 3/3»; **Conferma consumo**, o la voce del menu della card, spende un punto; **Riposo lungo**, anche quello del gruppo, li riporta a 3. Il menu della card da provare in vista compatta ed estesa.
 - [ ] **L'import:** in **Importa**, `{ "feats": ["Great Weapon Master", { "name": "Fey Touched", "ability": "cha" }, "Volo radente"] }` dà la sezione «Talenti» con «2 talenti: …» e «Volo radente» fra i non riconosciuti; **Applica al modulo** sostituisce i talenti della scheda.
 - [ ] **Cuoco e la stanza:** reimporta il pacchetto di Tasha dall'Enciclopedia (Pacchetti): Cuoco ha la sua voce e Contaminazione Ombrosa non contiene più il suo testo. Il PG con i talenti, portato in un'altra scena della stessa stanza, li ha ancora.
+- [ ] **Lottatore dall'SRD:** nell'Enciclopedia DM, Personaggio → **Talenti** ha l'introduzione e Lottatore, con il prerequisito in una riga sua. In un browser senza il pacchetto del PHB, la card di Lottatore nella scheda mostra lo stesso testo invece della nota del pacchetto mancante.
 
 ## C. Tracker e UX
 

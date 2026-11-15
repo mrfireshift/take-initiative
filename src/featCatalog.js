@@ -57,11 +57,22 @@ const AT_TABLE = "Si gestisce al tavolo.";
 const ON_SHEET = "Le competenze vanno riportate nella scheda del personaggio.";
 
 // abilities: the abilities a half feat may raise (decision D4: saved, not applied); choices: what the sheet asks with the
-// feat; species: the racial feat's species (speciesOptions narrows them to a subrace); pool: a use of its own.
+// feat; species: the racial feat's species (speciesOptions narrows them to a subrace); pool: a use of its own; srdEntryId
+// and srdText: the SRD 5.1's text of the only feat it has, Lottatore, as the rules compendium has it
+// (src/rules-reference-it.json): the card shows it when the GM has no pack of the manual.
 const feat = (book, page, name, english, { prerequisite = "", abilities = [], choices = [], species = [], speciesOptions = [],
-  repeatable = false, plugin = LATER, pool = null } = {}) => ({
-  book, page, name, english, prerequisite, abilities, choices, species, speciesOptions, repeatable, plugin, pool,
+  repeatable = false, plugin = LATER, pool = null, srdEntryId = "", srdText = "" } = {}) => ({
+  book, page, name, english, prerequisite, abilities, choices, species, speciesOptions, repeatable, plugin, pool, srdEntryId, srdText,
 });
+// CC-BY-4.0, Systems Reference Document 5.1 in italiano: the compendium's entry "lottatore", word for word (a test checks).
+const GRAPPLER_SRD_TEXT = [
+  "Prerequisito: Forza 13 o superiore",
+  "",
+  "Il personaggio ha sviluppato le abilità necessarie per farsi valere nella lotta corpo a corpo. Ottiene i seguenti benefici:",
+  "• Dispone di vantaggio ai tiri per colpire contro una creatura con cui sta lottando.",
+  "• Può usare la sua azione per tentare di immobilizzare una creatura da lui afferrata. Per farlo deve effettuare un'altra "
+    + "prova di lotta. Se la supera, il personaggio e la creatura sono entrambi trattenuti fino alla fine della lotta.",
+].join("\n");
 
 const DEFINITIONS = [
   // Manuale del Giocatore 2014, capitolo 6, pp. 165–170.
@@ -98,7 +109,7 @@ const DEFINITIONS = [
   feat("phb", 168, "Iniziato alla Magia", "Magic Initiate"),
   feat("phb", 168, "Linguista", "Linguist", { abilities: ["int"],
     plugin: "Le lingue vanno riportate nella scheda del personaggio." }),
-  feat("phb", 168, "Lottatore", "Grappler", { prerequisite: "Forza 13" }),
+  feat("phb", 168, "Lottatore", "Grappler", { prerequisite: "Forza 13", srdEntryId: "lottatore", srdText: GRAPPLER_SRD_TEXT }),
   feat("phb", 168, "Lottatore da Taverna", "Tavern Brawler", { abilities: ["str", "con"] }),
   feat("phb", 168, "Maestro d'Armi", "Weapon Master", { abilities: ["str", "dex"], plugin: ON_SHEET }),
   feat("phb", 168, "Maestro d'Armi Possenti", "Great Weapon Master"),
@@ -195,6 +206,8 @@ export const FEATS = Object.freeze(DEFINITIONS.map((definition) => {
     repeatable: definition.repeatable,
     plugin: definition.plugin,
     pool: definition.pool ? Object.freeze({ ...definition.pool }) : null,
+    srdEntryId: definition.srdEntryId,
+    srdText: definition.srdText,
   });
 }));
 const FEAT_BY_ID = new Map(FEATS.map((entry) => [entry.id, entry]));
@@ -238,6 +251,8 @@ function featRecord(entry) {
     sourceLabel: entry.sourceLabel,
     page: entry.page,
     rulesEntryId: entry.rulesEntryId,
+    // Lottatore's SRD text, shown without the pack (classFeatureDescriptions.js).
+    ...(entry.srdText ? { srdText: entry.srdText } : {}),
     collection: "talenti",
     defaultEnabled: true,
     automationLevel: poolId ? "manuale" : "riferimento",

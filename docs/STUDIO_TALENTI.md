@@ -819,10 +819,18 @@ Ogni lotto ha:
 - **Talenti dei lotti successivi:** la riga «Nel plugin» dice «Per ora solo
   riferimento: si gestisce al tavolo».
 
-**Che cosa manca.** Lottatore nel compendio SRD. Il generatore vuole il PDF
-dell'SRD italiano (`SRD_CC_v5.1_IT.pdf`), che sul disco non c'è: va scaricato
-con il permesso dell'utente. Intanto la card di Lottatore prende il testo dal
-pacchetto del PHB, come gli altri talenti.
+**Lottatore nel compendio SRD (16/11).** Con il permesso dell'utente è stato
+scaricato `SRD_CC_v5.1_IT.pdf`, letto con il `pdftotext` di Xpdf.
+
+- Il generatore rifà il compendio identico a quello committato, salvo la data.
+- `scripts/srd-rules-outline-it.json` torna a Personaggio dopo le Merci escluse,
+  con la sezione «Talenti» (p. 84) e la voce «Lottatore». Una correzione divide
+  il prerequisito dal testo.
+- In `src/rules-reference-it.json` nascono solo le voci `talenti` e
+  `lottatore`.
+- La card di Lottatore mostra il testo del pacchetto del PHB se c'è, altrimenti
+  quello dell'SRD (`srdText` nel catalogo). Un test controlla che sia parola per
+  parola la voce del compendio.
 
 ---
 

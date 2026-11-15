@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { hasPrivateDir, privateDir } from "../scripts/privateSources.mjs";
+import rulesReference from "../src/rules-reference-it.json" with { type: "json" };
 
 mock.module("@owlbear-rodeo/sdk", { exports: { default: { onReady() {} }, buildLabel() {}, buildImage() {}, buildText() {}, buildPath() {}, buildShape() {}, Command: class {} } });
 const {
@@ -223,6 +224,18 @@ test("a feat's text is its manual's entry in the pack, never the plugin's line",
   assert.equal(classFeatureDescription(tough), "");
   assert.equal(classFeatureMissingText(tough), "phb2014");
   assert.equal(classFeatureMissingText(feature("telepatia")), "tasha");
+});
+
+test("Lottatore, the SRD's only feat, shows its SRD text without the pack, word for word the compendium's", async () => {
+  const grappler = feature("lottatore");
+  const entry = rulesReference.entries.find((candidate) => candidate.id === getFeat("lottatore").srdEntryId);
+  assert.equal(entry.section, "talenti");
+  assert.equal(entry.topic, "personaggio");
+  assert.equal(grappler.srdText, entry.text);
+  assert.deepEqual(FEATS.filter((candidate) => candidate.srdText).map((candidate) => candidate.id), ["lottatore"]);
+  await loadClassFeatureDescriptions();
+  assert.equal(classFeatureDescription(grappler), entry.text);
+  assert.equal(classFeatureMissingText(grappler), "");
 });
 
 test("every feat's entry is in the GM's private packs", PRIVATE_TEXTS, () => {

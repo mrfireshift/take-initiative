@@ -44,9 +44,10 @@ export function loadClassFeatureDescriptions() {
 }
 
 // The text of a class feature once loaded: the SRD one, else its pack's; a species trait carries its own. A feat's is
-// its manual's rules entry, from the pack only: its own description is the "Nel plugin" line, shown apart.
+// its manual's rules entry from the pack, else the SRD's (Lottatore): its own description is the "Nel plugin" line,
+// shown apart.
 export function classFeatureDescription(feature) {
-  if (feature?.rulesEntryId) return privateRules.get(feature.rulesEntryId) || "";
+  if (feature?.rulesEntryId) return privateRules.get(feature.rulesEntryId) || feature.srdText || "";
   return descriptions?.[feature?.id] || privateTexts.get(feature?.id) || feature?.description || "";
 }
 
