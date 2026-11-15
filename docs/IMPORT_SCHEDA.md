@@ -52,7 +52,7 @@ testo (`"+7"`, `"15"`).
   "cantrips": ["Dardo di fuoco", "Mano magica"],
   "spells": ["Scudo", "Armatura magica", { "name": "Palla di fuoco", "pinned": true }, { "name": "Volare", "prepared": false }],
   "attacks": [
-    { "label": "Pugnale", "range": "melee", "components": [{ "type": "perforanti", "formula": "1d4+2" }] }
+    { "label": "Pugnale", "range": "melee", "attackBonus": 5, "components": [{ "type": "perforanti", "formula": "1d4+2" }] }
   ],
   "notes": "Familiare: gufo."
 }
@@ -69,7 +69,7 @@ testo (`"+7"`, `"15"`).
 | `savingThrows` | Bonus totali dei tiri salvezza, stesse chiavi. |
 | `damageDefenses` | Liste `resistances`, `immunities`, `vulnerabilities` di tipi di danno, con l'id inglese (`fire`) o il nome italiano (`fuoco`). |
 | `cantrips`, `spells` | Nomi in italiano o in inglese. `spells` può essere una lista o un oggetto per livello (`{ "1": [...], "3": [...] }`). `"pinned": true` mette l'incantesimo tra i preferiti del menu 🪄; `"prepared": false` lo tiene nel libro ma non preparato (il grimorio del mago). |
-| `attacks` | Come l'import della scheda Attacchi: `label`, `range` (`melee` o `ranged`), `components` (1-3, con `type` e `formula` facoltativa). Il tipo di danno può essere anche in italiano. I trucchetti e gli incantesimi d'attacco del libro non servono qui: la console li risolve da sola. Per un trucchetto fuori dal libro, da una specie o da un talento: `source: { "kind": "cantrip", "spellIds": ["ray-of-frost"] }`. |
+| `attacks` | Come l'import della scheda Attacchi: `label`, `range` (`melee` o `ranged`), `attackBonus` (facoltativo: il bonus al tiro per colpire, da −30 a +30, che la console mostra sopra il danno), `components` (1-3, con `type` e `formula` facoltativa). Il tipo di danno può essere anche in italiano. I trucchetti e gli incantesimi d'attacco del libro non servono qui: la console li risolve da sola. Per un trucchetto fuori dal libro, da una specie o da un talento: `source: { "kind": "cantrip", "spellIds": ["ray-of-frost"] }`. |
 | `notes` | Testo breve, fino a 280 caratteri. |
 
 Gli incantesimi concessi da talenti, specie o oggetti vanno nelle **Azioni
@@ -96,9 +96,10 @@ danno; cantrips: nomi dei trucchetti; spells: nomi degli incantesimi
 conosciuti o preparati della classe (escludi quelli concessi da talenti,
 specie od oggetti), con { name, prepared: false } per quelli scritti nel
 grimorio ma non preparati; attacks: [{ label, range: "melee" o "ranged",
-components: [{ type, formula }] }] per ogni attacco con arma, con il tipo di
-danno e la formula del danno; notes: al massimo 280 caratteri di note utili
-al combattimento.
+attackBonus, components: [{ type, formula }] }] per ogni attacco con arma,
+con il bonus al tiro per colpire scritto sulla scheda, il tipo di danno e la
+formula del danno; notes: al massimo 280 caratteri di note utili al
+combattimento.
 
 Usa i nomi italiani del Manuale del Giocatore quando la scheda è in italiano,
 altrimenti quelli inglesi. Non inventare valori assenti.

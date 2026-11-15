@@ -36,6 +36,7 @@ import {
   findQuickAction,
   isAttackQuickAction,
   parseQuickActionAttackImport,
+  quickActionAttackFieldsWithBonus,
   quickActionMonsterAttackFields,
   sanitizeQuickActions,
 } from "./quickActionsCore.js";
@@ -3550,6 +3551,16 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
     ["spell", "Incantesimo d'attacco"],
   ], ["cantrip", "spell"].includes(current.source?.kind) ? current.source.kind : current.range === "ranged" ? "ranged" : "melee");
   sourceSelect.dataset.quickActionField = "attackSource";
+  // A weapon attack's bonus to hit (lot BA1 of docs/STUDIO_GIOCO_ONLINE.md), shown by the attack console over the
+  // damage («+5 al tiro»). A text box, so that «+5» reads as the sheet prints it.
+  const attackBonusInput = document.createElement("input");
+  attackBonusInput.type = "text";
+  attackBonusInput.maxLength = 4;
+  attackBonusInput.autocomplete = "off";
+  attackBonusInput.placeholder = "es. +5";
+  attackBonusInput.value = Number.isInteger(monsterFields.attackBonus)
+    ? `${monsterFields.attackBonus >= 0 ? "+" : ""}${monsterFields.attackBonus}` : "";
+  attackBonusInput.dataset.quickActionField = "attackBonus";
   // Section header shared by the attack sub-editors: a title, a muted hint aligned right.
   const sectionHead = (title, hint = "") => {
     const head = document.createElement("div");
@@ -3680,9 +3691,11 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
   const expiryLabel = makeLabel("Scadenza", expirySelect);
   const durationLabel = makeLabel("Occorrenze", durationInput);
   const sourceLabel = makeLabel("Fonte", sourceSelect);
+  const attackBonusLabel = makeLabel("Bonus al tiro", attackBonusInput);
   grid.append(
     kindLabel,
     sourceLabel,
+    attackBonusLabel,
     targetLabel,
     referenceLabel,
     featureLabel,
@@ -3731,6 +3744,8 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
     componentsBox.hidden = !attack || cantrip || attackSpell;
     cantripsBox.hidden = !cantrip;
     attackSpellsBox.hidden = !attackSpell;
+    // Weapons only: a cantrip or a spell takes the card's spell attack bonus, a save action has no attack roll.
+    attackBonusLabel.hidden = !attack || cantrip || attackSpell || !!monsterFields.save;
   };
 
   kindSelect.addEventListener("change", () => {
@@ -4492,13 +4507,19 @@ function collectQuickActions() {
         type: componentRow.querySelector("[data-component-field='type']").value,
         formula: componentRow.querySelector("[data-component-field='formula']").value.trim(),
       }));
+      // The fields the row keeps (a monster's save, reach, recharge…), with the bonus to hit of the box.
+      const kept = quickActionAttackFieldsWithBonus(
+        row.dataset.monsterAttackFields ? JSON.parse(row.dataset.monsterAttackFields) : {},
+        field("attackBonus").value,
+      );
+      if (!kept) throw new Error(`${label}: il bonus al tiro va da −30 a +30.`);
       return {
         id: row.dataset.actionId,
         label,
         kind,
         range: field("attackSource").value,
         components,
-        ...(row.dataset.monsterAttackFields ? JSON.parse(row.dataset.monsterAttackFields) : {}),
+        ...kept,
       };
     }
     const reference = field("reference").value.trim();

@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **147** |
+| **B. Console attacchi, mostri e capacità** | **150** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -52,6 +52,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B14. Incantesimo preparato: la preparazione | 5 |
 | B15. Incantesimo preparato: il rilascio | 5 |
 | B16. Statblock originale e innati dei mefiti | 2 |
+| B17. Bonus al tiro delle armi dei PG | 3 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -77,7 +78,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **510** |
+| **Totale** | **513** |
 
 ## A. Incantesimi
 
@@ -690,6 +691,14 @@ Fonte: [STUDIO_IMPORT_STATBLOCK_TESTO.md](STUDIO_IMPORT_STATBLOCK_TESTO.md), lot
 
 - [ ] **Difese come nel libro:** importa **Barbed Devil** (MM), poi Statistiche → **Statblock originale**: la riga Damage Resistances dice «cold; bludgeoning, piercing, and slashing from nonmagical attacks that aren't silvered», con il punto e virgola. Le difese della scheda restano quelle di B6.
 - [ ] **Innati dei mefiti:** importa **Dust Mephit** (MM): nel pannello Importa la riga degli innati dice «1/giorno» accanto a Sonno, non «a volontà». Nella console, lanciato una volta, Sonno si blocca fino al riposo lungo. Lo stesso con **Sephek Kaltro** (IDRotF): Passo velato con 3 usi.
+
+### B17. Bonus al tiro delle armi dei PG
+
+Fonte: [STUDIO_GIOCO_ONLINE.md](STUDIO_GIOCO_ONLINE.md), lotti BA1 e BA2 (decisione G13). Le voci sono nuove: nessuna lista le aveva. Serve un PG con un attacco con arma nella scheda Attacchi.
+
+- [ ] **La casella:** scheda del PG → Modifica → Attacchi. La riga di un'arma ha **Bonus al tiro** accanto a **Fonte**; con Trucchetto o Incantesimo d'attacco la casella sparisce. Scrivi «+5» e salva: riaprendo, la casella dice «+5». Con «+40» il salvataggio si ferma e dice «il bonus al tiro va da −30 a +30». (voce nuova: STUDIO_GIOCO_ONLINE.md, BA1)
+- [ ] **Nella console:** la console attacchi del PG su quell'arma dice «Mischia · +5 al tiro» sopra il danno, come per i mostri. Svuotata la casella e salvata la scheda, il «+5 al tiro» sparisce. (voce nuova: STUDIO_GIOCO_ONLINE.md, BA1)
+- [ ] **Dall'import:** Importa, con un attacco che ha `"attackBonus": "+7"`: dopo **Applica al modulo** la riga dell'attacco dice «+7». (voce nuova: STUDIO_GIOCO_ONLINE.md, BA2)
 
 ## C. Tracker e UX
 

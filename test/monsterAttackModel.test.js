@@ -5,10 +5,12 @@ import test, { mock } from "node:test";
 mock.module("@owlbear-rodeo/sdk", { exports: { default: { onReady() {} }, buildLabel() {}, buildImage() {}, buildText() {}, buildPath() {}, buildShape() {}, Command: class {} } });
 const {
   parseQuickActionAttackImport,
+  quickActionAttackFieldsWithBonus,
   quickActionMonsterAttackFields,
   sanitizeQuickAction,
   sanitizeQuickActions,
 } = await import("../src/quickActionsCore.js");
+const { pcAttackMonsterTags, pcAttackResolvedAction } = await import("../src/pcAttackCore.js");
 const { MONSTER_PROFILE_FIELD, isMonsterProfileCard, sanitizeMonsterProfile } = await import("../src/monsterProfileCore.js");
 const { getInitiativeCard, hasInitiativeCardValues, sanitizeInitiativeCard } = await import("../src/initiativeCards.js");
 const { ID } = await import("../src/constants.js");
@@ -114,6 +116,33 @@ test("i campi del mostro tornano interi per l'editor della scheda, che ricostrui
   const rebuilt = sanitizeQuickAction({ id: stored.id, label: stored.label, kind: "attack", range: stored.range,
     components: stored.components.map(({ type, formula }) => ({ type, formula })), ...JSON.parse(JSON.stringify(fields)) });
   assert.deepEqual(rebuilt, stored);
+});
+
+// Lotto BA1 di docs/STUDIO_GIOCO_ONLINE.md: la casella «Bonus al tiro» della riga d'attacco, per PG e mostri.
+test("il bonus al tiro della casella sostituisce quello conservato, vuota lo toglie", () => {
+  const kept = { attackBonus: 14, reachFeet: 10, recharge: 5 };
+  assert.deepEqual(quickActionAttackFieldsWithBonus(kept, "+7"), { reachFeet: 10, recharge: 5, attackBonus: 7 });
+  assert.deepEqual(quickActionAttackFieldsWithBonus(kept, "−2"), { reachFeet: 10, recharge: 5, attackBonus: -2 }, "the console's minus too");
+  assert.deepEqual(quickActionAttackFieldsWithBonus(kept, "  "), { reachFeet: 10, recharge: 5 });
+  assert.deepEqual(quickActionAttackFieldsWithBonus({}, "5"), { attackBonus: 5 });
+  assert.equal(quickActionAttackFieldsWithBonus(kept, "31"), null);
+  assert.equal(quickActionAttackFieldsWithBonus(kept, "cinque"), null);
+  // An action with a saving throw has no attack roll: its fields stay as they are.
+  const save = { save: "dex", saveDC: 13, saveHalf: true };
+  assert.deepEqual(quickActionAttackFieldsWithBonus(save, "+5"), save);
+});
+
+test("il bonus di un'arma di un PG arriva sopra il danno nella console, come per i mostri", () => {
+  // collectQuickActions: the row of a sword with no kept fields and «+5» in the box.
+  const sword = sanitizeQuickAction({ id: "sword", label: "Spada lunga", kind: "attack", range: "melee",
+    components: [{ type: "slashing", formula: "1d8+3" }], ...quickActionAttackFieldsWithBonus({}, "+5") });
+  assert.equal(sword.attackBonus, 5);
+  assert.deepEqual(pcAttackMonsterTags(pcAttackResolvedAction(sword)), ["+5 al tiro"]);
+  // The box emptied: the sword goes back to the shape it had before.
+  const plain = sanitizeQuickAction({ id: "sword", label: "Spada lunga", kind: "attack", range: "melee",
+    components: [{ type: "slashing", formula: "1d8+3" }], ...quickActionAttackFieldsWithBonus(quickActionMonsterAttackFields(sword), "") });
+  assert.deepEqual(Object.keys(plain), ["version", "id", "label", "kind", "targetMode", "range", "components"]);
+  assert.deepEqual(pcAttackMonsterTags(pcAttackResolvedAction(plain)), []);
 });
 
 test("l'import degli attacchi della scheda accetta i campi del mostro", () => {

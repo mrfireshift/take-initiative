@@ -198,6 +198,19 @@ export function quickActionMonsterAttackFields(action) {
   return monsterAttackFieldsOf(action);
 }
 
+// The bonus to hit typed in the card's editor (lot BA1 of docs/STUDIO_GIOCO_ONLINE.md), a character's or a monster's:
+// the fields the row keeps, with the box's bonus in place of the stored one; an empty box removes it. A save action has
+// no attack roll: its fields stay as they are. Null when the box holds something that is not a bonus from −30 to +30.
+export function quickActionAttackFieldsWithBonus(fields, value) {
+  const kept = fields && typeof fields === "object" && !Array.isArray(fields) ? fields : {};
+  if (kept.save) return { ...kept };
+  const { attackBonus: _stored, ...rest } = kept;
+  const text = String(value ?? "").trim().replace(/^−/u, "-");
+  if (!text) return rest;
+  const attackBonus = boundedInteger(text, -30, 30);
+  return attackBonus === null ? null : { ...rest, attackBonus };
+}
+
 export function sanitizeQuickAction(value) {
   if (!value || typeof value !== "object") return null;
 

@@ -146,6 +146,18 @@ test("attacks as in the Attacks import, damage types also in Italian", () => {
   assert.deepEqual(unresolved, ["2 attacchi non validi"]);
 });
 
+// Lotto BA2 di docs/STUDIO_GIOCO_ONLINE.md: the prompt asks for each weapon's bonus to hit; the import keeps it, as the
+// sheet prints it, and the attack console shows it over the damage.
+test("a weapon's bonus to hit comes with the attack, also written as text", () => {
+  const { sections, unresolved } = read({ attacks: [
+    { label: "Spada lunga", range: "melee", attackBonus: "+5", components: [{ type: "taglienti", formula: "1d8+3" }] },
+    { label: "Arco lungo", range: "ranged", attackBonus: 7, components: [{ type: "perforanti", formula: "1d8+3" }] },
+    { label: "Pugnale", range: "melee", attackBonus: "+99", components: [{ type: "perforanti", formula: "1d4+3" }] },
+  ] });
+  assert.deepEqual(sections.attacks.map((attack) => attack.attackBonus), [5, 7, undefined], "out of range: left out");
+  assert.deepEqual(unresolved, []);
+});
+
 test("hit points are not imported: they live in the token's canonical metadata", () => {
   const { sections, error } = read({ hp: 30, hpMax: 38, notes: "Prova" });
   assert.equal(error, "");
