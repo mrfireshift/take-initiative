@@ -2458,3 +2458,33 @@ test("a hidden attacker, a target with an ally's Help: the attack reminds the ad
     "Nascosto: vantaggio all'attacco; attaccando si rivela. Aiuto: vantaggio all'attacco; registrato, la pill si toglie.");
   assert.equal(f.$("pc-attack-turn-action").hidden, true, "the attack form: no turn action controls");
 });
+
+// The release of a readied spell (lot T6d of docs/STUDIO_AZIONI_DI_TURNO.md): off its turn, the caster holds Scorching Ray.
+test("a readied Scorching Ray off its turn: the hold's slot, locked; the note says the attack releases it; the reaction ticked", async () => {
+  const rays = sanitizeQuickAction({ id: "rays", label: "Incantesimi", kind: "attack", source: { kind: "spell", spellIds: ["scorching-ray"] } });
+  const hold = { conditions: { version: 2, instances: [{ id: "pill-1", condition: "Azione preparata", parentEffectId: "hold-1", sourceId: "aria", active: true }] },
+    "com.thebigpicture.initiative/spells": [{ instanceId: "hold-1", spellId: "scorching-ray", name: "Raggio rovente", casterId: "aria",
+      castContext: { readied: true, phase: "prepare", slotLevel: 3 } }] };
+  const asked = [];
+  const confirm = (message) => { asked.push(message); return true; };
+  const f = fixture({ actions: [rays], actionId: "rays", attacker: { ...noRollCaster, ...hold }, confirm,
+    turnState: { round: 2, order: ["aria", "ghoul"], current: 1 } });
+  await f.controller.ready; await tick();
+  const slot = f.$("pc-attack-spell-controls").querySelector('[aria-label="Slot"]');
+  assert.deepEqual([slot.value, slot.disabled], ["3", true]);
+  assert.equal(f.$("pc-attack-cantrip-note").textContent.split(". ")[0],
+    "Rilascio dell'incantesimo preparato: slot di 3° già speso alla preparazione; questo attacco chiude la presa");
+  assert.match(f.$("pc-attack-cantrip-note").textContent, /Raggi: 4\./);
+  assert.match(textOf(f.$("pc-attack-reaction")), /Usa la reazione \(azione preparata\)/);
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  await typeAmounts(f, ["7"]);
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.deepEqual([f.calls[0].spellCast.slotLevel, f.calls[0].useReaction], [3, true]);
+  assert.deepEqual(asked, [], "no slot to ask about");
+  // On its own turn, the same console casts as before: the slot to choose, the first ray spends it.
+  const own = fixture({ actions: [rays], actionId: "rays", attacker: { ...noRollCaster, ...hold }, turnState: { round: 2, order: ["aria", "ghoul"], current: 0 } });
+  await own.controller.ready; await tick();
+  assert.equal(own.$("pc-attack-spell-controls").querySelector('[aria-label="Slot"]').disabled, false);
+  assert.match(own.$("pc-attack-cantrip-note").textContent, /il primo spende lo slot/);
+});

@@ -1507,10 +1507,13 @@ function executionDescriptor({
   const undoCapable = selectedLane === SPELL_UNIFIED_PANEL_LANES.ACTIVE_RESOLUTION
     || (selectedLane !== SPELL_UNIFIED_PANEL_LANES.ACTIVE_RESOLUTION
       && (selectedLane === SPELL_UNIFIED_PANEL_LANES.SPELL_LIFECYCLE || compositeUndo));
-  // A spell the plugin does not automate: the cast is recorded with what it spends (spellCastRecord.js).
+  // A spell the plugin does not automate: the cast is recorded with what it spends (spellCastRecord.js). Its hold as a
+  // readied spell is not (lot T6d of docs/STUDIO_AZIONI_DI_TURNO.md): the pill and the concentration on the caster, as any
+  // hold's, so that Scorching Ray or Guiding Bolt, released in the attack console, can be readied.
   const recordOnly = selectedLane === SPELL_UNIFIED_PANEL_LANES.SPELL_LIFECYCLE
     && !selectedAction
-    && isSpellCastRecordOnly(spell);
+    && isSpellCastRecordOnly(spell)
+    && phasePlan?.readied !== true;
   return {
     lane: selectedLane,
     recordOnly,

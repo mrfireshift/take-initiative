@@ -211,6 +211,7 @@ import {
   sanitizeQuickActions,
 } from "./quickActionsCore.js";
 import {
+  readiedReleaseAttackAction,
   spellbookCantripAttackAction,
   spellbookSpellAttackAction,
   spellbookMenuSections,
@@ -8823,6 +8824,15 @@ async function __triggerReadiedActionWithAttackFromContext(entry) {
 async function __releaseReadiedSpellFromContext(entry) {
   const hold = readiedSpellHold(entry?.conditions, entry?.spells);
   if (!hold) return;
+  // A spell the character records in the attack console goes off there (lot T6d): off turn, the reaction ticked; the
+  // console reads the hold, spends no slot and ends the hold with the attack.
+  const casterId = __reactionTrackerTargetId(entry);
+  const [caster] = IS_GM && casterId ? await OBR.scene.items.getItems([casterId]).catch(() => []) : [];
+  const attackAction = readiedReleaseAttackAction(caster?.metadata?.[`${ID}/meta`]?.initiativeCard, hold.spellId);
+  if (attackAction) {
+    await openPcAttackPopover(casterId, attackAction.id, hold.spellId);
+    return;
+  }
   await openCardSpellsPopup(entry, { routeRequest: {
     spellId: hold.spellId, phase: "resolve", parentInstanceId: hold.instanceId,
     ...(hold.slotLevel ? { slotLevel: hold.slotLevel } : {}),

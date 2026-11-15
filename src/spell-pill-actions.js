@@ -183,11 +183,32 @@ async function undo() {
   }
 }
 
+// A readied spell the character records in the attack console goes off there (lot T6d of docs/STUDIO_AZIONI_DI_TURNO.md):
+// off turn, the reaction ticked, no slot, the hold ended with the attack. false: the spell panel releases it (lot T6c).
+async function openReadiedReleaseInConsole(context) {
+  const casterId = String(context.casterId || "").trim();
+  const spellId = String(context.spellId || "").trim();
+  if (!casterId || !spellId) return false;
+  const [caster] = await OBR.scene.items.getItems([casterId]).catch(() => []);
+  const card = caster?.metadata?.[`${ID}/meta`]?.initiativeCard;
+  if (!card) return false;
+  const { readiedReleaseAttackAction } = await import("./spellbookCatalog.js");
+  const attackAction = readiedReleaseAttackAction(card, spellId);
+  if (!attackAction) return false;
+  const { openPcAttackPopover } = await import("./pcAttackLauncher.js");
+  await openPcAttackPopover(casterId, attackAction.id, spellId);
+  return true;
+}
+
 // The whole panel, for what the menu does not cover (a choice, a zone to move), on the action when there is one.
 async function openPanel(actionId = "") {
   const context = overview?.context || {};
-  const { buildSpellUnifiedPanelRouteQuery } = await import("./spellUnifiedPanelRoutingCore.js");
   const action = (overview?.actions || []).find((entry) => String(entry?.id || "").trim() === actionId);
+  if (action?.readied === true && await openReadiedReleaseInConsole(context)) {
+    close();
+    return;
+  }
+  const { buildSpellUnifiedPanelRouteQuery } = await import("./spellUnifiedPanelRoutingCore.js");
   const query = buildSpellUnifiedPanelRouteQuery({
     spellId: context.spellId || "",
     casterId: context.casterId || "",

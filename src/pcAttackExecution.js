@@ -66,9 +66,10 @@ function spendSmiteSlots(item,plan,castWithoutSlot=false) {
 
 // A leveled attack spell (lotto L4): the first registration of a cast spends its slot (or Pact Magic) in its own
 // command, like the smites; the next rays and darts, and Vampiric Touch's touches (cast from the spell panel), spend
-// nothing. With no slot left the console asks first and sends castWithoutSlot.
+// nothing, nor does a readied spell's release, paid at its hold (lot T6d of docs/STUDIO_AZIONI_DI_TURNO.md). With no
+// slot left the console asks first and sends castWithoutSlot.
 export function pcAttackSpellSlotPlan(item,spell) {
-  if(!spell?.firstOfCast || spell.fromActiveSpell) return null;
+  if(!spell?.firstOfCast || spell.fromActiveSpell || spell.readiedRelease) return null;
   const meta=item?.metadata?.[`${ID}/meta`] || {};
   const card=meta.initiativeCard || {};
   return planSpellSlotSpend({characterBuild:card.characterBuild,resources:meta.classFeatureState?.resources || {},
@@ -342,6 +343,8 @@ export function createPcAttackRuntime({
         spell:plan.causality.spell ? structuredClone(plan.causality.spell) : null,
         manualRemainder:plan.options?.history?.payload?.manualRemainder || "",conditions:(plan.causality.conditionsApplied || []).map(entry=>entry.condition),
         ...(draft.reaction?{reaction:{...draft.reaction}}:{}),
+        // The readied spell this attack released (lot T6d of docs/STUDIO_AZIONI_DI_TURNO.md).
+        ...(plan.causality.readiedRelease?{readiedRelease:{...plan.causality.readiedRelease}}:{}),
         target:{id:targetItem.id,name:targetItem.name || targetItem.id},
         ...(plan.causality.weaponCantrip?{weaponCantrip:structuredClone(plan.causality.weaponCantrip)}:{}),
         ...(plan.secondaryChange?{secondary:{id:plan.secondaryItem.id,name:plan.secondaryItem.name || plan.secondaryItem.id,

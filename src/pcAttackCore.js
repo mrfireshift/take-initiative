@@ -40,6 +40,7 @@ import { PC_ATTACK_CANTRIPS, PC_ATTACK_SAVE_LABELS, getPcAttackCantrip, pcAttack
 import { PC_ATTACK_SPELLS, getPcAttackSpell, pcAttackSpellCount, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
 import { abilitySaveDC, totalCharacterLevel } from "./abilityModifiersCore.js";
 import { consumedAdvantagePills, hiddenPills } from "./attackAdvantagePillsCore.js";
+import { isOffTurn, readiedSpellHold } from "./reactionTrackerCore.js";
 import { PC_ATTACK_RIDERS, PC_ATTACK_SPELL_RIDERS, getPcAttackRider, pcAttackHasPotentCantrip, pcAttackRiderDice, pcAttackRiderFeatureActive, pcAttackRidersForCard, pcAttackRiderSlotLevels } from "./pcAttackRiderCatalog.js";
 
 export const PC_ATTACK_HISTORY_KIND = "pc-attack";
@@ -444,6 +445,18 @@ function shieldedFrom(targetItem, spellId) {
     && Array.isArray(instance?.mechanics?.immunities) && instance.mechanics.immunities.includes(spellId));
 }
 
+// The release of a readied spell (lot T6d of docs/STUDIO_AZIONI_DI_TURNO.md, decisions P6, P11): off its turn, the
+// creature holds this very spell, so the attack is its release, whatever opened the console. Its slot was spent at the
+// hold, its level is the hold's; the attack ends the hold in its own command. null otherwise.
+export function pcAttackReadiedRelease({ sourceItem, spellId = "", turnState = null } = {}) {
+  const id = String(spellId || "").trim();
+  if (!id || !sourceItem?.id || !isOffTurn(turnState, sourceItem.id)) return null;
+  const meta = sourceItem.metadata?.[META_KEY] || {};
+  const conditions = Array.isArray(meta.conditions) ? { instances: meta.conditions } : meta.conditions;
+  const hold = readiedSpellHold(conditions, meta[`${ID}/spells`]);
+  return hold && hold.spellId === id ? hold : null;
+}
+
 // The cast of this spell the console may continue: same spell and turn, with rays or darts left or a pending leap.
 export function pcAttackOpenSpellCast({ sourceItem, spellId = "", turnState = null } = {}) {
   const live = sourceItem?.metadata?.[META_KEY]?.[PC_ATTACK_STATE_FIELD]?.spellCast || null;
@@ -480,7 +493,9 @@ export function pcAttackSpellCastPlan({ attack, sourceItem, targetItem = null, s
   const live = sourceMeta[PC_ATTACK_STATE_FIELD]?.spellCast || null;
   const continuing = !!live && live.castId === castId && live.spellId === spell.spellId && (live.turnKey || "") === turnKey
     && (live.index < live.total || live.leapPending === true);
-  const requested = Math.floor(Number(spellCast?.slotLevel));
+  // A readied spell going off (lot T6d): a new cast at the hold's slot, already spent; its next rays go on as any cast's.
+  const release = continuing ? null : pcAttackReadiedRelease({ sourceItem, spellId: spell.spellId, turnState });
+  const requested = Math.floor(Number(release ? Math.max(spell.level, release.slotLevel || spell.level) : spellCast?.slotLevel));
   const slotLevel = continuing ? live.slotLevel : (Number.isInteger(requested) && requested >= spell.level && requested <= 9 ? requested : null);
   if (!slotLevel) return blocked("Scegli il livello dello slot.");
   // Steel Wind Strike: its five attacks are registered; what is left is the teleport, or a new cast.
@@ -498,8 +513,8 @@ export function pcAttackSpellCastPlan({ attack, sourceItem, targetItem = null, s
   const index = continuing ? live.index + 1 : 1;
   const total = continuing ? (live.index < live.total ? live.total : live.total + 1) : pcAttackSpellCount(spell, slotLevel);
   const leapPending = !!spell.leap && spellCast?.doubles === true && ATTACK_HITS.has(outcome);
-  // Pact Magic chosen in the console: the slot spent is the pact's (spellSlotSpendCore.js).
-  const pact = continuing ? live.pact === true : spellCast?.pact === true;
+  // Pact Magic chosen in the console: the slot spent is the pact's (spellSlotSpendCore.js). A release spends none.
+  const pact = continuing ? live.pact === true : !release && spellCast?.pact === true;
   // Steel Wind Strike: the cast stays open after any of its attacks, for the teleport the caster may take.
   const teleportPending = !!spell.teleportAfter;
   const next = index < total || leapPending || teleportPending
@@ -507,7 +522,8 @@ export function pcAttackSpellCastPlan({ attack, sourceItem, targetItem = null, s
       ...(pact ? { pact: true } : {}), ...(teleportPending ? { teleportPending: true } : {}) }
     : null;
   return { ok: true, spell, slotLevel, dice: pcAttackSpellDice(spell, slotLevel), firstOfCast: !continuing, index, total,
-    ...(continuing && live.leapPending ? { leap: true } : {}), ...(pact ? { pact: true } : {}), leapPending, next };
+    ...(continuing && live.leapPending ? { leap: true } : {}), ...(pact ? { pact: true } : {}), leapPending, next,
+    ...(release ? { readiedRelease: { instanceId: release.instanceId } } : {}) };
 }
 
 // Steel Wind Strike (CAP-TELEPORT, lotto T3): the teleport after its attacks, from the cast still open, and the attack
@@ -1317,6 +1333,8 @@ export function pcAttackPreview({
     ...(hitPlan?.causality ? { hitEffect: hitPlan.causality } : {}),
     ...(spellPlan?.ok ? { spell: { slotLevel: spellPlan.slotLevel, dice: spellPlan.dice, index: spellPlan.index, total: spellPlan.total,
       firstOfCast: spellPlan.firstOfCast, ...(spellPlan.leap ? { leap: true } : {}), ...(spellPlan.fromActiveSpell ? { fromActiveSpell: true } : {}),
+      // A readied spell's release (lot T6d): no slot to ask for.
+      ...(spellPlan.readiedRelease ? { readiedRelease: { ...spellPlan.readiedRelease } } : {}),
       ...(casterHeal ? { casterHeal: { amount: casterHeal.requested, before: casterHeal.hp, after: casterHeal.afterHP, hpMax: casterHeal.hpMax } } : {}) } } : {}) };
 }
 
@@ -1345,6 +1363,10 @@ export function buildPcAttackMutation({
   // A leveled spell (lotto L4): checked against the live cast (pcAttackState.spellCast) and the caster's concentration.
   const spellPlan = attack.spell ? pcAttackSpellCastPlan({ attack, sourceItem, targetItem, spellCast, turnState, outcome }) : null;
   if (spellPlan && !spellPlan.ok) throw new Error(`${spellPlan.reason} Riapri l'attacco.`);
+  // The release of a readied spell (lot T6d): a leveled spell's new cast, or a cantrip, held by the attacker off its turn.
+  const readiedHold = spellPlan?.readiedRelease
+    ? pcAttackReadiedRelease({ sourceItem, spellId: attack.spell.spellId, turnState })
+    : attack.cantrip ? pcAttackReadiedRelease({ sourceItem, spellId: attack.cantrip.spellId, turnState }) : null;
   const factor = pcAttackDamageFactor(attack, outcome, sourceItem.metadata?.[META_KEY]?.initiativeCard);
   const miss = factor === "zero";
   const riderRequests = Array.isArray(riders) ? riders : [];
@@ -1512,7 +1534,12 @@ export function buildPcAttackMutation({
       index: spellPlan.index, total: spellPlan.total, firstOfCast: spellPlan.firstOfCast, slotTracked: false, ...(spellPlan.pact ? { pact: true } : {}),
       ...(spellPlan.leap ? { leap: true } : {}), ...(spellPlan.leapPending ? { leapPending: true } : {}),
       ...(spellPlan.fromActiveSpell ? { fromActiveSpell: true, instanceId: spellPlan.instanceId } : {}),
+      // A readied spell's release (lot T6d): its slot was spent at the hold, never again here.
+      ...(spellPlan.readiedRelease ? { readiedRelease: { ...spellPlan.readiedRelease } } : {}),
       ...(casterHealChange?.changed ? { casterHeal: { amount: casterHealChange.requested, before: casterHealChange.hp, after: casterHealChange.afterHP } } : {}) } } : {}),
+    // The hold this attack releases, for the log and the console (lot T6d).
+    ...(readiedHold ? { readiedRelease: { instanceId: readiedHold.instanceId, spellId: readiedHold.spellId, name: readiedHold.name,
+      ...(readiedHold.slotLevel ? { slotLevel: readiedHold.slotLevel } : {}) } } : {}),
     ...(attack.cantrip ? { cantrip: { ...attack.cantrip, ...(cantripDice ? { dice: cantripDice } : {}), ...(saveLabel ? { saveLabel } : {}) } } : {}),
     ...(pcAttackSave(attack) ? { save: { ability: pcAttackSave(attack), outcome, ...(factor === "half" && !attack.saveHalf ? { potentCantrip: true } : {}),
       ...(pcAttackSaveDC(attack, sourceMeta.initiativeCard) ? { dc: pcAttackSaveDC(attack, sourceMeta.initiativeCard) } : {}) } } : {}),
@@ -1643,7 +1670,7 @@ export function buildPcAttackMutation({
     // Temporary hit points (Inspiring Smite): their own projections after the commit (no concentration warnings).
     tempHpChanges: activationPlan.tempHp.filter((row) => row.change.changed).map((row) => ({ item: row.item, change: row.change })),
     labelTargetIds: [...new Set([...pillTargetIds, ...(activationConditions.length ? [targetItem.id] : []),
-      ...(biteBonusOperations.length ? [sourceItem.id] : []), ...hitPlan.labelTargetIds])],
+      ...(biteBonusOperations.length || readiedHold ? [sourceItem.id] : []), ...hitPlan.labelTargetIds])],
     ...(secondaryItemUsed ? { secondaryChange, secondaryItem: secondaryItemUsed } : {}),
     // The creatures of Bursting Arrow: their own post-damage projections after the commit.
     burstChanges: burstRows.filter((row) => row.change.changed).map((row) => ({ item: row.item, change: row.change })),
@@ -1683,11 +1710,14 @@ export function buildPcAttackMutation({
     ] }] : []), ...conditionOperations, ...hitPlan.operations,
     ...(conditionOperations.length || hitPlan.operations.length ? [{ type: "condition:automate", subjectIds: [targetItem.id] }] : []), ...cantripOperations,
     ...activationPillOperations, ...biteBonusOperations,
-    ...(linkEnds.length ? [{ type: "condition:remove-instances", removals: linkEnds.map(({ itemId, instanceId }) => ({ itemId, instanceId })) }] : [])],
+    ...(linkEnds.length ? [{ type: "condition:remove-instances", removals: linkEnds.map(({ itemId, instanceId }) => ({ itemId, instanceId })) }] : []),
+    // The release ends the hold (lot T6d): its concentration broken by its instance takes its record and its pill, hit
+    // or miss, as the spell panel's release does; one Undo brings the hold back.
+    ...(readiedHold ? [{ type: "concentration:break", casterIds: [sourceItem.id], reference: readiedHold.instanceId, reason: "readied-release" }] : [])],
     options: {
       commandId: attackInstanceId, correlationId: attackInstanceId, sourceId: sourceItem.id,
       targetIds: [...new Set([targetItem.id, ...(secondaryItemUsed ? [secondaryItemUsed.id] : []), ...pillTargetIds,
-        ...burstRows.map((row) => row.item.id), ...(casterHealChange?.changed || biteBonusOperations.length ? [sourceItem.id] : [])])],
+        ...burstRows.map((row) => row.item.id), ...(casterHealChange?.changed || biteBonusOperations.length || readiedHold ? [sourceItem.id] : [])])],
       kind: PC_ATTACK_HISTORY_KIND, label,
       // The quick action read from the attacker's card, and the defenses read from the target's card,
       // must still be the ones at commit.

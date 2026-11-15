@@ -726,3 +726,71 @@ test("an attack on the actor's own turn, or off turn without the reaction asked 
   assert.equal(plain.reaction, undefined);
   assert.equal(reactionsOf("aria").length, 0);
 });
+
+// The release of a readied spell in the console (lot T6d of docs/STUDIO_AZIONI_DI_TURNO.md): the hold as the spell panel's
+// «Prepara» writes it (lot T6b), then the attack off the caster's turn with the reaction.
+const SPELLS = "com.thebigpicture.initiative/spells";
+const CONCENTRATION = "com.thebigpicture.initiative/concentration";
+async function holdSpell(spellId, slotLevel) {
+  const { getSpellDefinition } = await import("../src/spells-srd.js");
+  const { buildSpellApplicationIntent, buildSpellApplicationPlan } = await import("../src/spellApplicationPlanCore.js");
+  const intent = buildSpellApplicationIntent({ spell: getSpellDefinition(spellId), enteredName: spellId, turns: 1, casterId: "aria",
+    targetIds: ["aria"], castContext: { readied: true, phase: "prepare", ...(slotLevel ? { slotLevel } : {}) } });
+  const plan = buildSpellApplicationPlan({ intent, instanceId: `hold:${spellId}`, appliedAt: { round: 2, actorId: "aria", phase: "turn", turnKey: "2:0:aria" },
+    casterName: "Aria" });
+  const result = await effects.runEffectsMutation(plan.operations, { kind: "spell", label: plan.historyLabel, targetIds: ["aria"],
+    history: { kind: "spell", label: plan.historyLabel } });
+  assert.equal(result.status, "applied", JSON.stringify(result));
+  sceneMetadata["com.thebigpicture.initiative/state"] = { round: 2, order: ["aria", "ghoul"], current: 1 };
+  return `hold:${spellId}`;
+}
+const pillsOf = (id) => (meta(id).conditions?.instances || []).filter((instance) => instance.active !== false).map((instance) => instance.condition).sort();
+
+test("a readied Scorching Ray released off turn: no slot, the hold ends with the first ray and the reaction; the next rays go on; one Undo each", async () => {
+  meta("aria").initiativeCard = { characterBuild: [{ classId: "mago", level: 5 }], spellbook: { spellIds: ["scorching-ray"] } };
+  const holdId = await holdSpell("scorching-ray", 3);
+  assert.deepEqual(pillsOf("aria"), ["Azione preparata"]);
+  const before = (await history.getHistoryEntries()).length;
+  const presentation = await runtime.getPcAttackPresentation("aria", "book-attack:spell");
+  const ray = (attackInstanceId, amount) => runtime.executePcAttack({ sourceId: "aria", actionId: "book-attack:spell", spellId: "scorching-ray",
+    targetId: "ghoul", sceneIdentity: presentation.sceneIdentity, expectedAction: presentation.action, expectedDefenses: {}, outcome: "hit",
+    componentAmounts: { c1: amount }, spellCast: { castId: "rays-1", slotLevel: 2 }, useReaction: true, attackInstanceId });
+  const first = await ray("ray-a", 7);
+  assert.equal(meta("ghoul").hp, 23);
+  assert.deepEqual([first.spell.slotLevel, first.spell.index, first.spell.total, first.spell.slotSpent], [3, 1, 4, undefined],
+    "the hold's slot, not the one asked for: four rays at the 3rd level, none spent");
+  assert.deepEqual([first.spell.readiedRelease, first.readiedRelease?.name], [{ instanceId: holdId }, "Raggio rovente"]);
+  assert.equal(meta("aria").classFeatureState?.resources?.["spell-slot-3"]?.current ?? 2, 2, "no slot spent at the release");
+  assert.deepEqual(first.reaction, { spent: true, alreadyUsed: false, readied: true });
+  assert.deepEqual(pillsOf("aria"), ["Reazione usata"], "the hold's pill gone, the reaction spent");
+  assert.deepEqual([(meta("aria")[SPELLS] || []).filter((entry) => entry.instanceId === holdId), meta("aria")[CONCENTRATION]], [[], {}]);
+  const second = await ray("ray-b", 6);
+  assert.equal(meta("ghoul").hp, 17);
+  assert.deepEqual([second.spell.index, second.spell.total, second.spell.slotSpent, second.spell.readiedRelease, second.readiedRelease],
+    [2, 4, undefined, undefined, undefined], "the next ray goes on as any cast's");
+  const entries = await history.getHistoryEntries();
+  assert.equal(entries.length, before + 2);
+  await history.undoHistoryThrough(entries.at(-2).id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(meta("ghoul").hp, 30);
+  assert.deepEqual(pillsOf("aria"), ["Azione preparata"], "Undo: the hold back, the reaction too");
+  assert.deepEqual(Object.values(meta("aria")[CONCENTRATION] || {}).map((entry) => entry.instanceId), [holdId]);
+});
+
+test("a readied Fire Bolt released off turn ends its hold even on a miss; on the caster's own turn Fire Bolt is a plain cast", async () => {
+  meta("aria").initiativeCard = { characterBuild: [{ classId: "mago", level: 5 }], spellbook: { spellIds: ["fire-bolt"] } };
+  const holdId = await holdSpell("fire-bolt", null);
+  const presentation = await runtime.getPcAttackPresentation("aria", "book-attack:cantrip");
+  const bolt = (attackInstanceId, extra = {}) => runtime.executePcAttack({ sourceId: "aria", actionId: "book-attack:cantrip", spellId: "fire-bolt",
+    targetId: "ghoul", sceneIdentity: presentation.sceneIdentity, expectedAction: presentation.action, expectedDefenses: {}, outcome: "miss",
+    componentAmounts: {}, attackInstanceId, ...extra });
+  sceneMetadata["com.thebigpicture.initiative/state"] = { round: 2, order: ["aria", "ghoul"], current: 0 };
+  const own = await bolt("own-turn");
+  assert.equal(own.readiedRelease, undefined, "Aria's own turn: no release");
+  assert.deepEqual(pillsOf("aria"), ["Azione preparata"], "the hold stays");
+  sceneMetadata["com.thebigpicture.initiative/state"] = { round: 2, order: ["aria", "ghoul"], current: 1 };
+  const released = await bolt("released", { useReaction: true });
+  assert.deepEqual(released.readiedRelease, { instanceId: holdId, spellId: "fire-bolt", name: "Dardo di fuoco" });
+  assert.equal(meta("ghoul").hp, 30);
+  assert.deepEqual(pillsOf("aria"), ["Reazione usata"]);
+  assert.deepEqual(meta("aria")[CONCENTRATION], {});
+});

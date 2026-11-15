@@ -9,7 +9,7 @@ import { DODGE_SAVE_NOTE, dodgeSaveAdvantage } from "./attackAdvantagePillsCore.
 import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint, pcAttackActivationOptions,
   pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction, pcAttackOutcomesFor, pcAttackSaveLabel, pcAttackDamageFactor,
   pcAttackCantripPillLabels, pcAttackWeaponCantripOptions, pcAttackActionWeaponCantripIds, pcAttackQuiveringPalm,
-  pcAttackModeOptions, pcAttackAreaPreview, pcAttackAreaRowDamage, pcAttackActionPanelCantripIds, pcAttackSpellIds, pcAttackWithSpellType, pcAttackOpenSpellCast,
+  pcAttackModeOptions, pcAttackAreaPreview, pcAttackAreaRowDamage, pcAttackActionPanelCantripIds, pcAttackSpellIds, pcAttackWithSpellType, pcAttackOpenSpellCast, pcAttackReadiedRelease,
   pcAttackMonsterAreaNote, pcAttackMonsterTags, pcAttackSpellBonusTags, pcAttackMagicToggleable, pcAttackMagicHint, pcAttackDefenseText } from "./pcAttackCore.js";
 import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileCore.js";
 import { PC_ATTACK_MONSTER_GROUP_TITLES, pcAttackMonsterTraitEntries } from "./pcAttackMonsterTraitsCore.js";
@@ -149,7 +149,8 @@ export function spellResultSummary(spell) {
   if(!spell) return "";
   const progress=spell.total>1?` ${spell.leap?"balzo ":""}${spell.index}/${spell.total}`:spell.leap?" balzo":"";
   return [`${spell.name}${progress}, ${spell.slotLevel}° livello`,
-    ...(spell.slotSpent?[`speso: ${spell.slotSpent}`]:spell.firstOfCast && !spell.fromActiveSpell?["nessuno slot scalato"]:[]),
+    ...(spell.slotSpent?[`speso: ${spell.slotSpent}`]:spell.readiedRelease?["slot già speso alla preparazione"]
+      :spell.firstOfCast && !spell.fromActiveSpell?["nessuno slot scalato"]:[]),
     ...(spell.casterHeal?[`il caster recupera ${spell.casterHeal.amount} PF (${spell.casterHeal.before} → ${spell.casterHeal.after})`]:[]),
     ...(spell.leapPending?["d8 uguali: registra il balzo su un'altra creatura entro 9 m"]:[])].join(" · ")+".";
 }
@@ -426,12 +427,18 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const isSpellAction=()=>presentation?.action?.source?.kind==="spell";
   const openSpellCast=()=>isSpellAction() && draft?.spellId
     ? pcAttackOpenSpellCast({sourceItem:presentation.item,spellId:draft.spellId,turnState:presentation.turnState}) : null;
+  // A readied spell held off its turn (lot T6d of docs/STUDIO_AZIONI_DI_TURNO.md): this attack releases it.
+  const readiedRelease=()=>presentation && draft?.spellId
+    ? pcAttackReadiedRelease({sourceItem:presentation.item,spellId:draft.spellId,turnState:presentation.turnState}) : null;
   // A cast left open continues by itself (its id and slot), unless the GM starts a new one.
   function syncSpellDraft() {
     if(!isSpellAction() || !draft) return;
     const spell=getPcAttackSpell(draft.spellId);
     const open=draft.spell.fresh?null:openSpellCast();
     if(open){draft.spell.castId=open.castId;draft.spell.slotLevel=open.slotLevel;draft.spell.pact=open.pact===true;return;}
+    // Released: the hold's slot, spent already.
+    const release=spell && !spell.fromActiveSpell?readiedRelease():null;
+    if(release){draft.spell.slotLevel=Math.max(spell.level,release.slotLevel || spell.level);draft.spell.pact=false;return;}
     if(spell && !spell.fromActiveSpell && !Number.isInteger(draft.spell.slotLevel)) {
       const choices=slotChoices();
       const choice=choices.find(entry=>entry.current>0) || choices[0] || null;
@@ -536,6 +543,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const spell=getPcAttackSpell(draft.spellId);
     syncSpellDraft();
     const open=draft.spell.fresh?null:openSpellCast();
+    const release=!open && spell && !spell.fromActiveSpell?readiedRelease():null;
     const controls=[];
     if(spell && !spell.fromActiveSpell) {
       const choices=slotChoices();
@@ -544,7 +552,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         :[spell.level,...[1,2,3,4,5,6,7,8,9].filter(level=>level>spell.level)].map(level=>{const option=node("option",`Slot di ${level}°`);option.value=String(level);return option;});
       slot.replaceChildren(...options);
       slot.value=draft.spell.pact?"pact":String(draft.spell.slotLevel ?? spell.level);
-      slot.disabled=busy || !!open;
+      slot.disabled=busy || !!open || !!release;
       slot.addEventListener("change",()=>{
         const choice=choices.find(entry=>(entry.pact?"pact":String(entry.level))===slot.value);
         draft.spell.slotLevel=choice?.level ?? Number(slot.value);draft.spell.pact=!!choice?.pact;renderSpell();updateDamageMeta();renderState();});
@@ -577,6 +585,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const slotLevel=draft.spell.slotLevel ?? spell?.level;
     const progress=open?`${open.leapPending?"Balzo del dardo":open.index>=open.total?`Attacchi registrati: ${open.index}/${open.total}`
       :`Lancio in corso: ${open.index}/${open.total} registrati`} · slot di ${open.slotLevel}° già speso. ${open.leapPending?"Scegli un'altra creatura entro 9 metri.":""}`
+      // A readied spell's release (lot T6d): no slot, the hold ends with this attack; its rays go on as a cast's.
+      :release?`Rilascio dell'incantesimo preparato: slot di ${slotLevel}° già speso alla preparazione; questo attacco chiude la presa.${spell.count?` ${spell.count.noun || (spell.spellId==="magic-missile"?"Dardi":"Raggi")}: ${spell.count.base+spell.count.perSlot*Math.max(0,(slotLevel || spell.level)-spell.level)}.`:""}`
       :spell?.count?`${spell.count.noun || (spell.spellId==="magic-missile"?"Dardi":"Raggi")}: ${spell.count.base+spell.count.perSlot*Math.max(0,(slotLevel || spell.level)-spell.level)} con questo slot; il primo spende lo slot.`:"";
     const notes=[...(progress?[progress.trim()]:[]),...(spell?.ruleNote?[spell.ruleNote]:[]),
       ...(pills.length?[`Al colpo: etichetta ${pills.map(label=>`«${label}»`).join(", ")}.`]:[]),
@@ -601,7 +611,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const registered=beamTally.spellId===draft.spellId?beamTally.count:0;
     const beamNote=registered>=beams?`Raggi: registrati tutti e ${beams}.`
       :`Raggi: ${beams} al livello del personaggio${registered?` · registrati ${registered}`:""}. Registra un attacco per raggio.`;
-    const notes=[...(cantrip?.scaling==="beams"?[beamNote]:[]),
+    const notes=[
+      // A readied cantrip's release (lot T6d of docs/STUDIO_AZIONI_DI_TURNO.md): the hold ends with this attack.
+      ...(cantrip && readiedRelease()?["Rilascio dell'incantesimo preparato: questo attacco chiude la presa."]:[]),
+      ...(cantrip?.scaling==="beams"?[beamNote]:[]),
       ...(cantrip?.save && pcAttackHasPotentCantrip(attackerCard())?["Trucchetto Potente: con il TS superato subisce metà danni."]:[]),
       ...(cantrip?.ruleNote?[cantrip.ruleNote]:[]),
       ...(pills.length?[`${cantrip.save?"Se fallisce":"Al colpo"}: etichetta ${pills.map(label=>`«${label}»`).join(", ")}.`]:[]),
@@ -3013,7 +3026,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!lifecycle.isCurrent(operation)) return;
     showUndo(result);
     if(result.reaction?.spent) reactionSpentBy=sourceId;
-    setStatus([resultSummary(result),...(result.spell?[spellResultSummary(result.spell)]:[]),...(result.reaction?.spent || result.reaction?.readied
+    setStatus([resultSummary(result),...(result.spell?[spellResultSummary(result.spell)]:[]),
+      // A readied spell released (lot T6d): its hold ends with the attack, its slot spent at the hold.
+      ...(result.readiedRelease?[`${result.readiedRelease.name || "Incantesimo"} preparato rilasciato: la presa è finita.`]:[]),
+      ...(result.reaction?.spent || result.reaction?.readied
       ?[result.reaction.readied?(result.reaction.spent?"Reazione segnata: azione preparata innescata.":"Azione preparata innescata."):"Reazione segnata."]:[]),
       ...(result.followUps || []),...(result.warnings || [])].join("\n"),"ok");
     rememberEntry(currentEntry()?.key);

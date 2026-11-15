@@ -141,6 +141,35 @@ Prove in `PROVE_IN_STANZA.md`, sezione B14.
 
 Prove in `PROVE_IN_STANZA.md`, sezione B15.
 
+**T6d fatto il 15/11:** il rilascio degli incantesimi d'attacco nella console.
+
+- **Dove:** il menu della card e il ⚡ aprono la console attacchi quando il
+  personaggio registra lì l'incantesimo, con l'azione della scheda o quella
+  costruita dal grimorio, come fa la scheda. Restano nel pannello Tocco del
+  vampiro, il cui tocco segue un lancio del pannello, e Lama Roboante e Lama
+  Verdefiamma, intrecciate a un attacco con arma.
+- **Quando un attacco è un rilascio:** lo decide il nucleo della console
+  (`pcAttackReadiedRelease`) sull'attaccante letto al commit. Fuori dal suo
+  turno, con proprio quell'incantesimo in presa, l'attacco è il rilascio, da
+  qualunque entrata si apra la console, anche dalla 🗡️ della card. Così lo
+  slot non si spende due volte.
+- **Che cosa fa:** nessuno slot, al livello della presa (lo slot nella console
+  è bloccato con la nota «slot di 3° già speso alla preparazione»); la
+  reazione con la casella «Usa la reazione (azione preparata)» di T3; la presa
+  chiusa nel comando dell'attacco, anche con un mancato, rompendo la sua
+  concentrazione per id. Un solo Annulla rimette tutto.
+- **Più raggi:** Raggio rovente e Dardo incantato rilasciati continuano il
+  lancio come oggi, senza slot; la reazione si spende al primo.
+- Nel risultato e nel log: «slot già speso alla preparazione» e «Raggio
+  rovente preparato rilasciato: la presa è finita.».
+- **Correzione di T6b trovata al banco:** per il pannello gli incantesimi della
+  console (Raggio rovente, Dardo di fuoco, Infliggi ferite…) sono «solo
+  registrati». La loro preparazione passava per «Lancio registrato»: spendeva
+  lo slot senza pill né concentrazione. Ora la presa è vera per ogni
+  incantesimo.
+
+Prove in `PROVE_IN_STANZA.md`, sezione B18.
+
 Scritti lo stesso giorno, con decisioni nuove in attesa:
 
 - §9, l'incantesimo preparato: decisioni **P1–P12** (§9.8), approvate dall'utente

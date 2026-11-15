@@ -595,6 +595,23 @@ nuova con la sua durata contata dal rilascio. Al rilascio non parte l'avviso di
 Controincantesimo, che c'è stato alla preparazione. La presa non apre popup
 all'inizio del turno del caster: si rilascia in qualunque turno.
 
+Gli incantesimi che la console attacchi registra si rilasciano lì invece che
+nel pannello. Sono i trucchetti come Dardo di fuoco o Fiamma sacra e gli
+incantesimi d'attacco come Dardo tracciante o Raggio rovente. Il menu della
+card e il ⚡ aprono la console fuori turno, sull'incantesimo:
+
+- lo slot è bloccato al livello della presa, con la nota «già speso alla
+  preparazione»;
+- «Usa la reazione (azione preparata)» è spuntata;
+- l'attacco registrato chiude la presa, anche se manca;
+- i raggi successivi di Raggio rovente o i dardi di Dardo incantato continuano
+  il lancio senza slot.
+
+Fuori dal suo turno, con l'incantesimo in presa, la console riconosce il
+rilascio anche se è stata aperta in un altro modo, per esempio dalla 🗡️ della
+card. Tocco del vampiro, Lama Roboante e Lama Verdefiamma si rilasciano nel
+pannello.
+
 **Annulla azione preparata** dal menu della card fa svanire l'incantesimo senza
 effetto: la reazione resta, lo slot resta speso.
 

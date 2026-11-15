@@ -360,10 +360,10 @@ function render(payload) {
         : "Dura fino all'inizio del suo prossimo turno",
     });
     if (payload.hasReadiedAction && payload.readiedSpell) {
-      // A readied spell (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md): released in the spell panel, its targets then, with
-      // the reaction; any other way to set it off would lose it.
+      // A readied spell (lots T6c and T6d of docs/STUDIO_AZIONI_DI_TURNO.md): released in the spell panel, or in the attack
+      // console for the spells it records, its targets then, with the reaction; any other way to set it off would lose it.
       makeAction(root, `Rilascia ${payload.readiedSpell.name || "l'incantesimo"}`, "mark.svg", "readied-spell-release", {
-        title: "Apre il pannello incantesimi sul rilascio: bersagli ed esiti ora, la reazione spesa, nessuno slot",
+        title: "Rilascio con la reazione, senza slot: nella console attacchi per gli incantesimi che registra, altrimenti nel pannello incantesimi",
       });
     } else if (payload.hasReadiedAction) {
       // With an attack: the attack console on the creature, off turn, its reaction ticked; the attack registered with the

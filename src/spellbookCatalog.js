@@ -243,6 +243,17 @@ export function spellbookAttackActionFor(profile, spellId) {
   return built?.source?.spellIds?.includes(spellId) ? built : null;
 }
 
+// The release of a readied spell (lot T6d of docs/STUDIO_AZIONI_DI_TURNO.md, decision P6): in the attack console when
+// the character records the spell there (the card's action or the book's), as the sheet casts it; null sends it to the
+// spell panel (lot T6c). Vampiric Touch (its touches follow a cast of the spell panel) and the cantrips woven into a
+// weapon attack stay in the panel. profile: the token's initiativeCard.
+export function readiedReleaseAttackAction(profile, spellId) {
+  const id = String(spellId || "").trim();
+  if (getPcAttackSpell(id)?.fromActiveSpell) return null;
+  if (ATTACK_CANTRIP_IDS.has(id) && !PICKED_CANTRIP_IDS.has(id)) return null;
+  return spellbookAttackActionFor(profile, id);
+}
+
 // The spells a caster keeps active with its concentration (its token's metadata).
 export function spellbookActiveSpellIds(meta) {
   const entries = meta?.[`${ID}/concentration`];

@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **154** |
+| **B. Console attacchi, mostri e capacità** | **159** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -53,6 +53,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B15. Incantesimo preparato: il rilascio | 5 |
 | B16. Statblock originale e innati dei mefiti | 2 |
 | B17. Bonus al tiro delle armi dei PG | 3 |
+| B18. Incantesimo preparato: il rilascio nella console | 5 |
 | B19. Statblock da testo nel pannello Importa | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
@@ -79,7 +80,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **517** |
+| **Totale** | **522** |
 
 ## A. Incantesimi
 
@@ -700,6 +701,16 @@ Fonte: [STUDIO_GIOCO_ONLINE.md](STUDIO_GIOCO_ONLINE.md), lotti BA1 e BA2 (decisi
 - [ ] **La casella:** scheda del PG → Modifica → Attacchi. La riga di un'arma ha **Bonus al tiro** accanto a **Fonte**; con Trucchetto o Incantesimo d'attacco la casella sparisce. Scrivi «+5» e salva: riaprendo, la casella dice «+5». Con «+40» il salvataggio si ferma e dice «il bonus al tiro va da −30 a +30». (voce nuova: STUDIO_GIOCO_ONLINE.md, BA1)
 - [ ] **Nella console:** la console attacchi del PG su quell'arma dice «Mischia · +5 al tiro» sopra il danno, come per i mostri. Svuotata la casella e salvata la scheda, il «+5 al tiro» sparisce. (voce nuova: STUDIO_GIOCO_ONLINE.md, BA1)
 - [ ] **Dall'import:** Importa, con un attacco che ha `"attackBonus": "+7"`: dopo **Applica al modulo** la riga dell'attacco dice «+7». (voce nuova: STUDIO_GIOCO_ONLINE.md, BA2)
+
+### B18. Incantesimo preparato: il rilascio nella console
+
+Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T6d (decisione P6). Le voci sono nuove: nessuna lista le aveva. Serve un mago che prepari (B14), una alla volta, Raggio rovente con lo slot di 3° e poi Dardo di fuoco, in combattimento; il rilascio si fa nel turno di un'altra creatura.
+
+- [ ] **Da dove:** **Rilascia Raggio rovente** dal menu della card, e poi il ⚡ della pill, aprono la console attacchi fuori turno su Raggio rovente: lo slot è fermo a 3°, la nota dice «Rilascio dell'incantesimo preparato: slot di 3° già speso alla preparazione», «Usa la reazione (azione preparata)» è spuntata. Da provare in vista compatta ed estesa.
+- [ ] **Il primo raggio:** registrato, toglie pill e C della presa, segna la reazione e non scala nessuno slot; il risultato dice «slot già speso alla preparazione» e «Raggio rovente preparato rilasciato».
+- [ ] **I raggi dopo:** gli altri tre raggi si registrano come oggi, senza slot; l'Annulla del primo raggio rimette la presa, la pill e la reazione.
+- [ ] **Un trucchetto mancato:** Dardo di fuoco preparato e rilasciato con un mancato chiude comunque la presa e segna la reazione.
+- [ ] **Dalla 🗡️ e nel proprio turno:** aperta dalla 🗡️ della card fuori turno, la console riconosce lo stesso il rilascio; nel turno del mago Dardo di fuoco si lancia come sempre e la presa resta.
 
 ### B19. Statblock da testo nel pannello Importa
 
