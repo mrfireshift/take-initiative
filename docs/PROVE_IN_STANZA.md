@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **150** |
+| **B. Console attacchi, mostri e capacità** | **154** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -53,6 +53,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B15. Incantesimo preparato: il rilascio | 5 |
 | B16. Statblock originale e innati dei mefiti | 2 |
 | B17. Bonus al tiro delle armi dei PG | 3 |
+| B19. Statblock da testo nel pannello Importa | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -78,7 +79,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **513** |
+| **Totale** | **517** |
 
 ## A. Incantesimi
 
@@ -699,6 +700,15 @@ Fonte: [STUDIO_GIOCO_ONLINE.md](STUDIO_GIOCO_ONLINE.md), lotti BA1 e BA2 (decisi
 - [ ] **La casella:** scheda del PG → Modifica → Attacchi. La riga di un'arma ha **Bonus al tiro** accanto a **Fonte**; con Trucchetto o Incantesimo d'attacco la casella sparisce. Scrivi «+5» e salva: riaprendo, la casella dice «+5». Con «+40» il salvataggio si ferma e dice «il bonus al tiro va da −30 a +30». (voce nuova: STUDIO_GIOCO_ONLINE.md, BA1)
 - [ ] **Nella console:** la console attacchi del PG su quell'arma dice «Mischia · +5 al tiro» sopra il danno, come per i mostri. Svuotata la casella e salvata la scheda, il «+5 al tiro» sparisce. (voce nuova: STUDIO_GIOCO_ONLINE.md, BA1)
 - [ ] **Dall'import:** Importa, con un attacco che ha `"attackBonus": "+7"`: dopo **Applica al modulo** la riga dell'attacco dice «+7». (voce nuova: STUDIO_GIOCO_ONLINE.md, BA2)
+
+### B19. Statblock da testo nel pannello Importa
+
+Fonte: [STUDIO_IMPORT_STATBLOCK_TESTO.md](STUDIO_IMPORT_STATBLOCK_TESTO.md), lotto ST2 (decisioni D3–D5). Le voci sono nuove: nessuna lista le aveva. Serve un nemico e uno statblock inglese delle regole 2014, copiato da un PDF o da D&D Beyond (per esempio un mostro dell'SRD).
+
+- [ ] **Leggi:** incolla il testo nel riquadro di **Importa** e premi **Leggi**: compaiono le sezioni e la riga «Da testo: …»; in **Al tavolo** ciò che resta al tavolo. **Applica al modulo** e **Salva**: il token prende nome, PF e attacchi.
+- [ ] **Statblock originale:** Statistiche → **Statblock originale** mostra il mostro diviso in voci; in Capacità ci sono i tratti, le reazioni e le leggendarie; un mostro con Parry accende l'avviso di reazione.
+- [ ] **I rifiuti:** un testo in italiano, o uno delle regole 2024, dice perché non si legge e rimanda al JSON di 5eTools o al prompt per un assistente.
+- [ ] **Da PDF:** lo stesso mostro copiato da un PDF, con le righe spezzate, dà le stesse azioni di quello copiato da D&D Beyond.
 
 ## C. Tracker e UX
 

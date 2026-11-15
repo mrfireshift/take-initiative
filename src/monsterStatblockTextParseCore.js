@@ -507,12 +507,14 @@ function headerSpells(text) {
 export function parseStatblockText(text) {
   const report = [];
   if (!String(text ?? "").trim()) return { monster: null, report, error: "Il testo è vuoto." };
-  if (ITALIAN.test(String(text))) return { monster: null, report, error: "Statblock in italiano: per ora il parser legge solo l'inglese." };
+  if (ITALIAN.test(String(text))) {
+    return { monster: null, report, error: "Statblock in italiano: dal testo per ora si legge solo l'inglese. Usa il prompt per un assistente (IMPORT_SCHEDA.md)." };
+  }
   let lines = normalizedLines(text, report);
   if (isMarkdown(lines)) lines = fromMarkdown(lines);
   lines = joinHyphenated(lines);
   if (RULES_2024.test(lines.map((line) => line.text).join("\n"))) {
-    return { monster: null, report, error: "Statblock delle regole 2024: il parser li leggerà con il lotto ST4." };
+    return { monster: null, report, error: "Statblock delle regole 2024: dal testo per ora si leggono solo quelli del 2014. Usa il JSON di 5eTools o il prompt per un assistente (IMPORT_SCHEDA.md)." };
   }
   let index = lines.findIndex((line) => line.text);
   if (index < 0) return { monster: null, report, error: "Il testo è vuoto." };

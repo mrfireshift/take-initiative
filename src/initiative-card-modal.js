@@ -3978,7 +3978,11 @@ function sheetImportNames() {
   };
 }
 
+// Each read of the panel (Leggi, a monster of the picker): a text read that ends after a newer read shows nothing.
+let sheetImportReadSerial = 0;
+
 function readSheetImport() {
+  const serial = ++sheetImportReadSerial;
   resetSheetImport();
   // A new block replaces the hit points chosen from the previous one; closing the panel after Applica keeps them.
   pendingMonsterHitPoints = null;
@@ -3991,6 +3995,11 @@ function readSheetImport() {
   // 5eTools' JSON (a monster, a list, a bestiary): its monsters join the picker; one alone is read at once.
   let data = null;
   try { data = JSON.parse(text); } catch {}
+  // Not JSON: a stat block pasted as text (statblock da testo, lotto ST2), or the JSON's error as before.
+  if (data === null && text.trim()) {
+    void readTextImport(text, serial);
+    return;
+  }
   if (data && isFiveToolsData(data)) {
     fiveToolsInputs.push(data);
     const { monsters: pasted, excluded2024 } = fiveToolsCollection([data], { allow2024: fiveTools2024() });
@@ -4004,6 +4013,31 @@ function readSheetImport() {
   // A stat block of the plugin's format with its full text ("text"): kept like a 5eTools monster's (lotto 4b).
   if (parsed.monster?.ref && typeof data?.text === "string") parsed.statblockText = monsterStatblockTextRecord({ ref: parsed.monster.ref, name: parsed.name, text: data.text });
   renderSheetImportResult(parsed);
+}
+
+// A stat block pasted as text (statblock da testo, lotto ST2): read by the parser into a 5eTools monster and then as one
+// of 5eTools (decision D1), its profile "manual" with the reference "Nome|testo" (D4), the monster as read kept for the
+// GM after Salva (D5). The reader loads only now. A text that is no stat block gets the JSON's error, as before.
+async function readTextImport(text, serial) {
+  let reader = null;
+  try {
+    reader = await import("./monsterStatblockTextImportCore.js");
+  } catch (error) {
+    console.warn("[statblock] lettore del testo:", error?.message || error);
+  }
+  if (serial !== sheetImportReadSerial) return;
+  if (!reader?.looksLikeStatblockText(text)) {
+    renderSheetImportResult(parseCharacterSheetImport(text));
+    return;
+  }
+  const converted = reader.statblockTextImport(text, { allow2024: fiveTools2024() });
+  if (converted.error) {
+    setSheetImportStatus(converted.error, "error");
+    return;
+  }
+  const parsed = parseCharacterSheetImport(JSON.stringify(converted.block));
+  parsed.statblockText = monsterStatblockTextRecord({ ref: converted.block.ref, name: converted.block.name, fiveTools: converted.monster });
+  renderSheetImportResult(parsed, { summary: converted.summary, report: converted.report });
 }
 
 // The loaded files: each one's monsters join the picker; a file that is not JSON is named in the status.
@@ -4054,6 +4088,7 @@ function renderFiveToolsPicker(selected = null) {
 // A 5eTools monster read into the sections, as a pasted stat block, with the line of what the console registers and
 // what stays at the table.
 async function readFiveToolsMonster(monster, { retried = false } = {}) {
+  ++sheetImportReadSerial;
   resetSheetImport();
   pendingMonsterHitPoints = null;
   pendingMonsterName = "";

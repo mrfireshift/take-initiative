@@ -373,6 +373,30 @@ dell'SRD, quelli fuori dall'SRD (Witch Bolt, Chromatic Orb…) vanno in rosso.
 Il plugin non contiene dati di 5eTools: i file restano in memoria solo
 mentre modifichi la scheda.
 
+### Da testo
+
+Lo stesso pannello legge anche il **testo** di uno statblock in inglese,
+delle regole 2014: incollalo in **Importa** e premi **Leggi**. Va bene il
+testo copiato da un PDF, da D&D Beyond, da Homebrewery o da GM Binder (anche
+il loro Markdown), fino a 20.000 caratteri. La prima riga è il nome del
+mostro, e servono «Armor Class» e «Hit Points».
+
+Il plugin lo legge come un mostro di 5eTools: stesse sezioni, stesse regole
+per azioni, tiri salvezza, aree, incantesimi e leggendarie, e sopra le sezioni
+la riga «Da testo: …» con cosa registra la console. In **Al tavolo** compaiono
+anche le righe che non ha capito («riga non letta: …») e le sezioni che non
+legge (azioni di tana, effetti regionali). Il loro testo finisce nel tratto
+**Testo non letto**, così nello Statblock originale e nella scheda Capacità
+non si perde niente.
+
+Dopo **Salva**, lo statblock resta nel browser del GM come quello di 5eTools,
+diviso in voci, per lo Statblock originale, la scheda Capacità e gli avvisi di
+reazione. Il token tiene la sua immagine: dal testo non arriva nessun
+ritratto.
+
+Per ora non legge gli statblock in italiano né quelli delle regole 2024: per
+quelli servono il JSON di 5eTools o il prompt per un assistente, qui sotto.
+
 ### Statblock 2024 (opzionali)
 
 I mostri delle regole 2024 (il Monster Manual 2025, `XMM`, e i derivati da

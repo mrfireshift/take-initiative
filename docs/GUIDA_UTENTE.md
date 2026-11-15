@@ -674,7 +674,9 @@ preparazione al tavolo: basta importarne lo statblock.
 1. Il GM apre la scheda del mostro dall'icona blu della card (per nemici e
    neutrali solo il GM la vede), preme **Modifica** e poi **Importa**.
 2. Incolla il JSON dello statblock (si prepara con il prompt di
-   [Importare una scheda](IMPORT_SCHEDA.md)), oppure carica un file di
+   [Importare una scheda](IMPORT_SCHEDA.md)) o il
+   [testo](IMPORT_SCHEDA.md#da-testo) di uno statblock in inglese, copiato da
+   un PDF o da D&D Beyond, oppure carica un file di
    [5eTools](IMPORT_SCHEDA.md#da-5etools) o cerca il mostro nei libri
    dell'**Archivio online**; preme **Leggi**, sceglie le sezioni e
    **Applica al modulo**. Lo statblock di un mostro **sostituisce** quello di

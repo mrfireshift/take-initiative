@@ -1,6 +1,6 @@
 # Studio: statblock da testo e da altre fonti
 
-Data: 15 novembre 2026. Stato: **approvato**; ST1 fatto il 15/11, non ancora committato (§12). Base dello studio: `main` a `617c6353`.
+Data: 15 novembre 2026. Stato: **approvato**; ST1 in `2a53bf55` (§12), ST2 committato il 15/11 (§13). Base dello studio: `main` a `617c6353`.
 
 Decisioni dell'utente del 15/11: **approvate tutte**, da D1 a D10 (§10).
 
@@ -341,3 +341,35 @@ La CI completa è verde su un worktree di `a1fc4bef` con i soli file del lotto, 
 - **I mefiti, risolto il 15/11 su decisione dell'utente:** in «Innate Spellcasting (1/Day). The mephit can innately cast sleep», 5eTools tiene Sonno in un elenco a volontà nascosto, e fino a oggi l'import lo dava a volontà. Ora l'adattatore legge quante volte al giorno si lancia un incantesimo di un elenco nascosto: dall'«(1/Day)» del nome del blocco, se il blocco non ha elenchi al giorno, o dall'intestazione subito dopo il nome dell'incantesimo («misty step up to three times per day», «once per day»). Senza, resta a volontà. Vale per entrambe le strade, 5eTools e testo. Sui 815 mostri dei quattro bestiari cambiano solo sei blocchi: Dust, Ice, Magma, Smoke e Steam Mephit (1/giorno) e Sephek Kaltro (Passo velato 3/giorno).
 - **Testo pulito:** l'oracolo misura testo pulito; il rumore vero lo misura ST3 con i campioni dell'utente. I test con mostri inventati coprono già righe spezzate, sillabe, legature, maiuscoletto, un punteggio per riga e il Markdown di Homebrewery.
 - **Nessuna prova nel browser:** nessun banco apre la scheda personaggio con il finto SDK, e ST1 non ha interfaccia oltre alla riga delle difese, coperta da un test sul testo esatto. Le due prove in stanza, la riga delle difese del Barbed Devil e il Sonno 1/giorno del Dust Mephit, sono in [PROVE_IN_STANZA.md](PROVE_IN_STANZA.md), sezione B16.
+
+---
+
+## 13. Lotto ST2: com'è andato (15/11)
+
+### 13.1 Che cosa c'è
+
+| File | Contenuto |
+|---|---|
+| `src/monsterStatblockTextImportCore.js` (nuovo) | `statblockTextImport()`: il parser, poi l'adattatore di 5eTools; il blocco con `source: "manual"`, `ref: "Nome\|testo"` e senza ritratto (D4); il mostro letto per la memoria del GM (D5); il rapporto del parser e quello dell'adattatore; la riga «Da testo: …» |
+| `src/initiative-card-modal.js` | `readSheetImport()`: un testo che non è JSON passa a `readTextImport()`, che carica il lettore solo allora. Uno statblock va nelle sezioni come uno di 5eTools; un testo qualsiasi ha l'errore del JSON di prima. Un contatore di letture fa sì che una lettura superata da una più nuova non scriva niente |
+| `initiative-card-modal.html` | il segnaposto e l'etichetta del riquadro nominano il testo di uno statblock (D3) |
+| `src/monsterStatblockTextParseCore.js` | i messaggi per l'italiano e per il 2024 rimandano al JSON di 5eTools e al prompt per un assistente |
+| `test/monsterStatblockTextImport.test.js` (nuovo) | 3 test: il blocco e la sua origine, il riepilogo e il rapporto; il record per Statistiche, Capacità e avvisi di reazione; i rifiuti |
+| `docs/IMPORT_SCHEDA.md`, `docs/GUIDA_UTENTE.md` | la sezione «Da testo» e il passo dell'import dei mostri |
+
+### 13.2 La prova nel banco
+
+Un banco della scheda personaggio con il finto SDK del banco Boss, su un worktree con i soli file del lotto, porta 5213, tolto dopo la prova. Con il testo del Frost Raider digitato nel riquadro, **Leggi** mostra le sezioni (Statistiche, Modificatori, Difese ai danni, Attacchi, Multiattacco, Note, Punti ferita, Rinomina), «Al tavolo» e la riga «Da testo: Frost Raider, 2 azioni registrabili, 1 da gestire al tavolo.». **Applica al modulo** riempie CA, percezione, velocità e note, e annuncia il testo dello statblock per dopo **Salva**.
+
+**Salva** non si prova nel banco: prima di scrivere la scheda chiede il contesto della scena al coordinatore degli effetti, che vive nella pagina di sfondo del plugin, e il banco apre solo la scheda. Il record e la sua lettura (Statblock originale, Capacità, avvisi di reazione) sono coperti dai test; il resto va nella prova in stanza.
+
+La CI completa è verde su un worktree di `22a25e43` con i soli file del lotto: verify:version, 6153 test, check:spells, build, checksums e verify:dist. Nella build il lettore è un pezzo a parte di 19 KB, caricato solo quando si incolla un testo.
+
+### 13.3 Prove in stanza (in [PROVE_IN_STANZA.md](PROVE_IN_STANZA.md), sezione B19)
+
+«Statblock da testo nel pannello Importa». Serve un nemico e uno statblock inglese delle regole 2014, copiato da un PDF o da D&D Beyond.
+
+- **Leggi:** incolla il testo e premi **Leggi**: compaiono le sezioni e la riga «Da testo: …»; in **Al tavolo** ciò che resta al tavolo. **Applica al modulo** e **Salva**: il token prende nome, PF e attacchi.
+- **Statblock originale:** Statistiche → **Statblock originale** mostra il mostro diviso in voci; in Capacità ci sono i tratti, le reazioni e le leggendarie; un mostro con Parry accende l'avviso di reazione.
+- **I rifiuti:** un testo in italiano, o uno del 2024, dice perché non si legge e rimanda al JSON di 5eTools o al prompt per un assistente.
+- **Da PDF:** lo stesso mostro copiato da un PDF, con le righe spezzate, dà le stesse azioni di quello copiato da D&D Beyond.
