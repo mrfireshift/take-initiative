@@ -1,5 +1,6 @@
 import {
   buildSpellUnifiedPanelContract,
+  readiedReleaseHoldId,
   SPELL_PANEL_PLACEMENT_POLICIES,
   SPELL_UNIFIED_PANEL_LANES,
 } from "./spellUnifiedPanelCore.js";
@@ -207,6 +208,10 @@ export function routeSpellUnifiedPanelOpenRequest(
   { buildContract = buildSpellUnifiedPanelContract } = {},
 ) {
   const normalized = normalizeSpellUnifiedPanelOpenRequest(request);
+  // A readied spell opened on its hold (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md): the spell's own cast, the hold
+  // named apart (readiedReleaseHoldId), never its concentration.
+  const releaseHoldId = readiedReleaseHoldId(normalized);
+  const sessionPhase = releaseHoldId ? "cast" : normalized.phase;
   const base = {
     destination: SPELL_UNIFIED_PANEL_DESTINATION,
     intent: normalized.intent,
@@ -218,7 +223,7 @@ export function routeSpellUnifiedPanelOpenRequest(
     executor: null,
     session: {
       spellId: normalized.spellId,
-      phase: normalized.phase,
+      phase: sessionPhase,
       casterId: normalized.casterId,
       ...(normalized.monsterActionContext ? { monsterActionContext: normalized.monsterActionContext } : {}),
       slotLevel: normalized.slotLevel,
@@ -231,17 +236,19 @@ export function routeSpellUnifiedPanelOpenRequest(
       placement: normalized.placement,
       activeInstanceId: normalized.activeInstanceId,
       activeActionId: normalized.activeActionId || normalized.actionId,
-      activeConcentration: normalized.parentInstanceId
+      activeConcentration: normalized.parentInstanceId && !releaseHoldId
         ? {
           instanceId: normalized.parentInstanceId,
           spellId: normalized.spellId,
         }
         : null,
+      ...(releaseHoldId ? { readiedRelease: { instanceId: releaseHoldId } } : {}),
       triggerRuntime: normalized.zoneTrigger,
       castContext: {
         ...(normalized.slotLevel === null ? {} : { slotLevel: normalized.slotLevel }),
         ...(normalized.variant ? { choice: normalized.variant } : {}),
-        ...(normalized.phase ? { phase: normalized.phase } : {}),
+        // A release casts as a cast does, without a phase in its cast context.
+        ...(normalized.phase && !releaseHoldId ? { phase: normalized.phase } : {}),
         ...(normalized.passengerId ? { passengerId: normalized.passengerId } : {}),
         ...(normalized.withoutConcentration && normalized.spellId ? { withoutConcentration: normalized.spellId } : {}),
       },
@@ -268,7 +275,7 @@ export function routeSpellUnifiedPanelOpenRequest(
 
   const contract = buildContract({
     spellId: normalized.spellId,
-    phase: normalized.phase,
+    phase: sessionPhase,
     actionId: normalized.actionId || normalized.activeActionId,
     choiceValue: normalized.variant,
     castContext: {
@@ -295,12 +302,12 @@ export function routeSpellUnifiedPanelOpenRequest(
     session: {
       ...base.session,
       spellId: contract.spell?.id || normalized.spellId,
-      phase: normalized.phase || contract.presentation?.phase?.selected || "cast",
+      phase: sessionPhase || contract.presentation?.phase?.selected || "cast",
       slotLevel: normalized.slotLevel ?? contract.presentation?.slot?.default ?? null,
       durationTurns: normalized.durationTurns
         ?? contract.presentation?.duration?.defaultTurns
         ?? null,
-      activeConcentration: normalized.parentInstanceId
+      activeConcentration: normalized.parentInstanceId && !releaseHoldId
         ? {
           instanceId: normalized.parentInstanceId,
           spellId: contract.spell?.id || normalized.spellId,

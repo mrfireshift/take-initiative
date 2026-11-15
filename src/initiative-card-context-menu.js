@@ -354,10 +354,18 @@ function render(payload) {
       current: !!payload.hasReadiedAction,
       trailing: payload.hasReadiedAction ? "Attiva" : "",
       title: payload.hasReadiedAction
-        ? "Toglie l'azione preparata senza usare la reazione"
+        ? payload.readiedSpell
+          ? "L'incantesimo preparato svanisce senza effetto: la reazione resta, lo slot resta speso"
+          : "Toglie l'azione preparata senza usare la reazione"
         : "Dura fino all'inizio del suo prossimo turno",
     });
-    if (payload.hasReadiedAction) {
+    if (payload.hasReadiedAction && payload.readiedSpell) {
+      // A readied spell (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md): released in the spell panel, its targets then, with
+      // the reaction; any other way to set it off would lose it.
+      makeAction(root, `Rilascia ${payload.readiedSpell.name || "l'incantesimo"}`, "mark.svg", "readied-spell-release", {
+        title: "Apre il pannello incantesimi sul rilascio: bersagli ed esiti ora, la reazione spesa, nessuno slot",
+      });
+    } else if (payload.hasReadiedAction) {
       // With an attack: the attack console on the creature, off turn, its reaction ticked; the attack registered with the
       // reaction removes the readied action. Without: the pill goes and the reaction is marked, in one step.
       if (payload.readiedAttack) {

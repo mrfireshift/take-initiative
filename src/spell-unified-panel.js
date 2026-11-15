@@ -471,7 +471,44 @@ export function bootSpellUnifiedPanel(
   // active action, a zone trigger or a monster action.
   const slotSpendApplies = () => !state.session?.triggerRuntime
     && !String(state.session?.activeActionId || "").trim()
-    && !state.session?.monsterActionContext;
+    && !state.session?.monsterActionContext
+    // A readied spell's slot (or use) was spent at its hold (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md, P3).
+    && !state.session?.readiedRelease;
+
+  // The release of a readied spell (lot T6c, decisions P6, P8): the hold still on its caster, read again now; the
+  // reaction spent (the GM confirms when it is used already); the hold ended in the cast's own command, its concentration
+  // broken by its instance, so one Undo gives back the hold, its pill and the reaction. null: the release does not go.
+  const prepareReadiedRelease = async (operation) => {
+    const holdId = String(state.session?.readiedRelease?.instanceId || "").trim();
+    const spell = getSpellDefinition(state.contract?.spell?.id);
+    const [caster] = await OBR.scene.items.getItems([state.session.casterId]).catch(() => []);
+    if (!sceneLifecycle.isCurrent(operation)) return null;
+    const spells = caster?.metadata?.[`${ID}/meta`]?.[`${ID}/spells`];
+    const held = (Array.isArray(spells) ? spells : []).some((entry) => (
+      String(entry?.instanceId || "").trim() === holdId && entry?.castContext?.readied === true
+    ));
+    if (!held) {
+      patchSession({ feedback: { state: "error", message: "L'incantesimo preparato non c'è più: è svanito o è già stato rilasciato." } },
+        { clearFeedback: false });
+      return null;
+    }
+    const sceneMetadata = await Promise.resolve().then(() => OBR.scene.getMetadata()).catch(() => ({}));
+    if (!sceneLifecycle.isCurrent(operation)) return null;
+    const reaction = planSpellReactionSpend({ spellId: spell?.id, caster, initiativeState: sceneMetadata?.[`${ID}/state`], readiedRelease: true });
+    if (reaction.alreadyUsed && !window.confirm(`${reaction.message}\n\nRilasciare comunque ${spell?.displayName || spell?.name || "l'incantesimo"}?`)) {
+      patchSession({ feedback: { state: "info", message: "Rilascio annullato: reazione già usata." } }, { clearFeedback: false });
+      return null;
+    }
+    return {
+      extraOperations: [
+        ...reaction.operations,
+        { type: "concentration:break", casterIds: [state.session.casterId], reference: holdId, reason: "readied-release" },
+      ],
+      // What the release spends, beside its message and in the combat log: the reaction, never a slot.
+      spellCost: reaction.operations.length ? "reazione" : "",
+      slotLevel: state.session.slotLevel,
+    };
+  };
 
   // An innate spell of the caster's species (speciesInnateSpellCore.js): the trait named by the quick action that
   // opened the panel ("species-spell:<trait id>"), for this spell. Its use is the cast's cost, its DC the cast's.
@@ -538,6 +575,7 @@ export function bootSpellUnifiedPanel(
   // Reads the caster again and returns the operations that spend the cost of the cast (a slot, or the uses of the
   // quick action that opened the panel); null when the GM cancels a cast with nothing left to spend.
   const prepareSpellSlotSpend = async (operation) => {
+    if (state.session?.readiedRelease) return prepareReadiedRelease(operation);
     if (!slotSpendApplies()) return { extraOperations: [] };
     const spell = getSpellDefinition(state.contract?.spell?.id);
     const [caster] = await OBR.scene.items.getItems([state.session.casterId]).catch(() => []);
@@ -585,11 +623,16 @@ export function bootSpellUnifiedPanel(
   // A new concentration spell ends the one the caster keeps: the GM confirms first, as the quick actions do
   // (quickActionExecution.js). Read again at the cast; false when the GM keeps the old one.
   const confirmConcentrationReplacement = async (operation) => {
-    if (!slotSpendApplies()
+    // A release (lot T6c) ends its own hold: only another concentration is asked about.
+    const releasedHoldId = String(state.session?.readiedRelease?.instanceId || "").trim();
+    if ((!slotSpendApplies() && !releasedHoldId)
       || state.contract?.spell?.concentration !== true
       || state.contract?.presentation?.phase?.plan?.concentrationAction !== "replace") return true;
-    const concentrations = await provider.getCasterConcentrations?.(state.session.casterId) || {};
+    const kept = await provider.getCasterConcentrations?.(state.session.casterId) || {};
     if (!sceneLifecycle.isCurrent(operation)) return false;
+    const concentrations = releasedHoldId
+      ? Object.fromEntries(Object.entries(kept).filter(([, entry]) => String(entry?.instanceId || "").trim() !== releasedHoldId))
+      : kept;
     const names = Array.from(new Set(concentrationSummary(concentrations).map((entry) => entry.name)));
     if (!names.length) return true;
     const caster = state.casters.find((item) => item.id === state.session.casterId);
@@ -2115,7 +2158,7 @@ export function bootSpellUnifiedPanel(
             state: result.status === SPELL_UNIFIED_AREA_STATUS.NOOP ? "info" : "success",
             message: [result.status === SPELL_UNIFIED_AREA_STATUS.NOOP
               ? areaMessageForResult(result)
-              : `Applicazione completata su ${result.changedIds.length} elementi${spentText(slotSpend)}.`,
+              : `${state.session.readiedRelease ? "Rilascio completato" : "Applicazione completata"} su ${result.changedIds.length} elementi${spentText(slotSpend)}.`,
             // What the GM still has to do at the table (CAP-CLEANSE: the spells Dispel Magic leaves).
             ...(Array.isArray(result.notes) ? result.notes : [])].join(" "),
           },
@@ -2611,6 +2654,32 @@ export function bootSpellUnifiedPanel(
     render();
   };
 
+  // A readied spell goes off (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md): its own cast, on its caster, at the slot of its
+  // hold, the hold named apart (readiedReleaseHoldId in spellUnifiedPanelCore.js).
+  const enterReadiedRelease = (overview) => {
+    const context = overview.context || overview;
+    const spellId = String(context.spellId || state.contract?.spell?.id || "").trim();
+    const holdId = String(context.instanceId || overview.instanceId || "").trim();
+    const slotLevel = numeric(context.castContext?.slotLevel);
+    const nextContract = buildContract(spellId, { slotLevel });
+    if (!nextContract || !holdId) return;
+    state.contract = nextContract;
+    state.session = createSpellPanelSession({
+      contract: nextContract,
+      spellId,
+      casterId: firstValidCaster(state.casters, context.casterId || state.session.casterId),
+      ...(slotLevel === null ? {} : { slotLevel, castContext: { slotLevel } }),
+      readiedRelease: { instanceId: holdId },
+      feedback: {
+        state: "info",
+        message: `Rilascio di ${nextContract.spell?.label || "l'incantesimo"}: scegli bersagli o area, poi Rilascia. Si spende la reazione.`,
+      },
+    });
+    updateEligibility();
+    state.revision += 1;
+    render();
+  };
+
   const executeActiveAction = async () => {
     if (!sceneAvailable() || state.committing || ["loading", "opened"].includes(
       String(state.session?.activeActionState?.state || "").trim(),
@@ -2640,6 +2709,10 @@ export function bootSpellUnifiedPanel(
       || state.session?.variant
       || context.castContext?.choice
       || "";
+    if (action.type === "resolve" && action.readied === true) {
+      enterReadiedRelease(overview);
+      return;
+    }
     if (
       action.type === "resolve"
       && PREPARED_AREA_RESOLUTION_SPELL_IDS.has(String(context.spellId || "").trim())
@@ -3481,9 +3554,10 @@ export function bootSpellUnifiedPanel(
       return;
     }
     // Avvisi di reazione, lot R2: who can counter this cast, before anything is written. A readied spell is cast at its
-    // hold (lot T6b of docs/STUDIO_AZIONI_DI_TURNO.md, decision P9): Counterspell then, never at the release.
+    // hold (lot T6b of docs/STUDIO_AZIONI_DI_TURNO.md, decision P9): Counterspell then, never at the release (lot T6c).
     const readiedHold = actionId === "prepare" && state.session.castContext?.readied === true;
-    if (actionId === "apply" || readiedHold) {
+    const readiedRelease = actionId === "apply" && !!state.session.readiedRelease;
+    if ((actionId === "apply" && !readiedRelease) || readiedHold) {
       const step = castReactionStep();
       if (step === "stop") return;
       if (step === "check") {
@@ -3576,7 +3650,8 @@ export function bootSpellUnifiedPanel(
         feedback: {
           state: "success",
           message: `${result.notes?.length ? result.notes.join(" ") : recordOnly ? "Lancio registrato: effetti al tavolo"
-            : readiedHold ? "Incantesimo preparato: si rilascia con la reazione" : "Incantesimo applicato"}${spentText(slotSpend)}.`,
+            : readiedHold ? "Incantesimo preparato: si rilascia con la reazione"
+              : readiedRelease ? "Incantesimo rilasciato" : "Incantesimo applicato"}${spentText(slotSpend)}.`,
         },
       });
       await refreshScene();
@@ -4053,6 +4128,12 @@ export function bootSpellUnifiedPanel(
         if (!overview || !actionId || !action) return;
         const context = overview.context || overview;
         const spellId = String(context.spellId || state.contract?.spell?.id || "").trim();
+        // A readied spell: «Rilascia» opens its release here (lot T6c).
+        if (action.type === "resolve" && action.readied === true) {
+          enterReadiedRelease(overview);
+          await clearSelection();
+          return;
+        }
         if (action.type === "resolve" && PREPARED_AREA_RESOLUTION_SPELL_IDS.has(spellId)) {
           enterPreparedAreaResolution(overview, String(context.castContext?.choice || "").trim());
           await clearSelection();

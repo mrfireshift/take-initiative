@@ -23,6 +23,28 @@ export function conditionInstancesNamed(conditions, name) {
     && String(instance.id || "").trim());
 }
 
+// The spell a readied action holds (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md, decision P5): the record its pill
+// belongs to, held on the creature (castContext.readied, at its hold). null for a readied action holding no spell.
+export function readiedSpellHold(conditions, spells = []) {
+  const parents = new Set(conditionInstancesNamed(conditions, READIED_ACTION_CONDITION)
+    .map((instance) => String(instance.parentEffectId || "").trim())
+    .filter(Boolean));
+  if (!parents.size) return null;
+  const hold = (Array.isArray(spells) ? spells : []).find((spell) => (
+    parents.has(String(spell?.instanceId || "").trim())
+    && spell?.castContext?.readied === true
+    && String(spell?.castContext?.phase || "").trim() === "prepare"
+  ));
+  if (!hold) return null;
+  const slotLevel = Math.floor(Number(hold.castContext?.slotLevel));
+  return {
+    instanceId: String(hold.instanceId).trim(),
+    spellId: String(hold.spellId || "").trim(),
+    name: String(hold.name || hold.spellId || "Incantesimo").trim(),
+    ...(Number.isInteger(slotLevel) && slotLevel > 0 ? { slotLevel } : {}),
+  };
+}
+
 export function hasReactionUsed(conditions) {
   return conditionInstancesNamed(conditions, REACTION_USED_CONDITION).length > 0;
 }

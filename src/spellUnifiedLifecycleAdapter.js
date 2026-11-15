@@ -6,6 +6,7 @@ import {
 } from "./spellCastContextCore.js";
 import {
   getSpellCastPhasePlan,
+  readiedSpellReleaseHistoryLabel,
   spellPhaseAttackOutcomeRequired,
 } from "./spellCastPhaseCore.js";
 import { getSpellChoiceTiming, getSpellDefinition } from "./spells-srd.js";
@@ -313,7 +314,10 @@ export function buildSpellUnifiedLifecycleRequest({
     selectedChoice,
     phasePlan,
     applyAutomatedConditions: session.applyAutomatedConditions !== false,
-    activeConcentration: activeConcentration || session.activeConcentration || null,
+    // A release takes an instance of its own (lot T6c): never the hold's.
+    activeConcentration: text(session.readiedRelease?.instanceId)
+      ? null
+      : activeConcentration || session.activeConcentration || null,
     requestedConcentration: resolveSpellConcentration(
       runtimeSpell,
       session.requestedConcentration === true,
@@ -332,6 +336,12 @@ export function buildSpellUnifiedLifecycleRequest({
     ...(text(casterName) ? { casterName: text(casterName) } : {}),
     // A spell the plugin does not automate: the executor records the cast (spellCastRecord.js).
     ...(contract.execution?.recordOnly === true ? { recordOnly: true } : {}),
+    // The release of a readied spell (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md): its hold, read again by the executor
+    // and ended by the panel's operations, and its words in the History.
+    ...(text(session.readiedRelease?.instanceId) ? {
+      readiedRelease: { instanceId: text(session.readiedRelease.instanceId) },
+      historyLabel: readiedSpellReleaseHistoryLabel(runtimeSpell),
+    } : {}),
   };
 }
 
@@ -343,10 +353,13 @@ export async function executeSpellUnifiedLifecycle({
   let request = null;
   try {
     const runtimeSpell = resolveRuntimeSpell(contract, session, runtime);
-    let resolvedActiveConcentration = runtime.activeConcentration
+    // A release (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md) never continues a concentration: the only one of its spell is
+    // the hold it ends, whose instance the cast must not take.
+    const release = !!text(session.readiedRelease?.instanceId);
+    let resolvedActiveConcentration = release ? null : runtime.activeConcentration
       || session.activeConcentration
       || null;
-    if (!resolvedActiveConcentration && typeof runtime.resolveActiveConcentration === "function") {
+    if (!release && !resolvedActiveConcentration && typeof runtime.resolveActiveConcentration === "function") {
       resolvedActiveConcentration = await runtime.resolveActiveConcentration({
         casterId: text(session.casterId),
         spell: runtimeSpell,

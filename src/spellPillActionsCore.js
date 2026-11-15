@@ -1,5 +1,5 @@
 import { getSpellDefinition } from "./spells-srd.js";
-import { spellPreparedResolutionInPanel } from "./spellCastPhaseCore.js";
+import { isReadiedSpellHold, spellPreparedResolutionInPanel } from "./spellCastPhaseCore.js";
 
 // The actions of an active spell, from its pill on the tracker card (spell-pill-actions.js): the same overview and
 // the same executor as the spell panel, one click for an action that asks nothing, its own popup for the others.
@@ -9,6 +9,8 @@ const text = (value) => String(value ?? "").trim();
 export function spellPillHasActions(spell) {
   const definition = getSpellDefinition(text(spell?.spellId) || text(spell?.name));
   if (text(spell?.castContext?.phase) === "prepare" && spellPreparedResolutionInPanel(definition)) return true;
+  // A readied spell: its ⚡ releases it (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md).
+  if (isReadiedSpellHold({ spell: definition, castContext: spell?.castContext })) return true;
   return Array.isArray(definition?.activeActions) && definition.activeActions.length > 0;
 }
 

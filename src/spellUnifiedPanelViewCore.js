@@ -1446,7 +1446,8 @@ export function buildUnifiedPanelViewModel({
         options: clone(phase.options || []),
       },
       caster: {
-        visible: inputs.caster?.visible === true,
+        // A release (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md): its caster and its slot are the hold's.
+        visible: inputs.caster?.visible === true && !session?.readiedRelease,
         required: inputs.caster?.required === true,
         label: "Caster",
         hint: presentation.caster?.required
@@ -1456,7 +1457,7 @@ export function buildUnifiedPanelViewModel({
         options: normalizeCasterOptions(casterOptions),
       },
       slot: {
-        visible: inputs.slot?.visible === true,
+        visible: inputs.slot?.visible === true && !session?.readiedRelease,
         required: inputs.slot?.required === true,
         label: "Slot",
         hint: presentation.slot?.min

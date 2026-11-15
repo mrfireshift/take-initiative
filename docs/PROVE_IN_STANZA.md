@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **140** |
+| **B. Console attacchi, mostri e capacità** | **145** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -50,6 +50,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B12. Preparare e Innesca | 4 |
 | B13. La Schivata nei tiri salvezza | 3 |
 | B14. Incantesimo preparato: la preparazione | 5 |
+| B15. Incantesimo preparato: il rilascio | 5 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -75,7 +76,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **503** |
+| **Totale** | **508** |
 
 ## A. Incantesimi
 
@@ -671,6 +672,16 @@ Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotti T6a e T6b (
 - [ ] **Concentrazione:** con Benedizione attiva, preparare Palla di fuoco chiede la conferma; confermato, Benedizione finisce. All'inizio del prossimo turno del PG pill, concentrazione e incantesimo spariscono, e lo slot resta speso.
 - [ ] **Controincantesimo e nemici:** preparando, parte l'avviso di Controincantesimo per il nemico che lo conosce. La preparazione di un nemico mette la pill che il GM vede e lo schermo del tavolo no.
 - [ ] **Dalla console:** nel turno del PG, Azioni → **Preparare** → **Un incantesimo** elenca i suoi incantesimi da 1 azione, trucchetti prima (niente azioni bonus). Scelto Benedizione, **Prepara** apre il pannello già in preparazione.
+
+### B15. Incantesimo preparato: il rilascio
+
+Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T6c (decisioni P5–P9). Le voci sono nuove: nessuna lista le aveva. Serve un PG incantatore che prepari (B14), una alla volta, Palla di fuoco e poi Benedizione, in combattimento; il rilascio si fa nel turno di un'altra creatura.
+
+- [ ] **Da dove:** il ⚡ della pill di Palla di fuoco preparata mostra solo **Rilascia ›**. Il menu della card offre **Rilascia Palla di fuoco** e **Annulla azione preparata**, senza «Innesca con un attacco» né «Innesca senza attacco». Tutti e due aprono il pannello sul lancio, con il pulsante **Rilascia**, senza caster né slot da scegliere e senza **Prepara**. Da provare in vista compatta ed estesa.
+- [ ] **Rilascio di un'area:** posizionata Palla di fuoco e scelti gli esiti, **Rilascia** fa i danni come un lancio, mette «Reazione usata» sul PG e toglie pill e C della presa, senza slot e senza l'avviso di Controincantesimo. Nella Cronologia c'è una sola voce «Rilascio · Palla di fuoco», e il suo Annulla rimette la presa e la reazione.
+- [ ] **Rilascio a concentrazione:** Benedizione rilasciata su due PG chiede la conferma solo se il caster mantiene un'altra concentrazione. Mette le pill e una C nuova, che non finisce all'inizio del prossimo turno del caster ma dopo 10 round. Nella Cronologia c'è «Rilascio: Benedizione».
+- [ ] **Reazione e turno:** con la reazione già usata, **Rilascia** chiede «Rilasciare comunque». All'inizio del turno del caster non si apre nessun popup per la presa; se non è stata rilasciata, la presa sparisce.
+- [ ] **Annulla azione preparata:** sulla presa, l'incantesimo svanisce con pill e C, la reazione resta e lo slot resta speso.
 
 ## C. Tracker e UX
 

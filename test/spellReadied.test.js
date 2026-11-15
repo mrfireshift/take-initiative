@@ -57,10 +57,10 @@ test("the hold's phase: on the caster, the pill «Azione preparata · …» unti
     ["Azione preparata", "Azione preparata · Palla di fuoco (4°)", true, true, "spell"]);
   assert.match(pill.detail, /si rilascia con la reazione/);
   assert.equal(readiedSpellLabel(spell("fire-bolt")), "Azione preparata · Dardo di fuoco", "a cantrip: no slot");
-  // Released: the spell as a cast, its concentration going on with it if it needs it, ended otherwise (P7).
+  // Released: no phase of its own, the spell's own cast (lot T6c, test/spellReadiedRelease.test.js).
   const fireball = getSpellCastPhasePlan(spell("fireball"), "resolve", { readied: true, phase: "resolve" });
-  assert.deepEqual([fireball.phase, fireball.useCatalogAutomation, fireball.subjectMode, fireball.concentrationAction], ["resolve", true, "selected", "dismiss"]);
-  assert.equal(getSpellCastPhasePlan(spell("web"), "resolve", { readied: true, phase: "resolve" }).concentrationAction, "extend");
+  assert.deepEqual([fireball.phase, fireball.useCatalogAutomation, fireball.subjectMode, fireball.concentrationAction], ["cast", true, "selected", "replace"]);
+  assert.equal(getSpellCastPhasePlan(spell("web"), "resolve", { readied: true, phase: "resolve" }).readied, undefined);
   // Without the mark, as before; Symbol keeps its own phases.
   assert.equal(getSpellCastPhasePlan(spell("fireball"), "", {}).phase, "cast");
   assert.equal(getSpellCastPhasePlan(spell("symbol"), "prepare", readied()).readied, undefined);

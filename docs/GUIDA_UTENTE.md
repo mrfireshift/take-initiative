@@ -570,6 +570,31 @@ GM. Dalla console attacchi, **Azioni → Preparare → Un incantesimo** elenca g
 incantesimi del grimorio che si possono preparare e apre il pannello già in
 preparazione.
 
+**Il rilascio.** Quando arriva il momento, il rilascio si apre da tre posti:
+
+- il ⚡ della pill dell'incantesimo preparato, con **Rilascia ›**;
+- il menu della card, con **Rilascia Palla di fuoco**; per un incantesimo
+  preparato non ci sono «Innesca con un attacco» né «Innesca senza attacco»,
+  che lo farebbero svanire;
+- l'elenco degli incantesimi attivi nel pannello.
+
+Il pannello si apre sul lancio dell'incantesimo, con caster e slot della presa:
+si scelgono bersagli, area ed esiti come in un lancio, poi **Rilascia**. In un
+solo comando, con un solo Annulla:
+
+- gli effetti e i danni dell'incantesimo;
+- la reazione spesa, con una conferma se è già usata;
+- nessuno slot: è stato speso alla preparazione;
+- la presa finisce, con la sua pill e la sua C.
+
+Un incantesimo a concentrazione, come Benedizione o Ragnatela, ne apre una
+nuova con la sua durata contata dal rilascio. Al rilascio non parte l'avviso di
+Controincantesimo, che c'è stato alla preparazione. La presa non apre popup
+all'inizio del turno del caster: si rilascia in qualunque turno.
+
+**Annulla azione preparata** dal menu della card fa svanire l'incantesimo senza
+effetto: la reazione resta, lo slot resta speso.
+
 Entrambe sono condizioni normali: compaiono come etichette sulla card e sulla
 mappa, si annullano dalla Cronologia e seguono le opzioni di visibilità degli
 effetti per i giocatori.

@@ -30,6 +30,7 @@ export const INITIATIVE_CARD_MENU_ACTIONS = Object.freeze([
   "readied-action",
   "readied-action-trigger",
   "readied-action-attack",
+  "readied-spell-release",
   "remove",
 ]);
 

@@ -70,6 +70,7 @@ import {
   hasReactionUsed,
   reactionConditionOptions,
   reactionTargetId,
+  readiedSpellHold,
 } from "./reactionTrackerCore.js";
 import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments, undoHistoryThrough } from "./history.js";
@@ -8817,6 +8818,17 @@ async function __triggerReadiedActionWithAttackFromContext(entry) {
   await openPcAttackConsoleForActor(itemId);
 }
 
+// The readied spell goes off (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md, decision P6): the spell panel on its release,
+// which spends the reaction and ends the hold in the cast's own command. Nothing is written here.
+async function __releaseReadiedSpellFromContext(entry) {
+  const hold = readiedSpellHold(entry?.conditions, entry?.spells);
+  if (!hold) return;
+  await openCardSpellsPopup(entry, { routeRequest: {
+    spellId: hold.spellId, phase: "resolve", parentInstanceId: hold.instanceId,
+    ...(hold.slotLevel ? { slotLevel: hold.slotLevel } : {}),
+  } });
+}
+
 function __pendingTerminationRecord(value) {
   return value?.pendingTermination && typeof value.pendingTermination === "object"
     ? value.pendingTermination
@@ -9285,6 +9297,7 @@ async function __handleInitiativeCardContextMenuAction(context, data, sceneEpoch
     toggleReadiedAction: __toggleReadiedActionFromContext,
     triggerReadiedAction: __triggerReadiedActionFromContext,
     triggerReadiedActionWithAttack: __triggerReadiedActionWithAttackFromContext,
+    releaseReadiedSpell: __releaseReadiedSpellFromContext,
     removeFromInitiative: (ids) => __removeCardFromInitiative(ids, sceneEpoch),
   });
 }

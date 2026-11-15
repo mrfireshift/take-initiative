@@ -82,7 +82,8 @@ test("the footer: «Prepara» beside the primary button; preparing, «Lancia» b
 test("the panel asks Counterspell at the hold, marks a creature's hold for the GM, and keeps preparing across spells", () => {
   const panel = readFileSync(new URL("../src/spell-unified-panel.js", import.meta.url), "utf8");
   assert.ok(panel.includes('const readiedHold = actionId === "prepare" && state.session.castContext?.readied === true;'));
-  assert.ok(panel.includes('if (actionId === "apply" || readiedHold) {'), "the cast's reactions gate (Counterspell) at the hold (P9)");
+  assert.ok(panel.includes('if ((actionId === "apply" && !readiedRelease) || readiedHold) {'),
+    "the cast's reactions gate (Counterspell) at the hold (P9), never at the release (lot T6c)");
   assert.ok(panel.includes('!["pc", "ally"].includes(String(caster?.metadata?.[`${ID}/meta`]?.attitude || "").trim().toLowerCase());'));
   assert.ok(panel.includes('const nextContract = buildContract(spellKey, preparing ? { phase: "prepare" } : {});'));
 });

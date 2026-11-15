@@ -12,6 +12,7 @@ import {
 import {
   getSpellCastPhaseOptions,
   getSpellCastPhasePlan,
+  READIED_SPELL_RELEASE_LABEL,
   spellReadiedPhaseAvailable,
   spellPhaseAttackOutcomeRequired,
   spellPhaseUsesPrimaryTargetAnchor,
@@ -362,6 +363,14 @@ function readiedSessionCastContext(contract, castContext) {
   if (!contract) return castContext;
   const { readied, ...rest } = castContext || {};
   return contract.presentation?.phase?.plan?.readied === true ? { ...rest, readied: true } : rest;
+}
+
+// Its release (lot T6c, decisions P6, P7): the panel opened on the hold (phase "resolve" and the hold's instance) casts
+// the spell itself, with the targets, outcomes and duration of a cast; the session names the hold apart
+// (readiedRelease), never as its concentration, so that the cast gets an instance and a duration of its own.
+export function readiedReleaseHoldId({ spellId = "", phase = "", parentInstanceId = "" } = {}) {
+  const hold = text(parentInstanceId);
+  return hold && text(phase) === "resolve" && spellReadiedPhaseAvailable(resolveSpell(null, spellId)) ? hold : "";
 }
 
 function selectedPhase(options, requestedPhase = "") {
@@ -2051,6 +2060,7 @@ export function createSpellPanelSession({
   applyAutomatedConditions = true,
   requestedConcentration = false,
   activeConcentration = null,
+  readiedRelease = null,
   durationTurns,
   targetIds = [],
   passengerId = "",
@@ -2111,6 +2121,8 @@ export function createSpellPanelSession({
     applyAutomatedConditions: applyAutomatedConditions !== false,
     requestedConcentration: requestedConcentration === true,
     activeConcentration: normalizedActiveConcentration(activeConcentration),
+    // The release of a readied spell (lot T6c): the hold this cast ends, with the reaction instead of a slot.
+    readiedRelease: text(readiedRelease?.instanceId) ? { instanceId: text(readiedRelease.instanceId) } : null,
     targetIds: unique(targetIds).filter((id) => !stepPassenger || id !== stepPassenger),
     passengerId: text(passengerId),
     stepPassengerId: stepPassenger,
@@ -2660,6 +2672,11 @@ function visibleControlsFor(contract, session, placement) {
     controls.add("manual-effect");
   }
   if (contract.execution?.undo?.capable && session.undoState?.available) controls.add("undo");
+  // A release (lot T6c): its caster and its slot are the hold's.
+  if (session.readiedRelease) {
+    controls.delete("caster");
+    controls.delete("slot-level");
+  }
   return CONTROL_ORDER.filter((control) => controls.has(control));
 }
 
@@ -2762,6 +2779,8 @@ function primaryActionFor(contract, session, validation, placement, activeAction
       disabled: false,
     };
   }
+  // A readied spell goes off (lot T6c): «Rilascia», with the reaction.
+  if (session.readiedRelease) return { id: "apply", label: READIED_SPELL_RELEASE_LABEL, disabled: false };
   if (contract.presentation.phase?.selected === "prepare") {
     // A spell that can also be cast at once names its own preparation (CAP-ORIGIN, Freezing Sphere: "Trattieni il globo").
     const phaseOptions = Array.isArray(contract.presentation.phase.options) ? contract.presentation.phase.options : [];
@@ -2797,7 +2816,7 @@ function summaryFor(contract, session, placement, activeAction) {
     (option) => option.value === contract.presentation.phase.selected,
   );
   const lines = [
-    phase?.label || contract.presentation.phase.selected,
+    session.readiedRelease ? "Rilascio" : phase?.label || contract.presentation.phase.selected,
     `${session.targetIds.length} bersagli`,
   ];
   if (placement.policy !== SPELL_PANEL_PLACEMENT_POLICIES.UNAVAILABLE) {
@@ -2847,7 +2866,7 @@ export function buildSpellPanelViewModel(contract, sessionValue = {}) {
   // «Prepara» beside the primary button on a spell the Ready action can hold, «Lancia» back from its hold (lot T6b).
   const readiedActive = contract?.presentation?.phase?.selected === "prepare" && session.castContext?.readied === true;
   const readied = contract?.presentation?.readied?.available === true && !activeAction && !session.triggerRuntime
-    && !session.monsterActionContext
+    && !session.monsterActionContext && !session.readiedRelease
     ? {
       visible: true,
       active: readiedActive,
@@ -2874,6 +2893,8 @@ export function buildSpellPanelViewModel(contract, sessionValue = {}) {
     controls: visibleControlsFor(contract, session, placement),
     primaryAction,
     readied,
+    // A readied spell going off (lot T6c): the footer says «Rilascia» from the start, the area still to place.
+    readiedRelease: !!session.readiedRelease,
     disabled: primaryAction.disabled,
     summary: summaryFor(contract, session, placement, activeAction),
     validation: {

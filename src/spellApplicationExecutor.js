@@ -2545,6 +2545,9 @@ export async function executeSpellApplication({
   applyAutomatedConditions = true,
   activeConcentration = null,
   historyLabel = "",
+  // The release of a readied spell (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md): { instanceId } of its hold, which must
+  // still be on the caster; the panel's operations end it in this command.
+  readiedRelease = null,
   requestedConcentration = false,
   appliedAt = undefined,
   casterName = "",
@@ -2693,6 +2696,9 @@ export async function executeSpellApplication({
     && !(await preparedInstanceIsCurrent(casterId, activeConcentration, spell?.id))
   ) {
     return spellApplicationNoop("stale", "prepared-instance-stale", { stale: true });
+  }
+  if (readiedRelease?.instanceId && !(await preparedInstanceIsCurrent(casterId, readiedRelease, spell?.id))) {
+    return spellApplicationNoop("stale", "readied-hold-missing", { stale: true });
   }
   const resolvedAppliedAt = appliedAt === undefined
     ? await getCurrentSpellAppliedAt()

@@ -171,7 +171,10 @@ export function buildSpellApplicationIntent({
     choice: String(selectedChoice || ""),
     applyAutomatedConditions: applyAutomatedConditions !== false,
   });
+  // A readied Blink is held, not cast (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md): no plane yet, and no return to resolve
+  // when its hold ends.
   let persistedCastContext = spell?.id === "blink"
+    && !(resolvedPhasePlan.readied === true && resolvedPhasePlan.phase === "prepare")
     ? blinkInitialCastContext(baseCastContext)
     : baseCastContext;
   // A readied spell is held, not yet cast at anyone (lot T6a of docs/STUDIO_AZIONI_DI_TURNO.md): no attack roll at its

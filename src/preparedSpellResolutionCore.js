@@ -52,7 +52,9 @@ export function preparedSpellResolutionAction(group) {
     action.type === "manual" && action.id === activeActionId
   ));
   if (activeAction) return activeAction;
-  return actions.find((action) => action.type === "resolve") || null;
+  // A readied spell is no prompt of its caster's turn (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md): it is released with
+  // the reaction, from its ⚡ or the card's menu, in the spell panel.
+  return actions.find((action) => action.type === "resolve" && action.readied !== true) || null;
 }
 
 export function isPreparedSpellResolutionGroup(group) {

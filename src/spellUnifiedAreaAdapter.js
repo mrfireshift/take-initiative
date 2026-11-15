@@ -331,6 +331,8 @@ export function buildSpellUnifiedAreaCommand({
     phaseResolution: preparedResolution
       ? contract?.presentation?.phase?.plan?.resolution
       : undefined,
+    // A readied spell goes off as its own cast (lot T6c), its hold ended by the panel's operations.
+    ...(text(session?.readiedRelease?.instanceId) ? { readiedRelease: { instanceId: text(session.readiedRelease.instanceId) } } : {}),
     ...(trigger ? { zoneTrigger: trigger, triggerRuntime: trigger } : {}),
     ...(trigger?.activationId ? { activationId: trigger.activationId } : {}),
     ...(trigger?.instanceId ? { expectedZoneInstanceId: trigger.instanceId } : {}),

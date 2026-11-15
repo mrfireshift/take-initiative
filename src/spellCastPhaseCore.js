@@ -321,8 +321,9 @@ function spellId(value) {
 // The readied spell (docs/STUDIO_AZIONI_DI_TURNO.md §9, lot T6a, decisions P1–P12): the Ready action holds a spell cast
 // with 1 action (PHB 2014, chapter 9). It is cast on the caster's turn (phase "prepare": the slot spent, the other
 // concentrations ended), its energy held with concentration whatever the spell (spellCastContextCore.js), until the
-// start of the caster's next turn; it is released with the reaction (phase "resolve": no slot, the targets then, the
-// concentration going on with the spell if it needs it, ended otherwise). castContext.readied marks it, on both phases.
+// start of the caster's next turn; it is released with the reaction (lot T6c: the spell's own cast, no slot, the targets
+// then, the hold ended in the same command, a concentration of its own if the spell needs one). castContext.readied
+// marks the hold.
 // Its pill on the caster is the creature's «Azione preparata» (P5: the card's menu reads it), with the spell in its label.
 export const READIED_SPELL_CONDITION = READIED_ACTION_CONDITION;
 // Until the start of the caster's next turn, as Shield's: its spell record and its pill end there (and the hold's
@@ -375,34 +376,35 @@ function readiedSpellEffect(spell, castContext = {}) {
   });
 }
 
-// The two phases of a readied spell. Prepare: on the caster, the pill only, no automation of the spell, its
-// concentration replacing the others. Resolve: the spell as a cast, on its targets, its concentration extended to them
-// when it has one (P7), dismissed otherwise.
-function readiedSpellPhasePlan(spell, requestedPhase = "", castContext = {}) {
-  const phase = String(requestedPhase || castContext?.phase || "").trim() === "resolve" ? "resolve" : "prepare";
-  if (phase === "prepare") {
-    return {
-      phase,
-      readied: true,
-      subjectMode: "caster",
-      useCatalogAutomation: false,
-      attack: null,
-      effects: [readiedSpellEffect(spell, castContext)],
-      resolution: null,
-      concentrationAction: "replace",
-      preparedExpiry: { ...READIED_SPELL_EXPIRY },
-    };
-  }
+// The hold of a readied spell: on the caster, the pill only, no automation of the spell, its concentration replacing
+// the others. Its release is no phase of its own (lot T6c): it is the spell's own cast, its targets, outcomes and
+// duration those of a cast, with the hold named apart (readiedSpellHoldOf).
+function readiedSpellPhasePlan(spell, castContext = {}) {
   return {
-    phase,
+    phase: "prepare",
     readied: true,
-    subjectMode: spell?.targetMode || "selected",
-    useCatalogAutomation: true,
-    effects: null,
-    resolution: null,
+    subjectMode: "caster",
+    useCatalogAutomation: false,
     attack: null,
-    concentrationAction: spell?.concentration === true ? "extend" : "dismiss",
+    effects: [readiedSpellEffect(spell, castContext)],
+    resolution: null,
+    concentrationAction: "replace",
+    preparedExpiry: { ...READIED_SPELL_EXPIRY },
   };
+}
+
+// The record of a hold (lot T6c, decisions P5–P7): a readied spell kept on its caster, released with the reaction.
+// Its spell has no phases of its own (Freezing Sphere's «prepare» is its globe).
+export function isReadiedSpellHold({ spell = null, castContext = null } = {}) {
+  return isReadiedSpellCastContext(castContext)
+    && String(castContext?.phase || "").trim() === "prepare"
+    && spellReadiedPhaseAvailable(spell);
+}
+
+// The release in words: «Rilascia» on its button, «Rilascio: Palla di fuoco» in the History and in the log.
+export const READIED_SPELL_RELEASE_LABEL = "Rilascia";
+export function readiedSpellReleaseHistoryLabel(spell) {
+  return `Rilascio: ${String(spell?.displayName || spell?.name || spellId(spell) || "Incantesimo").trim()}`;
 }
 
 function slotLevel(spell, castContext = {}) {
@@ -480,8 +482,9 @@ export function spellPreparedResolutionLabel(spell) {
 }
 
 export function getSpellCastPhasePlan(spell, requestedPhase = "", castContext = {}) {
-  // A readied spell has its own two phases, whatever its table (lot T6a).
-  if (isReadiedSpellCastContext(castContext) && spellCanBeReadied(spell)) return readiedSpellPhasePlan(spell, requestedPhase, castContext);
+  // A readied spell's hold, whatever its table (lot T6a); its release is the spell's own cast (lot T6c).
+  if (isReadiedSpellCastContext(castContext) && spellCanBeReadied(spell)
+    && String(requestedPhase || castContext?.phase || "prepare").trim() === "prepare") return readiedSpellPhasePlan(spell, castContext);
   const rule = PHASED_SPELLS[spellId(spell)];
   if (!rule) {
     return {

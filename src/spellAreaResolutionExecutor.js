@@ -1788,6 +1788,19 @@ async function buildPlan(command, runtime) {
       };
     }
   }
+  // The release of a readied spell (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md): its hold still on the caster, read live.
+  const readiedHoldId = text(command?.readiedRelease?.instanceId);
+  if (readiedHoldId && !(Array.isArray(itemMeta(caster)[SPELLS_KEY]) ? itemMeta(caster)[SPELLS_KEY] : []).some((entry) => (
+    text(entry?.instanceId) === readiedHoldId && entry?.castContext?.readied === true
+  ))) {
+    return {
+      valid: false,
+      errors: [{
+        code: "readied-hold-missing",
+        message: "L'incantesimo preparato non c'è più: è svanito o è già stato rilasciato.",
+      }],
+    };
+  }
   const rawTrigger = triggerFrom(command, runtime);
   const trigger = command?.execution?.zoneTrigger || null;
   let spellInstanceId = text(trigger?.instanceId);
@@ -3192,7 +3205,8 @@ export async function executeSpellAreaResolution(
       const castWithoutSave = plan.command?.outcomes?.required !== true;
       historyResult = await runtime.withItemMetaHistory({
         kind: "save-resolution",
-        label: `${castWithoutSave ? "Incantesimo" : "Effetti ad area"} · ${plan.spell.displayName || plan.spell.name || plan.spell.id}`,
+        // A readied spell going off (lot T6c): «Rilascio».
+        label: `${text(plan.command?.readiedRelease?.instanceId) ? "Rilascio" : castWithoutSave ? "Incantesimo" : "Effetti ad area"} · ${plan.spell.displayName || plan.spell.name || plan.spell.id}`,
       itemIds: plan.historyIds,
       sceneItemIds: plan.staticZoneSceneItemIds,
       fields: ["hp", "hpMax", "tempHp", "tempHpSource", DEATH_SAVES_FIELD, "conditions", SPELLS_KEY, CONCENTRATION_KEY,

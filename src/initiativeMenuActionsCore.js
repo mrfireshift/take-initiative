@@ -2,7 +2,7 @@ import {
   isAllowedCompactAdminMenuAction,
   isAllowedInitiativeCardMenuAction,
 } from "./menuPopoverProtocolCore.js";
-import { hasReadiedAction } from "./reactionTrackerCore.js";
+import { hasReadiedAction, readiedSpellHold } from "./reactionTrackerCore.js";
 import { canOpenInitiativeCardSheet, initiativeCardSheetLabel } from "./initiativeCardSheetAccessCore.js";
 
 const COMPACT_ADMIN_MENU_ACTION_SELECTORS = Object.freeze({
@@ -28,6 +28,13 @@ export function deriveInitiativeCardBossMode(entry) {
   if (Number(entry?.paragonActions) > 1) return "paragon";
   if (Number(entry?.legendary?.max) > 0) return "legendary";
   return "none";
+}
+
+function readiedActionMenuEntries(sourceEntry) {
+  if (!hasReadiedAction(sourceEntry?.conditions)) return {};
+  const hold = readiedSpellHold(sourceEntry?.conditions, sourceEntry?.spells);
+  if (hold) return { readiedSpell: { instanceId: hold.instanceId, name: hold.name } };
+  return sourceEntry?.pcAttackConsole ? { readiedAttack: true } : {};
 }
 
 export function buildInitiativeCardContextMenuPayload({
@@ -86,10 +93,11 @@ export function buildInitiativeCardContextMenuPayload({
       ? { showPlayerMenu: true, playerChoices: playerChoices.slice(0, 24), playerId: playerId || "none" }
       : {}),
     // Readied action (reactionTrackerCore.js), one creature at a time. readiedAttack: a creature the attack console shows
-    // (the card's 🗡️) can set it off with an attack, there (lot T3 of docs/STUDIO_AZIONI_DI_TURNO.md).
+    // (the card's 🗡️) can set it off with an attack, there (lot T3 of docs/STUDIO_AZIONI_DI_TURNO.md). readiedSpell: the
+    // spell it holds, released in the spell panel (lot T6c): no other way to set it off, which would lose the spell.
     ...(!isBulkScope && !sourceEntry?.__groupCollapsed
       ? { showReadiedActionMenu: true, hasReadiedAction: hasReadiedAction(sourceEntry?.conditions),
-        ...(hasReadiedAction(sourceEntry?.conditions) && sourceEntry?.pcAttackConsole ? { readiedAttack: true } : {}) }
+        ...readiedActionMenuEntries(sourceEntry) }
       : {}),
   };
 }
@@ -166,6 +174,9 @@ export async function routeInitiativeCardContextMenuAction(
   }
   if (action === "readied-action-attack") {
     return invoke("triggerReadiedActionWithAttack", sourceEntry);
+  }
+  if (action === "readied-spell-release") {
+    return invoke("releaseReadiedSpell", sourceEntry);
   }
   if (action === "remove") {
     return invoke("removeFromInitiative", scopeIds);

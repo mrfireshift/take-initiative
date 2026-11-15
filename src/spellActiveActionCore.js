@@ -4,6 +4,8 @@ import {
 } from "./spellEffectCore.js";
 import {
   isPreparedSpellCast,
+  isReadiedSpellHold,
+  READIED_SPELL_RELEASE_LABEL,
   spellPreparedResolutionInPanel,
   spellPreparedResolutionLabel,
   spellPreparedResolutionAvailable,
@@ -137,6 +139,20 @@ export function getSpellOverviewActions({
 } = {}) {
   if (!spell) return [];
   const actions = [];
+  // A readied spell held on its caster (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md, P6): «Rilascia» alone, in the panel,
+  // with the reaction; the spell's own actions start with its cast. Off the turn popups (preparedSpellResolutionCore.js):
+  // it goes off when the GM says, on any turn.
+  if (isReadiedSpellHold({ spell, castContext })) {
+    return [{
+      id: "release-readied",
+      type: "resolve",
+      readied: true,
+      buttonLabel: READIED_SPELL_RELEASE_LABEL,
+      subjectMode: "none",
+      requiresTargets: false,
+      completesInPanel: true,
+    }];
+  }
   if (isPreparedSpellCast({
     spell,
     castContext,

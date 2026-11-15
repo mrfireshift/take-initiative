@@ -105,6 +105,42 @@ prepara nella forma «Scaglia subito».
 
 Prove in `PROVE_IN_STANZA.md`, sezione B14.
 
+**T6c fatto il 15/11:** il rilascio si usa.
+
+- Il rilascio non è una fase: è il **lancio vero** dell'incantesimo, con i suoi
+  bersagli, l'area, gli esiti, i danni e la durata, e con in più il segno
+  `readiedRelease` (l'id della presa) nella sessione del pannello. Così gli
+  esecutori fanno quello che fanno per un lancio (TS del catalogo, danni
+  diretti, Palla di fuoco ritardata) e il ramo «preparato» delle aree,
+  condiviso con Simbolo e Sfera congelante, resta com'era.
+- Nello stesso comando, con un solo Annulla (P6): la reazione spesa, con la
+  conferma se è già usata; nessuno slot né uso; la presa chiusa rompendo la
+  sua concentrazione per id, che toglie anche pill e record. Gli esecutori
+  rileggono la presa e non lanciano niente se è sparita.
+- La concentrazione (P7): un incantesimo che la richiede ne apre una nuova,
+  con un id nuovo e la sua durata dal rilascio; la scadenza «prossimo turno»
+  della presa non lo tocca più. Al rilascio si chiede conferma solo per
+  un'altra concentrazione, mai per la presa. Niente Controincantesimo (P9).
+- **Da dove:** il ⚡ della pill dell'incantesimo preparato (**Rilascia ›**), il
+  menu della card (**Rilascia Palla di fuoco**, al posto di «Innesca con/senza
+  attacco», che perderebbero l'incantesimo) e l'elenco degli incantesimi attivi
+  del pannello. La presa offre solo **Rilascia**: le azioni dell'incantesimo
+  (Immagine speculare, Invocare il fulmine) partono dal lancio. Nel pannello
+  il pulsante è **Rilascia**, senza caster né slot da scegliere.
+- La presa non apre più il popup automatico del turno: si rilascia in
+  qualunque turno, quando lo dice il GM.
+- Nella Cronologia e nel log: «Rilascio: Benedizione», «Rilascio · Palla di
+  fuoco» per le aree, con «speso: reazione».
+- Intermittenza preparata non scrive più la risoluzione finale alla presa:
+  chiuderla non chiede il ritorno dal piano Etereo.
+- **Restano:** gli incantesimi con tiro per colpire si rilasciano nel pannello
+  come un lancio, con l'esito dell'attacco da scegliere, finché T6d non li
+  porta nella console; Sfera congelante preparata nella forma «Scaglia
+  subito»; Porta dimensionale rilasciata scrive ancora «Lancio incantesimo»
+  nella Cronologia.
+
+Prove in `PROVE_IN_STANZA.md`, sezione B15.
+
 Scritti lo stesso giorno, con decisioni nuove in attesa:
 
 - §9, l'incantesimo preparato: decisioni **P1–P12** (§9.8), approvate dall'utente

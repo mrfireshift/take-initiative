@@ -624,7 +624,7 @@ export function renderReviewFooter(documentRef, model, callbacks = {}) {
   const primaryModel = activePrimary || model.workflow.primaryAction;
   const placementRequired = !activePrimary && primaryModel.id === "place";
   const primary = createButton(documentRef, {
-    label: placementRequired ? "Applica effetti" : primaryModel.label,
+    label: placementRequired ? (model.workflow.readiedRelease ? "Rilascia" : "Applica effetti") : primaryModel.label,
     className: "unified-primary-button",
     disabled: placementRequired
       || primaryModel.disabled

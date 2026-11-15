@@ -1930,6 +1930,10 @@ export function buildSpellAreaResolutionCommand(input = {}) {
     ...(sourceInput.phaseResolution && typeof sourceInput.phaseResolution === "object"
       ? { phaseResolution: serializable(sourceInput.phaseResolution) }
       : {}),
+    // The release of a readied spell (lot T6c of docs/STUDIO_AZIONI_DI_TURNO.md): the spell's own cast, its hold named.
+    ...(text(sourceInput.readiedRelease?.instanceId)
+      ? { readiedRelease: { instanceId: text(sourceInput.readiedRelease.instanceId) } }
+      : {}),
     spell: {
       spellId: spellId || null,
       casterId: casterId || null,

@@ -21,9 +21,11 @@ export function isReactionSpell(spellId) {
 
 // What the cast spends of the caster's reaction. Only in combat: without an initiative order there is no turn for the
 // reaction to come back at. alreadyUsed: the GM confirms before casting anyway, and nothing more is spent.
-export function planSpellReactionSpend({ spellId = "", caster = null, initiativeState = null } = {}) {
+// readiedRelease: a readied spell goes off with the reaction, whatever its casting time (lot T6c of
+// docs/STUDIO_AZIONI_DI_TURNO.md, decision P6).
+export function planSpellReactionSpend({ spellId = "", caster = null, initiativeState = null, readiedRelease = false } = {}) {
   return planReactionSpend({
-    applies: isReactionSpell(spellId),
+    applies: readiedRelease === true || isReactionSpell(spellId),
     casterId: caster?.id,
     casterName: caster?.name,
     conditions: caster?.metadata?.[META_KEY]?.conditions,
