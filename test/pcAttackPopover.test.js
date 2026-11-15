@@ -27,8 +27,10 @@ const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-picker-search", 
   "pc-attack-auto-open-row", "pc-attack-auto-open", "pc-attack-attack-view", "pc-attack-launch", "pc-attack-caster", "pc-attack-follow", "pc-attack-picker-list",
   "pc-attack-launch-button", "pc-attack-spell-details", "pc-attack-spell-details-body", "pc-attack-use-selected",
   "pc-attack-grapple", "pc-attack-maneuver", "pc-attack-maneuver-target", "pc-attack-maneuver-hint", "pc-attack-maneuver-effects", "pc-attack-maneuver-contest",
-  "pc-attack-maneuver-outcomes", "pc-attack-maneuver-note", "pc-attack-multiattack", "pc-attack-monster-note", "pc-attack-auto-open-monsters", "pc-attack-mode-caption", "pc-attack-picker-caption", "pc-attack-target-dropdown", "pc-attack-target-button", "pc-attack-target-menu", "pc-attack-maneuver-button", "pc-attack-maneuver-menu", "pc-attack-spell-controls", "pc-attack-more", "pc-attack-more-menu"];
-const BUTTONS = new Set(["pc-attack-target-button", "pc-attack-maneuver-button", "pc-attack-more", "pc-attack-close", "pc-attack-apply", "pc-attack-launch-button", "pc-attack-use-selected", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
+  "pc-attack-maneuver-outcomes", "pc-attack-maneuver-note", "pc-attack-multiattack", "pc-attack-monster-note", "pc-attack-auto-open-monsters", "pc-attack-mode-caption", "pc-attack-picker-caption", "pc-attack-target-dropdown", "pc-attack-target-button", "pc-attack-target-menu", "pc-attack-maneuver-button", "pc-attack-maneuver-menu", "pc-attack-spell-controls", "pc-attack-more", "pc-attack-more-menu",
+  "pc-attack-turn-action", "pc-attack-help-mode-row", "pc-attack-help-modes", "pc-attack-help-target-row", "pc-attack-help-caption", "pc-attack-help-dropdown",
+  "pc-attack-help-button", "pc-attack-help-menu", "pc-attack-hide-row", "pc-attack-hide-stealth"];
+const BUTTONS = new Set(["pc-attack-target-button", "pc-attack-maneuver-button", "pc-attack-help-button", "pc-attack-more", "pc-attack-close", "pc-attack-apply", "pc-attack-launch-button", "pc-attack-use-selected", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"]);
 function createDocument() {
   const doc = {
@@ -40,7 +42,7 @@ function createDocument() {
   doc.root = new FakeNode(doc, "body"); doc.body = doc.root;
   for (const id of IDS) {
     const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip", "pc-attack-mode", "pc-attack-picker-select", "pc-attack-maneuver-target"].includes(id) ? "select" : BUTTONS.has(id) ? "button"
-      : ["pc-attack-auto-open", "pc-attack-auto-open-monsters", "pc-attack-picker-search"].includes(id) ? "input" : id === "pc-attack-spell-details" ? "details" : "div");
+      : ["pc-attack-auto-open", "pc-attack-auto-open-monsters", "pc-attack-picker-search", "pc-attack-hide-stealth"].includes(id) ? "input" : id === "pc-attack-spell-details" ? "details" : "div");
     node.id = id; doc.root.appendChild(node);
   }
   return doc;
@@ -93,8 +95,11 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
     },
     executePcTurnAction: async (request) => {
       calls.push({ turnAction: request });
-      return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [], target: { id: request.sourceId, name: "Aria" },
-        turnAction: { kind: request.kind, ...(request.kind === "dash" ? { dashes: 1 } : {}) } };
+      // The pill's bearer: the creature helped, else the actor.
+      const holder = items.find((item) => item.id === (request.kind === "help" ? request.targetId : request.sourceId));
+      return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [], target: { id: holder?.id || request.sourceId, name: holder?.name || "Aria" },
+        turnAction: { kind: request.kind, ...(request.kind === "dash" ? { dashes: 1 } : {}), ...(request.mode ? { mode: request.mode } : {}),
+          ...(Number.isFinite(request.stealth) ? { stealth: request.stealth } : {}) } };
     },
     endPcGrapple: async (request) => {
       calls.push({ grappleEnd: request });
@@ -1677,9 +1682,10 @@ const ownCard = { quickActions: [gazeAction, blessedAction] };
 
 test("the ⚡ quick actions stay out of the console: a card of quick actions only shows no Capacità tab", async () => {
   const f = fixture({ card: ownCard, attacker: { initiativeCard: { quickActions: ownCard.quickActions } }, actionId: "" }); await f.controller.ready; await tick();
-  // Only what every creature can do: the Azioni tab (Scatto, Disimpegno, Schivata, Lotta, Spinta), no Capacità tab, no
-  // quick action. It opens on Scatto.
-  assert.deepEqual(pickerOptions(f), ["turn-action::dash", "turn-action::disengage", "turn-action::dodge", "maneuver::grapple", "maneuver::shove"]);
+  // Only what every creature can do: the Azioni tab (Scatto, Disimpegno, Schivata, Aiuto, Nascondersi, Lotta, Spinta), no
+  // Capacità tab, no quick action. It opens on Scatto.
+  assert.deepEqual(pickerOptions(f), ["turn-action::dash", "turn-action::disengage", "turn-action::dodge", "turn-action::help", "turn-action::hide",
+    "maneuver::grapple", "maneuver::shove"]);
   assert.equal(f.$("pc-attack-picker-tabs").hidden, true);
   assert.equal(f.$("pc-attack-launch-button").textContent, "Registra");
 });
@@ -2296,4 +2302,86 @@ test("a target in Dodge: the attack reminds the disadvantage under the target", 
   assert.equal(f.$("pc-attack-target-note").textContent, "Schivata: svantaggio all'attacco, se il bersaglio vede chi attacca.");
   await f.select(["imp"]);
   assert.equal(f.$("pc-attack-target-note").hidden, true, "a target not in Dodge");
+});
+
+// Help and Hide (lot T2 of docs/STUDIO_AZIONI_DI_TURNO.md): what Help is for and whom, Hide's Stealth total, above the card.
+const sides = { attacker: { attitude: "pc" }, metas: { ghoul: { attitude: "enemy" }, imp: { attitude: "ally" } } };
+const helpMode = (f, mode) => f.$("pc-attack-help-modes").querySelector(`[data-help-mode="${mode}"]`);
+const helpRow = (f, id) => f.$("pc-attack-help-menu").querySelector(`[data-target-id="${id}"]`);
+
+test("Aiuto: the creature selected on the map, the mode from its side; Registra sends both", async () => {
+  const f = fixture({ actions: [sword], turnState: ownTurn, ...sides }); await f.controller.ready; await tick();
+  await pickAction(f, "turn-action::help");
+  assert.equal(f.$("pc-attack-turn-action").hidden, false);
+  assert.deepEqual(["pc-attack-help-mode-row", "pc-attack-help-target-row", "pc-attack-hide-row"].map((id) => f.$(id).hidden), [false, false, true]);
+  assert.match(textOf(f.$("pc-attack-launch")), /Aiuto/);
+  assert.deepEqual([...f.$("pc-attack-help-modes").querySelectorAll("button")].map((button) => button.textContent), ["Una prova", "Un attacco"]);
+  assert.equal(f.$("pc-attack-launch-button").disabled, true);
+  assert.equal(f.$("pc-attack-total").textContent, "Scegli se aiuta una prova o un attacco.");
+  assert.equal(f.$("pc-attack-help-caption").textContent, "Creatura");
+  await f.select(["ghoul"]);
+  assert.equal(helpMode(f, "attack").getAttribute("aria-pressed"), "true", "an enemy: an attack");
+  assert.equal(f.$("pc-attack-help-caption").textContent, "Nemico");
+  assert.equal(f.$("pc-attack-total").textContent, "Ghoul: il primo attacco di un alleato contro di lui ha vantaggio.");
+  assert.equal(f.$("pc-attack-launch-button").disabled, false);
+  await f.select(["imp"]);
+  assert.equal(helpMode(f, "check").getAttribute("aria-pressed"), "true", "an ally: a check");
+  assert.equal(f.$("pc-attack-help-caption").textContent, "Alleato");
+  await f.$("pc-attack-launch-button").click(); await tick(); await tick();
+  const call = f.calls.find((entry) => entry.turnAction)?.turnAction;
+  assert.deepEqual([call.sourceId, call.kind, call.targetId, call.mode], ["aria", "help", "imp", "check"]);
+  assert.equal(f.$("pc-attack-status").textContent, "Registrato: Aiuto di Aria a Imp, vantaggio alla prossima prova del compito.");
+});
+
+test("Aiuto: a creature picked in its menu and a mode pressed stay, whatever the map selection", async () => {
+  const f = fixture({ actions: [sword], turnState: ownTurn, ...sides }); await f.controller.ready; await tick();
+  await pickAction(f, "turn-action::help");
+  await f.select(["imp"]);
+  await f.$("pc-attack-help-button").click();
+  await helpRow(f, "ghoul").click(); await tick();
+  assert.equal(f.$("pc-attack-help-caption").textContent, "Nemico", "the mode follows the creature until pressed");
+  await helpMode(f, "check").click(); await tick();
+  await f.select(["imp"]);
+  assert.equal(helpRow(f, "ghoul").getAttribute("aria-pressed"), "true", "the creature picked stays");
+  assert.equal(helpMode(f, "check").getAttribute("aria-pressed"), "true", "the mode pressed stays");
+  await f.$("pc-attack-launch-button").click(); await tick(); await tick();
+  const call = f.calls.find((entry) => entry.turnAction)?.turnAction;
+  assert.deepEqual([call.targetId, call.mode], ["ghoul", "check"]);
+  assert.equal(f.$("pc-attack-status").textContent, "Registrato: Aiuto di Aria a Ghoul, vantaggio alla prossima prova del compito.");
+  // Registered: the next Help starts from the map again.
+  await f.select(["imp"]);
+  assert.equal(helpRow(f, "imp").getAttribute("aria-pressed"), "true");
+});
+
+test("Nascondersi: the Stealth total, optional; one out of range keeps Registra off; the field is never rebuilt", async () => {
+  const f = fixture({ actions: [sword], turnState: ownTurn, ...sides }); await f.controller.ready; await tick();
+  await pickAction(f, "turn-action::hide");
+  assert.deepEqual(["pc-attack-help-mode-row", "pc-attack-help-target-row", "pc-attack-hide-row"].map((id) => f.$(id).hidden), [true, true, false]);
+  assert.equal(f.$("pc-attack-total").textContent, "Nascosto, senza il totale di Furtività.");
+  assert.equal(f.$("pc-attack-launch-button").disabled, false, "the total is optional");
+  const input = f.$("pc-attack-hide-stealth");
+  input.value = "75"; await input.emit("input");
+  assert.equal(f.$("pc-attack-launch-button").disabled, true);
+  assert.equal(f.$("pc-attack-total").textContent, "Furtività: un numero intero da 0 a 60, o niente.");
+  input.value = "18"; await input.emit("input");
+  assert.equal(f.$("pc-attack-total").textContent, "Nascosto, Furtività 18.");
+  await f.itemsChanged();
+  assert.equal(input.value, "18", "a live update keeps what is typed");
+  await f.$("pc-attack-launch-button").click(); await tick(); await tick();
+  const call = f.calls.find((entry) => entry.turnAction)?.turnAction;
+  assert.deepEqual([call.kind, call.stealth], ["hide", 18]);
+  assert.equal(f.$("pc-attack-status").textContent, "Registrato: Nascondersi di Aria, Furtività 18; attaccando si rivela.");
+  assert.equal(input.value, "", "the next Hide starts empty");
+  await pickAction(f, "turn-action::dodge");
+  assert.equal(f.$("pc-attack-turn-action").hidden, true, "another action: no controls");
+});
+
+test("a hidden attacker, a target with an ally's Help: the attack reminds the advantage and what it spends", async () => {
+  const hidden = { attitude: "pc", conditions: { instances: [{ id: "hide-1", condition: "Nascosto", sourceId: "aria", active: true }] } };
+  const helped = { attitude: "enemy", conditions: { instances: [{ id: "help-1", condition: "Bersaglio dell'aiuto", sourceId: "imp", active: true }] } };
+  const f = fixture({ attacker: hidden, metas: { ghoul: helped, imp: { attitude: "ally" } } }); await f.controller.ready;
+  await f.select(["ghoul"]);
+  assert.equal(f.$("pc-attack-target-note").textContent,
+    "Nascosto: vantaggio all'attacco; attaccando si rivela. Aiuto: vantaggio all'attacco; registrato, la pill si toglie.");
+  assert.equal(f.$("pc-attack-turn-action").hidden, true, "the attack form: no turn action controls");
 });

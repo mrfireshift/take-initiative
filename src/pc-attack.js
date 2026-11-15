@@ -39,7 +39,8 @@ import { pcAttackPickerDefault, pcAttackPickerEntries, pcAttackPickerEntryFor, p
 import { spellGrantedActionsForItem } from "./spellGrantedActionsCore.js";
 import { PC_MANEUVER_CONTEST, PC_MANEUVER_NOTES, PC_MANEUVER_OUTCOMES, PC_MANEUVER_OUTCOME_LABELS, PC_SHOVE_EFFECTS, PC_SHOVE_EFFECT_LABELS,
   pcAttackManeuverEntries, pcGrappleHolds, pcGrapplesOn, pcManeuverBlocker, pcManeuverLabel } from "./pcAttackManeuverCore.js";
-import { PC_TURN_ACTION_NOTES, pcAttackTargetNotes, pcAttackTurnActionEntries, pcTurnActionBlocker, pcTurnActionLabel } from "./pcAttackTurnActionCore.js";
+import { PC_HELP_MODES, PC_HELP_MODE_LABELS, PC_TURN_ACTION_NOTES, pcAttackTargetNotes, pcAttackTurnActionEntries, pcTurnActionBlocker,
+  pcTurnActionLabel } from "./pcAttackTurnActionCore.js";
 import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
 import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageShortNotice, mirrorImageState } from "./mirrorImageCore.js";
@@ -194,14 +195,20 @@ export function maneuverSummary(result) {
   return `Registrato: ${name} riuscita, ${effect}.`;
 }
 
-// Dash, Disengage and Dodge (Azioni tab): what was registered.
-export function turnActionSummary(result) {
+// Dash, Disengage, Dodge, Help and Hide (Azioni tab): what was registered. The result's target is the pill's bearer: the
+// creature itself, or the one its Help is for; actor: the console's actor, the helper.
+export function turnActionSummary(result,actor="") {
   const action=result?.turnAction || {};
   const name=pcTurnActionLabel(action.kind) || "Azione";
-  const actor=result?.target?.name || "la creatura";
-  if(action.kind==="dash") return `Registrato: ${name} di ${actor}, uno scatto in più nel riquadro Movimento.`;
-  if(action.kind==="disengage") return `Registrato: ${name} di ${actor}, niente attacchi di opportunità fino alla fine del turno.`;
-  if(action.kind==="dodge") return `Registrato: ${name} di ${actor}, fino all'inizio del suo prossimo turno.`;
+  const holder=result?.target?.name || "la creatura";
+  const self=action.kind==="help"?actor || "la creatura":holder;
+  if(action.kind==="dash") return `Registrato: ${name} di ${self}, uno scatto in più nel riquadro Movimento.`;
+  if(action.kind==="disengage") return `Registrato: ${name} di ${self}, niente attacchi di opportunità fino alla fine del turno.`;
+  if(action.kind==="dodge") return `Registrato: ${name} di ${self}, fino all'inizio del suo prossimo turno.`;
+  if(action.kind==="help") return action.mode==="attack"
+    ?`Registrato: ${name} di ${self} contro ${holder}, il primo attacco di un alleato ha vantaggio.`
+    :`Registrato: ${name} di ${self} a ${holder}, vantaggio alla prossima prova del compito.`;
+  if(action.kind==="hide") return `Registrato: ${name} di ${self}${Number.isFinite(action.stealth)?`, Furtività ${action.stealth}`:""}; attaccando si rivela.`;
   return `Registrato: ${name}.`;
 }
 
@@ -262,6 +269,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const maneuverEffects=$("pc-attack-maneuver-effects"),maneuverContest=$("pc-attack-maneuver-contest"),maneuverOutcomes=$("pc-attack-maneuver-outcomes");
   const maneuverNote=$("pc-attack-maneuver-note"),grappleBox=$("pc-attack-grapple");
   let maneuverDraft={kind:"",targetId:"",outcome:"",effect:"",id:newAttackId()},grappleSignature="",maneuverSignature="";
+  // Help and Hide (Azioni tab): what Help is for and whom, Hide's Stealth total, above the action's card.
+  const turnActionBox=$("pc-attack-turn-action"),helpModeRow=$("pc-attack-help-mode-row"),helpModes=$("pc-attack-help-modes");
+  const helpTargetRow=$("pc-attack-help-target-row"),helpCaption=$("pc-attack-help-caption"),hideRow=$("pc-attack-hide-row"),hideStealth=$("pc-attack-hide-stealth");
   const applyRow=$("pc-attack-apply-row");
   const reactionRow=$("pc-attack-reaction");
   // ownTurnSeen: the console showed this actor on its own turn. An attack chosen there and registered after the turn
@@ -308,6 +318,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const targetControl=drawnMenu("#pc-attack-target-dropdown",targetButton,targetMenu);
   const maneuverButton=$("pc-attack-maneuver-button"),maneuverMenu=$("pc-attack-maneuver-menu");
   const maneuverControl=drawnMenu("#pc-attack-maneuver-dropdown",maneuverButton,maneuverMenu);
+  const helpButton=$("pc-attack-help-button"),helpMenu=$("pc-attack-help-menu");
+  const helpControl=drawnMenu("#pc-attack-help-dropdown",helpButton,helpMenu);
   const autoOpenRow=$("pc-attack-auto-open-row"),autoOpenBox=$("pc-attack-auto-open"),autoOpenMonstersBox=$("pc-attack-auto-open-monsters");
   // The header's ⋯: the console's own options, the turn auto-open. A click elsewhere or Esc closes it.
   const moreButton=$("pc-attack-more"),moreMenu=$("pc-attack-more-menu");
@@ -1725,6 +1737,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // The fixed row is shared with the attacks: their defenses do not follow here.
     defensesBox.replaceChildren();
     if(attackView) attackView.hidden=true;
+    // Help's and Hide's controls: only theirs (renderTurnAction shows them).
+    if(turnActionBox) turnActionBox.hidden=true;
     // Grapple and Shove have a card of their own.
     if(currentEntry()?.mode==="maneuver"){launchBox.hidden=true;launchSignature="";renderManeuver(currentEntry());return;}
     if(maneuverBox) maneuverBox.hidden=true;
@@ -1830,13 +1844,47 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(entry.group==="monster-legendary") children.push(node("p","Le azioni leggendarie si segnano sui diamanti del tracker.","launch-details"));
     launchBox.replaceChildren(...children);
   }
-  // Dash, Disengage or Dodge (Azioni tab): what it does, why it is off (not the creature's turn, already taken), and
-  // Registra in the fixed row. No target, no outcome: the action is the creature's own.
+  // Dash, Disengage, Dodge, Help or Hide (Azioni tab): what it does, why it is off (not the creature's turn, already
+  // taken, Help without its creature), and Registra in the fixed row. Help asks what it is for (an ally's check, an attack
+  // against an enemy) and whom: the creature selected on the map until the GM picks one in its menu, the mode from that
+  // creature's side until the GM presses one; Hide takes the Stealth total, if given. Their controls are the page's own
+  // (pc-attack.html), never rebuilt: a live update keeps the caret in the field and the open menu.
   let turnActionId=newAttackId();
+  const emptyTurnActionDraft=(kind="")=>({kind,mode:"",modePicked:false,targetId:"",picked:false,stealth:""});
+  let turnActionDraft=emptyTurnActionDraft();
+  const sideOfItem=item=>{const attitude=String(item?.metadata?.[META_KEY]?.attitude || "").toLocaleLowerCase("it");
+    return attitude==="enemy"?"enemy":attitude==="pc" || attitude==="ally"?"friendly":"neutral";};
+  const rerenderTurnAction=()=>{const entry=currentEntry();if(launching() && entry?.mode==="turn-action")renderTurnAction(entry);};
+  helpModes?.replaceChildren(...PC_HELP_MODES.map(mode=>choiceButton(PC_HELP_MODE_LABELS[mode],false,
+    ()=>{turnActionDraft={...turnActionDraft,mode,modePicked:true};rerenderTurnAction();},{helpMode:mode})));
+  hideStealth?.addEventListener("input",()=>{turnActionDraft.stealth=String(hideStealth.value ?? "").trim();rerenderTurnAction();});
+  function turnActionRequest(entry) {
+    const kind=entry.turnAction;
+    return {kind,...(kind==="help"?{targetId:turnActionDraft.targetId,mode:turnActionDraft.mode}:{}),
+      ...(kind==="hide" && turnActionDraft.stealth!==""?{stealth:Number(turnActionDraft.stealth)}:{})};
+  }
+  function turnActionBlocker(entry) {
+    const request=turnActionRequest(entry);
+    return pcTurnActionBlocker({kind:entry.turnAction,sourceItem:presentation?.item,turnState:presentation?.turnState,
+      targetItem:request.targetId?targetById(request.targetId):null,mode:request.mode || "",stealth:entry.turnAction==="hide"?turnActionDraft.stealth:null});
+  }
   function renderTurnAction(entry) {
+    const kind=entry.turnAction;
+    if(turnActionDraft.kind!==kind){turnActionDraft=emptyTurnActionDraft(kind);if(hideStealth)hideStealth.value="";}
+    if(kind==="help") {
+      if(turnActionDraft.targetId && !targetById(turnActionDraft.targetId)) turnActionDraft={...turnActionDraft,targetId:"",picked:false};
+      if(!turnActionDraft.picked) turnActionDraft.targetId=selection.status==="single" && targetById(selection.target?.id)?selection.target.id:"";
+      // Its own side's creature: a check; the other side's: an attack. A neutral one, or a neutral helper: the GM says.
+      if(!turnActionDraft.modePicked) {
+        const actorSide=sideOfItem(presentation?.item),targetSide=sideOfItem(targetById(turnActionDraft.targetId));
+        turnActionDraft.mode=!turnActionDraft.targetId || actorSide==="neutral" || targetSide==="neutral"?"":targetSide===actorSide?"check":"attack";
+      }
+    }
+    const target=kind==="help"?targetById(turnActionDraft.targetId):null;
     $("pc-attack-title").textContent=actorName();
     $("pc-attack-subtitle").textContent=pickerNamesEntry?"":`${plainLabel(entry.label)} · Azione`;
-    const blocker=pcTurnActionBlocker({kind:entry.turnAction,sourceItem:presentation?.item,turnState:presentation?.turnState});
+    const request=turnActionRequest(entry);
+    const blocker=turnActionBlocker(entry);
     if(applyRow) applyRow.hidden=false;
     apply.hidden=true;
     if(launchButton) {
@@ -1846,27 +1894,47 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     }
     total.replaceChildren();
     total.dataset.kind=blocker?"warning":"";
+    const targetName=target?.name || "La creatura";
     total.textContent=blocker || {dash:"Uno scatto in più nel riquadro Movimento.",
       disengage:"Disimpegno fino alla fine del turno: niente avvisi di attacco di opportunità.",
-      dodge:"Schivata fino all'inizio del suo prossimo turno."}[entry.turnAction] || "";
+      dodge:"Schivata fino all'inizio del suo prossimo turno.",
+      help:turnActionDraft.mode==="attack"?`${targetName}: il primo attacco di un alleato contro di lui ha vantaggio.`:`${targetName}: vantaggio alla prossima prova del compito.`,
+      hide:request.stealth!==undefined?`Nascosto, Furtività ${request.stealth}.`:"Nascosto, senza il totale di Furtività."}[kind] || "";
     total.title=total.textContent;
+    // Help's creature and mode, Hide's Stealth: above the card, their state from the draft.
+    if(turnActionBox) turnActionBox.hidden=kind!=="help" && kind!=="hide";
+    if(helpModeRow) helpModeRow.hidden=kind!=="help";
+    if(helpTargetRow) helpTargetRow.hidden=kind!=="help";
+    if(hideRow) hideRow.hidden=kind!=="hide";
+    if(kind==="help") {
+      for(const button of helpModes?.querySelectorAll("button") || []) {
+        button.setAttribute("aria-pressed",String(button.dataset.helpMode===turnActionDraft.mode));button.disabled=busy || invalidated;
+      }
+      if(helpCaption) helpCaption.textContent=turnActionDraft.mode==="attack"?"Nemico":turnActionDraft.mode==="check"?"Alleato":"Creatura";
+      renderTargetMenu(helpControl,helpButton,helpMenu,turnActionDraft.targetId,busy || invalidated,
+        id=>{turnActionDraft={...turnActionDraft,targetId:id,picked:!!id};rerenderTurnAction();});
+    }
+    if(kind==="hide" && hideStealth) hideStealth.disabled=busy || invalidated;
     const signature=JSON.stringify(["turn-action",entry.key]);
     if(signature===launchSignature) return;
     launchSignature=signature;
-    launchBox.replaceChildren(launchHead(entry,pickerNamesEntry?[]:["Azione"]),node("p",PC_TURN_ACTION_NOTES[entry.turnAction] || "","launch-details"));
+    launchBox.replaceChildren(launchHead(entry,pickerNamesEntry?[]:["Azione"]),node("p",PC_TURN_ACTION_NOTES[kind] || "","launch-details"));
   }
   async function registerTurnAction(entry) {
     return perform(async operation=>{
-      const blocker=pcTurnActionBlocker({kind:entry.turnAction,sourceItem:presentation?.item,turnState:presentation?.turnState});
+      const request=turnActionRequest(entry);
+      const blocker=turnActionBlocker(entry);
       if(blocker) throw new Error(blocker);
       try {
-        const result=await runtime.executePcTurnAction({sourceId,kind:entry.turnAction,attackInstanceId:turnActionId,
+        const result=await runtime.executePcTurnAction({sourceId,...request,attackInstanceId:turnActionId,
           sceneIdentity:presentation.sceneIdentity});
         if(!lifecycle.isCurrent(operation)) return;
         showUndo(result);
-        setStatus([turnActionSummary(result),...(result.warnings || [])].join("\n"),"ok");
+        setStatus([turnActionSummary(result,actorName()),...(result.warnings || [])].join("\n"),"ok");
         markPendingReady();
         turnActionId=newAttackId();
+        // Registered: the next Help starts from the map again, the next Hide from an empty total.
+        turnActionDraft=emptyTurnActionDraft(entry.turnAction);if(hideStealth)hideStealth.value="";
         await refresh(operation);
       } catch(error) {
         // A definitive rejection needs a new identity; an uncertain acknowledgement keeps it for the retry.
@@ -2173,7 +2241,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     hint.textContent=message;hint.hidden=!message;
     // What the target's state means for this attack (a creature in Dodge): a reminder, the dice stay the table's.
     if(targetNote) {
-      const notes=pcAttackTargetNotes({attack:resolved(),targetItem:targetById(draft.targetId)});
+      const notes=pcAttackTargetNotes({attack:resolved(),targetItem:targetById(draft.targetId),sourceItem:presentation.item,
+        items:[presentation.item,...presentation.targets]});
       targetNote.textContent=notes.join(" ");targetNote.hidden=!notes.length;
     }
   }
@@ -2464,6 +2533,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(launching()){renderReaction();renderLaunch();return;}
     if(attackView) attackView.hidden=false;
     if(maneuverBox) maneuverBox.hidden=true;
+    if(turnActionBox) turnActionBox.hidden=true;
     if(launchBox){launchBox.hidden=true;launchSignature="";}
     if(launchButton) launchButton.hidden=true;
     apply.hidden=false;
@@ -2937,6 +3007,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     presentation=null;draft=null;liveSignature="";useReaction=true;reactionSignature="";ownTurnSeen=false;reactionSpentBy="";
     beamTally={spellId:"",count:0};palmDraft={targetId:"",outcome:"",amount:"",id:newAttackId()};
     maneuverDraft={kind:"",targetId:"",outcome:"",effect:"",id:newAttackId()};grappleSignature="";maneuverSignature="";
+    turnActionDraft=emptyTurnActionDraft();if(hideStealth)hideStealth.value="";
     selection={status:"none",target:null,candidates:[]};selectedItems=[];
     showUndo(null);setStatus(name?offTurn?`Fuori turno: ${name}.`:`Turno di ${name}.`:"");
     render();

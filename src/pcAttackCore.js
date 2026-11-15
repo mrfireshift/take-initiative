@@ -39,6 +39,7 @@ import { areaHitsBounds, buildFootprintEmanationArea, gridFootprintCells } from 
 import { PC_ATTACK_CANTRIPS, PC_ATTACK_SAVE_LABELS, getPcAttackCantrip, pcAttackCantripDice, pcAttackWeaponCantripDice } from "./pcAttackCantripCatalog.js";
 import { PC_ATTACK_SPELLS, getPcAttackSpell, pcAttackSpellCount, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
 import { abilitySaveDC, totalCharacterLevel } from "./abilityModifiersCore.js";
+import { consumedAdvantagePills, hiddenPills } from "./attackAdvantagePillsCore.js";
 import { PC_ATTACK_RIDERS, PC_ATTACK_SPELL_RIDERS, getPcAttackRider, pcAttackHasPotentCantrip, pcAttackRiderDice, pcAttackRiderFeatureActive, pcAttackRidersForCard, pcAttackRiderSlotLevels } from "./pcAttackRiderCatalog.js";
 
 export const PC_ATTACK_HISTORY_KIND = "pc-attack";
@@ -1622,13 +1623,15 @@ export function buildPcAttackMutation({
   const activationPillOperations = Object.keys(activationPlan.instancesByTarget).length
     ? [{ type: "condition:add-instances", instancesByTarget: activationPlan.instancesByTarget }] : [];
   // CAP-LINK: Invisibility and Compelled Duel ended by this attack, in its own command (one Undo brings them back).
-  const linkEnds = pcAttackLinkEnds({ sourceItem, targetItem, linkItems, damaged: !!change?.changed && change.requested > 0 });
+  const linkEnds = pcAttackLinkEnds({ sourceItem, targetItem, linkItems, damaged: !!change?.changed && change.requested > 0,
+    attackRoll: !pcAttackSave(attack) && !attack.mode && attack.spell?.delivery !== "auto" });
   // A spell's pill spent by the hit (Absorb Elements' first melee hit) goes with it, its spell too, in the same command.
   for (const rider of chosenRiders) {
     const consumed = rider.option.consumes;
     if (consumed) linkEnds.push({ ...consumed, reason: `Usato con il colpo: ${rider.option.label}.` });
   }
-  if (linkEnds.length) causality.linkEnds = linkEnds.map(({ itemId, spellId, featureId, reason }) => ({ itemId, ...(spellId ? { spellId } : {}), ...(featureId ? { featureId } : {}), reason }));
+  if (linkEnds.length) causality.linkEnds = linkEnds.map(({ itemId, spellId, featureId, condition, reason }) => ({ itemId, ...(spellId ? { spellId } : {}),
+    ...(featureId ? { featureId } : {}), ...(condition ? { condition } : {}), reason }));
   // The ids whose pills the attack changes outside the damaged creatures (a self pill on the attacker, an ended link).
   const pillTargetIds = [...new Set([...Object.keys(activationPlan.instancesByTarget), ...linkEnds.map((end) => end.itemId)])];
   if (activationPlan.notes.length) causality.notes = [...activationPlan.notes];
@@ -1730,7 +1733,9 @@ function attitudeSide(item) {
 }
 // Invisibility and Sanctuary end for their bearer who attacks or casts (any registration of the console); Compelled Duel ends when
 // its caster attacks another creature, or when a creature friendly to the caster damages the duel's target.
-export function pcAttackLinkEnds({ sourceItem, targetItem, linkItems = [], damaged = false } = {}) {
+// attackRoll (lot T2 of docs/STUDIO_AZIONI_DI_TURNO.md): an attack roll also ends its attacker's Hidden, and spends the
+// target's pill that gives it advantage (Help, Distracting Strike, Guiding Bolt: attackAdvantagePillsCore.js).
+export function pcAttackLinkEnds({ sourceItem, targetItem, linkItems = [], damaged = false, attackRoll = false } = {}) {
   const ends = linkedSpellPills(sourceItem, "invisibility").map((instance) => ({ itemId: sourceItem.id, instanceId: instance.id,
     spellId: "invisibility", reason: "Ha attaccato o lanciato un incantesimo." }));
   // Sanctuary (CAP-REACTION) ends when the warded creature attacks or casts a spell on an enemy.
@@ -1742,6 +1747,12 @@ export function pcAttackLinkEnds({ sourceItem, targetItem, linkItems = [], damag
     ends.push({ itemId: sourceItem.id, instanceId: instance.id, featureId: instance.effectId, reason: "Ha attaccato." });
   }
   const byId = new Map([...(Array.isArray(linkItems) ? linkItems : []), targetItem, sourceItem].filter((item) => item?.id).map((item) => [item.id, item]));
+  if (attackRoll) {
+    ends.push(...hiddenPills(sourceItem).map((instance) => ({ itemId: sourceItem.id, instanceId: instance.id, condition: instance.condition,
+      reason: "Ha attaccato: non è più nascosto." })));
+    ends.push(...consumedAdvantagePills({ attackerItem: sourceItem, targetItem, items: [...byId.values()] }).map(({ instance, name }) => ({
+      itemId: targetItem.id, instanceId: instance.id, condition: instance.condition, reason: `Vantaggio usato: ${name}.` })));
+  }
   for (const item of byId.values()) {
     for (const instance of linkedSpellPills(item, "phb2014-duello-obbligato")) {
       const casterId = String(instance.sourceId || "");

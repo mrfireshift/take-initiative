@@ -19,6 +19,24 @@ Spinta spostate lì, avvisi di attacco di opportunità che rispettano il
 Disimpegno, promemoria della Schivata sotto il bersaglio. Prove in
 `PROVE_IN_STANZA.md`, sezione B10.
 
+**T2 fatto il 15/11:** Aiuto nei due modi e Nascondersi, con il totale di
+Furtività facoltativo; la pill «Nascosto» di un nemico la vede solo il GM (D11).
+C'è anche il meccanismo unico delle pill di «prossimo attacco con vantaggio»: un
+attacco con tiro per colpire registrato dalla console toglie, nello stesso
+comando, il «Nascosto» di chi attacca e la pill che gli dà vantaggio sul
+bersaglio («Bersaglio dell'aiuto», «Colpo Distraente», la pill di Dardo
+tracciante). Le decisioni A4 e A5 erano ancora in attesa: sono applicate come
+raccomandate, perché il lotto le contiene, e si possono rivedere. Tre differenze
+dalla raccomandazione di A4 e A5:
+
+- Attacco con Finta resta com'è: nel plugin spende il dado e non mette una pill;
+- Ingannatore Versatile resta com'è: il vantaggio vale per tutto il turno, non per
+  un attacco solo;
+- Dono fatato non cambia in T2: si allinea alle due pill con le capacità che danno
+  un'azione come azione bonus (T4a).
+
+Prove in `PROVE_IN_STANZA.md`, sezione B11.
+
 Scritti lo stesso giorno, con decisioni nuove in attesa:
 
 - §9, l'incantesimo preparato: decisioni **P1–P12** (§9.8);

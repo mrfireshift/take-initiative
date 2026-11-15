@@ -64,6 +64,14 @@ export function projectHpDisclosure({ hp, hpMax } = {}, mode = "hidden") {
   };
 }
 
+// A pill only the GM sees (mechanics.gmOnly): an enemy's Hidden (lot T2 of docs/STUDIO_AZIONI_DI_TURNO.md, decision D11).
+// The players' tracker and map never show it, nor count it in a summary.
+function withoutGmOnlyConditions(conditions) {
+  if (!conditions || typeof conditions !== "object" || !Array.isArray(conditions.instances)) return conditions;
+  if (!conditions.instances.some((instance) => instance?.mechanics?.gmOnly === true)) return conditions;
+  return { ...conditions, instances: conditions.instances.filter((instance) => instance?.mechanics?.gmOnly !== true) };
+}
+
 function summaryConditions(conditions) {
   const source = conditions && typeof conditions === "object" ? conditions : {};
   const instances = Array.isArray(source.instances) ? source.instances : [];
@@ -87,15 +95,16 @@ function summarySpells(spells) {
 }
 
 function projectEntryEffects(entry, policy = {}) {
+  const conditions = withoutGmOnlyConditions(entry.conditions);
   const next = {
     ...entry,
-    conditions: entry.conditions && typeof entry.conditions === "object"
-      ? clone(entry.conditions)
+    conditions: conditions && typeof conditions === "object"
+      ? clone(conditions)
       : { version: 2, instances: [] },
     spells: Array.isArray(entry.spells) ? clone(entry.spells) : [],
   };
   if (policy.conditions === "hidden") next.conditions = { version: 2, instances: [] };
-  else if (policy.conditions === "summary") next.conditions = summaryConditions(entry.conditions);
+  else if (policy.conditions === "summary") next.conditions = summaryConditions(conditions);
   if (policy.spells === "hidden") next.spells = [];
   else if (policy.spells === "summary") next.spells = summarySpells(entry.spells);
   if (policy.concentration === "hidden") {
@@ -183,9 +192,10 @@ export function projectSceneItemEffects(item, {
   const metadata = item.metadata && typeof item.metadata === "object" ? item.metadata : {};
   const pluginMeta = metadata[metaKey];
   if (!pluginMeta || typeof pluginMeta !== "object") return item;
-  const nextPluginMeta = { ...pluginMeta };
+  const nextPluginMeta = { ...pluginMeta, conditions: withoutGmOnlyConditions(pluginMeta.conditions) };
+  if (nextPluginMeta.conditions === undefined) delete nextPluginMeta.conditions;
   if (policy.conditions === "hidden") nextPluginMeta.conditions = { version: 2, instances: [] };
-  else if (policy.conditions === "summary") nextPluginMeta.conditions = summaryConditions(pluginMeta.conditions);
+  else if (policy.conditions === "summary") nextPluginMeta.conditions = summaryConditions(nextPluginMeta.conditions);
   if (policy.spells === "hidden") nextPluginMeta[spellsKey] = [];
   else if (policy.spells === "summary") {
     const spells = Array.isArray(pluginMeta[spellsKey]) ? pluginMeta[spellsKey] : [];

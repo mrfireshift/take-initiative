@@ -731,6 +731,14 @@ function turnActionLogLines(turnAction) {
   if (turnAction.kind === "dash") return [`Azione: Scatto · ${dashes > 1 ? `${numberText(dashes)} scatti` : "uno scatto"} in più nel movimento del turno`];
   if (turnAction.kind === "disengage") return ["Azione: Disimpegno · niente attacchi di opportunità fino alla fine del turno"];
   if (turnAction.kind === "dodge") return ["Azione: Schivata · fino all'inizio del suo prossimo turno"];
+  // Help: the creature it is for is the entry's target, on the line below.
+  if (turnAction.kind === "help") return [turnAction.mode === "attack"
+    ? "Azione: Aiuto in un attacco · vantaggio al primo attacco di un alleato contro la creatura, fino al suo prossimo turno"
+    : "Azione: Aiuto in una prova · vantaggio alla prossima prova del compito, fino al suo prossimo turno"];
+  if (turnAction.kind === "hide") {
+    const stealth = finiteNumber(turnAction.stealth);
+    return [`Azione: Nascondersi · ${stealth !== null ? `Furtività ${numberText(stealth)}` : "senza il totale di Furtività"}`];
+  }
   return [];
 }
 
@@ -896,7 +904,7 @@ function causalityDetailLines(event) {
   }
   // Grapple and Shove (pcAttackManeuverCore.js): the contest and its result; the end of a grapple.
   if (rawAttack?.maneuver && typeof rawAttack.maneuver === "object") lines.push(...maneuverLogLines(rawAttack.maneuver));
-  // Dash, Disengage and Dodge (pcAttackTurnActionCore.js): what the action left in the plugin.
+  // Dash, Disengage, Dodge, Help and Hide (pcAttackTurnActionCore.js): what the action left in the plugin.
   if (rawAttack?.turnAction && typeof rawAttack.turnAction === "object") lines.push(...turnActionLogLines(rawAttack.turnAction));
   for (const note of Array.isArray(rawAttack?.notes) ? rawAttack.notes : []) {
     if (stringValue(note)) lines.push(`Nota: ${note}`);

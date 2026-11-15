@@ -579,11 +579,18 @@ export function createPcAttackRuntime({
           attackInstanceId,turnState:scope.turnState});
       });
   }
-  // Dash, Disengage or Dodge of the creature whose turn it is (Azioni tab): one command, as a Grapple, with its Undo.
+  // Dash, Disengage, Dodge, Help or Hide of the creature whose turn it is (Azioni tab): one command, as a Grapple, with its
+  // Undo. Help names the creature it helps (targetId) and how (mode); Hide may carry the Stealth total.
   async function executePcTurnAction(request={}) {
-    const {sourceId}=request;
-    return runManeuver(request,{kind:"turn-action",sourceId,turnAction:request.kind || ""},
-      async(scope,attackInstanceId)=>buildPcTurnActionMutation({kind:request.kind,sourceItem:scope.item,attackInstanceId,turnState:scope.turnState}));
+    const {sourceId,targetId}=request;
+    return runManeuver(request,{kind:"turn-action",sourceId,turnAction:request.kind || "",targetId:targetId || "",mode:request.mode || "",
+      stealth:request.stealth ?? null},
+      async(scope,attackInstanceId)=>{
+        const [targetItem]=targetId?await api.scene.items.getItems([targetId]):[];
+        if(targetId && !targetItem) throw new Error("La creatura scelta non è più presente nella scena.");
+        return buildPcTurnActionMutation({kind:request.kind,sourceItem:scope.item,attackInstanceId,turnState:scope.turnState,
+          targetItem:targetItem || null,mode:request.mode || "",stealth:request.stealth ?? null});
+      });
   }
   async function endPcGrapple(request={}) {
     const {sourceId,grappledId,instanceId}=request;

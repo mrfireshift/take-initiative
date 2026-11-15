@@ -291,3 +291,63 @@ test("a turn action off the creature's turn is refused before any write", async 
   assert.deepEqual(pillNames("ghoul"), []);
   assert.deepEqual(await entries(), []);
 });
+
+// Help and Hide (lot T2): their pills, and the attack roll that spends them in its own command, each with its Undo.
+const swing = async (sourceId, decisions = {}) => {
+  const presentation = await runtime.getPcAttackPresentation(sourceId, "sword");
+  return runtime.executePcAttack({ sourceId, actionId: "sword", targetId: "ghoul", sceneIdentity: presentation.sceneIdentity,
+    expectedAction: presentation.action, expectedDefenses: {}, outcome: "miss", componentAmounts: {}, ...decisions });
+};
+
+test("Aiuto in un attacco: the pill on the enemy; the helper's attack keeps it, an ally's spends it; Undo brings it back", async () => {
+  meta("ghoul").attitude = "enemy";
+  sceneItems.push(creature("mira", "Mira", { attitude: "pc", initiativeCard: { quickActions: [sword] } }));
+  const help = await turnAction({ kind: "help", targetId: "ghoul", mode: "attack", attackInstanceId: "help-1" });
+  assert.equal(help.undoAvailable, true);
+  assert.deepEqual([help.target.id, help.turnAction.kind, help.turnAction.mode], ["ghoul", "help", "attack"]);
+  assert.deepEqual(pills("ghoul").map((instance) => [instance.condition, instance.sourceId, instance.expiry?.mode, instance.expiry?.actor]),
+    [["Bersaglio dell'aiuto", "aria", "turn-start", "source"]]);
+  assert.deepEqual(labels, ["ghoul"], "the map labels of the creature helped against");
+  await assert.rejects(turnAction({ kind: "help", targetId: "ghoul", mode: "attack", attackInstanceId: "help-2" }), /Ghoul ha già il suo aiuto/);
+  await assert.rejects(turnAction({ kind: "help", targetId: "gone", mode: "attack", attackInstanceId: "help-3" }), /non è più presente/);
+  const [helpEntry] = await entries();
+  assert.equal(helpEntry.label, "Aria: Aiuto → Ghoul");
+  assert.match(logLines(helpEntry), /Azione: Aiuto in un attacco/);
+  await swing("aria", { attackInstanceId: "aria-swing" });
+  assert.deepEqual(pillNames("ghoul"), ["Bersaglio dell'aiuto"], "Aria's Help is for her allies");
+  await swing("mira", { attackInstanceId: "mira-swing" });
+  assert.deepEqual(pillNames("ghoul"), [], "spent by Mira's attack roll, a miss too");
+  const spent = (await entries()).at(-1);
+  await history.undoHistoryThrough(spent.id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual(pillNames("ghoul"), ["Bersaglio dell'aiuto"], "Undo of the attack brings it back");
+});
+
+test("Aiuto in una prova: «Aiutato» on the creature helped, until removed or the helper's next turn", async () => {
+  await turnAction({ kind: "help", targetId: "yeti", mode: "check", attackInstanceId: "help-check" });
+  assert.deepEqual(pills("yeti").map((instance) => [instance.condition, instance.sourceId, instance.expiry?.actor]), [["Aiutato", "aria", "source"]]);
+  await assert.rejects(turnAction({ kind: "help", targetId: "yeti", attackInstanceId: "help-nomode" }), /Scegli se aiuta una prova o un attacco/);
+});
+
+test("Nascondersi: the pill on Aria with her Stealth; her attack reveals her; Undo of the attack hides her again", async () => {
+  const hide = await turnAction({ kind: "hide", stealth: 16, attackInstanceId: "hide-1" });
+  assert.deepEqual(hide.turnAction, { kind: "hide", condition: "Nascosto", stealth: 16 });
+  assert.deepEqual(pills("aria").map((instance) => [instance.condition, instance.displayLabel, instance.expiry?.mode, instance.mechanics?.gmOnly]),
+    [["Nascosto", "Nascosto · Furtività 16", "manual", undefined]]);
+  await assert.rejects(turnAction({ kind: "hide", attackInstanceId: "hide-2" }), /È già nascosto/);
+  const [hideEntry] = await entries();
+  assert.match(logLines(hideEntry), /Azione: Nascondersi · Furtività 16/);
+  await swing("aria", { outcome: "hit", componentAmounts: { c1: 7 }, attackInstanceId: "reveal" });
+  assert.deepEqual(pillNames("aria"), [], "revealed by her attack");
+  assert.equal(meta("ghoul").hp, 13);
+  const reveal = (await entries()).at(-1);
+  await history.undoHistoryThrough(reveal.id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual(pillNames("aria"), ["Nascosto"]);
+  assert.equal(meta("ghoul").hp, 20);
+});
+
+test("an enemy hides: its pill is the GM's only (D11)", async () => {
+  sceneMetadata["com.thebigpicture.initiative/state"] = { round: 2, order: ["aria", "ghoul", "yeti"], current: 1 };
+  meta("ghoul").attitude = "enemy";
+  await runtime.executePcTurnAction({ sourceId: "ghoul", kind: "hide", attackInstanceId: "ghoul-hide" });
+  assert.deepEqual(pills("ghoul").map((instance) => [instance.condition, instance.mechanics]), [["Nascosto", { gmOnly: true }]]);
+});

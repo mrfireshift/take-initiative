@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **122** |
+| **B. Console attacchi, mostri e capacità** | **128** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -46,6 +46,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B8. Attacchi dei mostri: ciò che il banco non copre | 4 |
 | B9. Danni extra degli incantesimi | 5 |
 | B10. Azioni di turno nella console | 5 |
+| B11. Aiuto, Nascondersi e il vantaggio che si consuma | 6 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -71,7 +72,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **485** |
+| **Totale** | **491** |
 
 ## A. Incantesimi
 
@@ -624,11 +625,22 @@ Fonte: segnalazione dell'utente del 15/11 (il danno di Marchio del Cacciatore ma
 
 Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T1 (decisioni D1, D3, D4, D5, D12). Le voci sono nuove: nessuna lista le aveva. Serve un combattimento con un PG e un goblin in iniziativa.
 
-- [ ] **La scheda:** la console di ogni creatura ha la scheda **Azioni** con Scatto, Disimpegno, Schivata, Lotta e Spinta. Lotta e Spinta non sono più fra gli Attacchi. Una creatura con sola arma mostra le schede Attacchi e Azioni.
+- [ ] **La scheda:** la console di ogni creatura ha la scheda **Azioni** con Scatto, Disimpegno, Schivata, Aiuto, Nascondersi, Lotta e Spinta. Lotta e Spinta non sono più fra gli Attacchi. Una creatura con sola arma mostra le schede Attacchi e Azioni. *Aiuto e Nascondersi aggiunti con il lotto T2.*
 - [ ] **Scatto:** nel turno di un PG, con il Movimento acceso, **Registra** mette «Scatto ×1» nel riquadro Movimento e il movimento disponibile cresce di una velocità. **Annulla**, dalla console o dalla Cronologia, lo toglie; il − del riquadro no. Da provare in vista compatta ed estesa.
 - [ ] **Disimpegno:** con gli avvisi di reazione e il Movimento accesi, un PG disimpegnato esce dalla portata di un goblin e non parte l'avviso di attacco di opportunità. Alla fine del suo turno la pill sparisce.
 - [ ] **Schivata:** un goblin in Schivata attaccato dalla console: sotto il bersaglio «Schivata: svantaggio all'attacco, se il bersaglio vede chi attacca»; con Fiamma sacra, «vantaggio al TS su Destrezza». All'inizio del turno del goblin la pill sparisce.
 - [ ] **Fuori turno:** le azioni di una creatura che non è di turno restano spente, con «Solo nel turno della creatura».
+
+### B11. Aiuto, Nascondersi e il vantaggio che si consuma
+
+Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T2 (decisioni D6, D7, D11, A4, A5). Le voci sono nuove: nessuna lista le aveva. Serve un combattimento con due PG e due goblin in iniziativa, e la finestra del tavolo aperta per la quinta voce.
+
+- [ ] **Aiuto in un attacco:** nel turno di un PG, Azioni → **Aiuto**, poi seleziona un goblin sulla mappa: «Un attacco» è già premuto e la riga dice «Nemico». **Registra** mette «Bersaglio dell'aiuto» sul goblin. L'attacco dello stesso PG non la toglie. L'altro PG attacca il goblin dalla console: sotto il bersaglio «Aiuto: vantaggio all'attacco; registrato, la pill si toglie»; registrato, anche mancato, la pill sparisce e **Annulla** la riporta. Se nessuno la usa, sparisce all'inizio del prossimo turno di chi aiuta.
+- [ ] **Aiuto in una prova:** seleziona l'altro PG: «Una prova» premuto, la riga dice «Alleato»; **Registra** mette «Aiutato» sull'alleato, che si toglie a mano.
+- [ ] **La scelta resta:** scegli una creatura nel menu della riga, poi seleziona un'altra creatura sulla mappa: resta quella scelta; lo stesso per il modo premuto. Da provare in vista compatta ed estesa.
+- [ ] **Nascondersi:** scrivi 17 in Furtività e **Registra**: la pill «Nascosto · Furtività 17» sul PG. Con 75 **Registra** resta spento, con «Furtività: un numero intero da 0 a 60, o niente.». Il PG nascosto attacca: sotto il bersaglio «Nascosto: vantaggio all'attacco; attaccando si rivela»; registrato, la pill sparisce e **Annulla** la riporta. Una Lotta o una Spinta la tolgono anche.
+- [ ] **Il nemico nascosto:** un goblin si nasconde dalla sua console: il GM vede la pill, lo schermo del tavolo no, né nel tracker né sulla mappa. Un PG che lo attacca legge «Bersaglio nascosto: svantaggio all'attacco, se chi attacca non lo vede».
+- [ ] **Colpo Distraente e Dardo tracciante:** un guerriero Maestro di Battaglia usa Colpo Distraente su un goblin: il suo attacco seguente non toglie la pill, quello di un altro PG sì, con il promemoria sotto il bersaglio. Dopo un Dardo tracciante a segno, il prossimo attacco con tiro per colpire contro quel bersaglio, di chiunque, toglie la pill; un TS (Fiamma sacra) no.
 
 ## C. Tracker e UX
 

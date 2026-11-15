@@ -178,6 +178,9 @@
     /* Grapple and Shove: the contest's card in place of the attack form; the grapples in progress above it. */
     .maneuver { display: grid; gap: var(--obrt-space-xl); }
     .maneuver[hidden] { display: none; }
+    /* Help's mode and creature, Hide's Stealth total: rows of the form above the action's card. */
+    .turn-action { gap: var(--obrt-space-lg); }
+    .turn-action .amount { justify-self: start; }
     /* The title on its line, the note under it. */
     .maneuver-box { display: grid; gap: var(--obrt-space-md); padding: var(--obrt-space-lg) var(--obrt-space-xl); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
     .maneuver-head { display: grid; gap: 2px; }
@@ -241,6 +244,23 @@
         <p class="caster-state" id="pc-attack-caster" hidden></p>
         <p class="caster-state" id="pc-attack-multiattack" hidden></p>
         <section class="grapple" id="pc-attack-grapple" aria-label="Presa" hidden></section>
+        <section class="card turn-action" id="pc-attack-turn-action" aria-label="Scelte dell'azione" hidden>
+          <div class="form-row" id="pc-attack-help-mode-row">
+            <span class="form-label">Aiuta in</span>
+            <div class="segmented" id="pc-attack-help-modes" role="group" aria-label="Che cosa aiuta"></div>
+          </div>
+          <div class="form-row" id="pc-attack-help-target-row">
+            <span class="form-label" id="pc-attack-help-caption">Creatura</span>
+            <div class="picker-dropdown" id="pc-attack-help-dropdown">
+              <button class="picker-dropdown-button" id="pc-attack-help-button" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Creatura dell'aiuto"></button>
+              <div class="picker-menu" id="pc-attack-help-menu" role="group" aria-label="Creature" hidden></div>
+            </div>
+          </div>
+          <div class="form-row" id="pc-attack-hide-row">
+            <span class="form-label">Furtività</span>
+            <input class="amount" id="pc-attack-hide-stealth" type="number" min="0" max="60" step="1" inputmode="numeric" aria-label="Totale di Furtività, facoltativo" title="Il totale tirato, facoltativo" />
+          </div>
+        </section>
         <section class="card launch" id="pc-attack-launch" aria-label="Incantesimo" hidden></section>
         <section class="card maneuver" id="pc-attack-maneuver" aria-label="Manovra" hidden>
           <div class="form-row">

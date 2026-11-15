@@ -549,12 +549,12 @@ plugin chiede conferma prima di lanciare.
 ### Azioni di turno nella console
 
 La scheda **Azioni** della console attacchi, per ogni creatura, raccoglie le azioni
-del turno che non sono un attacco: **Scatto**, **Disimpegno** e **Schivata**, poi
-**Lotta** e **Spinta**, che restano «al posto di un attacco dell'azione Attacco».
-**Registra** fa di ogni azione una voce della Cronologia e del registro, con il suo
-**Annulla**. Il plugin non conta le azioni del turno: se non le registri, non
-cambia nulla. Scatto, Disimpegno e Schivata si registrano solo nel turno della
-creatura, in combattimento.
+del turno che non sono un attacco: **Scatto**, **Disimpegno**, **Schivata**,
+**Aiuto** e **Nascondersi**, poi **Lotta** e **Spinta**, che restano «al posto di
+un attacco dell'azione Attacco». **Registra** fa di ogni azione una voce della
+Cronologia e del registro, con il suo **Annulla**. Il plugin non conta le azioni
+del turno: se non le registri, non cambia nulla. Le azioni di turno si registrano
+solo nel turno della creatura, in combattimento.
 
 - **Scatto**: uno scatto in più nel riquadro Movimento del turno («Scatto ×N»).
   Il − del riquadro toglie solo gli scatti messi lì; quello registrato si toglie
@@ -566,6 +566,32 @@ creatura, in combattimento.
   il bersaglio «svantaggio all'attacco, se il bersaglio vede chi attacca»; un TS
   su Destrezza, «vantaggio». Se la creatura diventa incapacitata o resta senza
   velocità, la pill si toglie a mano.
+- **Aiuto**: sopra la scheda scegli **Aiuta in** («Una prova» o «Un attacco») e la
+  creatura. All'inizio è quella selezionata sulla mappa, e il modo segue la sua
+  fazione: un alleato, una prova; un nemico, un attacco. Quando scegli tu, la
+  scelta resta. In una prova, la pill «Aiutato» sull'alleato: vantaggio alla
+  prossima prova del compito, e la togli a mano dopo la prova. In un attacco, la
+  pill «Bersaglio dell'aiuto» sul nemico: il primo attacco di un alleato di chi
+  aiuta, registrato dalla console, ha vantaggio e la toglie da solo. Tutte e due
+  finiscono all'inizio del prossimo turno di chi aiuta. La distanza di 1,5 m resta
+  al tavolo.
+- **Nascondersi**: la pill «Nascosto», con il totale di Furtività se lo scrivi
+  (facoltativo, da 0 a 60). Chi attacca da nascosto legge sotto il bersaglio
+  «vantaggio all'attacco; attaccando si rivela», e il suo attacco toglie la pill
+  nello stesso comando, anche una Lotta o una Spinta: Annulla la rimette. Chi
+  attacca una creatura nascosta legge «svantaggio all'attacco, se chi attacca non
+  lo vede». Se la creatura viene trovata, togli la pill a mano. Quella di un nemico
+  la vede solo il GM: non compare né nel tracker dei giocatori né sulla mappa.
+
+Le pill che danno vantaggio al prossimo attacco contro chi le porta si tolgono con
+quell'attacco, se la console lo registra con un tiro per colpire, colpito o
+mancato (un TS no):
+
+- «Bersaglio dell'aiuto»: la toglie un alleato di chi aiuta;
+- «Colpo Distraente»: chiunque tranne il guerriero;
+- la pill di **Dardo tracciante**: chiunque, anche chi l'ha lanciato.
+
+Prima di registrare, la console ricorda il vantaggio sotto il bersaglio.
 
 ### Console attacchi fuori turno
 

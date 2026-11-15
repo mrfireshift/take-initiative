@@ -10,6 +10,7 @@ import { ID } from "./constants.js";
 import { hasEffectiveCondition } from "./conditionRulesCore.js";
 import { isBossActionCreature, bossMetadataSnapshot, bossConditionAppliedAt, bossGroupConditionInstanceId } from "./bossActionExecutionCore.js";
 import { PC_ATTACK_HISTORY_KIND, PC_ATTACK_STATE_FIELD, PC_ATTACK_STATE_VERSION } from "./pcAttackCore.js";
+import { hiddenPills } from "./attackAdvantagePillsCore.js";
 
 const META_KEY = `${ID}/meta`;
 const GRAPPLED = "Afferrato";
@@ -138,12 +139,19 @@ export function buildPcManeuverMutation({ kind = "", sourceItem, targetItem, out
   };
   const lastManeuver = { attackInstanceId, kind, targetId: targetItem.id, outcome, ...(kind === "shove" ? { effect } : {}),
     ...(turn ? { round: turn.round, turnKey: turn.turnKey } : {}) };
+  // A special attack, won or lost, gives the grappler's place away: its Hidden ends (lot T2 of docs/STUDIO_AZIONI_DI_TURNO.md).
+  const hidden = hiddenPills(sourceItem);
+  if (hidden.length) causality.linkEnds = hidden.map((instance) => ({ itemId: sourceItem.id, condition: instance.condition,
+    reason: "Ha attaccato: non è più nascosto." }));
   return {
-    condition, causality, manualText: maneuver.manual || "", labelTargetIds: condition ? [targetItem.id] : [],
-    operations: condition ? [conditionAdd({ condition, targetItem, sourceItem, attackInstanceId, appliedAt }),
-      { type: "condition:automate", subjectIds: [targetItem.id] }] : [],
+    condition, causality, manualText: maneuver.manual || "",
+    labelTargetIds: [...(condition ? [targetItem.id] : []), ...(hidden.length ? [sourceItem.id] : [])],
+    operations: [...(condition ? [conditionAdd({ condition, targetItem, sourceItem, attackInstanceId, appliedAt }),
+      { type: "condition:automate", subjectIds: [targetItem.id] }] : []),
+      ...(hidden.length ? [{ type: "condition:remove-instances", removals: hidden.map((instance) => ({ itemId: sourceItem.id, instanceId: instance.id })) }] : [])],
     options: {
-      commandId: attackInstanceId, correlationId: attackInstanceId, sourceId: sourceItem.id, targetIds: [targetItem.id],
+      commandId: attackInstanceId, correlationId: attackInstanceId, sourceId: sourceItem.id,
+      targetIds: [targetItem.id, ...(hidden.length ? [sourceItem.id] : [])],
       kind: PC_ATTACK_HISTORY_KIND, label,
       metadataPatches: [maneuverStatePatch(sourceItem, lastManeuver)],
       history: { kind: PC_ATTACK_HISTORY_KIND, label, payload: { causality, damageComponents: [],
