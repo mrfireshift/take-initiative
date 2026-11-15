@@ -548,6 +548,28 @@ Ogni attacco registrato con la reazione toglie l'azione preparata della
 creatura, anche un attacco di opportunità: la reazione era quella che
 aspettava.
 
+**Un incantesimo preparato.** Si prepara solo un incantesimo da 1 azione,
+trucchetti compresi, come vuole il manuale. Nel pannello incantesimi, accanto
+al pulsante principale, compare **Prepara**:
+
+- il pannello passa alla preparazione: niente bersagli né area, che si
+  scelgono al rilascio; resta da scegliere lo slot, con il menu «Spendi» di
+  sempre;
+- **Prepara incantesimo** spende lo slot e chiude le altre concentrazioni, con
+  la conferma di sempre;
+- sul caster mette la pill **«Azione preparata · Palla di fuoco (3°)»**, che il
+  menu della card riconosce come la sua azione preparata, e la concentrazione
+  che la trattiene;
+- la presa svanisce all'inizio del prossimo turno del caster, e lo slot resta
+  speso;
+- **Lancia** torna al lancio normale.
+
+L'avviso di Controincantesimo parte alla preparazione, che è il momento del
+lancio. La pill di una creatura che non è un PG o un alleato la vede solo il
+GM. Dalla console attacchi, **Azioni → Preparare → Un incantesimo** elenca gli
+incantesimi del grimorio che si possono preparare e apre il pannello già in
+preparazione.
+
 Entrambe sono condizioni normali: compaiono come etichette sulla card e sulla
 mappa, si annullano dalla Cronologia e seguono le opzioni di visibilità degli
 effetti per i giocatori.

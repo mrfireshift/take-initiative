@@ -31,7 +31,9 @@ import { privateTextMissingNote } from "./privatePackCore.js";
 import { getClassFeatureDefinition } from "./classFeatureCatalog.js";
 import { classFeatureTargeting } from "./classFeatureCore.js";
 import { pcAttackFeatureForm, pcAttackFeatureRequest } from "./pcAttackFeatureFormCore.js";
-import { getSpellCatalog } from "./spells-srd.js";
+import { getSpellCatalog, getSpellDefinition } from "./spells-srd.js";
+import { spellbookQuickActionId } from "./spellbookCore.js";
+import { spellCanBeReadied } from "./spellCastPhaseCore.js";
 import { hasReactionUsed, hasReadiedAction, isOffTurn, isReactionClassFeature } from "./reactionTrackerCore.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { WILD_MAGIC_SURGE_POPOVER_HEIGHT } from "./wildMagicSurgeCore.js";
@@ -274,6 +276,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // Help and Hide (Azioni tab): what Help is for and whom, Hide's Stealth total, above the action's card.
   const turnActionBox=$("pc-attack-turn-action"),helpModeRow=$("pc-attack-help-mode-row"),helpModes=$("pc-attack-help-modes");
   const helpTargetRow=$("pc-attack-help-target-row"),helpCaption=$("pc-attack-help-caption"),hideRow=$("pc-attack-hide-row"),hideStealth=$("pc-attack-hide-stealth");
+  // Ready (Preparare, lots T3 and T6b): an action (the pill), or a spell of the book, prepared in the spell panel.
+  const readyModeRow=$("pc-attack-ready-mode-row"),readyModes=$("pc-attack-ready-modes"),readySpellRow=$("pc-attack-ready-spell-row"),readySpell=$("pc-attack-ready-spell");
   const applyRow=$("pc-attack-apply-row");
   const reactionRow=$("pc-attack-reaction");
   // ownTurnSeen: the console showed this actor on its own turn. An attack chosen there and registered after the turn
@@ -1852,7 +1856,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // creature's side until the GM presses one; Hide takes the Stealth total, if given. Their controls are the page's own
   // (pc-attack.html), never rebuilt: a live update keeps the caret in the field and the open menu.
   let turnActionId=newAttackId();
-  const emptyTurnActionDraft=(kind="")=>({kind,mode:"",modePicked:false,targetId:"",picked:false,stealth:""});
+  const emptyTurnActionDraft=(kind="")=>({kind,mode:"",modePicked:false,targetId:"",picked:false,stealth:"",readyMode:"action",readySpellId:""});
   let turnActionDraft=emptyTurnActionDraft();
   const sideOfItem=item=>{const attitude=String(item?.metadata?.[META_KEY]?.attitude || "").toLocaleLowerCase("it");
     return attitude==="enemy"?"enemy":attitude==="pc" || attitude==="ally"?"friendly":"neutral";};
@@ -1860,6 +1864,23 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   helpModes?.replaceChildren(...PC_HELP_MODES.map(mode=>choiceButton(PC_HELP_MODE_LABELS[mode],false,
     ()=>{turnActionDraft={...turnActionDraft,mode,modePicked:true};rerenderTurnAction();},{helpMode:mode})));
   hideStealth?.addEventListener("input",()=>{turnActionDraft.stealth=String(hideStealth.value ?? "").trim();rerenderTurnAction();});
+  // Ready (lot T6b, decision P1): an action, the pill of T3; or a spell of the book, prepared in the spell panel (its slot,
+  // its concentration and Counterspell there), opened by the tracker as Lancia does.
+  readyModes?.replaceChildren(...[["action","Un'azione"],["spell","Un incantesimo"]].map(([mode,label])=>choiceButton(label,false,
+    ()=>{turnActionDraft={...turnActionDraft,readyMode:mode};rerenderTurnAction();},{readyMode:mode})));
+  readySpell?.addEventListener("change",()=>{turnActionDraft.readySpellId=String(readySpell.value || "");rerenderTurnAction();});
+  // The spells of the actor's book the Ready action can hold (cast with 1 action), cantrips first, by level and name.
+  function readiableSpells() {
+    const seen=new Set();
+    return (presentation?.picker || []).flatMap(entry=>{
+      const spellId=String(entry?.spellId || "");
+      if(!spellId || seen.has(spellId)) return [];
+      seen.add(spellId);
+      const spell=getSpellDefinition(spellId);
+      return spell && spellCanBeReadied(spell)?[{spellId,label:String(spell.displayName || entry.label || spellId),level:Math.max(0,Number(spell.level) || 0)}]:[];
+    }).sort((a,b)=>a.level-b.level || a.label.localeCompare(b.label,"it"));
+  }
+  const readySpellLabel=row=>`${row.label} · ${row.level?`${row.level}°`:"trucchetto"}`;
   function turnActionRequest(entry) {
     const kind=entry.turnAction;
     return {kind,...(kind==="help"?{targetId:turnActionDraft.targetId,mode:turnActionDraft.mode}:{}),
@@ -1867,8 +1888,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   function turnActionBlocker(entry) {
     const request=turnActionRequest(entry);
-    return pcTurnActionBlocker({kind:entry.turnAction,sourceItem:presentation?.item,turnState:presentation?.turnState,
+    const blocker=pcTurnActionBlocker({kind:entry.turnAction,sourceItem:presentation?.item,turnState:presentation?.turnState,
       targetItem:request.targetId?targetById(request.targetId):null,mode:request.mode || "",stealth:entry.turnAction==="hide"?turnActionDraft.stealth:null});
+    if(blocker || entry.turnAction!=="ready" || turnActionDraft.readyMode!=="spell") return blocker;
+    // A spell: one of the book's the Ready action can hold.
+    if(!readiableSpells().length) return "Nessun incantesimo da 1 azione nel grimorio.";
+    return readiableSpells().some(row=>row.spellId===turnActionDraft.readySpellId)?"":"Scegli l'incantesimo da preparare.";
   }
   function renderTurnAction(entry) {
     const kind=entry.turnAction;
@@ -1887,12 +1912,15 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     $("pc-attack-subtitle").textContent=pickerNamesEntry?"":`${plainLabel(entry.label)} · Azione`;
     const request=turnActionRequest(entry);
     const blocker=turnActionBlocker(entry);
+    const readySpellMode=kind==="ready" && turnActionDraft.readyMode==="spell";
+    const readyChosen=readySpellMode?readiableSpells().find(row=>row.spellId===turnActionDraft.readySpellId):null;
     if(applyRow) applyRow.hidden=false;
     apply.hidden=true;
     if(launchButton) {
       launchButton.hidden=false;
-      launchButton.textContent=committing?"Registro…":"Registra";
-      launchButton.disabled=busy || invalidated || !!blocker;
+      // A spell is prepared in the panel: Prepara opens it there.
+      launchButton.textContent=readySpellMode?(launchBusy?"Apro…":"Prepara"):committing?"Registro…":"Registra";
+      launchButton.disabled=busy || invalidated || launchBusy || !!blocker;
     }
     total.replaceChildren();
     total.dataset.kind=blocker?"warning":"";
@@ -1902,13 +1930,31 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       dodge:"Schivata fino all'inizio del suo prossimo turno.",
       help:turnActionDraft.mode==="attack"?`${targetName}: il primo attacco di un alleato contro di lui ha vantaggio.`:`${targetName}: vantaggio alla prossima prova del compito.`,
       hide:request.stealth!==undefined?`Nascosto, Furtività ${request.stealth}.`:"Nascosto, senza il totale di Furtività.",
-      ready:"Azione preparata fino all'inizio del suo prossimo turno."}[kind] || "";
+      ready:readyChosen?`${readyChosen.label}: si apre il pannello incantesimi, che spende lo slot e lo trattiene con la concentrazione.`
+        :"Azione preparata fino all'inizio del suo prossimo turno."}[kind] || "";
     total.title=total.textContent;
-    // Help's creature and mode, Hide's Stealth: above the card, their state from the draft.
-    if(turnActionBox) turnActionBox.hidden=kind!=="help" && kind!=="hide";
+    // Help's creature and mode, Hide's Stealth, Ready's mode and spell: above the card, their state from the draft.
+    if(turnActionBox) turnActionBox.hidden=!["help","hide","ready"].includes(kind);
     if(helpModeRow) helpModeRow.hidden=kind!=="help";
     if(helpTargetRow) helpTargetRow.hidden=kind!=="help";
     if(hideRow) hideRow.hidden=kind!=="hide";
+    if(readyModeRow) readyModeRow.hidden=kind!=="ready";
+    if(readySpellRow) readySpellRow.hidden=!readySpellMode;
+    if(kind==="ready") {
+      for(const button of readyModes?.querySelectorAll("button") || []) {
+        button.setAttribute("aria-pressed",String(button.dataset.readyMode===turnActionDraft.readyMode));button.disabled=busy || invalidated || launchBusy;
+      }
+      if(readySpell) {
+        // Rebuilt only when the book's list changes: an open select keeps its place.
+        const rows=readiableSpells(),signature=JSON.stringify(rows);
+        if(readySpell.dataset.signature!==signature) {
+          readySpell.dataset.signature=signature;
+          const empty=node("option","—");empty.value="";
+          readySpell.replaceChildren(empty,...rows.map(row=>{const option=node("option",readySpellLabel(row));option.value=row.spellId;return option;}));
+        }
+        readySpell.value=turnActionDraft.readySpellId || "";readySpell.disabled=busy || invalidated || launchBusy;
+      }
+    }
     if(kind==="help") {
       for(const button of helpModes?.querySelectorAll("button") || []) {
         button.setAttribute("aria-pressed",String(button.dataset.helpMode===turnActionDraft.mode));button.disabled=busy || invalidated;
@@ -1923,7 +1969,23 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     launchSignature=signature;
     launchBox.replaceChildren(launchHead(entry,pickerNamesEntry?[]:["Azione"]),node("p",PC_TURN_ACTION_NOTES[kind] || "","launch-details"));
   }
+  // A spell readied from the Azioni tab (lot T6b): the tracker opens the spell panel on its hold, as Lancia opens a cast.
+  async function prepareReadiedSpell(entry) {
+    const row=readiableSpells().find(spell=>spell.spellId===turnActionDraft.readySpellId);
+    if(!row || launchBusy || busy || invalidated || turnActionBlocker(entry)) return;
+    if(typeof api.broadcast?.onMessage!=="function"){setStatus("Lancio non disponibile.","error");return;}
+    const request={actionId:spellbookQuickActionId(row.spellId),label:row.label,phase:"prepare"};
+    launchBusy=true;renderLaunch();
+    try {
+      const result=await launchThroughTracker(request);
+      setStatus(launchSummary(request,result),!result?"warn":result.ok && result.mode==="review"?"ok":"error");
+    } finally {
+      launchBusy=false;
+      if(launching()) renderLaunch();else render();
+    }
+  }
   async function registerTurnAction(entry) {
+    if(entry.turnAction==="ready" && turnActionDraft.readyMode==="spell") return prepareReadiedSpell(entry);
     return perform(async operation=>{
       const request=turnActionRequest(entry);
       const blocker=turnActionBlocker(entry);
@@ -1962,8 +2024,20 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       }) || (()=>{});
       wait();
       Promise.resolve().then(()=>api.broadcast.sendMessage(PC_ATTACK_SPELL_LAUNCH_CHANNEL,
-        {type:"launch",requestId,sourceId,actionId:entry.actionId},{destination:"LOCAL"})).catch(()=>finish(null));
+        {type:"launch",requestId,sourceId,actionId:entry.actionId,...(entry.phase?{phase:entry.phase}:{})},{destination:"LOCAL"})).catch(()=>finish(null));
     });
+  }
+  // The tracker hosts the 🪄 routing: no answer, it is closed. Open it and ask again while it loads; a request it never
+  // received is lost, never run twice.
+  async function launchThroughTracker(entry) {
+    let result=await askTrackerToLaunch(entry);
+    if(!result) {
+      setStatus(`Apro il tracker per lanciare ${entry.label}…`);
+      if(await openTracker().then(()=>true,()=>false)) {
+        for(let attempt=0;attempt<TRACKER_OPEN_ATTEMPTS && !result && !invalidated;attempt+=1) result=await askTrackerToLaunch(entry);
+      }
+    }
+    return result;
   }
   // What the tracker did with the spell, in the status bar.
   function launchSummary(entry,result) {
@@ -1978,15 +2052,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(typeof api.broadcast?.onMessage!=="function"){setStatus("Lancio non disponibile.","error");return;}
     launchBusy=true;renderLaunch();
     try {
-      let result=await askTrackerToLaunch(entry);
-      if(!result) {
-        // No answer: the tracker is closed (it hosts the 🪄 routing). Open it and ask again while it loads; a request it
-        // never received is lost, never run twice.
-        setStatus(`Apro il tracker per lanciare ${entry.label}…`);
-        if(await openTracker().then(()=>true,()=>false)) {
-          for(let attempt=0;attempt<TRACKER_OPEN_ATTEMPTS && !result && !invalidated;attempt+=1) result=await askTrackerToLaunch(entry);
-        }
-      }
+      const result=await launchThroughTracker(entry);
       setStatus(launchSummary(entry,result),!result?"warn":result.ok && ["review","executed"].includes(result.mode)?"ok":"error");
       if(result?.ok) rememberEntry(entry.key);
     } finally {

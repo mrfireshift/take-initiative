@@ -260,6 +260,14 @@
             <span class="form-label">Furtività</span>
             <input class="amount" id="pc-attack-hide-stealth" type="number" min="0" max="60" step="1" inputmode="numeric" aria-label="Totale di Furtività, facoltativo" title="Il totale tirato, facoltativo" />
           </div>
+          <div class="form-row" id="pc-attack-ready-mode-row">
+            <span class="form-label">Prepara</span>
+            <div class="segmented" id="pc-attack-ready-modes" role="group" aria-label="Che cosa prepara"></div>
+          </div>
+          <div class="form-row" id="pc-attack-ready-spell-row">
+            <span class="form-label">Incantesimo</span>
+            <select class="target-select" id="pc-attack-ready-spell" aria-label="Incantesimo da preparare"></select>
+          </div>
         </section>
         <section class="card launch" id="pc-attack-launch" aria-label="Incantesimo" hidden></section>
         <section class="card maneuver" id="pc-attack-maneuver" aria-label="Manovra" hidden>

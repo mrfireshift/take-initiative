@@ -12,6 +12,7 @@ import {
 import {
   getSpellCastPhaseOptions,
   getSpellCastPhasePlan,
+  spellReadiedPhaseAvailable,
   spellPhaseAttackOutcomeRequired,
   spellPhaseUsesPrimaryTargetAnchor,
 } from "./spellCastPhaseCore.js";
@@ -345,9 +346,22 @@ function phaseOptions(spell, requestedPhase = "") {
     return options.map((option) => ({
       value: text(option.value),
       label: text(option.label) || text(option.value),
+      ...(option.readied === true ? { readied: true } : {}),
     }));
   }
   return [{ value: "cast", label: "Lancio" }];
+}
+
+// The readied spell (lot T6b of docs/STUDIO_AZIONI_DI_TURNO.md, decision P1): «prepare» is its hold when the spell has no
+// phases of its own (its option is readied), and a session on it carries castContext.readied, which the cast's plan and
+// its concentration read (spellCastPhaseCore.js, spellCastContextCore.js); no other session of a contract does.
+function readiedPrepareRequested(spell, requestedPhase = "") {
+  return text(requestedPhase) === "prepare" && spellReadiedPhaseAvailable(spell);
+}
+function readiedSessionCastContext(contract, castContext) {
+  if (!contract) return castContext;
+  const { readied, ...rest } = castContext || {};
+  return contract.presentation?.phase?.plan?.readied === true ? { ...rest, readied: true } : rest;
 }
 
 function selectedPhase(options, requestedPhase = "") {
@@ -1380,7 +1394,8 @@ function controlList({
   automation,
 }) {
   const controls = new Set();
-  if (phases.length > 1) controls.add("phase");
+  // The readied hold is the «Prepara» button, not a tab (lot T6b).
+  if (phases.filter((option) => !option.readied).length > 1) controls.add("phase");
   if (Number(spell?.level) > 0) controls.add("slot-level");
   if (teleport?.available === true && teleport?.passenger?.available === true) {
     controls.add("passenger");
@@ -1519,7 +1534,10 @@ export function buildSpellUnifiedPanelContract({
   choiceValue = "",
   castContext = {},
 } = {}) {
-  const spell = spellForCastContext(resolveSpell(spellValue, spellId), castContext);
+  const requestedSpell = resolveSpell(spellValue, spellId);
+  // The readied hold (lot T6b): its cast context says so, so that its plan and its concentration are the hold's.
+  if (requestedSpell && readiedPrepareRequested(requestedSpell, phase)) castContext = { ...(castContext || {}), readied: true, phase: "prepare" };
+  const spell = spellForCastContext(requestedSpell, castContext);
   if (!spell) return null;
 
   const teleportRule = getSpellTeleportRule(spell);
@@ -1755,6 +1773,7 @@ export function buildSpellUnifiedPanelContract({
         options: phases,
         plan: {
           phase: text(phasePlan.phase),
+          ...(phasePlan.readied === true ? { readied: true } : {}),
           subjectMode: text(phasePlan.subjectMode),
           useCatalogAutomation: phasePlan.useCatalogAutomation === true,
           concentrationAction: text(phasePlan.concentrationAction),
@@ -1762,6 +1781,8 @@ export function buildSpellUnifiedPanelContract({
           resolution: phasePlan.resolution ? cloneValue(phasePlan.resolution) : null,
         },
       },
+      // The Ready action can hold this spell: the «Prepara» button beside the primary one (lot T6b, decision P1).
+      readied: { available: spellReadiedPhaseAvailable(spell) },
       subjectMode: targeting.subjectMode,
       ...(teleport ? { teleport } : {}),
       ...(teleportStep && phasePlan.phase !== "prepare" ? { teleportStep } : {}),
@@ -2086,7 +2107,7 @@ export function createSpellPanelSession({
     enteredName: text(enteredName || contract?.spell?.label),
     slotLevel: resolvedSlot,
     variant: resolvedVariant,
-    castContext: recordWithoutTeleportOutcome(castContext),
+    castContext: readiedSessionCastContext(contract, recordWithoutTeleportOutcome(castContext)),
     applyAutomatedConditions: applyAutomatedConditions !== false,
     requestedConcentration: requestedConcentration === true,
     activeConcentration: normalizedActiveConcentration(activeConcentration),
@@ -2823,6 +2844,20 @@ export function buildSpellPanelViewModel(contract, sessionValue = {}) {
     placement,
     activeAction,
   );
+  // «Prepara» beside the primary button on a spell the Ready action can hold, «Lancia» back from its hold (lot T6b).
+  const readiedActive = contract?.presentation?.phase?.selected === "prepare" && session.castContext?.readied === true;
+  const readied = contract?.presentation?.readied?.available === true && !activeAction && !session.triggerRuntime
+    && !session.monsterActionContext
+    ? {
+      visible: true,
+      active: readiedActive,
+      phase: readiedActive ? "cast" : "prepare",
+      label: readiedActive ? "Lancia" : "Prepara",
+      title: readiedActive
+        ? "Torna al lancio: bersagli ed esiti ora"
+        : "Azione preparata: si lancia ora, lo slot si spende, la concentrazione lo trattiene; si rilascia con la reazione",
+    }
+    : { visible: false };
   const undoCapable = contract?.execution?.undo?.capable === true;
   const undoAvailable = session.undoState?.available === true;
   const view = {
@@ -2838,6 +2873,7 @@ export function buildSpellPanelViewModel(contract, sessionValue = {}) {
     activeAction,
     controls: visibleControlsFor(contract, session, placement),
     primaryAction,
+    readied,
     disabled: primaryAction.disabled,
     summary: summaryFor(contract, session, placement, activeAction),
     validation: {

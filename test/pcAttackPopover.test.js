@@ -29,7 +29,8 @@ const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-picker-search", 
   "pc-attack-grapple", "pc-attack-maneuver", "pc-attack-maneuver-target", "pc-attack-maneuver-hint", "pc-attack-maneuver-effects", "pc-attack-maneuver-contest",
   "pc-attack-maneuver-outcomes", "pc-attack-maneuver-note", "pc-attack-multiattack", "pc-attack-monster-note", "pc-attack-auto-open-monsters", "pc-attack-mode-caption", "pc-attack-picker-caption", "pc-attack-target-dropdown", "pc-attack-target-button", "pc-attack-target-menu", "pc-attack-maneuver-button", "pc-attack-maneuver-menu", "pc-attack-spell-controls", "pc-attack-more", "pc-attack-more-menu",
   "pc-attack-turn-action", "pc-attack-help-mode-row", "pc-attack-help-modes", "pc-attack-help-target-row", "pc-attack-help-caption", "pc-attack-help-dropdown",
-  "pc-attack-help-button", "pc-attack-help-menu", "pc-attack-hide-row", "pc-attack-hide-stealth"];
+  "pc-attack-help-button", "pc-attack-help-menu", "pc-attack-hide-row", "pc-attack-hide-stealth",
+  "pc-attack-ready-mode-row", "pc-attack-ready-modes", "pc-attack-ready-spell-row", "pc-attack-ready-spell"];
 const BUTTONS = new Set(["pc-attack-target-button", "pc-attack-maneuver-button", "pc-attack-help-button", "pc-attack-more", "pc-attack-close", "pc-attack-apply", "pc-attack-launch-button", "pc-attack-use-selected", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"]);
 function createDocument() {
@@ -41,7 +42,7 @@ function createDocument() {
   };
   doc.root = new FakeNode(doc, "body"); doc.body = doc.root;
   for (const id of IDS) {
-    const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip", "pc-attack-mode", "pc-attack-picker-select", "pc-attack-maneuver-target"].includes(id) ? "select" : BUTTONS.has(id) ? "button"
+    const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip", "pc-attack-mode", "pc-attack-picker-select", "pc-attack-maneuver-target", "pc-attack-ready-spell"].includes(id) ? "select" : BUTTONS.has(id) ? "button"
       : ["pc-attack-auto-open", "pc-attack-auto-open-monsters", "pc-attack-picker-search", "pc-attack-hide-stealth"].includes(id) ? "input" : id === "pc-attack-spell-details" ? "details" : "div");
     node.id = id; doc.root.appendChild(node);
   }
@@ -2395,11 +2396,39 @@ test("Nascondersi: the Stealth total, optional; one out of range keeps Registra 
 
 // Ready (lot T3 of docs/STUDIO_AZIONI_DI_TURNO.md): the card menu's pill from the Azioni tab; off turn, the attack
 // registered with the reaction sets it off (the card's «Innesca con un attacco» opens the console there).
+// Lot T6b (decision P1): Preparare → Un incantesimo, the book's spells cast with 1 action, prepared in the spell panel.
+test("Preparare → Un incantesimo: the book's spells the Ready action holds; Prepara asks the tracker to open the panel on the hold", async () => {
+  const launch = launchBroadcast({ result: { ok: true, mode: "review", message: "Benedizione: preparalo nel pannello." } });
+  const f = fixture({ card: clericCard, attacker: clericMeta, turnState: ownTurn, broadcast: launch.broadcast }); await f.controller.ready; await tick();
+  await pickAction(f, "turn-action::ready");
+  const modes = f.$("pc-attack-ready-modes").querySelectorAll("button");
+  assert.deepEqual(modes.map((button) => [button.textContent, button.getAttribute("aria-pressed")]), [["Un'azione", "true"], ["Un incantesimo", "false"]]);
+  assert.deepEqual([f.$("pc-attack-turn-action").hidden, f.$("pc-attack-ready-mode-row").hidden, f.$("pc-attack-ready-spell-row").hidden], [false, false, true]);
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Registra", "an action: the pill, as before");
+  await modes[1].click(); await tick();
+  assert.equal(f.$("pc-attack-ready-spell-row").hidden, false);
+  const offered = f.$("pc-attack-ready-spell").children.map((option) => option.value);
+  assert.equal(offered[0], "", "nothing chosen first");
+  assert.ok(["sacred-flame", "light", "bless"].every((id) => offered.includes(id)), "cantrips and spells cast with 1 action");
+  assert.ok(!offered.includes("shield-of-faith") && !offered.includes("spiritual-weapon"), "not a bonus action");
+  assert.ok(offered.indexOf("sacred-flame") < offered.indexOf("bless"), "cantrips first");
+  assert.deepEqual([f.$("pc-attack-launch-button").textContent, f.$("pc-attack-launch-button").disabled], ["Prepara", true]);
+  assert.equal(f.$("pc-attack-total").textContent, "Scegli l'incantesimo da preparare.");
+  const select = f.$("pc-attack-ready-spell"); select.value = "bless"; await select.emit("change"); await tick();
+  assert.match(f.$("pc-attack-total").textContent, /^Benedizione: si apre il pannello incantesimi/);
+  await f.$("pc-attack-launch-button").click(); await tick(); await tick();
+  const request = launch.sent.find((entry) => entry.data.type === "launch")?.data;
+  assert.deepEqual([request.sourceId, request.actionId, request.phase], ["aria", "book:bless", "prepare"]);
+  assert.equal(f.$("pc-attack-status").textContent, "Benedizione: preparalo nel pannello.");
+  assert.equal(f.calls.some((entry) => entry.turnAction), false, "no pill of its own: the panel's hold is the readied action");
+});
+
 test("Preparare in the Azioni tab: Registra on the creature's own turn sends it, the card says how it goes off", async () => {
   const f = fixture({ actions: [sword], turnState: ownTurn }); await f.controller.ready; await tick();
   await pickAction(f, "turn-action::ready");
   assert.match(textOf(f.$("pc-attack-launch")), /Innesca con un attacco/);
-  assert.equal(f.$("pc-attack-turn-action").hidden, true, "nothing to choose");
+  assert.deepEqual([f.$("pc-attack-turn-action").hidden, f.$("pc-attack-ready-spell-row").hidden], [false, true],
+    "an action by default (lot T6b): only its mode to choose");
   assert.equal(f.$("pc-attack-total").textContent, "Azione preparata fino all'inizio del suo prossimo turno.");
   await f.$("pc-attack-launch-button").click(); await tick(); await tick();
   assert.equal(f.calls.find((entry) => entry.turnAction)?.turnAction.kind, "ready");

@@ -346,6 +346,11 @@ export function spellCanBeReadied(spell) {
   return spellCastWithOneAction(spell) && !READIED_SPELL_EXCLUDED.has(spellId(spell));
 }
 
+// The hold as its own phase «prepare»: a spell without phases of its own (Freezing Sphere's «prepare» is its globe).
+export function spellReadiedPhaseAvailable(spell) {
+  return spellCanBeReadied(spell) && !PHASED_SPELLS[spellId(spell)];
+}
+
 export function isReadiedSpellCastContext(castContext = null) {
   return castContext?.readied === true;
 }
@@ -365,6 +370,8 @@ function readiedSpellEffect(spell, castContext = {}) {
     displayLabel: readiedSpellLabel(spell, castContext),
     detail: `${name} preparato: si rilascia con la reazione, quando avviene ciò che si è scelto al tavolo, prima dell'inizio del prossimo turno del caster. La concentrazione lo trattiene: se si rompe, l'incantesimo svanisce e lo slot resta speso.`,
     summaryParts: Object.freeze([Object.freeze({ id: "readied-spell", label: `Preparato: ${name}` })]),
+    // A creature not on the players' side keeps its readied spell to the GM (decision P10, as Hidden).
+    ...(castContext?.readiedGmOnly === true ? { mechanics: Object.freeze({ gmOnly: true }) } : {}),
   });
 }
 
@@ -406,7 +413,14 @@ function slotLevel(spell, castContext = {}) {
 
 export function getSpellCastPhaseOptions(value, requestedPhase = "") {
   const rule = PHASED_SPELLS[spellId(value)];
-  if (!rule) return [];
+  // A spell the Ready action can hold (lot T6b, decision P1), asked for its hold: cast at once, or prepared on the caster.
+  // The panel shows the second as its «Prepara» button beside the primary one, not as a tab (readied); a cast has no
+  // phases, as before (the quick actions cast it at once).
+  if (!rule) {
+    return String(requestedPhase || "").trim() === "prepare" && spellCanBeReadied(value)
+      ? [{ value: "cast", label: "Lancio" }, { value: "prepare", label: "Prepara incantesimo", readied: true }]
+      : [];
+  }
   const phase = String(requestedPhase || "").trim().toLocaleLowerCase("it");
   // A spell cast as before by default, or prepared (Freezing Sphere's globe); its resolution comes from the pill.
   if (rule.immediateCast) {

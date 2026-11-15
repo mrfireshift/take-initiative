@@ -83,6 +83,28 @@ niente di visibile:
 Simbolo, Frecce Infuocate e le punizioni restano fuori; Sfera congelante si
 prepara nella forma «Scaglia subito».
 
+**T6b fatto il 15/11:** la preparazione si usa.
+
+- Nel pannello incantesimi, un incantesimo da 1 azione ha **Prepara** accanto
+  al pulsante principale (P1), non una scheda. La preparazione è la fase
+  «prepare» con `castContext.readied`, che il contratto e la sessione del
+  pannello mettono e tolgono da soli. La fase «prepare» compare solo nel
+  contratto della presa: un lancio non ha fasi, e i lanci rapidi restano
+  diretti come prima. Si sceglie solo lo slot (P2); lo slot si
+  spende (P3); la concentrazione chiude le altre con la conferma di sempre (P4).
+- L'avviso di Controincantesimo parte alla preparazione (P9). La pill di una
+  creatura che non è PG o alleata ha `mechanics.gmOnly` (P10).
+- Nella console, Azioni → Preparare ha due modi: «Un'azione», la pill di T3, e
+  «Un incantesimo», che elenca gli incantesimi del grimorio da 1 azione e chiede
+  al tracker di aprire il pannello già in preparazione, come fa Lancia; slot e
+  usi si spendono lì.
+- La Magia Selvaggia nel plugin si tira a mano dalla capacità: alla preparazione
+  non c'è niente da aggiungere.
+- Sfera congelante preparata nella forma «Scaglia subito» resta da fare: le sue
+  schede hanno già la fase «prepare» del globo.
+
+Prove in `PROVE_IN_STANZA.md`, sezione B14.
+
 Scritti lo stesso giorno, con decisioni nuove in attesa:
 
 - §9, l'incantesimo preparato: decisioni **P1–P12** (§9.8), approvate dall'utente

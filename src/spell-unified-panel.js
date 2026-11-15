@@ -3480,8 +3480,10 @@ export function bootSpellUnifiedPanel(
       }, { clearFeedback: false });
       return;
     }
-    // Avvisi di reazione, lot R2: who can counter this cast, before anything is written.
-    if (actionId === "apply") {
+    // Avvisi di reazione, lot R2: who can counter this cast, before anything is written. A readied spell is cast at its
+    // hold (lot T6b of docs/STUDIO_AZIONI_DI_TURNO.md, decision P9): Counterspell then, never at the release.
+    const readiedHold = actionId === "prepare" && state.session.castContext?.readied === true;
+    if (actionId === "apply" || readiedHold) {
       const step = castReactionStep();
       if (step === "stop") return;
       if (step === "check") {
@@ -3531,6 +3533,9 @@ export function bootSpellUnifiedPanel(
     const spellSaveDC = Number.isInteger(slotSpend.spellSaveDC) ? slotSpend.spellSaveDC : numeric(
       caster?.metadata?.[`${ID}/meta`]?.initiativeCard?.spellSaveDC,
     );
+    // The readied spell of a creature not on the players' side stays the GM's (decision P10, as Hidden).
+    const readiedGmOnly = readiedHold
+      && !["pc", "ally"].includes(String(caster?.metadata?.[`${ID}/meta`]?.attitude || "").trim().toLowerCase());
     const result = await executeSpellUnifiedLifecycle({
       contract: state.contract,
       session: sessionAtSpentSlot(slotSpend),
@@ -3541,7 +3546,8 @@ export function bootSpellUnifiedPanel(
           isCurrent: () => sceneLifecycle.isCurrent(operation),
           spell: getSpellDefinition(state.contract?.spell?.id),
           casterName: caster?.name || "",
-          ...(spellSaveDC === null ? {} : { castContext: { spellSaveDC } }),
+          ...(spellSaveDC === null && !readiedGmOnly ? {} : { castContext: {
+            ...(spellSaveDC === null ? {} : { spellSaveDC }), ...(readiedGmOnly ? { readiedGmOnly: true } : {}) } }),
           getAppliedAt: () => provider.getAppliedAt?.(),
           resolveActiveConcentration: ({ casterId, spell }) =>
             provider.getActiveConcentration?.(casterId, spell),
@@ -3569,7 +3575,8 @@ export function bootSpellUnifiedPanel(
         },
         feedback: {
           state: "success",
-          message: `${result.notes?.length ? result.notes.join(" ") : recordOnly ? "Lancio registrato: effetti al tavolo" : "Incantesimo applicato"}${spentText(slotSpend)}.`,
+          message: `${result.notes?.length ? result.notes.join(" ") : recordOnly ? "Lancio registrato: effetti al tavolo"
+            : readiedHold ? "Incantesimo preparato: si rilascia con la reazione" : "Incantesimo applicato"}${spentText(slotSpend)}.`,
         },
       });
       await refreshScene();
@@ -3634,7 +3641,9 @@ export function bootSpellUnifiedPanel(
         patchSession({ feedback: { state: "info", message: "Questa risoluzione appartiene a Spellcasting del boss. Apri il catalogo normale per un altro incantesimo." } }, { clearFeedback: false });
         return;
       }
-      const nextContract = buildContract(spellKey);
+      // Preparing (lot T6b): another spell the Ready action can hold is prepared too.
+      const preparing = state.session.phase === "prepare" && state.session.castContext?.readied === true;
+      const nextContract = buildContract(spellKey, preparing ? { phase: "prepare" } : {});
       if (!nextContract) {
         patchSession({
           feedback: {

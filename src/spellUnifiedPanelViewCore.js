@@ -1439,7 +1439,8 @@ export function buildUnifiedPanelViewModel({
         label: subjectLabel(presentation.subjectMode),
       },
       phase: {
-        visible: Array.isArray(phase.options) && phase.options.length > 1,
+        // The readied hold is the footer's «Prepara» button, never a tab (lot T6b).
+        visible: Array.isArray(phase.options) && phase.options.filter((option) => !option?.readied).length > 1,
          label: "Fase",
         selected: asText(phase.selected),
         options: clone(phase.options || []),

@@ -607,6 +607,20 @@ export function renderReviewFooter(documentRef, model, callbacks = {}) {
     actions.append(undo);
   }
   const activePrimary = model.active?.primaryAction || null;
+  // The Ready action (lot T6b of docs/STUDIO_AZIONI_DI_TURNO.md, decision P1): «Prepara» beside the primary button on a
+  // spell it can hold, «Lancia» back from the hold.
+  const readied = model.workflow.readied;
+  if (!activePrimary && readied?.visible) {
+    const toggle = createButton(documentRef, {
+      label: readied.label,
+      className: "unified-secondary-button",
+      pressed: readied.active === true,
+      disabled: model.workflow.commit?.state === "committing",
+      attributes: { "data-readied-toggle": readied.phase, title: readied.title },
+    });
+    toggle.addEventListener("click", () => callbacks.onPhaseChange?.(readied.phase));
+    actions.append(toggle);
+  }
   const primaryModel = activePrimary || model.workflow.primaryAction;
   const placementRequired = !activePrimary && primaryModel.id === "place";
   const primary = createButton(documentRef, {

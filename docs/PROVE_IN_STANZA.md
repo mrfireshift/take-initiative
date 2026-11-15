@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **135** |
+| **B. Console attacchi, mostri e capacità** | **140** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -49,6 +49,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B11. Aiuto, Nascondersi e il vantaggio che si consuma | 6 |
 | B12. Preparare e Innesca | 4 |
 | B13. La Schivata nei tiri salvezza | 3 |
+| B14. Incantesimo preparato: la preparazione | 5 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -74,7 +75,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **498** |
+| **Totale** | **503** |
 
 ## A. Incantesimi
 
@@ -660,6 +661,16 @@ Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T5 (decisio
 - [ ] **Pannello incantesimi:** una Palla di fuoco che prende il PG: sotto il suo nome «vant. (Schivata)», con la regola nel suggerimento. Con un'Onda tonante (TS su Costituzione) niente. Da provare in vista compatta ed estesa.
 - [ ] **Console attacchi e Console Boss:** un'azione di mostro ad area con TS su Destrezza (un soffio a cono) mette «vant. (Schivata)» nella riga sotto il PG, prima di «Elusione» se ce l'ha; nella Console Boss, un'azione con TS su Destrezza mostra l'etichetta «vant. (Schivata)» sulla riga del PG.
 - [ ] **Promemoria degli incantesimi attivi:** il TS su Destrezza di una zona attiva (Nube incendiaria, quando il PG ci entra o ci finisce il turno) scrive «· vantaggio (Schivata)» accanto al nome del PG in Schivata.
+
+### B14. Incantesimo preparato: la preparazione
+
+Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotti T6a e T6b (decisioni P1–P4, P9, P10). Le voci sono nuove: nessuna lista le aveva. Serve un PG incantatore con slot, nel suo turno, e un nemico che conosca Controincantesimo con gli avvisi di reazione accesi. Il rilascio arriva con il lotto T6c.
+
+- [ ] **Prepara nel pannello:** con Palla di fuoco, accanto al pulsante principale c'è **Prepara**. Premuto, spariscono bersagli e area, resta lo slot e il pulsante principale diventa **Prepara incantesimo**. **Lancia** riporta al lancio. Con Passo velato (azione bonus) **Prepara** non c'è. Da provare in vista compatta ed estesa.
+- [ ] **La presa:** **Prepara incantesimo** con lo slot di 3° spende lo slot e mette sul PG «Azione preparata · Palla di fuoco (3°)» e la C della concentrazione. Il menu della card offre **Annulla azione preparata**. Nella Cronologia c'è «Preparazione: Palla di fuoco» e il suo Annulla restituisce lo slot.
+- [ ] **Concentrazione:** con Benedizione attiva, preparare Palla di fuoco chiede la conferma; confermato, Benedizione finisce. All'inizio del prossimo turno del PG pill, concentrazione e incantesimo spariscono, e lo slot resta speso.
+- [ ] **Controincantesimo e nemici:** preparando, parte l'avviso di Controincantesimo per il nemico che lo conosce. La preparazione di un nemico mette la pill che il GM vede e lo schermo del tavolo no.
+- [ ] **Dalla console:** nel turno del PG, Azioni → **Preparare** → **Un incantesimo** elenca i suoi incantesimi da 1 azione, trucchetti prima (niente azioni bonus). Scelto Benedizione, **Prepara** apre il pannello già in preparazione.
 
 ## C. Tracker e UX
 
