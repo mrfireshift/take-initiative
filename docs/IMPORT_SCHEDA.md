@@ -64,7 +64,7 @@ testo (`"+7"`, `"15"`).
 | `classes` | Fino a quattro classi con livello della singola classe e sottoclasse. Classi in italiano o in inglese (`Wizard`, `Fighter`…); sottoclassi con il nome italiano del catalogo, anche parziale (`Divinazione`). Per una sola classe valgono anche `class`, `level` e `subclass` al primo livello. |
 | `species` | Testo o `{ "name", "ancestry" }`: `ancestry` è l'ascendenza draconica, la sottorazza o la variante (accettati anche `subrace` e `variant`). Il nome può essere già la sottorazza ("Elfo oscuro (drow)", "Hill Dwarf"). Per una specie presente in più manuali, `source` sceglie la versione ("Volo", "Mostri del Multiverso", "Tomo dei Nemici", "Costa della Spada", "Elemental Evil", "Eberron", "Ravnica", "Theros", "Witchlight", "Strixhaven", "Tortle Package", "Wildemount", "Van Richten", "Spelljammer", "Dragonlance", "Tasha"); senza, vale la prima e l'import lo segnala. Le specie fuori dal [catalogo](SPECIE.md) vengono segnalate. |
 | `supernaturalGift` | Testo o `{ "name" }` (accettati anche `gift` e `dono`): il dono soprannaturale che si aggiunge alla specie, per ora "Hollow One". Un dono sconosciuto viene segnalato. |
-| `feats` | I talenti del Manuale del Giocatore, di Xanathar e di Tasha: nomi in italiano o in inglese (`"Robusto"`, `"Great Weapon Master"`), oppure `{ "name", "ability", "damageType" }` (accettata anche la chiave `talenti`). `ability` è la caratteristica del +1 di un mezzo talento che ne offre più d'una (`str`… o il nome, anche in italiano): il +1 non si somma, perché è già nei modificatori. `damageType` è il tipo scelto per Adepto Elementale: acido, freddo, fuoco, fulmine o tuono. L'elenco importato sostituisce quello della scheda; un talento sconosciuto viene segnalato. |
+| `feats` | I talenti del Manuale del Giocatore, di Xanathar e di Tasha: nomi in italiano o in inglese (`"Robusto"`, `"Great Weapon Master"`), oppure `{ "name", "ability", "damageType" }` (accettata anche la chiave `talenti`). `ability` è la caratteristica del +1 di un mezzo talento che ne offre più d'una (`str`… o il nome, anche in italiano): il +1 non si somma, perché è già nei modificatori. `damageType` è il tipo scelto per Adepto Elementale: acido, freddo, fuoco, fulmine o tuono. `spells` è l'incantesimo di 1° livello scelto con Contaminazione Fatata (divinazione o ammaliamento) o Contaminazione Ombrosa (illusione o necromanzia): un incantesimo fuori da quella lista viene segnalato. L'elenco importato sostituisce quello della scheda; un talento sconosciuto viene segnalato. |
 | `armorClass`, `passivePerception`, `spellSaveDC`, `spellAttackBonus` | Numeri. |
 | `speed` | Metri (`9`, `"9 m"`) oppure piedi con l'unità (`"30 ft"`, `"30 piedi"`: 1,5 m ogni 5 piedi). |
 | `abilities` | Punteggi (`"int": 18`) oppure `{ "score": 18, "modifier": 4 }`. In alternativa `abilityScores` (punteggi) o `abilityModifiers` (modificatori). Chiavi `str dex con int wis cha` oppure `for des cos int sag car`, anche per esteso. |
@@ -78,10 +78,11 @@ Gli incantesimi concessi da specie o oggetti vanno nelle **Azioni rapide**, non
 nel libro: non includerli in `spells`. Quelli propri di un talento di `feats`
 arrivano con il talento, tra le capacità: non vanno né in `spells` né nelle
 Azioni rapide. Sono quelli di Alta Magia Drow, Magia degli Elfi dei Boschi,
-Teletrasporto Fatato, Telecinesi e Telepatia, e il primo delle due
-Contaminazioni. Quelli a scelta (Iniziato alla Magia, l'incantesimo di 1°
-livello delle Contaminazioni, il trucchetto degli Elfi dei Boschi), per ora,
-restano nelle Azioni rapide.
+Teletrasporto Fatato, Telecinesi e Telepatia, e i due delle Contaminazioni: il
+Passo velato o l'Invisibilità, e l'incantesimo di 1° livello scelto, scritto in
+`spells` dentro il talento. Quelli a scelta degli altri talenti (Iniziato alla
+Magia, il trucchetto degli Elfi dei Boschi, Rudimenti da Artefice, Cecchino
+Magico, Incantatore Rituale), per ora, restano nelle Azioni rapide.
 
 ## Prompt per un assistente
 
@@ -97,7 +98,9 @@ classe; species: { name, ancestry, source } con ancestry = ascendenza
 draconica, sottorazza o variante e source = manuale della specie;
 supernaturalGift: il dono soprannaturale, se c'è (es. "Hollow One"); feats:
 i nomi dei talenti, con { name, ability } per la caratteristica del +1 di un
-mezzo talento e { name, damageType } per Adepto Elementale; armorClass; speed in metri ("9 m") o in
+mezzo talento, { name, damageType } per Adepto Elementale e { name, spells }
+per l'incantesimo di 1° livello scelto con Contaminazione Fatata o Ombrosa;
+armorClass; speed in metri ("9 m") o in
 piedi con l'unità ("30 ft"); passivePerception; spellSaveDC;
 spellAttackBonus; abilities: punteggi di caratteristica con chiavi
 str dex con int wis cha; savingThrows: bonus totali con le stesse chiavi;

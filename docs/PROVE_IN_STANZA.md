@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **188** |
+| **B. Console attacchi, mostri e capacità** | **192** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -59,6 +59,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B21. Talenti: le fondamenta | 7 |
 | B23. Talenti nella console attacchi | 6 |
 | B24. Incantesimi dei talenti | 5 |
+| B25. L'incantesimo scelto delle Contaminazioni | 4 |
 | B25. Statblock da testo: le schede di Strahd Reloaded | 6 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
@@ -85,7 +86,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **551** |
+| **Totale** | **555** |
 
 ## A. Incantesimi
 
@@ -771,6 +772,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3a (decisioni D6, D7). Le 
 - [ ] **I riposi:** dopo il lancio, l'uso di Teletrasporto Fatato torna con **Riposo breve**, quelli degli altri talenti solo con **Riposo lungo**.
 - [ ] **Il libro:** Passo velato compare nel libro come «Talento: Contaminazione Fatata», preparato; lanciato dal libro chiede uno slot come gli altri.
 - [ ] **Il doppione:** con un'azione rapida di Passo velato, la riga del talento in Modifica → Capacità avvisa che va tolta da lì; **Salva** non è bloccato.
+
+### B25. L'incantesimo scelto delle Contaminazioni
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3b-1 (decisioni S1, S3). Le voci sono nuove: nessuna lista le aveva. Serve un PG con un livello e i modificatori nella scheda.
+
+- [ ] **Il menu:** in Modifica → Capacità → Talenti, Contaminazione Fatata mostra «Incantesimo di 1° (divinazione o ammaliamento)» con 19 incantesimi, Sortilegio compreso; Contaminazione Ombrosa ne mostra 8. Scelto Sortilegio, dopo **Salva** il badge dice «Contaminazione Fatata · Car · Sortilegio».
+- [ ] **Il lancio:** in Capacità, «Contaminazione Fatata: Sortilegio» è un'azione bonus con la CD del talento. **Lancia** apre il pannello senza slot e l'uso scende a 0/1; **Riposo lungo** lo rimette. Anche dal menu della card, in vista compatta ed estesa.
+- [ ] **Il libro e gli slot:** Sortilegio è nel libro come «Talento: Contaminazione Fatata»; lanciato dal libro chiede uno slot.
+- [ ] **L'import:** `{ "feats": [{ "name": "Fey Touched", "ability": "cha", "spells": ["Sortilegio"] }] }` sceglie Sortilegio; con «Palla di fuoco» al suo posto, l'import lo segnala fra i non riconosciuti.
 
 ### B25. Statblock da testo: le schede di Strahd Reloaded
 

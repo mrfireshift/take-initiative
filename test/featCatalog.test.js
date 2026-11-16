@@ -48,9 +48,10 @@ test("the catalog holds the 72 feats of the three manuals, 34 of them half feats
 });
 
 test("feats resolve by id like the species traits, but stay out of the class catalog", () => {
-  // One record per feat, one for each second effect (the criticals of Slasher and Crusher, lot F1) and one for each spell
-  // a feat grants (lot F3a, test/featSpells.test.js).
-  assert.equal(FEAT_FEATURES.length, 72 + 2 + 10);
+  // One record per feat, one for each second effect (the criticals of Slasher and Crusher, lot F1), one for each spell
+  // a feat grants (lot F3a, test/featSpells.test.js) and one for each spell the Touched feats let choose (lot F3b-1,
+  // test/featChosenSpells.test.js).
+  assert.equal(FEAT_FEATURES.length, 72 + 2 + 10 + 19 + 8);
   assert.deepEqual(FEAT_FEATURES.filter((record) => record.featPart && !record.innateSpell).map((record) => record.id),
     ["talento-bisturi-da-battaglia-critico", "talento-martello-vivente-critico"]);
   for (const record of FEAT_FEATURES) {

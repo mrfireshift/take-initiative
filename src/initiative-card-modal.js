@@ -166,7 +166,7 @@ import { rulesTextBlock } from "./rulesTextView.js";
 import { privateTextMissingNote } from "./privatePackCore.js";
 import {
   FEATS, FEATS_FIELD, FEAT_ABILITY_LABELS, FEAT_BOOK_SOURCES, FEAT_DAMAGE_TYPES, MAX_FEATS,
-  featDisplayName, featPluginLine, featWarnings, getFeat, sanitizeFeats,
+  featChoiceSlots, featDisplayName, featPluginLine, featWarnings, getFeat, sanitizeFeats,
 } from "./featCatalog.js";
 
 perfBootPage(OBR);
@@ -5168,9 +5168,12 @@ function buildFeatEditorRow(entry = {}) {
   damage.dataset.featField = "damageType";
   const abilityLabel = makeLabel("Caratteristica del +1", ability);
   const damageLabel = makeLabel("Tipo di danno", damage);
+  // Lot F3b: one menu per spell the feat lets choose (the Touched feats' 1st-level spell), its candidates only.
+  const spellLabels = document.createElement("div");
+  spellLabels.className = "feat-editor-spells";
   const choices = document.createElement("div");
   choices.className = "feat-editor-choices";
-  choices.append(abilityLabel, damageLabel);
+  choices.append(abilityLabel, damageLabel, spellLabels);
   const remove = document.createElement("button");
   remove.type = "button";
   remove.className = "class-build-remove";
@@ -5180,8 +5183,9 @@ function buildFeatEditorRow(entry = {}) {
   warning.className = "feat-editor-warning";
   warning.dataset.featWarning = "1";
   warning.hidden = true;
-  // Only the choices of the feat chosen: the ability of a half feat with more than one, Elemental Adept's type.
-  const syncChoices = ({ ability: chosenAbility = "", damageType = "" } = {}) => {
+  // Only the choices of the feat chosen: the ability of a half feat with more than one, Elemental Adept's type, the spells
+  // it lets choose (a spell outside the list, from an import or a newer client, stays selected and is warned about).
+  const syncChoices = ({ ability: chosenAbility = "", damageType = "", spellIds = [] } = {}) => {
     const feat = getFeat(select.value);
     const abilities = feat?.abilityChoices.length > 1 ? feat.abilityChoices : [];
     ability.replaceChildren(new Option("Da scegliere", ""), ...abilities.map((key) => new Option(FEAT_ABILITY_LABELS[key], key)));
@@ -5191,10 +5195,20 @@ function buildFeatEditorRow(entry = {}) {
     damage.replaceChildren(new Option("Da scegliere", ""), ...FEAT_DAMAGE_TYPES.map((type) => new Option(type.label, type.id)));
     damage.value = asksDamage && FEAT_DAMAGE_TYPES.some((type) => type.id === damageType) ? damageType : "";
     damageLabel.hidden = !asksDamage;
-    choices.hidden = abilityLabel.hidden && damageLabel.hidden;
+    spellLabels.replaceChildren(...featChoiceSlots(feat?.id).map((slot, index) => {
+      const spell = document.createElement("select");
+      spell.dataset.featField = "spell";
+      const current = String((Array.isArray(spellIds) ? spellIds : [])[index] || "");
+      spell.replaceChildren(new Option("Da scegliere", ""), ...slot.candidates.map((candidate) => new Option(candidate.name, candidate.spellId)),
+        ...(current && !slot.candidates.some((candidate) => candidate.spellId === current) ? [new Option(`Fuori lista: ${current}`, current)] : []));
+      spell.value = current;
+      spell.addEventListener("change", syncFeatWarnings);
+      return makeLabel(slot.label, spell);
+    }));
+    choices.hidden = abilityLabel.hidden && damageLabel.hidden && !spellLabels.children.length;
     row.classList.toggle("unknown", !!select.value && !feat);
   };
-  syncChoices({ ability: entry?.ability, damageType: entry?.choice?.damageType });
+  syncChoices({ ability: entry?.ability, damageType: entry?.choice?.damageType, spellIds: entry?.choice?.spellIds });
   select.addEventListener("change", () => {
     syncChoices();
     syncFeatWarnings();
@@ -5220,7 +5234,7 @@ function syncFeatWarnings() {
   const rows = featEditorRows();
   const entries = rows.map((row) => ({
     id: row.querySelector("[data-feat-field='id']").value,
-    choice: { damageType: row.querySelector("[data-feat-field='damageType']").value },
+    choice: { damageType: row.querySelector("[data-feat-field='damageType']").value, spellIds: featRowSpellIds(row) },
   }));
   // A granted spell also among the quick actions (decision D7): the editor's rows, or the saved ones while a row is incomplete.
   let quickActions = [];
@@ -5262,9 +5276,17 @@ function collectFeats() {
     const { damageType: _previousType, ...kept } = id === original.id && original.choice ? original.choice : {};
     const ability = feat.abilityChoices.length > 1 ? row.querySelector("[data-feat-field='ability']").value : "";
     const damageType = feat.choices.includes("damageType") ? row.querySelector("[data-feat-field='damageType']").value : "";
-    const choice = { ...kept, ...(damageType ? { damageType } : {}) };
+    // The spells it lets choose: the menus' values replace the ones it came with (lot F3b).
+    const spellIds = featChoiceSlots(id).length ? featRowSpellIds(row) : null;
+    if (spellIds) delete kept.spellIds;
+    const choice = { ...kept, ...(damageType ? { damageType } : {}), ...(spellIds?.some(Boolean) ? { spellIds } : {}) };
     return { id, ...(ability ? { ability } : {}), ...(Object.keys(choice).length ? { choice } : {}) };
   }));
+}
+
+// The spells chosen in a Talenti row, one per menu in order ("" for one still to choose).
+function featRowSpellIds(row) {
+  return Array.from(row.querySelectorAll("[data-feat-field='spell']")).map((select) => select.value);
 }
 
 function collectDamageDefenses() {

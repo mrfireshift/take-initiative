@@ -14,7 +14,8 @@ const META = "com.thebigpicture.initiative/meta";
 const card = (feats, extra = {}) => ({ characterBuild: [{ classId: "ladro", level: 5 }], abilityModifiers: { int: 1, wis: 2, cha: 3 },
   feats, ...extra });
 const cast = (featureId, profile, resources = {}) => speciesSpellCast({ actionId: speciesSpellActionId(featureId), card: profile, resources });
-const spellRecords = () => FEAT_FEATURES.filter((feature) => feature.innateSpell);
+// The feats' own spells; those the player chooses (lot F3b) are in test/featChosenSpells.test.js.
+const spellRecords = () => FEAT_FEATURES.filter((feature) => feature.innateSpell && !feature.featChoice);
 
 test("seven feats grant spells of their own: one record each, with a spell of the catalog and the feat's use", () => {
   assert.deepEqual([...new Set(spellRecords().map((feature) => feature.featId))], ["alta-magia-drow", "magia-degli-elfi-dei-boschi",
@@ -29,7 +30,8 @@ test("seven feats grant spells of their own: one record each, with a spell of th
     ["detect-magic", "mage-hand"]);
   assert.deepEqual(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("talento-teletrasporto-fatato-passo-velato-usi").refresh.map((entry) => entry.event),
     ["riposo_breve", "riposo_lungo"]);
-  assert.equal(FEAT_RESOURCE_POOLS.length, 2 + 8);
+  // Fortunato and Orcish Fury, the eight uses of these spells, and the two chosen slots of the Touched feats (lot F3b-1).
+  assert.equal(FEAT_RESOURCE_POOLS.length, 2 + 8 + 2);
 });
 
 test("a feat's spell is cast with the feat's use and DC: the half feat's ability, chosen or the highest it offers", () => {

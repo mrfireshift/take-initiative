@@ -925,7 +925,234 @@ un incantesimo di specie (`speciesInnateSpellCore.js`):
 
 Servono i selettori nella scheda, filtrati per livello e scuola (D8), e le
 chiavi dell'import. Poi la gittata doppia di Cecchino Magico e la spinta di
-Telecinesi.
+Telecinesi. Il piano è nella §7.4.
+
+### 7.4 F3b, piano (16/11)
+
+Solo piano: nessun codice. Le decisioni S1–S9 sono in fondo alla sezione.
+
+#### 7.4.1 Le scelte da coprire
+
+| Talento | Che cosa si sceglie | Uso | Caratteristica | Anche con gli slot |
+|---|---|---|---|---|
+| Iniziato alla Magia | una classe fra bardo, chierico, druido, stregone, warlock e mago; due trucchetti; un incantesimo di 1° livello | trucchetti a volontà; il 1° una volta per riposo lungo, al livello minimo | della classe: Car per bardo, stregone e warlock; Sag per chierico e druido; Int per il mago | sì, se il PG ha slot (Sage Advice) |
+| Contaminazione Fatata | un incantesimo di 1°, divinazione o ammaliamento | una volta per riposo lungo | del talento (F3a) | sì |
+| Contaminazione Ombrosa | un incantesimo di 1°, illusione o necromanzia | una volta per riposo lungo | del talento | sì |
+| Magia degli Elfi dei Boschi | un trucchetto da druido | a volontà | Saggezza | — |
+| Rudimenti da Artefice | un trucchetto e un incantesimo di 1° da artefice | trucchetto a volontà; il 1° una volta per riposo lungo | Intelligenza | sì |
+| Cecchino Magico | una classe come Iniziato alla Magia; un trucchetto con tiro per colpire | a volontà | della classe | — |
+| Incantatore Rituale | una classe come Iniziato alla Magia; due rituali di 1°, poi quelli trovati fino a metà del livello | solo come rituali, senza slot | della classe | no |
+
+Poi due pezzi senza scelta:
+
+- la gittata doppia e la copertura di Cecchino Magico;
+- la spinta di Telecinesi: azione bonus, TS su Forza, 1,5 m verso il PG o
+  lontano.
+
+#### 7.4.2 Che cosa c'è già
+
+- **F3a** (§7.3): voci `talento-<talento>-<incantesimo>` con `innateSpell` e un
+  uso. Si lanciano con `speciesSpellCast`, `planSpeciesSpellCost` e
+  `speciesSpellOpenRequest` (`speciesInnateSpellCore.js`). Nel libro passano da
+  `featGrantedSpells` (`featCatalog.js`); fra i lanciabili da
+  `creatureCastableSpellIds` (`attackReactionsCore.js:48-62`).
+- **Chi legge lo `spellId` statico della voce:**
+  - il menu della card e le azioni rapide (`initiativeList.js:9049-9063` e
+    9110-9128). Risolvono la voce dalla mappa statica
+    (`getClassFeatureDefinition`) e chiamano `speciesSpellOpenRequest(feature,
+    sourceId)` senza la scheda. La voce del tracker non porta la scheda
+    (`entryFromSceneItem`, righe 5429-5512);
+  - la scheda (`openSpeciesSpell` e `buildSpeciesSpellControls`,
+    `initiative-card-modal.js:2256-2283`);
+  - il pannello (`speciesCastFor`, `spell-unified-panel.js:517-525`). Controlla
+    che l'incantesimo sia quello della voce e applica la CD del TS (riga 622),
+    non il bonus d'attacco;
+  - la console: una voce con un incantesimo innato dice «Apri nella scheda»
+    (`pcAttackFeatureFormCore.js:157`).
+- **Il libro:**
+  - concessi con la fonte (`spellbookGroups`, `spellbookCatalog.js:165-179`);
+  - i rituali solo per mago, bardo, chierico e druido
+    (`spellbookRitualCastable`, righe 126-135; il commento rimanda Incantatore
+    Rituale a un'azione rapida);
+  - l'editor cerca con un campo e una `datalist`
+    (`initiative-card-modal.html:569-573`, `spellbookSearchOptions`).
+- **I trucchetti d'attacco** si lanciano nella console:
+  - dal libro (`spellbookAttackAction`, `spellbookCatalog.js:226`);
+  - o da un'azione rapida con `source: { kind: "cantrip" }` (`IMPORT_SCHEDA.md`,
+    riga 72).
+
+  Tutte e due le strade usano il `spellAttackBonus` e la `spellSaveDC` della
+  scheda.
+- **Il catalogo:** 477 incantesimi, con livello e scuola, senza liste di classe.
+  44 trucchetti, 73 di 1° livello; 15 di 1° fra divinazione e ammaliamento, 6
+  fra illusione e necromanzia. I rituali in `spell-reference-it-runtime.json`
+  (`ritualIds`) sono 29, 11 di 1° livello.
+
+#### 7.4.3 Il nodo: lo `spellId` sta nella scheda
+
+In F3a l'incantesimo è scritto nella voce. Qui lo sceglie il giocatore e sta in
+`feats[].choice`. Due strade:
+
+- **(a) Una voce per ogni scelta possibile**, come «Magia drow: Luminescenza»:
+  `talento-contaminazione-fatata-incantesimo-<spellId>`. `featFeaturesForProfile`
+  restituisce solo quella scelta; tutti i percorsi restano quelli di F3a.
+  - Servono circa 170 voci in più: 73 per Iniziato alla Magia, 73 per Rudimenti
+    da Artefice, 15 e 6 per le Contaminazioni. I trucchetti non le richiedono
+    (S2).
+  - Le voci dello stesso posto condividono un pool:
+    `talento-iniziato-alla-magia-incantesimo-usi`.
+  - L'azione della voce segue il tempo di lancio dell'incantesimo
+    (`castingTime`): Scudo è una reazione, Sonno un'azione.
+- **(b) Una voce per posto**, con lo spellId letto dalla scheda al lancio.
+  - `speciesSpellOpenRequest` vorrebbe la scheda.
+  - Le due chiamate di `initiativeList.js` non l'hanno e dovrebbero leggere il
+    token: file delicato, in lavorazione in altre sessioni.
+
+**Raccomandazione: (a).** Non tocca `initiativeList.js`, il pannello né la
+console. Il costo è il catalogo, con 170 oggetti congelati.
+
+#### 7.4.4 Trucchetti, CD e attacco
+
+- **I trucchetti scelti** (due di Iniziato alla Magia, quello degli Elfi dei
+  Boschi, di Rudimenti da Artefice e di Cecchino Magico) vanno nel libro come
+  «Talento: …», sempre pronti, come quelli delle sottoclassi.
+  - La console li offre come oggi: Lama rimbombante con l'arma, Dardo di fuoco
+    con il tiro.
+  - Il pannello li lancia senza slot.
+- **CD e attacco del talento.** Un incantesimo che arriva da un talento usa la
+  caratteristica del talento, anche lanciato con gli slot. Serve un solo punto
+  che dica, per una scheda e un incantesimo, se viene da un talento e con quale
+  caratteristica:
+  - la console lo usa per il bonus d'attacco e la CD dei trucchetti e degli
+    incantesimi d'attacco;
+  - il pannello per la CD dei lanci dal libro.
+
+  Oggi tutti e due leggono solo i numeri della scheda: un guerriero con Iniziato
+  alla Magia (mago) non ha CD.
+- **Una reazione** (Scudo di Iniziato alla Magia) arriva negli avvisi come
+  incantesimo lanciabile. L'avviso apre il pannello sul lancio con lo slot; l'uso
+  gratis passa dalla card della voce. Resta così: il GM sceglie «Spendi:
+  nessuno».
+
+#### 7.4.5 Incantatore Rituale, Cecchino Magico, Telecinesi
+
+- **Incantatore Rituale:**
+  - i rituali scelti stanno nel libro come «Talento: Incantatore Rituale», con il
+    segno «solo come rituale»;
+  - `spellbookRitualCastable` li accetta per qualsiasi classe;
+  - il libro non offre il lancio con lo slot;
+  - un rituale trovato si aggiunge alla stessa scelta; sopra metà del livello,
+    arrotondata per eccesso, la riga avvisa (D8).
+- **Cecchino Magico:** un promemoria nella console sui lanci con tiro per
+  colpire, come quelli di F1 (`pcAttackTargetNotes`): «gittata doppia, ignora
+  copertura media e tre quarti». La console non misura la gittata degli
+  incantesimi d'attacco; il pannello la misura solo per quelli che risolve lui
+  (`spellTargetRangeMeters`, `spellAreaCatalog.js:808`).
+- **Spinta di Telecinesi:** una card con la CD calcolata («TS su Forza CD 14»).
+  Il token si sposta a mano: spostamenti e TS al tavolo sono già così per le
+  spinte delle manovre.
+
+#### 7.4.6 La scheda e l'import
+
+- **Il riquadro Talenti** mostra sotto la riga del talento solo le sue scelte:
+  - la classe, con un menu;
+  - i trucchetti e gli incantesimi, con un campo e una `datalist` come il libro,
+    filtrati per livello, scuola (le Contaminazioni) e tiro per colpire
+    (Cecchino Magico);
+  - i rituali, con «+ Rituale».
+
+  Gli avvisi restano avvisi (D8): livello o scuola sbagliati, un rituale sopra
+  metà del livello. Le liste di classe restano al GM.
+- **Il campo:** `feats[].choice` = `{ classId?, cantripIds?, spellIds? }`.
+  - Il sanitizer di F0 tiene già la forma: liste fino a 12 voci, chiavi brevi.
+  - Iniziato alla Magia pesa circa 80 byte prima della compressione; il test del
+    registro della stanza (F0) va esteso.
+- **L'import** (§4.6):
+  - `{ "name": "Magic Initiate", "class": "wizard", "cantrips": [...], "spell": "Scudo" }`;
+  - `{ "name": "Fey Touched", "ability": "cha", "spells": ["Sortilegio"] }`;
+  - `{ "name": "Ritual Caster", "class": "wizard", "rituals": [...] }`.
+
+  Nomi italiani o inglesi, dal catalogo. Livello o scuola sbagliati vanno fra i
+  non riconosciuti, mai corretti a indovinare.
+- **`docs/IMPORT_SCHEDA.md`:** gli incantesimi scelti dei talenti non vanno più
+  nelle Azioni rapide. Il prompt chiede `class`, `cantrips`, `spell`, `spells` e
+  `rituals` dentro `feats`.
+- **D7:** l'avviso dei doppioni di F3a vale anche per gli incantesimi scelti.
+
+#### 7.4.7 Rischi, come chiede AGENTS.md
+
+| Area | Rischio | Come lo si evita |
+|---|---|---|
+| Metadata della scheda | `feats[].choice` cresce. | Forma già pulita da F0; misura con la codifica vera della stanza. |
+| `initiativeList.js` | La strada (b) lo toccherebbe. | La strada (a) non lo tocca. |
+| Pannello incantesimi | La CD dei lanci dal libro cambia per gli incantesimi dei talenti. | Solo per quelli che il libro segna «Talento»; test su un PG senza talenti che restano identici. |
+| Console attacchi | Bonus e CD dei trucchetti dei talenti. | Stesso punto unico; le schede senza talenti non cambiano. |
+| Catalogo | Circa 170 voci in più in `CLASS_FEATURE_BY_ID`. | Generate da una tabella, congelate; un test conta le voci e controlla gli id. |
+| PF | Nessuno: i danni dei trucchetti passano dai comandi di oggi. | — |
+| Altre sessioni | Pannello e console sono file condivisi. | Ogni sottolotto si rilegge sul HEAD del momento e si committa con le sole sue righe. |
+
+#### 7.4.8 Sottolotti
+
+| Sottolotto | Contenuto | Tocca |
+|---|---|---|
+| **F3b-1** | Le due Contaminazioni: l'incantesimo di 1° scelto, con le voci per scelta (21), il selettore filtrato, il libro, l'import di `spells` | `featCatalog.js`, modale, import, test |
+| **F3b-2** | Iniziato alla Magia, Rudimenti da Artefice ed Elfi dei Boschi: classe, trucchetti nel libro, incantesimo di 1° (146 voci), il punto unico per CD e attacco nella console e nel pannello | in più `pcAttackCore.js`, `spell-unified-panel.js`, `spellbookCatalog.js` |
+| **F3b-3** | Cecchino Magico: classe, trucchetto d'attacco, promemoria nella console | `pcAttackTurnActionCore.js` |
+| **F3b-4** | Incantatore Rituale: rituali nel libro, solo come rituali | `spellbookCatalog.js`, il libro della scheda |
+| **F3b-5** | La spinta di Telecinesi come card con la CD | `featCatalog.js` |
+
+Ogni sottolotto ha test che falliscono senza la patch, la suite completa in una
+copia pulita, le voci in `PROVE_IN_STANZA.md` e la prova al banco.
+
+#### 7.4.9 Decisioni
+
+**Esito:** il 16/11 l'utente le ha approvate tutte come raccomandate («Sì,
+approvo»).
+
+| # | Decisione | Possibilità | Raccomandazione |
+|---|---|---|---|
+| **S1** | Dove nasce lo spellId scelto | (a) una voce per ogni scelta possibile; (b) una voce per posto, spellId dalla scheda | **(a)**: nessun file delicato toccato (§7.4.3). |
+| **S2** | I trucchetti scelti | (a) nel libro come «Talento», sempre pronti; (b) voci a volontà fra le capacità, come Mano magica | **(a)**: la console li offre come i trucchetti di classe, armi comprese. |
+| **S3** | CD e attacco degli incantesimi dei talenti | (a) quelli del talento, anche con gli slot; (b) quelli della scheda | **(a)**: è la regola, e un guerriero con Iniziato alla Magia non ha CD sulla scheda. |
+| **S4** | Liste di classe | (a) nessun controllo: il selettore filtra per livello, scuola e tiro per colpire; (b) liste di classe nuove nel catalogo | **(a)**: le liste sono un lavoro a parte, con dati da importare. |
+| **S5** | Iniziato alla Magia con gli slot | (a) sì, se il PG ha slot (Sage Advice); (b) solo l'uso gratis | **(a)**. |
+| **S6** | Incantatore Rituale | (a) nel libro, solo come rituale; (b) azioni rapide gratuite come oggi | **(a)**: il libro ha già il lancio rituale. |
+| **S7** | Rituali trovati | (a) si aggiungono alla scelta, con l'avviso sopra metà del livello; (b) solo i due iniziali | **(a)**. |
+| **S8** | Cecchino Magico e Telecinesi | (a) promemoria nella console e card con la CD; (b) gittata misurata e spinta come azione | **(a)**: niente da misurare né da spostare in automatico. |
+| **S9** | Ordine | F3b-1 → F3b-2 → F3b-3 → F3b-4 → F3b-5 | Come proposto: F3b-1 è il più piccolo che va da capo a fondo. |
+
+### 7.5 F3b-1, fatto il 16/11
+
+**L'incantesimo scelto delle Contaminazioni.** Come la §7.4 con S1–S9.
+
+- **Le voci.** Una per candidato,
+  `talento-contaminazione-<fatata|ombrosa>-incantesimo-<spellId>`: 19 e 8. Con
+  lo stesso pool del posto, `…-incantesimo-usi`, e l'azione dal tempo di lancio:
+  Sortilegio è un'azione bonus, Identificare «Speciale». `featFeaturesForProfile`
+  restituisce solo quella scelta in `feats[].choice.spellIds`.
+- **Le tabelle dei candidati** stanno in `featCatalog.js`. Il catalogo degli
+  incantesimi non si può importare lì: arriva a `classFeatureCatalog.js` passando
+  da `damageDefensesCore.js`, e quindi tornerebbe al catalogo dei talenti.
+  `test/featChosenSpells.test.js` le confronta con il catalogo per tutte e tre le
+  fonti:
+  - livello e scuola dell'SRD;
+  - `italianReference` delle voci del PHB, di Xanathar e di Tasha;
+  - i tempi di lancio del compendio.
+- **Il lancio** passa da `speciesInnateSpellCore.js`, come in F3a: l'uso del
+  posto e la CD del talento. Nel libro l'incantesimo compare come «Talento: …».
+- **Nella scheda** c'è un menu con i soli candidati sotto la riga del talento. Un
+  incantesimo fuori lista resta, come «Fuori lista: …», con l'avviso (D8). Il
+  badge dice l'incantesimo: «Contaminazione Fatata · Car · Sortilegio».
+- **Import e doppioni:** `spells` dentro il talento. Un incantesimo fuori lista
+  va fra i non riconosciuti. L'avviso dei doppioni (D7) vale anche per
+  l'incantesimo scelto.
+- **Documenti:** `docs/IMPORT_SCHEDA.md`; le prove in stanza sono in B25.
+
+**Una correzione al piano.** La §7.4.2 dava per il catalogo solo livello e
+scuola dell'SRD. Le voci fuori dall'SRD hanno scuola, tempo di lancio e rituale
+in `italianReference`: per questo i candidati comprendono Sortilegio, Sussurri
+Dissonanti, Duello Obbligato, Legame con le Bestie, Incuti Paura e Raggio di
+Infermità.
 
 ---
 

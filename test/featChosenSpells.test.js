@@ -1,0 +1,105 @@
+// Lot F3b-1 of docs/STUDIO_TALENTI.md (decisions S1, S3, S9): the 1st-level spell the Touched feats let choose. A record for
+// each candidate (S1), the one the sheet chose cast like a species' innate spell with the slot's use and the feat's DC,
+// in the book as "Talento", in the import, and warned about when outside the list.
+import assert from "node:assert/strict";
+import test from "node:test";
+import { FEATS, FEAT_FEATURES, featChoiceSlots, featDisplayName, featFeaturesForProfile, featWarnings, sanitizeFeats } from "../src/featCatalog.js";
+import { planSpeciesSpellCost, speciesSpellActionId, speciesSpellCast } from "../src/speciesInnateSpellCore.js";
+import { spellbookGroupsForProfile } from "../src/spellbookCatalog.js";
+import { creatureCastableSpellIds } from "../src/attackReactionsCore.js";
+import { getSpellCatalog, getSpellDefinition } from "../src/spells-srd.js";
+import { parseCharacterSheetImport, sheetImportSectionSummary } from "../src/characterSheetImportCore.js";
+import { CLASS_FEATURE_BY_ID, CLASS_FEATURE_RESOURCE_POOL_BY_ID } from "../src/classFeatureCatalog.js";
+import reference from "../src/spell-reference-it.json" with { type: "json" };
+import runtimeReference from "../src/spell-reference-it-runtime.json" with { type: "json" };
+
+const META = "com.thebigpicture.initiative/meta";
+const ITALIAN_SCHOOLS = { abiurazione: "abjuration", ammaliamento: "enchantment", divinazione: "divination", evocazione: "conjuration",
+  illusione: "illusion", invocazione: "evocation", necromanzia: "necromancy", trasmutazione: "transmutation" };
+const catalog = Array.isArray(getSpellCatalog()) ? getSpellCatalog() : Object.values(getSpellCatalog());
+const referenceById = new Map((Array.isArray(reference.spells) ? reference.spells : Object.values(reference.spells)).map((spell) => [spell.id, spell]));
+const oneAction = new Set(runtimeReference.oneActionIds);
+const schoolOf = (spell) => spell.school || ITALIAN_SCHOOLS[String(spell.italianReference?.school || "").toLocaleLowerCase("it")] || "";
+const castingKind = (spell) => {
+  const time = spell.italianReference?.castingTime || referenceById.get(spell.id)?.castingTime || (oneAction.has(spell.id) ? "1 azione" : "");
+  return time === "1 azione" ? "azione" : /^1 azione bonus/u.test(time) ? "azione_bonus" : /^1 reazione/u.test(time) ? "reazione" : "speciale";
+};
+const card = (feats, extra = {}) => ({ characterBuild: [{ classId: "ladro", level: 5 }], abilityModifiers: { int: 1, wis: 2, cha: 3 }, feats, ...extra });
+const fey = (spellId, extra = {}) => card([{ id: "contaminazione-fatata", ability: "cha", choice: { spellIds: [spellId] } }], extra);
+
+test("the Touched feats choose among the catalog's 1st-level spells of their schools, with their casting times", () => {
+  for (const [featId, schools] of [["contaminazione-fatata", ["divination", "enchantment"]], ["contaminazione-ombrosa", ["illusion", "necromancy"]]]) {
+    const [slot] = featChoiceSlots(featId);
+    const expected = catalog.filter((spell) => spell.level === 1 && schools.includes(schoolOf(spell))).map((spell) => spell.id).sort();
+    assert.deepEqual(slot.candidates.map((candidate) => candidate.spellId).sort(), expected, featId);
+    for (const candidate of slot.candidates) {
+      const spell = getSpellDefinition(candidate.spellId);
+      assert.equal(candidate.name, spell.displayName || spell.name, candidate.spellId);
+      assert.equal(CLASS_FEATURE_BY_ID.get(`talento-${featId}-incantesimo-${candidate.spellId}`).activation.primary, castingKind(spell), candidate.spellId);
+    }
+  }
+  assert.deepEqual(FEATS.filter((entry) => entry.chosenSpells.length).map((entry) => [entry.id, entry.chosenSpells[0].candidates.length]),
+    [["contaminazione-fatata", 19], ["contaminazione-ombrosa", 8]]);
+});
+
+test("one record per candidate, sharing the slot's use; the profile gets only the chosen one", () => {
+  const records = FEAT_FEATURES.filter((feature) => feature.featChoice);
+  assert.equal(records.length, 19 + 8);
+  assert.deepEqual([...new Set(records.map((feature) => feature.trackedResourcePoolIds[0]))],
+    ["talento-contaminazione-fatata-incantesimo-usi", "talento-contaminazione-ombrosa-incantesimo-usi"]);
+  assert.deepEqual(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("talento-contaminazione-fatata-incantesimo-usi").refresh.map((entry) => entry.event), ["riposo_lungo"]);
+  assert.deepEqual(featFeaturesForProfile(fey("phb2014-sortilegio")).map((feature) => feature.id),
+    ["talento-contaminazione-fatata", "talento-contaminazione-fatata-passo-velato", "talento-contaminazione-fatata-incantesimo-phb2014-sortilegio"]);
+  assert.deepEqual(featFeaturesForProfile(card([{ id: "contaminazione-fatata" }])).map((feature) => feature.id),
+    ["talento-contaminazione-fatata", "talento-contaminazione-fatata-passo-velato"], "nothing chosen yet");
+  assert.deepEqual(featFeaturesForProfile(fey("fireball")).map((feature) => feature.id).filter((id) => id.includes("incantesimo")), [],
+    "a spell outside the list casts nothing");
+});
+
+test("the chosen spell is cast with the slot's use and the feat's DC, and the slots can cast it too", () => {
+  const profile = fey("phb2014-sortilegio");
+  const hex = speciesSpellCast({ actionId: speciesSpellActionId("talento-contaminazione-fatata-incantesimo-phb2014-sortilegio"), card: profile });
+  assert.deepEqual([hex.spellId, hex.ability, hex.dc, hex.uses.current, hex.feature.activation.primary],
+    ["phb2014-sortilegio", "cha", 14, 1, "azione_bonus"]);
+  assert.equal(hex.label, "Incantesimo di talento: Contaminazione Fatata: Sortilegio · CD 14 (Carisma) · usi 1/1");
+  assert.equal(planSpeciesSpellCost({ cast: hex, sourceId: "pc", card: profile }).operation.pool.id, "talento-contaminazione-fatata-incantesimo-usi");
+  assert.equal(speciesSpellCast({ actionId: speciesSpellActionId("talento-contaminazione-fatata-incantesimo-sleep"), card: profile }), null,
+    "another candidate is not the character's");
+  const granted = spellbookGroupsForProfile(profile).flatMap((group) => group.spells).filter((spell) => spell.granted);
+  assert.deepEqual(granted.map((spell) => [spell.id, spell.granted]),
+    [["phb2014-sortilegio", "Talento: Contaminazione Fatata"], ["misty-step", "Talento: Contaminazione Fatata"]]);
+  assert.ok(creatureCastableSpellIds({ id: "pc", metadata: { [META]: { initiativeCard: profile } } }).has("phb2014-sortilegio"));
+});
+
+test("the sheet names the chosen spell and warns about one outside the list or repeated among the quick actions", () => {
+  assert.equal(featDisplayName({ id: "contaminazione-fatata", ability: "cha", choice: { spellIds: ["phb2014-sortilegio"] } }),
+    "Contaminazione Fatata · Car · Sortilegio");
+  assert.equal(featDisplayName({ id: "contaminazione-ombrosa", choice: { spellIds: ["false-life"] } }), "Contaminazione Ombrosa · Vita falsata");
+  assert.deepEqual(featWarnings([{ id: "contaminazione-fatata", choice: { spellIds: ["fireball"] } }]),
+    [["L'incantesimo scelto (fireball) non è fra quelli del talento: Incantesimo di 1° (divinazione o ammaliamento)."]]);
+  assert.deepEqual(featWarnings([{ id: "contaminazione-ombrosa", choice: { spellIds: ["false-life"] } }], null,
+    [{ kind: "spell", spellId: "false-life" }]),
+    [["Vita falsata arriva con il talento ed è anche nelle Azioni rapide: toglila da lì, o gli usi contano due volte."]]);
+  assert.deepEqual(sanitizeFeats([{ id: "contaminazione-fatata", choice: { spellIds: ["phb2014-sortilegio"] } }])[0].choice,
+    { spellIds: ["phb2014-sortilegio"] });
+});
+
+test("the import reads the chosen spell in Italian or in English, and reports one outside the list", () => {
+  const result = parseCharacterSheetImport(JSON.stringify({ feats: [
+    { name: "Fey Touched", ability: "cha", spells: ["Sortilegio"] },
+    { name: "Shadow Touched", spell: "False Life" },
+    { name: "Contaminazione Fatata", spells: ["Palla di fuoco"] },
+    { name: "Robusto", spells: ["Scudo"] },
+  ] }));
+  assert.deepEqual(result.sections.feats, [
+    { id: "contaminazione-fatata", ability: "cha", choice: { spellIds: ["phb2014-sortilegio"] } },
+    { id: "contaminazione-ombrosa", choice: { spellIds: ["false-life"] } },
+    { id: "robusto" },
+  ]);
+  assert.deepEqual(result.unresolved, [
+    "incantesimo \"Palla di fuoco\" per Contaminazione Fatata (Incantesimo di 1° (divinazione o ammaliamento))",
+    "incantesimo \"Scudo\" per Robusto: il talento non ne fa scegliere",
+  ]);
+  assert.equal(sheetImportSectionSummary("feats", result.sections.feats),
+    "3 talenti: Contaminazione Fatata · Car · Sortilegio, Contaminazione Ombrosa · Vita falsata, Robusto");
+});

@@ -7,7 +7,7 @@ import { getSpellDefinition } from "./spells-srd.js";
 import { CLASS_FEATURE_CLASSES, getClassFeatureSubclasses } from "./classFeatureCatalog.js";
 import { MAX_CHARACTER_CLASSES, sanitizeCharacterBuild } from "./classFeatureCore.js";
 import { SPECIES, SUPERNATURAL_GIFTS, speciesDisplayName, supernaturalGiftDisplayName } from "./speciesTraitCore.js";
-import { FEATS, FEAT_DAMAGE_TYPES, MAX_FEATS, featDisplayName, sanitizeFeats } from "./featCatalog.js";
+import { FEATS, FEAT_DAMAGE_TYPES, MAX_FEATS, featChoiceSlots, featDisplayName, sanitizeFeats } from "./featCatalog.js";
 import { DAMAGE_TYPES, sanitizeDamageDefenses, hasDamageDefenses } from "./damageDefensesCore.js";
 import { ABILITY_KEYS, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
 import { MAX_QUICK_ACTIONS, MAX_QUICK_ACTION_ATTACKS, MAX_QUICK_ACTION_USES, sanitizeQuickAction } from "./quickActionsCore.js";
@@ -305,6 +305,17 @@ function importedFeats(data, unresolved) {
     const damageType = resolveDamageType(typeName);
     if (feat.choices.includes("damageType") && FEAT_DAMAGE_TYPES.some((type) => type.id === damageType)) entry.choice = { damageType };
     else if (typeName) unresolved.push(`tipo di danno "${typeName}" per ${feat.name}`);
+    // The spells it lets choose (lot F3b), in their slots' order: a name outside a slot's list is reported, never moved.
+    const slots = featChoiceSlots(feat.id);
+    const spellNames = [source.spells ?? source.incantesimi ?? source.spell ?? source.incantesimo].flat().map(text).filter(Boolean);
+    const spellIds = [];
+    spellNames.forEach((spellName, index) => {
+      const slot = slots[index];
+      const spell = slot ? getSpellDefinition(spellName) : null;
+      if (spell && slot.candidates.some((candidate) => candidate.spellId === spell.id)) spellIds.push(spell.id);
+      else unresolved.push(`incantesimo "${spellName}" per ${feat.name}${slot ? ` (${slot.label})` : ": il talento non ne fa scegliere"}`);
+    });
+    if (spellIds.length === spellNames.length && spellIds.length) entry.choice = { ...(entry.choice || {}), spellIds };
     // The same feat written twice counts once; Elemental Adept twice only with two types.
     if (feats.some((other) => other.id === entry.id && (!feat.repeatable || other.choice?.damageType === entry.choice?.damageType))) continue;
     feats.push(entry);

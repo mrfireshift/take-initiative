@@ -68,12 +68,49 @@ const ON_SHEET = "Le competenze vanno riportate nella scheda del personaggio.";
 // "breve", or "" at will), slots (also with the character's slots: the book lists it as "Talento"), self }], each a
 // record "talento-<feat>-<key>" cast like a species' innate spell (speciesInnateSpellCore.js); spellAbility: their
 // casting ability ("feat": the one the half feat raises, featSpellAbility).
+// Lot F3b (decision S1): chosenSpells: the spells the player picks, [{ key, label, candidates, uses, slots }]: a record
+// "talento-<feat>-<key>-<spellId>" for each candidate, sharing the slot's use; the sheet's choice.spellIds says which.
 const feat = (book, page, name, english, { prerequisite = "", abilities = [], choices = [], species = [], speciesOptions = [],
   repeatable = false, plugin = LATER, pool = null, srdEntryId = "", srdText = "", effect = null, parts = [], naturalWeapon = null,
-  spells = [], spellAbility = "" } = {}) => ({
+  spells = [], spellAbility = "", chosenSpells = [] } = {}) => ({
   book, page, name, english, prerequisite, abilities, choices, species, speciesOptions, repeatable, plugin, pool, srdEntryId, srdText,
-  effect, parts, naturalWeapon, spells, spellAbility,
+  effect, parts, naturalWeapon, spells, spellAbility, chosenSpells,
 });
+
+// The 1st-level spells the Touched feats choose from (Tasha, p. 80): divination or enchantment, illusion or necromancy.
+// [spellId, name, casting time when it is not an action]. The spell catalog (spells-srd.js) cannot be imported here: it
+// reaches classFeatureCatalog.js, which imports this module. test/featChosenSpells.test.js checks them against it.
+const FEY_TOUCHED_SPELLS = [
+  ["animal-friendship", "Amicizia con gli animali"],
+  ["bane", "Anatema"],
+  ["bless", "Benedizione"],
+  ["charm-person", "Charme su persone"],
+  ["command", "Comando"],
+  ["comprehend-languages", "Comprensione dei linguaggi"],
+  ["phb2014-duello-obbligato", "Duello Obbligato", "azione_bonus"],
+  ["heroism", "Eroismo"],
+  ["identify", "Identificare", "speciale"],
+  ["detect-evil-and-good", "Individuazione del bene e del male"],
+  ["detect-magic", "Individuazione del magico"],
+  ["detect-poison-and-disease", "Individuazione delle malattie e dei veleni"],
+  ["xanathar-legame-con-le-bestie", "Legame con le Bestie"],
+  ["hunters-mark", "Marchio del cacciatore", "azione_bonus"],
+  ["speak-with-animals", "Parlare con gli animali"],
+  ["hideous-laughter", "Risata incontenibile"],
+  ["sleep", "Sonno"],
+  ["phb2014-sortilegio", "Sortilegio", "azione_bonus"],
+  ["phb2014-sussurri-dissonanti", "Sussurri Dissonanti"],
+];
+const SHADOW_TOUCHED_SPELLS = [
+  ["disguise-self", "Camuffare se stesso"],
+  ["silent-image", "Immagine silenziosa"],
+  ["xanathar-incuti-paura", "Incuti Paura"],
+  ["inflict-wounds", "Infliggi ferite"],
+  ["phb2014-raggio-di-infermita", "Raggio di Infermità"],
+  ["illusory-script", "Scritto illusorio", "speciale"],
+  ["color-spray", "Spruzzo colorato"],
+  ["false-life", "Vita falsata"],
+];
 // Until the start of the attacker's next turn: Slasher's and Crusher's pills.
 const UNTIL_NEXT_TURN = "next-turn";
 // The pills of the critical parts, which the attack console reminds about (pcAttackTargetNotes).
@@ -207,11 +244,13 @@ const DEFINITIONS = [
       effect: { conditionName: SLASHER_CRITICAL_CONDITION, timing: UNTIL_NEXT_TURN,
         detail: "Svantaggio ai tiri per colpire fino all'inizio del prossimo turno di chi l'ha colpito." } }] }),
   feat("tce", 80, "Contaminazione Fatata", "Fey Touched", { abilities: ["int", "wis", "cha"],
-    plugin: "Passo velato una volta per riposo lungo senza slot, o con i tuoi slot, con la caratteristica del talento: si lancia dalla sua card. L'incantesimo di 1° livello scelto, per ora, va nelle Azioni rapide.",
-    spellAbility: "feat", spells: [{ key: "passo-velato", spellId: "misty-step", name: "Passo velato", uses: "lungo", slots: true, activation: "azione_bonus", self: true }] }),
+    plugin: "Passo velato e l'incantesimo di 1° livello scelto, una volta per riposo lungo ciascuno senza slot, o con i tuoi slot, con la caratteristica del talento: si lanciano dalle loro card.",
+    spellAbility: "feat", spells: [{ key: "passo-velato", spellId: "misty-step", name: "Passo velato", uses: "lungo", slots: true, activation: "azione_bonus", self: true }],
+    chosenSpells: [{ key: "incantesimo", label: "Incantesimo di 1° (divinazione o ammaliamento)", candidates: FEY_TOUCHED_SPELLS, uses: "lungo", slots: true }] }),
   feat("tce", 80, "Contaminazione Ombrosa", "Shadow Touched", { abilities: ["int", "wis", "cha"],
-    plugin: "Invisibilità una volta per riposo lungo senza slot, o con i tuoi slot, con la caratteristica del talento: si lancia dalla sua card. L'incantesimo di 1° livello scelto, per ora, va nelle Azioni rapide.",
-    spellAbility: "feat", spells: [{ key: "invisibilita", spellId: "invisibility", name: "Invisibilità", uses: "lungo", slots: true }] }),
+    plugin: "Invisibilità e l'incantesimo di 1° livello scelto, una volta per riposo lungo ciascuno senza slot, o con i tuoi slot, con la caratteristica del talento: si lanciano dalle loro card.",
+    spellAbility: "feat", spells: [{ key: "invisibilita", spellId: "invisibility", name: "Invisibilità", uses: "lungo", slots: true }],
+    chosenSpells: [{ key: "incantesimo", label: "Incantesimo di 1° (illusione o necromanzia)", candidates: SHADOW_TOUCHED_SPELLS, uses: "lungo", slots: true }] }),
   feat("tce", 80, "Cuoco", "Chef", { abilities: ["con", "wis"] }),
   feat("tce", 80, "Maestria dei Veleni", "Poisoner"),
   feat("tce", 80, "Martello Vivente", "Crusher", { abilities: ["str", "con"],
@@ -271,6 +310,9 @@ export const FEATS = Object.freeze(DEFINITIONS.map((definition) => {
     naturalWeapon: definition.naturalWeapon ? Object.freeze({ ...definition.naturalWeapon }) : null,
     spells: Object.freeze(definition.spells.map((spell) => Object.freeze({ ...spell }))),
     spellAbility: definition.spellAbility,
+    chosenSpells: Object.freeze(definition.chosenSpells.map((slot) => Object.freeze({ ...slot,
+      candidates: Object.freeze(slot.candidates.map(([spellId, spellName, activation = ""]) => Object.freeze({ spellId, name: spellName,
+        ...(activation ? { activation } : {}) }))) }))),
   });
 }));
 const FEAT_BY_ID = new Map(FEATS.map((entry) => [entry.id, entry]));
@@ -295,11 +337,16 @@ const featPoolId = (entry) => `${featFeatureId(entry.id)}-${entry.pool.key}-usi`
 // A granted spell's use: "talento-<feat>-<key>-usi", one per long rest (or short, Fey Teleportation).
 const featSpellPoolId = (entry, spell) => (spell.uses ? `${featFeatureId(entry.id)}-${spell.key}-usi` : "");
 
+// A chosen spell's use belongs to its slot, whichever spell fills it: "talento-<feat>-<key>-usi" (lot F3b).
+const featChosenPoolId = (entry, slot) => (slot.uses ? `${featFeatureId(entry.id)}-${slot.key}-usi` : "");
+
 export const FEAT_RESOURCE_POOLS = Object.freeze([
   ...FEATS.filter((entry) => entry.pool)
     .map((entry) => pool(featPoolId(entry), entry.pool.name, entry.pool.count, entry.pool.rest === "breve")),
   ...FEATS.flatMap((entry) => entry.spells.filter((spell) => spell.uses)
     .map((spell) => pool(featSpellPoolId(entry, spell), `${entry.name}: ${spell.name}`, 1, spell.uses === "breve"))),
+  ...FEATS.flatMap((entry) => entry.chosenSpells.filter((slot) => slot.uses)
+    .map((slot) => pool(featChosenPoolId(entry, slot), `${entry.name}: incantesimo scelto`, 1, slot.uses === "breve"))),
 ]);
 
 const NOT_AUTOMATED = Object.freeze({ status: "not-automated", adapter: null, reason: "adapter-not-implemented" });
@@ -387,10 +434,11 @@ function featPartRecord(entry, part) {
 }
 
 // A granted spell (lot F3a): a record with the shape of a species' innate spell, its use spent by the cast's command.
-function featSpellRecord(entry, spell) {
-  const poolId = featSpellPoolId(entry, spell);
+// A chosen spell (lot F3b) is the same record, keyed by its slot and spell, with the slot's use: choice names the slot.
+function featSpellRecord(entry, spell, { key = spell.key, poolId = featSpellPoolId(entry, spell), choice = null } = {}) {
   return Object.freeze({
-    id: `${featFeatureId(entry.id)}-${spell.key}`,
+    id: `${featFeatureId(entry.id)}-${key}`,
+    ...(choice ? { featChoice: choice } : {}),
     name: `${entry.name}: ${spell.name}`,
     description: `Lanci ${spell.name} senza slot, ${spell.uses === "breve" ? "una volta per riposo breve o lungo"
       : spell.uses ? "una volta per riposo lungo" : "a volontà"}${spell.slots ? ", e anche con i tuoi slot" : ""}.`,
@@ -424,8 +472,17 @@ function featSpellRecord(entry, spell) {
   });
 }
 
+// The record of a candidate of a chosen slot: "talento-contaminazione-fatata-incantesimo-sleep".
+const featChosenRecordId = (entry, slot, spellId) => (spellId ? `${featFeatureId(entry.id)}-${slot.key}-${spellId}` : "");
+
+function featChosenSpellRecords(entry) {
+  return entry.chosenSpells.flatMap((slot) => slot.candidates.map((candidate) => featSpellRecord(entry, {
+    spellId: candidate.spellId, name: candidate.name, uses: slot.uses, slots: slot.slots, activation: candidate.activation,
+  }, { key: `${slot.key}-${candidate.spellId}`, poolId: featChosenPoolId(entry, slot), choice: Object.freeze({ key: slot.key }) })));
+}
+
 export const FEAT_FEATURES = Object.freeze(FEATS.flatMap((entry) => [featRecord(entry), ...entry.parts.map((part) => featPartRecord(entry, part)),
-  ...entry.spells.map((spell) => featSpellRecord(entry, spell))]));
+  ...entry.spells.map((spell) => featSpellRecord(entry, spell)), ...featChosenSpellRecords(entry)]));
 const FEATURES_BY_FEAT = new Map(FEATS.map((entry) => [entry.id, FEAT_FEATURES.filter((feature) => feature.featId === entry.id)]));
 
 const FEAT_ID = /^[a-z0-9][a-z0-9-]{0,47}$/u;
@@ -483,13 +540,23 @@ export function featFeaturesForProfile(profile) {
   const seen = new Set();
   const result = [];
   for (const entry of sanitizeFeats(profile?.[FEATS_FIELD])) {
+    // Of a chosen slot's candidates, only the one the sheet chose (choice.spellIds, one per slot in order).
+    const definition = getFeat(entry.id);
+    const chosen = new Set((definition?.chosenSpells || [])
+      .map((slot, index) => featChosenRecordId(definition, slot, entry.choice?.spellIds?.[index])).filter(Boolean));
     for (const feature of FEATURES_BY_FEAT.get(entry.id) || []) {
-      if (seen.has(feature.id)) continue;
+      if (seen.has(feature.id) || (feature.featChoice && !chosen.has(feature.id))) continue;
       seen.add(feature.id);
       result.push(feature);
     }
   }
   return result;
+}
+
+// The choices of spells a feat asks (lot F3b): [{ key, label, candidates: [{ spellId, name }] }], for the sheet and the
+// import.
+export function featChoiceSlots(featId) {
+  return getFeat(featId)?.chosenSpells || [];
 }
 
 // The casting ability of a granted spell whose feat says "feat" (Fey Touched, Telepathic): the ability the sheet chose for
@@ -523,10 +590,14 @@ export function featDisplayName(entry) {
   const definition = getFeat(clean.id);
   if (!definition) return `Talento sconosciuto (${clean.id})`;
   const damageType = FEAT_DAMAGE_TYPES.find((type) => type.id === clean.choice?.damageType);
+  // The spells chosen (lot F3b), by their names: "Contaminazione Fatata · Car · Sortilegio".
+  const spells = definition.chosenSpells.map((slot, index) => slot.candidates
+    .find((candidate) => candidate.spellId === clean.choice?.spellIds?.[index])?.name || "");
   return [
     definition.name,
     clean.ability && definition.abilityChoices.length > 1 ? ABILITY_SHORT[clean.ability] : "",
     damageType?.label || "",
+    ...spells,
   ].filter(Boolean).join(" · ");
 }
 
@@ -572,7 +643,16 @@ export function featWarnings(entries, species = null, quickActions = []) {
     const twin = list.slice(0, index).some((other) => other?.id === entry.id
       && (!definition.repeatable || (other.choice?.damageType || "") === (entry.choice?.damageType || "")));
     if (twin) warnings.push(definition.repeatable ? "Già scelto con lo stesso tipo di danno." : "Già scelto.");
-    for (const spell of twin ? [] : definition.spells.filter((candidate) => quickSpellIds.has(candidate.spellId))) {
+    // A chosen spell outside the slot's candidates (an import, a newer client): kept, but it casts nothing (lot F3b).
+    const chosen = definition.chosenSpells.map((slot, slotIndex) => {
+      const spellId = entry.choice?.spellIds?.[slotIndex];
+      return spellId ? { slot, spellId, candidate: slot.candidates.find((candidate) => candidate.spellId === spellId) || null } : null;
+    }).filter(Boolean);
+    for (const { slot, spellId, candidate } of chosen) {
+      if (!candidate) warnings.push(`L'incantesimo scelto (${spellId}) non è fra quelli del talento: ${slot.label}.`);
+    }
+    const granted = [...definition.spells, ...chosen.map((entryChosen) => entryChosen.candidate).filter(Boolean)];
+    for (const spell of twin ? [] : granted.filter((candidate) => quickSpellIds.has(candidate.spellId))) {
       warnings.push(`${spell.name} arriva con il talento ed è anche nelle Azioni rapide: toglila da lì, o gli usi contano due volte.`);
     }
     return warnings;
