@@ -22,6 +22,9 @@ main { min-height: 0; padding: var(--obrt-space-xl); overflow-y: auto; display: 
 .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--obrt-weight-semibold); }
 .detail { color: var(--obrt-muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .detail.done { color: #86efac; }
+/* Lot F5-3 of docs/STUDIO_TALENTI.md: what Durable and the Chef change in a short rest, for the GM writing the HP. */
+.feat-note { color: var(--obrt-warning); font-size: var(--obrt-type-secondary); overflow-wrap: anywhere; }
+.feat-note.party { padding: var(--obrt-space-sm) var(--obrt-space-lg); border: 1px dashed var(--obrt-line); border-radius: var(--obrt-radius-lg); }
 .recovered { width: 64px; min-height: var(--obrt-h-control-sm); padding: 4px 8px; border: 1px solid var(--obrt-line); border-radius: var(--obrt-radius-md); background: var(--obrt-surface); text-align: right; font-variant-numeric: tabular-nums; }
 .recovered:disabled { opacity: .45; }
 input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: #2563eb; }

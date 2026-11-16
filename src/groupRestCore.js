@@ -1,6 +1,8 @@
 import { ID } from "./constants.js";
 import { quickHPStateOf } from "./quickHpCore.js";
 import { isSpellBoardTokenItem } from "./spellBoardTokenTrackerCore.js";
+import { FEATS_FIELD, sanitizeFeats } from "./featCatalog.js";
+import { abilityModifier, proficiencyBonusForLevel, totalCharacterLevel } from "./abilityModifiersCore.js";
 import { DEATH_SAVE_DEAD_CONDITION } from "./deathSaveCore.js";
 import { returnFromDeathCondition, returnFromDeathPill } from "./stabilizeSpellRules.js";
 import { planMaxHpChange } from "./maxHpModifierCore.js";
@@ -150,4 +152,29 @@ export function groupRestMemberSummary(member, update, { resourcesRestored = fal
   if (resourcesRestored) parts.push("risorse ripristinate");
   if (member?.sharedHp) parts.push("PF condivisi: da aggiornare a mano");
   return parts.length ? parts.join(" · ") : "nulla da ripristinare";
+}
+
+// Lot F5-3 of docs/STUDIO_TALENTI.md (decision H6): what two feats change in a short rest, as notes for the GM, who
+// still writes the hit points recovered. Durable: at least twice the Constitution modifier per Hit Die (at least 2),
+// under its character. Chef: the food of a short rest, 1d8 more to each one who eats it and spends Hit Dice, up to
+// 4 + the chef's proficiency bonus creatures. { byId: { [id]: note }, party: [{ id, note }] }, for the party's characters.
+export function groupRestFeatNotes(items = []) {
+  const byId = {};
+  const party = [];
+  for (const item of Array.isArray(items) ? items : []) {
+    const meta = item?.metadata?.[META_KEY] || {};
+    if (!item?.id || text(meta.attitude) !== "pc") continue;
+    const card = meta.initiativeCard || {};
+    const feats = new Set(sanitizeFeats(card[FEATS_FIELD]).map((entry) => entry.id));
+    if (feats.has("tenace")) {
+      const con = abilityModifier(card.abilityModifiers, "con");
+      byId[item.id] = con === null ? "Tenace: almeno 2 × Costituzione PF per Dado Vita (minimo 2)."
+        : `Tenace: almeno ${Math.max(2, 2 * con)} PF per Dado Vita.`;
+    }
+    if (feats.has("cuoco")) {
+      const proficiency = proficiencyBonusForLevel(totalCharacterLevel(card.characterBuild));
+      party.push({ id: item.id, note: `Cuoco (${text(item.name) || "Personaggio"}): chi ha mangiato il suo cibo e spende Dadi Vita recupera 1d8 PF in più${proficiency ? `, fino a ${4 + proficiency} creature` : ""}.` });
+    }
+  }
+  return { byId, party };
 }

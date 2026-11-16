@@ -381,7 +381,9 @@ const DEFINITIONS = [
   feat("phb", 170, "Robusto", "Tough", { plugin: "+2 PF massimi per livello, da comprendere nei PF massimi della scheda: il plugin non li scrive." }),
   feat("phb", 170, "Sentinella", "Sentinel"),
   feat("phb", 170, "Sterminatore di Maghi", "Mage Slayer"),
-  feat("phb", 170, "Tenace", "Durable", { abilities: ["con"] }),
+  // Lot F5-3 (decision H6): a note in the party's rest (groupRestCore.js).
+  feat("phb", 170, "Tenace", "Durable", { abilities: ["con"],
+    plugin: "Nel riposo di gruppo, sotto il personaggio, il minimo di PF per Dado Vita: 2 × Costituzione, almeno 2. Il totale recuperato lo scrive il GM." }),
   feat("phb", 170, "Tiratore Scelto", "Sharpshooter", {
     plugin: "Nella console attacchi, a distanza: «−5/+10», −5 al tiro e +10 ai danni se colpisce. Gittata lunga e copertura restano al tavolo." }),
 
@@ -449,7 +451,7 @@ const DEFINITIONS = [
     spellAbility: "feat", spells: [{ key: "invisibilita", spellId: "invisibility", name: "Invisibilità", uses: "lungo", slots: true }],
     chosenSpells: [{ key: "incantesimo", label: "Incantesimo di 1° (illusione o necromanzia)", candidates: SHADOW_TOUCHED_SPELLS, uses: "lungo", slots: true }] }),
   feat("tce", 80, "Cuoco", "Chef", { abilities: ["con", "wis"],
-    plugin: "Delizie pari al bonus di competenza, di nuovo piene con il riposo lungo (l'ora di cucina è il ↺). La card «dai una delizia» dà a chi la mangia PF temporanei pari al tuo bonus. Il cibo del riposo breve resta al tavolo.",
+    plugin: "Delizie pari al bonus di competenza, piene di nuovo col riposo lungo (l'ora di cucina è il ↺). «Dai una delizia» dà PF temporanei pari al tuo bonus. Il +1d8 del cibo del riposo breve è una nota del riposo di gruppo.",
     // Lot F5-1 (decision H4): the treats' pool, spent by the card that gives one, not by the feat's.
     pool: { key: "delizie", name: "Delizie", count: "pb", part: "delizia" },
     parts: [{ key: "delizia", name: "Cuoco: dai una delizia", activation: "azione_bonus",

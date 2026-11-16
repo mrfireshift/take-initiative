@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **233** |
+| **B. Console attacchi, mostri e capacità** | **236** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -70,6 +70,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B36. Concentrazione: Incantatore da Guerra e Sterminatore di Maghi | 5 |
 | B38. PF temporanei: Condottiero Ispiratore e le delizie del Cuoco | 4 |
 | B39. Guaritore: la cura con la borsa | 4 |
+| B42. Riposo del gruppo: Tenace e il cibo del Cuoco | 3 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -95,7 +96,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **596** |
+| **Totale** | **599** |
 
 ## A. Incantesimi
 
@@ -887,6 +888,14 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F5-2 (decisioni H3, H5). Le
 - [ ] **Il mostro importato:** sul mostro con i PF spuntati all'import (la formula, per esempio 7d10 + 21), la cura somma i suoi Dadi Vita (7) senza chiederli.
 - [ ] **Senza Dadi Vita:** sul PNG senza classi né formula, **Cura** chiede i Dadi Vita; scritti nel campo, cura senza superare i PF massimi.
 - [ ] **I limiti:** un bersaglio a più di 1,5 m è rifiutato, e un PG a PF pieni non viene curato. Senza selezione si cura il guaritore stesso.
+
+### B42. Riposo del gruppo: Tenace e il cibo del Cuoco
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F5-3 (decisione H6). Le voci sono nuove: nessuna lista le aveva. Serve un PG con Tenace e Costituzione +3 nella scheda, e un PG di 5° livello con Cuoco.
+
+- [ ] **Tenace:** in **Riposo del gruppo** sotto il PG con Tenace c'è «Tenace: almeno 6 PF per Dado Vita.»; il campo dei PF recuperati resta da scrivere a mano.
+- [ ] **Il cuoco:** con il PG con Cuoco fra quelli scelti, sotto l'elenco c'è «Cuoco (…): chi ha mangiato il suo cibo e spende Dadi Vita recupera 1d8 PF in più, fino a 7 creature.»; tolta la spunta al cuoco, la nota sparisce.
+- [ ] **Il riposo non cambia:** **Riposo breve** aggiunge i PF scritti a mano e **Riposo lungo** porta i PF al massimo, come prima.
 
 ## C. Tracker e UX
 

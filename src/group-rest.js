@@ -2,7 +2,7 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
-import { groupRestBenefits, groupRestMemberSummary, groupRestMembers } from "./groupRestCore.js";
+import { groupRestBenefits, groupRestFeatNotes, groupRestMemberSummary, groupRestMembers } from "./groupRestCore.js";
 import { takeGroupRest } from "./classFeatureRuntime.js";
 import { getEffectsMutationSceneContext } from "./effectsMutations.js";
 import { getInitiativeCard, initiativeCardBaseExhaustion, saveInitiativeCard } from "./initiativeCards.js";
@@ -14,6 +14,8 @@ const POPOVER_ID = `${ID}/group-rest`;
 const lifecycle = createSceneLifecycleAdapter({ obr: OBR });
 const $ = (id) => document.getElementById(id);
 let members = [];
+// Lot F5-3 of docs/STUDIO_TALENTI.md: Durable's minimum under its character, the Chef's food under the list.
+let featNotes = { byId: {}, party: [] };
 const chosen = new Set();
 const recovered = new Map();
 let results = new Map();
@@ -57,6 +59,7 @@ function render() {
     identity.append(node("span", "name", member.name));
     const result = results.get(member.id);
     identity.append(node("span", `detail${result ? " done" : ""}`, result || hpText(member)));
+    if (featNotes.byId[member.id]) identity.append(node("span", "feat-note", featNotes.byId[member.id]));
     const amount = node("input", "recovered");
     amount.type = "number";
     amount.min = "0";
@@ -73,6 +76,8 @@ function render() {
     row.append(check, identity, amount);
     list.append(row);
   }
+  // The Chef cooks during the rest: the note shows while the chef rests with the party.
+  for (const entry of featNotes.party) if (chosen.has(entry.id)) list.append(node("div", "feat-note party", entry.note));
   const ready = isGM && !busy && chosen.size > 0 && lifecycle.isReady();
   $("short-rest").disabled = !ready;
   $("long-rest").disabled = !ready;
@@ -83,6 +88,7 @@ async function load() {
   const items = await OBR.scene.items.getItems();
   const previous = new Set(members.map((member) => member.id));
   members = groupRestMembers(items);
+  featNotes = groupRestFeatNotes(items);
   // A character that comes into the scene is chosen too; one the GM left out stays out.
   for (const member of members) if (!previous.has(member.id)) chosen.add(member.id);
   for (const id of [...chosen]) if (!members.some((member) => member.id === id)) chosen.delete(id);

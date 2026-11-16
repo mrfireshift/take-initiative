@@ -5,7 +5,8 @@ dall'utente il 15/11** (§9); **F0 fatto il 15/11** (§7.1), **F1 il 16/11**
 (§7.2), **la prima parte di F3 il 16/11** (§7.3); **il piano di F3b il 16/11,
 con S1–S9 approvate** (§7.4), **F3b-1, F3b-2, F3b-3, F3b-4 e F3b-5 il 16/11**
 (§7.5–§7.9): F3 è chiuso. **F4 il 16/11** (§7.10). **Il piano di F5 il 16/11,
-con H1–H7 approvate** (§7.11), **F5-1 e F5-2 il 16/11** (§7.12, §7.13).
+con H1–H7 approvate** (§7.11), **F5-1, F5-2 e F5-3 il 16/11** (§7.12–§7.14):
+F5 è chiuso.
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -1532,6 +1533,30 @@ approvo»).
 - **`classFeatureRuntime.js`:** solo tre righe, il passaggio di `hitDice`; il
   commit prende HEAD + quelle righe.
 - **Documenti:** le prove in stanza sono in B39.
+
+### 7.14 F5-3, fatto il 16/11
+
+**Il riposo di gruppo: Tenace e il cibo del Cuoco.** Come la §7.11 con H6: note,
+nessuna scrittura di PF.
+
+- **`groupRestFeatNotes`** (`groupRestCore.js`) legge le schede dei PG della
+  scena:
+  - **Tenace:** «Tenace: almeno 6 PF per Dado Vita.», cioè 2 × Costituzione,
+    almeno 2; senza il modificatore, la regola in parole;
+  - **Cuoco:** «Cuoco (Nome): chi ha mangiato il suo cibo e spende Dadi Vita
+    recupera 1d8 PF in più, fino a 7 creature.», cioè 4 + il bonus di
+    competenza del cuoco.
+- **La pagina** (`group-rest.js`):
+  - la nota di Tenace sta sotto il PG, come il riepilogo dei PF;
+  - quella del Cuoco sta sotto l'elenco, finché il cuoco è fra chi riposa.
+  
+  Il campo «PF recuperati» resta del GM; il riposo non cambia.
+- **Le righe «Nel plugin»** di Tenace e del Cuoco dicono dove sono le note.
+- **`groupRestCore.js`** ha righe non committate della sessione delle
+  trasformazioni. La funzione nuova sta in fondo al file e gli import in cima,
+  lontano dalle loro; il commit prende HEAD + le sole righe di F5-3.
+- **Documenti:** le prove in stanza sono in B42 (B40 e B41 sono delle
+  trasformazioni).
 
 ---
 
