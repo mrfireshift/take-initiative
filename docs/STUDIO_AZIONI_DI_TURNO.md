@@ -334,7 +334,7 @@ Prove in `PROVE_IN_STANZA.md`, sezione B54.
   manuali 2024.
 - Il catalogo generato è rifatto con `npm run generate:class-features`.
 
-Prove in `PROVE_IN_STANZA.md`, sezione B55.
+Prove in `PROVE_IN_STANZA.md`, sezione B57: B55 e B56 sono dei talenti.
 
 Scritti lo stesso giorno, con decisioni nuove in attesa:
 

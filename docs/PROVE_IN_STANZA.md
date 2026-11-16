@@ -83,7 +83,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B53. Adepto Marziale | 4 |
 | B53. Movimento senza attacchi di opportunità | 5 |
 | B54. Invisibilità delle classi che finisce attaccando | 3 |
-| B55. Dati corretti dall'audit delle azioni | 3 |
+| B57. Dati corretti dall'audit delle azioni | 3 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -1002,14 +1002,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F9-3 (decisione D14). Le vo
 - [ ] **Parata:** il mostro colpisce il ladro in mischia: l'avviso offre Parata; la riduzione si scrive sotto il danno e **Registra** spende dado e reazione.
 - [ ] **Il Maestro di Battaglia:** un guerriero Maestro di Battaglia con lo stesso talento vede le sue manovre con il d8 della classe e quelle del talento con il d6, ciascuna sul suo pool.
 
-### B53. Adepto Marziale
+### B53. Movimento senza attacchi di opportunità
 
-Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F9-3 (decisione D14). Le voci sono nuove: nessuna lista le aveva. Serve un ladro di 4° livello con Adepto Marziale e Forza +3, e un mostro nemico.
+Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T4b (decisione A2). Le voci sono nuove: nessuna lista le aveva. Servono un ladro Esploratore, un chierico della Pace, un bardo dell'Incanto con Carisma +2 e un nemico, in combattimento; per l'ultima voce un nemico con il talento Sentinella.
 
-- [ ] **Le manovre:** nei Talenti della scheda ci sono due menu «Manovra»; scelte **Attacco Minaccioso** e **Parata** e salvato, ci sono le due card e il contatore del dado (1).
-- [ ] **Sul colpo:** nella console, colpito il mostro in mischia, fra gli extra c'è «Adepto Marziale: Attacco Minaccioso» con 1d6 e TS Saggezza CD 13; **Registra** aggiunge il d6 scritto, spende il dado e, con il TS fallito, mette Spaventato. Il dado torna con un riposo breve.
-- [ ] **Parata:** il mostro colpisce il ladro in mischia: l'avviso offre Parata; la riduzione si scrive sotto il danno e **Registra** spende dado e reazione.
-- [ ] **Il Maestro di Battaglia:** un guerriero Maestro di Battaglia con lo stesso talento vede le sue manovre con il d8 della classe e quelle del talento con il d6, ciascuna sul suo pool.
+- [ ] **Schermagliatore:** nel turno del nemico, console attacchi del ladro → **Capacità** → Schermagliatore → **Usa**: la pill «Movimento: no AdO» sul ladro e «Reazione usata»; lo stato dice «… si muove senza attacchi di opportunità fino alla fine del turno. Reazione segnata.». Alla fine del turno del nemico la pill se ne va da sola. Da provare in vista compatta ed estesa.
+- [ ] **L'avviso che non parte:** con la pill, il ladro che esce dalla portata del nemico con lo strumento Movimento non fa partire l'avviso di attacco di opportunità; neppure da un nemico con Sentinella.
+- [ ] **Balsamo della Pace:** fuori dal suo turno **Usa** è spento con «Solo nel turno della creatura.»; nel suo turno mette la pill sul chierico e spende un Incanalare Divinità. Annulla rende l'uso.
+- [ ] **Manto di Ispirazione:** selezionate sulla mappa due creature, **Usa** mette la pill su tutte e due e spende un'Ispirazione Bardica; con tre selezionate dice «al massimo 2 creature».
+- [ ] **Il registro:** la voce dello Schermagliatore dice «Schermagliatore · …: movimento senza attacchi di opportunità fino alla fine del turno · reazione usata»; quella di Passo del Vento (B52) dice «Azione: Scatto (Passo del Vento · Punti Ki …)».
 
 ### B54. Invisibilità delle classi che finisce attaccando
 
@@ -1019,14 +1020,13 @@ Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T4c (decisi
 - [ ] **Velo Psichico:** con «Invisibile · Velo Psichico», un attacco **mancato** lascia la pill; un attacco **a segno** con danni la toglie.
 - [ ] **Corpo Vuoto:** il monaco con «Invisibile · Corpo Vuoto» attacca e colpisce: la pill resta.
 
-### B55. Adepto Marziale
+### B57. Dati corretti dall'audit delle azioni
 
-Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F9-3 (decisione D14). Le voci sono nuove: nessuna lista le aveva. Serve un ladro di 4° livello con Adepto Marziale e Forza +3, e un mostro nemico.
+Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto TD (decisione A6). Le voci sono nuove: nessuna lista le aveva. Servono un ladro Indagatore, un ranger di 10° livello, un warlock con Tutt'Uno con le Ombre e un goblin del Multiverso importato da 5eTools.
 
-- [ ] **Le manovre:** nei Talenti della scheda ci sono due menu «Manovra»; scelte **Attacco Minaccioso** e **Parata** e salvato, ci sono le due card e il contatore del dado (1).
-- [ ] **Sul colpo:** nella console, colpito il mostro in mischia, fra gli extra c'è «Adepto Marziale: Attacco Minaccioso» con 1d6 e TS Saggezza CD 13; **Registra** aggiunge il d6 scritto, spende il dado e, con il TS fallito, mette Spaventato. Il dado torna con un riposo breve.
-- [ ] **Parata:** il mostro colpisce il ladro in mischia: l'avviso offre Parata; la riduzione si scrive sotto il danno e **Registra** spende dado e reazione.
-- [ ] **Il Maestro di Battaglia:** un guerriero Maestro di Battaglia con lo stesso talento vede le sue manovre con il d8 della classe e quelle del talento con il d6, ciascuna sul suo pool.
+- [ ] **Indagatore:** con il ladro Indagatore al 9° livello la scheda ha Occhio di Lince e non Occhio Infallibile; al 13° ha anche Occhio Infallibile, con attivazione «Azione».
+- [ ] **Attivazioni:** nella scheda Capacità della console, Nascondersi in Piena Vista del ranger dice «un minuto» e Tutt'Uno con le Ombre «azione», non più «reazione».
+- [ ] **Azioni bonus del mostro:** nel turno del goblin del Multiverso, la scheda Capacità della console ha il gruppo **Azioni bonus** con Fuga agile, fra i tratti e le reazioni, e il suo testo. Da provare in vista compatta ed estesa.
 
 ## C. Tracker e UX
 
