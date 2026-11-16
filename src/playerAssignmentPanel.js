@@ -2,12 +2,14 @@
 // lazily by options-modal.js: the card registry's module is a heavy one. A choice is written at once, not at «Salva»:
 // first the room memory (as the card menu does, so that the GM's background never gives the old player back), then
 // the current scene's tokens of that character that the tracker knows. The others get it from the GM's background.
+// After the first room test: the card stays closed on a one-line summary, the PCs come first and the other cards of
+// the room apart (P2, P3), and a card can be taken out of this Room's registry with ✕, confirmed in its row (P4).
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { METADATA_OWNERSHIP } from "./metadataKeyScoped.js";
 import { actorProfileIdFromItem } from "./actorIdentityCore.js";
 import { resolveInitiativeCardActorMatch } from "./initiativeCardRegistryCore.js";
-import { readInitiativeCardRegistry } from "./initiativeCards.js";
+import { forgetInitiativeCardRegistryCharacter, readInitiativeCardRegistry } from "./initiativeCards.js";
 import { readRememberedPlayerNames, rememberPlayerName, updatePlayerAssignmentMemory } from "./playerAssignmentMemory.js";
 import { normalizePlayerAssignmentMemory } from "./playerAssignmentMemoryCore.js";
 import {
@@ -22,8 +24,13 @@ import { writePlayerAssignment } from "./playerAssignmentWriter.js";
 const MEMORY_KEY = METADATA_OWNERSHIP.PLAYER_ASSIGNMENTS.key;
 const CARD_KEY = `${ID}/initiativeCards`;
 
-export function mountPlayerAssignmentPanel(container, { obr = OBR, isCurrent = () => true, notify = () => {} } = {}) {
+export function mountPlayerAssignmentPanel(container, { obr = OBR, isCurrent = () => true, notify = () => {}, summary = null } = {}) {
+  // registry: this browser's copy merged with the Room's, to recognise a scene token with no identity yet; cards: the
+  // Room's alone, the rows (P1).
   let registry = {};
+  let cards = {};
+  let othersOpen = false;
+  let confirming = "";
   let memory = {};
   let players = [];
   let items = [];
@@ -41,7 +48,7 @@ export function mountPlayerAssignmentPanel(container, { obr = OBR, isCurrent = (
     return match.status === "matched" ? match.actorProfileId : "";
   };
   const model = () => {
-    const { rows, orphanKeys } = playerAssignmentPanelRows(registry, memory, { items, registryActorOf });
+    const { rows, orphanKeys } = playerAssignmentPanelRows(cards, memory, { items, registryActorOf });
     const choices = playerAssignmentPanelChoices(players, readRememberedPlayerNames(), Object.values(memory));
     return { rows, orphanKeys, choices };
   };
@@ -52,44 +59,77 @@ export function mountPlayerAssignmentPanel(container, { obr = OBR, isCurrent = (
     if (container.contains(document.activeElement) && document.activeElement?.tagName === "SELECT") { stale = true; return; }
     stale = false;
     const { rows, orphanKeys, choices } = model();
-    const nodes = rows.map((row) => {
-      const line = document.createElement("label");
+    const button = (text, dataKey, value, title = "") => {
+      const node = document.createElement("button");
+      node.type = "button";
+      node.className = "secondary";
+      node.dataset[dataKey] = value;
+      node.disabled = busy;
+      node.textContent = text;
+      if (title) node.title = title;
+      return node;
+    };
+    const rowNode = (row) => {
+      const line = document.createElement("div");
       line.className = "player-assignment-row";
       const name = document.createElement("span");
+      name.className = "player-assignment-name";
+      if (confirming === row.id) {
+        line.classList?.add("is-confirming");
+        name.textContent = `Togliere «${row.name}» dal registro della stanza?`;
+        line.append(name, button("Togli", "playerAssignmentRemoveConfirm", row.id), button("Annulla", "playerAssignmentRemoveCancel", "1"));
+        return line;
+      }
       name.textContent = row.name;
+      name.title = row.name;
       const select = document.createElement("select");
       select.dataset.playerAssignmentRow = row.id;
       select.disabled = busy;
-      const none = new Option("Nessuno", "");
-      select.append(none);
+      select.setAttribute?.("aria-label", `Giocatore di ${row.name}`);
+      select.append(new Option("Nessuno", ""));
       for (const choice of choices) {
         select.append(new Option(choice.connected ? choice.name : `${choice.name} (non collegato)`, choice.id));
       }
       select.value = row.userId && choices.some((choice) => choice.id === row.userId) ? row.userId : "";
       line.append(name, select);
+      if (row.inRegistry) {
+        line.append(button("✕", "playerAssignmentRemove", row.id, "Togli dal registro delle schede di questa stanza"));
+      }
       return line;
-    });
-    if (!nodes.length) {
+    };
+    const pcs = rows.filter((row) => row.pc);
+    const others = rows.filter((row) => !row.pc);
+    const nodes = pcs.map(rowNode);
+    if (!pcs.length) {
       const empty = document.createElement("p");
       empty.className = "player-assignment-empty";
-      empty.textContent = "Nessun personaggio: salva la scheda di un PG o mettilo nel tracker.";
+      empty.textContent = "Nessun PG: salva la scheda di un PG o mettilo nel tracker.";
       nodes.push(empty);
+    }
+    if (others.length) {
+      const group = document.createElement("details");
+      group.className = "player-assignment-others";
+      group.open = othersOpen || others.some((row) => row.id === confirming);
+      group.addEventListener("toggle", () => { othersOpen = group.open; });
+      const title = document.createElement("summary");
+      title.textContent = `Altre schede (${others.length})`;
+      group.append(title, ...others.map(rowNode));
+      nodes.push(group);
     }
     if (orphanKeys.length) {
       const line = document.createElement("div");
       line.className = "player-assignment-row player-assignment-orphans";
       const text = document.createElement("span");
+      text.className = "player-assignment-name";
       text.textContent = orphanKeys.length === 1
         ? "1 giocatore ricordato per un personaggio senza scheda"
         : `${orphanKeys.length} giocatori ricordati per personaggi senza scheda`;
-      const forget = document.createElement("button");
-      forget.type = "button";
-      forget.className = "secondary";
-      forget.dataset.playerAssignmentForget = "1";
-      forget.disabled = busy;
-      forget.textContent = "Dimentica";
-      line.append(text, forget);
+      line.append(text, button("Dimentica", "playerAssignmentForget", "1"));
       nodes.push(line);
+    }
+    if (summary) {
+      const assigned = pcs.filter((row) => row.userId).length;
+      summary.textContent = pcs.length ? `${pcs.length} PG · ${assigned} assegnat${assigned === 1 ? "o" : "i"}` : "nessun PG";
     }
     container.replaceChildren(...nodes);
   };
@@ -106,7 +146,7 @@ export function mountPlayerAssignmentPanel(container, { obr = OBR, isCurrent = (
       ]);
       if (withRegistry) {
         try {
-          ({ registry } = await readInitiativeCardRegistry());
+          ({ registry, room: cards = {} } = await readInitiativeCardRegistry());
         } catch (error) {
           console.warn("[player-assignment-panel] registro delle schede:", error?.message || error);
         }
@@ -171,8 +211,24 @@ export function mountPlayerAssignmentPanel(container, { obr = OBR, isCurrent = (
     const select = event.target.closest?.("[data-player-assignment-row]");
     if (select) void assign(select.dataset.playerAssignmentRow, select.value);
   };
+  // P4: ✕ asks in the row; «Togli» takes the card out of this Room's registry and forgets its player.
+  const removeCard = (rowId) => run(async () => {
+    confirming = "";
+    const row = model().rows.find((candidate) => candidate.id === rowId);
+    if (!row?.inRegistry) return;
+    const removed = await forgetInitiativeCardRegistryCharacter({ actorProfileId: row.actorProfileId, name: row.name });
+    await updatePlayerAssignmentMemory((current) => playerAssignmentMemoryWithout(current, row.keys), { obr });
+    registryAgain = true;
+    if (removed) notify(`«${row.name}» non è più nel registro delle schede di questa stanza.`, "SUCCESS");
+  });
   const onClick = (event) => {
-    if (event.target.closest?.("[data-player-assignment-forget]")) void forgetOrphans();
+    const target = event.target;
+    if (target.closest?.("[data-player-assignment-forget]")) { void forgetOrphans(); return; }
+    const remove = target.closest?.("[data-player-assignment-remove]");
+    if (remove) { confirming = remove.dataset.playerAssignmentRemove; draw(); return; }
+    if (target.closest?.("[data-player-assignment-remove-cancel]")) { confirming = ""; draw(); return; }
+    const confirm = target.closest?.("[data-player-assignment-remove-confirm]");
+    if (confirm) void removeCard(confirm.dataset.playerAssignmentRemoveConfirm);
   };
   const onFocusOut = () => { if (stale) setTimeout(draw, 0); };
   container.addEventListener("change", onChange);
@@ -186,9 +242,9 @@ export function mountPlayerAssignmentPanel(container, { obr = OBR, isCurrent = (
   let previousCards;
   const subscriptions = [
     obr.room.onMetadataChange?.((metadata) => {
-      const cards = metadata?.[CARD_KEY];
-      if (previousCards !== undefined && JSON.stringify(cards) !== JSON.stringify(previousCards)) registryAgain = true;
-      previousCards = cards;
+      const roomCards = metadata?.[CARD_KEY];
+      if (previousCards !== undefined && JSON.stringify(roomCards) !== JSON.stringify(previousCards)) registryAgain = true;
+      previousCards = roomCards;
       void load();
     }),
     obr.party.onChange?.(() => void load()),

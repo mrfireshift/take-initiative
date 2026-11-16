@@ -935,7 +935,7 @@ Serve il profilo **Online** (Opzioni → Vista giocatori, «Modalità di gioco»
 - [ ] **Assegnazione senza ricaricare:** dopo **Giocatore ›** la scheda del PG mostra subito il giocatore assegnato, senza ricaricare. Al banco non si riproduce. (voce nuova: memoria online-play-audit, correzione del 30/10) Poi (GA2 e GA3 di STUDIO_GIOCO_ONLINE.md):
   - un PG già assegnato, trascinato dalla libreria degli asset su una scena nuova, si muove subito col suo giocatore, anche fuori dall'iniziativa; entrato nell'iniziativa ha il pallino del giocatore;
   - un PG del tracker dato a un giocatore dal menu **Owner** di Owlbear prende il suo pallino e lo ritrova sulla scena dopo. Ridato al GM dallo stesso menu, il pallino resta.
-  - (GA4) Opzioni → Vista giocatori → **Giocatori**, in Online: elenca i PG delle schede e della scena, senza i mostri. Scelto un giocatore per un PG che non è sulla mappa, il suo token, messo poi su una scena, è subito di quel giocatore. Scelto per un PG sulla mappa, prende subito il pallino senza «Salva»; **Nessuno** lo ridà al GM.
+  - (GA4) Opzioni → Vista giocatori → **Giocatori**, in Online: la scheda è chiusa su «N PG · M assegnati»; aperta, elenca i PG di questa stanza soltanto (non quelli di altre campagne), e PNG e alleati senza classe in «Altre schede». Scelto un giocatore per un PG che non è sulla mappa, il suo token, messo poi su una scena, è subito di quel giocatore. Scelto per un PG sulla mappa, prende subito il pallino senza «Salva»; **Nessuno** lo ridà al GM. ✕ su un PNG chiede conferma nella riga e lo toglie; il suo token sulla mappa tiene la card, anche riaprendo la scheda. *Esito cambiato il 16/11: prima la lista prendeva anche le schede delle altre stanze.*
 
 ### D4. Dadi online
 

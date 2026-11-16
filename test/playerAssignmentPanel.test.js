@@ -23,7 +23,8 @@ const nameKey = (name) => playerMemoryKeyOfItem(token("x", name, { attitude: "pc
 const registry = {
   "asset:lyra.png": { actorProfileId: lyraId, name: "Lyra", profile: { actorProfileId: lyraId }, updatedAt: 5 },
   lyra: { actorProfileId: lyraId, name: "Lyra", profile: { actorProfileId: lyraId }, updatedAt: 5 },
-  brun: { actorProfileId: brunId, name: "Brun", profile: { actorProfileId: brunId }, updatedAt: 3 },
+  brun: { actorProfileId: brunId, name: "Brun", profile: { actorProfileId: brunId, characterBuild: [{ classId: "fighter", level: 3 }] }, updatedAt: 3 },
+  gundren: { name: "Gundren", profile: { armorClass: 12 }, updatedAt: 4 },
   goblin: { name: "Goblin", profile: { monster: { source: "5etools", ref: "Goblin|MM" } }, updatedAt: 9 },
   gone: { actorProfileId: "actor_gone", name: "Vecchio", profile: {}, deleted: true, updatedAt: 1 },
 };
@@ -36,7 +37,12 @@ test("GA4: le righe sono i personaggi delle schede e della scena, una per person
   ];
   const memory = { [lyraKey]: "user-mario", [nameKey("Tom")]: "user-anna", azzz1: "user-old" };
   const { rows, orphanKeys } = playerAssignmentPanelRows(registry, memory, { items });
-  assert.deepEqual(rows.map((row) => [row.name, row.userId]), [["Brun", ""], ["Lyra", "user-mario"], ["Tom", "user-anna"]]);
+  assert.deepEqual(rows.map((row) => [row.name, row.userId, row.pc, row.inRegistry]), [
+    ["Brun", "", true, true],
+    ["Gundren", "", false, true],
+    ["Lyra", "user-mario", true, true],
+    ["Tom", "user-anna", true, false],
+  ], "P3: a class, a PC of the scene or a player make a PC; Gundren, a card without a class, is another card");
   assert.equal(rows.find((row) => row.name === "Lyra").writeKey, lyraKey, "saved under the identity's key, as the card menu");
   assert.deepEqual(orphanKeys, ["azzz1"], "a remembered character no row explains");
 });
@@ -117,7 +123,15 @@ stub("../src/metadataKeyScoped.js", {
     env.room[contract.key] = structuredClone(value);
   },
 });
-stub("../src/initiativeCards.js", { readInitiativeCardRegistry: async () => ({ registry: structuredClone(registry) }) });
+stub("../src/initiativeCards.js", {
+  // P1: the rows come from the Room's cards (room), the merged registry recognises the scene's tokens.
+  readInitiativeCardRegistry: async () => ({ registry: structuredClone(registry), room: structuredClone(env.cards || {}) }),
+  forgetInitiativeCardRegistryCharacter: async (character) => {
+    env.forgotten.push(character);
+    for (const [key, entry] of Object.entries(env.cards)) if (entry.name === character.name) delete env.cards[key];
+    return 1;
+  },
+});
 stub("../src/sceneItemEvents.js", { readSceneItemsSnapshot: () => ({ complete: true, items: [] }), subscribeSceneItemChanges: () => () => {} });
 stub("../src/sceneEpoch.js", { currentSceneEpoch: () => 1, isCurrentSceneEpoch: () => true, subscribeSceneEpoch: () => () => {} });
 stub("../src/options/optionsRuntime.js", { runtimeOptionsService: { subscribe: () => () => {} } });
@@ -148,7 +162,7 @@ function fakeObr() {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
 test("GA4 nel pannello: la scelta va prima nella memoria, poi al token del tracker; Nessuno lo ridà al GM", async () => {
-  env = { room: {}, items: [token("t-lyra", "Lyra", { attitude: "pc", actorProfileId: lyraId, hp: 12 })], log: [] };
+  env = { room: {}, cards: {}, forgotten: [], items: [token("t-lyra", "Lyra", { attitude: "pc", actorProfileId: lyraId, hp: 12 })], log: [] };
   const container = new FakeElement("div");
   const notices = [];
   const panel = mountPlayerAssignmentPanel(container, { obr: fakeObr(), notify: (message) => notices.push(message) });
@@ -178,5 +192,43 @@ test("GA4 nel pannello: la scelta va prima nella memoria, poi al token del track
   assert.deepEqual(env.room[MEMORY_KEY], {});
   assert.equal(env.items[0].metadata[META_KEY].assignedPlayer, undefined);
   assert.equal(env.items[0].createdUserId, "user-gm", "back to the GM");
+  panel.dispose();
+});
+
+test("GA4 dopo la prova (P2–P4): riepilogo, PG in cima, altre schede a parte, ✕ chiede nella riga e toglie dalla stanza", async () => {
+  env = { room: { [MEMORY_KEY]: { [nameKey("Gundren")]: "user-mario" } }, cards: structuredClone(registry), forgotten: [], items: [], log: [] };
+  const container = new FakeElement("div");
+  const summary = new FakeElement("span");
+  const panel = mountPlayerAssignmentPanel(container, { obr: fakeObr(), summary, notify: () => {} });
+  await settle();
+  const rowNames = () => container.children.filter((node) => node.className === "player-assignment-row")
+    .map((node) => node.children[0].textContent);
+  assert.deepEqual(rowNames(), ["Brun", "Gundren"], "Gundren has a player: a PC for the panel; Lyra, no class here, no token");
+  assert.equal(summary.textContent, "2 PG · 1 assegnato");
+
+  env.room = {};
+  await panel.refresh();
+  assert.deepEqual(rowNames(), ["Brun"]);
+  const others = container.children.find((node) => node.className === "player-assignment-others");
+  assert.equal(others.children[0].textContent, "Altre schede (2)");
+  assert.equal(others.open, false, "closed until the GM opens it");
+  assert.equal(summary.textContent, "1 PG · 0 assegnati");
+
+  const click = (node) => { for (const listener of container.listeners.click) listener({ target: node }); };
+  const find = (key, value) => container.all().find((node) => node.dataset[key] === value);
+  click(find("playerAssignmentRemove", "name:gundren"));
+  const asking = container.all().find((node) => node.textContent === "Togliere «Gundren» dal registro della stanza?");
+  assert.ok(asking, "the row asks before taking the card out");
+  assert.equal(container.children.find((node) => node.className === "player-assignment-others").open, true);
+  click(find("playerAssignmentRemoveCancel", "1"));
+  assert.equal(env.forgotten.length, 0, "Annulla takes nothing out");
+
+  click(find("playerAssignmentRemove", "name:gundren"));
+  click(find("playerAssignmentRemoveConfirm", "name:gundren"));
+  await settle();
+  assert.deepEqual(env.forgotten, [{ actorProfileId: "", name: "Gundren" }]);
+  assert.equal(container.children.find((node) => node.className === "player-assignment-others").children[0].textContent,
+    "Altre schede (1)", "the row is gone");
+  assert.equal(find("playerAssignmentRemove", `actor:${lyraId}`)?.textContent, "✕");
   panel.dispose();
 });

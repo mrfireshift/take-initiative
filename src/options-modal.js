@@ -324,6 +324,7 @@ function renderPlayerAssignmentCard(online) {
     playerAssignmentPanel = mountPlayerAssignmentPanel(card.querySelector("[data-player-assignment-list]"), {
       obr: OBR,
       isCurrent: () => sceneLifecycle.isReady(),
+      summary: card.querySelector("[data-player-assignment-summary]"),
       notify: (message, variant = "INFO") => { void OBR.notification.show(message, variant).catch(() => {}); },
     });
   }, (error) => {

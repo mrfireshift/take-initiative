@@ -242,6 +242,40 @@ GA2, nel dettaglio:
     - Dimentica;
     - scheda nascosta in «Questa scena» e in Tavolo.
 
+**Dopo la prima occhiata in stanza (16/11, P1–P4 approvate).** La lista era
+lunghissima e mostrava personaggi che non sono PG. La causa: le righe venivano
+anche dalla copia delle schede nel browser del GM, che tiene le schede di
+**tutte** le stanze.
+
+- **P1, solo questa stanza:** le righe vengono dal registro della stanza
+  (`readInitiativeCardRegistry` restituisce anche `room`) e dai PG e alleati
+  della scena. La copia del browser serve solo a riconoscere i token senza
+  identità.
+- **P2, compatta:** la scheda resta chiusa su una riga di riepilogo
+  («4 PG · 1 assegnato ▸»). Le righe sono più basse e, oltre una certa altezza,
+  la lista scorre.
+- **P3, PG prima:** in cima i PG, cioè le schede con una classe, i PG della scena
+  e chi ha un giocatore. Le altre schede (PNG, alleati senza classe) stanno in
+  «Altre schede (N)», chiusa.
+- **P4, ✕ toglie dal registro della stanza,** con una conferma nella riga
+  (`forgetInitiativeCardRegistryCharacter` in `src/initiativeCards.js`), e
+  dimentica il giocatore.
+  - **Diverso dalla proposta:** niente segno di «cancellata». Un segno più
+    recente della card di un token la svuoterebbe alla prossima apertura della
+    scheda: `loadInitiativeCard` con `hydrate` toglie il profilo al token. Le
+    chiavi escono solo dalla stanza (`updateRoomCards` con `roomOnly`).
+  - Il browser del GM tiene la sua copia: le sue chiavi valgono per tutte le
+    stanze.
+  - I token tengono la loro card.
+  - Risalvando la card, la scheda torna nella stanza.
+- **Prove:**
+  - `test/playerAssignmentPanel.test.js` (7 test);
+  - `test/playerAssignmentPanelRegistry.test.js`, nuovo: solo la stanza,
+    nessun segno, browser intatto, schede di altre stanze non toccate;
+  - banco: Strahd e Ireena, che sono solo nel browser, non compaiono; quattro
+    PG, due PNG in «Altre schede»; Sildar tolto dalla stanza con la copia del
+    browser identica.
+
 Facoltativo: «Giocatore ›» anche nel menu contestuale del token di Owlbear
 (`src/contextMenu.js`), per assegnare un token non ancora nel tracker. Con GA2 e
 GA4 serve poco.

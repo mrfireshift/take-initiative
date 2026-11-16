@@ -397,13 +397,31 @@ export async function readInitiativeCardRegistry() {
   const local = readLocalInitiativeCards();
   const classFeatureDefaults = await roomClassFeatureDefaults();
   const metadata = await OBR.room.getMetadata().catch(() => ({}));
-  return {
-    metadata,
-    registry: mergeInitiativeCardRegistries(
-      local,
-      decodeInitiativeCardRegistryFromRoom(metadata?.[ROOM_CARD_KEY], classFeatureDefaults),
-    ),
-  };
+  const room = decodeInitiativeCardRegistryFromRoom(metadata?.[ROOM_CARD_KEY], classFeatureDefaults);
+  // `room`: this Room's cards alone (the local copy holds every room's), for the «Giocatori» panel (GA4).
+  return { metadata, room, registry: mergeInitiativeCardRegistries(local, room) };
+}
+
+// Lot GA4 of docs/STUDIO_GIOCO_ONLINE.md (P4): a character taken out of this Room's card registry from the «Giocatori»
+// panel. Its keys leave the Room, with no tombstone: a tombstone newer than a token's card would empty that card at the
+// next opening of its sheet. The tokens keep their cards, this browser keeps its copy (whose keys every room shares),
+// and saving the card again puts it back in the Room. By identity; a card without one, by its name. Returns how many.
+export async function forgetInitiativeCardRegistryCharacter({ actorProfileId = "", name = "" } = {}) {
+  const actorId = String(actorProfileId || "");
+  const nameKey = initiativeCardNameKey(name);
+  if (!actorId && !nameKey) return 0;
+  const { room } = await readInitiativeCardRegistry();
+  const keys = Object.entries(room || {}).filter(([, entry]) => {
+    if (!entry || typeof entry !== "object") return false;
+    const entryActorId = actorProfileIdFromRegistryEntry(entry);
+    return actorId ? entryActorId === actorId : !entryActorId && initiativeCardNameKey(entry.name) === nameKey;
+  }).map(([key]) => key);
+  if (!keys.length) return 0;
+  await updateRoomCards((next) => {
+    for (const key of keys) delete next[key];
+    return next;
+  }, { roomOnly: true });
+  return keys.length;
 }
 
 // D9: the characters the Room budget left out, told to the GM once per set (every sheet opening writes the registry).
@@ -460,7 +478,8 @@ async function noticeDroppedRoomCards(names) {
   } catch {}
 }
 
-async function updateRoomCards(updater, { isCurrent = () => true } = {}) {
+// `roomOnly` (GA4, P4): the Room alone is written; the local copy, which holds every room's cards, stays as it is.
+async function updateRoomCards(updater, { isCurrent = () => true, roomOnly = false } = {}) {
   const write = async () => {
     if (!isCurrent()) return null;
     const classFeatureDefaults = await roomClassFeatureDefaults();
@@ -469,7 +488,7 @@ async function updateRoomCards(updater, { isCurrent = () => true } = {}) {
     const roomRegistry = decodeInitiativeCardRegistryFromRoom(metadata?.[ROOM_CARD_KEY], classFeatureDefaults);
     const previous = mergeInitiativeCardRegistries(readLocalInitiativeCards(), roomRegistry);
     const next = normalizeInitiativeCardRegistry(updater({ ...previous }) || previous);
-    const localWritten = writeLocalInitiativeCards(next);
+    const localWritten = roomOnly ? false : writeLocalInitiativeCards(next);
     let droppedNames = [];
     try {
       if (!isCurrent()) return next;

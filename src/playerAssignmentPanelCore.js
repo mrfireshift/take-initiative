@@ -1,6 +1,6 @@
 // Lot GA4 of docs/STUDIO_GIOCO_ONLINE.md: the «Giocatori» panel of the Options, Online room profile only. The room's
-// characters (the card registry, without the monsters' stat blocks, and the characters and allies of the current
-// scene) with the player each is remembered for; the GM chooses without a token and without a scene. It writes the
+// characters (this Room's card registry, not the GM's browser copy that holds every room's, without the monsters'
+// stat blocks; and the characters and allies of the current scene) with the player each is remembered for; the GM chooses without a token and without a scene. It writes the
 // same room memory as the card menu (playerAssignmentMemoryCore.js). Pure: the SDK and the storage are the callers'.
 import { normalizedItemName } from "./factionRegistryCore.js";
 import { actorProfileIdFromItem, actorProfileIdFromRegistryEntry } from "./actorIdentityCore.js";
@@ -20,14 +20,16 @@ function trackedCharacter(item) {
   return !!meta && ["pc", "ally"].includes(meta.attitude) && item.layer === "CHARACTER" && !item.attachedTo;
 }
 
-// The rows, one per character: { id, name, actorProfileId, keys, writeKey, userId }. keys are the memory keys the
-// character may be remembered under (its identity's, its name's), writeKey the one a choice is saved under.
+// The rows, one per character: { id, name, actorProfileId, keys, writeKey, userId, pc, inRegistry }. keys are the
+// memory keys the character may be remembered under (its identity's, its name's), writeKey the one a choice is saved
+// under. pc (P3): a card with a class, a PC of the scene or a character with a player; the others (NPCs, allies
+// without a class) are listed apart. inRegistry: the Room's registry holds its card, which the GM may take out (P4).
 // `registryActorOf(item)` gives the identity the card registry recognises for a scene token that has none.
 // `orphanKeys`: remembered keys no row explains (a character whose card is gone), which the GM may forget.
 export function playerAssignmentPanelRows(registry, memory, { items = [], registryActorOf = () => "" } = {}) {
   const known = normalizePlayerAssignmentMemory(memory);
   const rows = new Map();
-  const add = (actorProfileId, name, updatedAt = 0) => {
+  const add = (actorProfileId, name, updatedAt = 0, { pc = false, inRegistry = false } = {}) => {
     const cleanName = String(name || "").trim();
     const nameKey = normalizedItemName(cleanName);
     if (!actorProfileId && !nameKey) return;
@@ -37,24 +39,32 @@ export function playerAssignmentPanelRows(registry, memory, { items = [], regist
     const row = rows.get(id) || nameTwin || null;
     if (row) {
       if (cleanName && Number(updatedAt || 0) >= row.updatedAt) { row.name = cleanName; row.updatedAt = Number(updatedAt || 0); }
+      row.pc ||= pc;
+      row.inRegistry ||= inRegistry;
       return;
     }
-    rows.set(id, { id, name: cleanName || "Personaggio", actorProfileId: actorProfileId || "", updatedAt: Number(updatedAt || 0) });
+    rows.set(id, { id, name: cleanName || "Personaggio", actorProfileId: actorProfileId || "", updatedAt: Number(updatedAt || 0), pc, inRegistry });
   };
   for (const entry of Object.values(registry && typeof registry === "object" ? registry : {})) {
     if (!entry || typeof entry !== "object" || entry.deleted === true || !entry.name) continue;
     const profile = entry.profile && typeof entry.profile === "object" ? entry.profile : null;
     if (isMonsterProfileCard(profile)) continue;
-    add(actorProfileIdFromRegistryEntry(entry), entry.name, entry.updatedAt);
+    const hasClass = Array.isArray(profile?.characterBuild) && profile.characterBuild.length > 0;
+    add(actorProfileIdFromRegistryEntry(entry), entry.name, entry.updatedAt, { pc: hasClass, inRegistry: true });
   }
   for (const item of Array.isArray(items) ? items : []) {
     if (!trackedCharacter(item)) continue;
-    add(actorProfileIdFromItem(item) || String(registryActorOf(item) || ""), item.name, -1);
+    add(actorProfileIdFromItem(item) || String(registryActorOf(item) || ""), item.name, -1,
+      { pc: item.metadata[META_KEY].attitude === "pc" });
   }
   // Rows without identity that a row with one already covers by name are the same character.
   for (const [id, row] of rows) {
     if (row.actorProfileId) continue;
-    if ([...rows.values()].some((other) => other.actorProfileId && normalizedItemName(other.name) === normalizedItemName(row.name))) rows.delete(id);
+    const twin = [...rows.values()].find((other) => other.actorProfileId && normalizedItemName(other.name) === normalizedItemName(row.name));
+    if (!twin) continue;
+    twin.pc ||= row.pc;
+    twin.inRegistry ||= row.inRegistry;
+    rows.delete(id);
   }
   const explained = new Set();
   const result = [...rows.values()].map((row) => {
@@ -68,6 +78,8 @@ export function playerAssignmentPanelRows(registry, memory, { items = [], regist
       keys,
       writeKey: keys[0],
       userId: userKey ? known[userKey] : "",
+      pc: row.pc || !!userKey,
+      inRegistry: row.inRegistry,
     };
   }).sort((left, right) => left.name.localeCompare(right.name, "it"));
   return { rows: result, orphanKeys: Object.keys(known).filter((key) => !explained.has(key)) };

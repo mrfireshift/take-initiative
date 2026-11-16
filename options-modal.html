@@ -177,10 +177,11 @@
           </article>
 
           <article class="option-card room-only" data-player-assignment-card hidden>
-            <div class="option-card-heading">
-              <div><h3>Giocatori</h3><p>Il giocatore di ogni personaggio, in ogni scena: il suo token gli passa appena è sulla mappa. Si applica subito, senza «Salva».</p></div>
-            </div>
-            <div class="player-assignment-list" data-player-assignment-list></div>
+            <details class="player-assignment">
+              <summary><h3>Giocatori</h3><span class="player-assignment-summary" data-player-assignment-summary></span></summary>
+              <p class="player-assignment-help">Il giocatore di ogni PG di questa stanza, in ogni scena: il suo token gli passa appena è sulla mappa. Si applica subito, senza «Salva». ✕ toglie la scheda dal registro della stanza.</p>
+              <div class="player-assignment-list" data-player-assignment-list></div>
+            </details>
           </article>
 
           <article class="option-card room-only" data-room-only>
