@@ -519,7 +519,10 @@ const DEFINITIONS = [
     speciesOptions: ["alto"], abilities: ["int", "cha"],
     plugin: "Passo velato una volta per riposo breve o lungo, senza slot e con Intelligenza: si lancia dalla sua card. La lingua silvana va nella scheda.",
     spellAbility: "int", spells: [{ key: "passo-velato", spellId: "misty-step", name: "Passo velato", uses: "breve", activation: "azione_bonus", self: true }] }),
-  feat("xge", 75, "Tempra Nanica", "Dwarven Fortitude", { prerequisite: "Nano", species: DWARVES, abilities: ["con"] }),
+  // Lot F8-3 of docs/STUDIO_TALENTI.md (plan §7.34.4, decision P4): the cure with the Dodge of the console's Azioni tab
+  // (pcAttackTurnActionCore.js, pcDwarvenFortitudePlan); the Hit Die spent is counted at the table.
+  feat("xge", 75, "Tempra Nanica", "Dwarven Fortitude", { prerequisite: "Nano", species: DWARVES, abilities: ["con"],
+    plugin: "Nella Schivata della console (Azioni), «Tempra Nanica»: scrivi il Dado Vita tirato e il nano recupera il tiro + Costituzione. Il Dado Vita speso si conta al tavolo." }),
 
   // Calderone Omnicomprensivo di Tasha, capitolo 1, pp. 79–81.
   feat("tce", 79, "Abilità Impeccabile", "Skill Expert", { abilities: ALL_ABILITIES, plugin: ON_SHEET }),

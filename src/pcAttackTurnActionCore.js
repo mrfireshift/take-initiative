@@ -32,6 +32,8 @@ import { planSpellCastCost } from "./spellSlotSpendCore.js";
 import { buildSpellCausality } from "./combatLogCausalityCore.js";
 import { withSpellCastCost } from "./spellCastRecordCore.js";
 import { planPcTurnActionVia } from "./pcAttackTurnActionViaCore.js";
+import { abilityModifier } from "./abilityModifiersCore.js";
+import { QUICK_HP_MODES, calculateQuickHPChange } from "./quickHpCore.js";
 
 const META_KEY = `${ID}/meta`;
 
@@ -103,6 +105,33 @@ function stealthTotal(value) {
 // Why the action cannot be registered now, or "". Only in combat, on the creature's own turn: the pills count turns,
 // and the dash belongs to the movement of the turn. Help needs the creature it helps (or the enemy) and its mode.
 // The checks every action shares: a creature, in combat, on its own turn (lot T4a: a feature's card says them too).
+// Dwarven Fortitude (lot F8-3 of docs/STUDIO_TALENTI.md, plan §7.34.4, decision P4): with the Dodge, a Hit Die spent at
+// the table; the creature regains the roll the GM writes + its Constitution modifier, never below 0, up to its maximum.
+// The temporary hit points do not change. Empty, the Dodge of always. In the Dodge's own command: one entry, one Undo.
+export const DWARVEN_FORTITUDE_MAX_ROLL = 12;
+export function pcDwarvenFortitudeOffered(sourceItem) {
+  return sanitizeFeats(sourceItem?.metadata?.[META_KEY]?.initiativeCard?.[FEATS_FIELD]).some((entry) => entry.id === "tempra-nanica");
+}
+const fortitudeWritten = (value) => value !== null && value !== undefined && String(value).trim() !== "";
+function fortitudeRoll(value) {
+  const roll = Number(String(value).trim());
+  return Number.isInteger(roll) && roll >= 1 && roll <= DWARVEN_FORTITUDE_MAX_ROLL ? roll : null;
+}
+// What the cure does: { roll, con, amount, change } or { blocker }; null when nothing is written.
+export function pcDwarvenFortitudePlan(sourceItem, value) {
+  if (!fortitudeWritten(value)) return null;
+  if (!pcDwarvenFortitudeOffered(sourceItem)) return { blocker: "Tempra Nanica: il talento non è nella scheda." };
+  const roll = fortitudeRoll(value);
+  if (roll === null) return { blocker: `Tempra Nanica: il tiro del Dado Vita, un intero da 1 a ${DWARVEN_FORTITUDE_MAX_ROLL}.` };
+  const meta = sourceItem.metadata?.[META_KEY] || {};
+  if (!Number.isFinite(meta.hp) || !Number.isFinite(meta.hpMax) || meta.hp < 0 || meta.hpMax < 0)
+    return { blocker: `${sourceItem.name || "La creatura"} non ha PF canonici validi.` };
+  const con = Number(abilityModifier(meta.initiativeCard?.abilityModifiers, "con")) || 0;
+  const amount = Math.max(0, roll + con);
+  return { roll, con, amount,
+    change: calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: amount, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp }) };
+}
+
 export function pcTurnActionTurnBlocker({ sourceItem = null, turnState = null } = {}) {
   if (!sourceItem?.id) return "Nessuna creatura per questa azione.";
   const order = Array.isArray(turnState?.order) ? turnState.order.filter(Boolean) : [];
@@ -111,12 +140,17 @@ export function pcTurnActionTurnBlocker({ sourceItem = null, turnState = null } 
   return "";
 }
 
-export function pcTurnActionBlocker({ kind = "", sourceItem = null, turnState = null, targetItem = null, mode = "", stealth = null } = {}) {
+export function pcTurnActionBlocker({ kind = "", sourceItem = null, turnState = null, targetItem = null, mode = "", stealth = null,
+  fortitude = null } = {}) {
   if (!LABELS[kind]) return "Azione non valida.";
   const turn = pcTurnActionTurnBlocker({ sourceItem, turnState });
   if (turn) return turn;
   if (kind === "disengage" && hasActiveCondition(sourceItem, DISENGAGE_CONDITION)) return "Ha già il Disimpegno in questo turno.";
   if (kind === "dodge" && hasActiveCondition(sourceItem, DODGE_CONDITION)) return "È già in Schivata.";
+  if (kind === "dodge") {
+    const cure = pcDwarvenFortitudePlan(sourceItem, fortitude);
+    if (cure?.blocker) return cure.blocker;
+  }
   if (kind === "dash" && consoleDashCount(sourceItem, resolveSpeedCheckTurn(turnState).turnKey) >= MAX_TURN_DASHES)
     return `Già ${MAX_TURN_DASHES} scatti in questo turno.`;
   if (kind === "help") {
@@ -172,12 +206,14 @@ function actionPill({ kind, sourceItem, targetItem, mode, stealth, sourceName })
 // Hide's.
 // via (lot T4a): the feature that grants the action as a bonus action (pcAttackTurnActionViaCore.js), its cost and its
 // name in the same command; Adrenaline Rush's temporary hit points too.
+// fortitude (lot F8-3): Dwarven Fortitude's roll with the Dodge.
 export function buildPcTurnActionMutation({ kind = "", sourceItem, attackInstanceId, turnState = null, targetItem = null, mode = "", stealth = null,
-  via = "" } = {}) {
+  via = "", fortitude = null } = {}) {
   if (!attackInstanceId || typeof attackInstanceId !== "string") throw new Error("Identità dell'azione mancante.");
-  const blocker = pcTurnActionBlocker({ kind, sourceItem, turnState, targetItem, mode, stealth });
+  const blocker = pcTurnActionBlocker({ kind, sourceItem, turnState, targetItem, mode, stealth, fortitude });
   if (blocker) throw new Error(blocker);
   const viaPlan = via ? planPcTurnActionVia({ featureId: via, kind, sourceItem, turnState, eventId: attackInstanceId }) : null;
+  const cure = kind === "dodge" ? pcDwarvenFortitudePlan(sourceItem, fortitude) : null;
   const name = LABELS[kind];
   const viaText = viaPlan ? ` (${viaPlan.name})` : "";
   const sourceName = sourceItem.name || sourceItem.id;
@@ -198,7 +234,9 @@ export function buildPcTurnActionMutation({ kind = "", sourceItem, attackInstanc
     turnAction: { kind, ...(kind === "dash" ? { dashes } : { condition: pill.condition }), ...(kind === "help" ? { mode } : {}),
       ...(total !== null && kind === "hide" ? { stealth: total } : {}),
       ...(viaPlan ? { via: { featureId: viaPlan.featureId, name: viaPlan.name, ...(viaPlan.spent ? { spent: viaPlan.spent } : {}),
-        ...(viaPlan.tempHp ? { tempHp: viaPlan.tempHp } : {}), ...(viaPlan.warning ? { warning: viaPlan.warning } : {}) } } : {}) },
+        ...(viaPlan.tempHp ? { tempHp: viaPlan.tempHp } : {}), ...(viaPlan.warning ? { warning: viaPlan.warning } : {}) } } : {}),
+      ...(cure ? { fortitude: { name: "Tempra Nanica", roll: cure.roll, con: cure.con, amount: cure.amount, before: cure.change.hp,
+        after: cure.change.afterHP } } : {}) },
     ...(turn ? { turn } : {}),
     targets: [{ id: holder.id, name: holderName, ...(pill ? { conditions: [{ condition: pill.condition, instanceId }] } : {}) }],
   };
@@ -206,7 +244,12 @@ export function buildPcTurnActionMutation({ kind = "", sourceItem, attackInstanc
     type: "condition:add", targetIds: [holder.id], conditionName: pill.condition, instanceIds: { [holder.id]: instanceId },
     options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", manualRemoval: true, ...pill.options,
       ...(appliedAt ? { appliedAt } : {}) },
-  }, { type: "condition:automate", subjectIds: [holder.id] }] : []), ...(viaPlan?.operations || [])];
+  }, { type: "condition:automate", subjectIds: [holder.id] }] : []), ...(viaPlan?.operations || []),
+    // Dwarven Fortitude's cure (lot F8-3), as a species' cure writes it.
+    ...(cure?.change?.changed ? [{ type: "hp:set", updates: [{ itemId: sourceItem.id, hp: cure.change.afterHP, hpMax: cure.change.hpMax,
+      tempHp: cure.change.afterTempHp, hpIntent: { mode: QUICK_HP_MODES.HEAL, amount: cure.amount, eventId: attackInstanceId },
+      expectedHP: bossMetadataSnapshot(sourceItem.metadata?.[META_KEY] || {}, "hp"),
+      expectedHPMax: bossMetadataSnapshot(sourceItem.metadata?.[META_KEY] || {}, "hpMax") }] }] : [])];
   return {
     condition: pill?.condition || "", causality, manualText: "", labelTargetIds: pill ? [holder.id] : [],
     operations,

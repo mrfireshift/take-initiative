@@ -45,7 +45,7 @@ import { spellGrantedActionsForItem } from "./spellGrantedActionsCore.js";
 import { PC_MANEUVER_CONTEST, PC_MANEUVER_NOTES, PC_MANEUVER_OUTCOMES, PC_MANEUVER_OUTCOME_LABELS, PC_SHOVE_EFFECTS, PC_SHOVE_EFFECT_LABELS,
   pcAttackManeuverEntries, pcGrappleHolds, pcGrapplePinOffered, PC_GRAPPLE_PIN_NOTE, pcGrapplesOn, pcManeuverBlocker, pcManeuverLabel } from "./pcAttackManeuverCore.js";
 import { PC_HELP_MODES, PC_HELP_MODE_LABELS, PC_READY_SPELL_NOTE, PC_TURN_ACTION_NOTES, pcAttackTargetNotes, pcAttackTurnActionEntries,
-  pcTurnActionBlocker, pcTurnActionLabel, pcTurnActionTurnBlocker } from "./pcAttackTurnActionCore.js";
+  pcTurnActionBlocker, pcTurnActionLabel, pcTurnActionTurnBlocker, pcDwarvenFortitudeOffered, pcDwarvenFortitudePlan } from "./pcAttackTurnActionCore.js";
 import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
 import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageShortNotice, mirrorImageState } from "./mirrorImageCore.js";
@@ -217,7 +217,9 @@ export function turnActionSummary(result,actor="") {
   const self=`${action.kind==="help"?actor || "la creatura":holder}${via}`;
   if(action.kind==="dash") return `Registrato: ${name} di ${self}, uno scatto in più nel riquadro Movimento.${after}`;
   if(action.kind==="disengage") return `Registrato: ${name} di ${self}, niente attacchi di opportunità fino alla fine del turno.${after}`;
-  if(action.kind==="dodge") return `Registrato: ${name} di ${self}, fino all'inizio del suo prossimo turno.`;
+  // Dwarven Fortitude (lot F8-3): the cure with the Dodge.
+  if(action.kind==="dodge") return `Registrato: ${name} di ${self}, fino all'inizio del suo prossimo turno.${action.fortitude
+    ?` Tempra Nanica: ${action.fortitude.amount} PF (${action.fortitude.before} → ${action.fortitude.after}).`:""}`;
   if(action.kind==="help") return action.mode==="attack"
     ?`Registrato: ${name} di ${self} contro ${holder}, il primo attacco di un alleato ha vantaggio.${after}`
     :`Registrato: ${name} di ${self} a ${holder}, vantaggio alla prossima prova del compito.${after}`;
@@ -299,6 +301,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // Help and Hide (Azioni tab): what Help is for and whom, Hide's Stealth total, above the action's card.
   const turnActionBox=$("pc-attack-turn-action"),helpModeRow=$("pc-attack-help-mode-row"),helpModes=$("pc-attack-help-modes");
   const helpTargetRow=$("pc-attack-help-target-row"),helpCaption=$("pc-attack-help-caption"),hideRow=$("pc-attack-hide-row"),hideStealth=$("pc-attack-hide-stealth");
+  // Dwarven Fortitude (lot F8-3 of docs/STUDIO_TALENTI.md): its roll with the Dodge.
+  const fortitudeRow=$("pc-attack-fortitude-row"),fortitudeInput=$("pc-attack-fortitude");
   // Ready (Preparare, lots T3 and T6b): an action (the pill), or a spell of the book, prepared in the spell panel.
   const readyModeRow=$("pc-attack-ready-mode-row"),readyModes=$("pc-attack-ready-modes"),readySpellRow=$("pc-attack-ready-spell-row"),readySpell=$("pc-attack-ready-spell");
   const readySlotRow=$("pc-attack-ready-slot-row"),readySlot=$("pc-attack-ready-slot");
@@ -1983,7 +1987,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // creature's side until the GM presses one; Hide takes the Stealth total, if given. Their controls are the page's own
   // (pc-attack.html), never rebuilt: a live update keeps the caret in the field and the open menu.
   let turnActionId=newAttackId();
-  const emptyTurnActionDraft=(kind="")=>({kind,mode:"",modePicked:false,targetId:"",picked:false,stealth:"",readyMode:"action",readySpellId:"",readySlot:""});
+  const emptyTurnActionDraft=(kind="")=>({kind,mode:"",modePicked:false,targetId:"",picked:false,stealth:"",fortitude:"",readyMode:"action",readySpellId:"",readySlot:""});
   let turnActionDraft=emptyTurnActionDraft();
   const sideOfItem=item=>{const attitude=String(item?.metadata?.[META_KEY]?.attitude || "").toLocaleLowerCase("it");
     return attitude==="enemy"?"enemy":attitude==="pc" || attitude==="ally"?"friendly":"neutral";};
@@ -1991,6 +1995,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   helpModes?.replaceChildren(...PC_HELP_MODES.map(mode=>choiceButton(PC_HELP_MODE_LABELS[mode],false,
     ()=>{turnActionDraft={...turnActionDraft,mode,modePicked:true};rerenderTurnAction();},{helpMode:mode})));
   hideStealth?.addEventListener("input",()=>{turnActionDraft.stealth=String(hideStealth.value ?? "").trim();rerenderTurnAction();});
+  fortitudeInput?.addEventListener("input",()=>{turnActionDraft.fortitude=String(fortitudeInput.value ?? "").trim();rerenderTurnAction();});
   // Ready (lot T6b, decision P1): an action, the pill of T3; or a spell of the book, held here in one click (after lot T6e):
   // its slot in the row below, its concentration confirmed, Counterspell asked in the reaction box (decisions P2–P4, P9).
   readyModes?.replaceChildren(...[["action","Un'azione"],["spell","Un incantesimo"]].map(([mode,label])=>choiceButton(label,false,
@@ -2027,12 +2032,14 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function turnActionRequest(entry) {
     const kind=entry.turnAction;
     return {kind,...(kind==="help"?{targetId:turnActionDraft.targetId,mode:turnActionDraft.mode}:{}),
-      ...(kind==="hide" && turnActionDraft.stealth!==""?{stealth:Number(turnActionDraft.stealth)}:{})};
+      ...(kind==="hide" && turnActionDraft.stealth!==""?{stealth:Number(turnActionDraft.stealth)}:{}),
+      ...(kind==="dodge" && turnActionDraft.fortitude!==""?{fortitude:turnActionDraft.fortitude}:{})};
   }
   function turnActionBlocker(entry) {
     const request=turnActionRequest(entry);
     const blocker=pcTurnActionBlocker({kind:entry.turnAction,sourceItem:presentation?.item,turnState:presentation?.turnState,
-      targetItem:request.targetId?targetById(request.targetId):null,mode:request.mode || "",stealth:entry.turnAction==="hide"?turnActionDraft.stealth:null});
+      targetItem:request.targetId?targetById(request.targetId):null,mode:request.mode || "",stealth:entry.turnAction==="hide"?turnActionDraft.stealth:null,
+      fortitude:entry.turnAction==="dodge"?turnActionDraft.fortitude:null});
     if(blocker || entry.turnAction!=="ready" || turnActionDraft.readyMode!=="spell") return blocker;
     // A spell: one of the book's the Ready action can hold.
     if(!readiableSpells().length) return "Nessun incantesimo da 1 azione nel grimorio.";
@@ -2040,7 +2047,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   function renderTurnAction(entry) {
     const kind=entry.turnAction;
-    if(turnActionDraft.kind!==kind){turnActionDraft=emptyTurnActionDraft(kind);if(hideStealth)hideStealth.value="";}
+    if(turnActionDraft.kind!==kind){turnActionDraft=emptyTurnActionDraft(kind);if(hideStealth)hideStealth.value="";if(fortitudeInput)fortitudeInput.value="";}
     if(kind==="help") {
       if(turnActionDraft.targetId && !targetById(turnActionDraft.targetId)) turnActionDraft={...turnActionDraft,targetId:"",picked:false};
       if(!turnActionDraft.picked) turnActionDraft.targetId=selection.status==="single" && targetById(selection.target?.id)?selection.target.id:"";
@@ -2071,14 +2078,18 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const targetName=target?.name || "La creatura";
     total.textContent=blocker || {dash:"Uno scatto in più nel riquadro Movimento.",
       disengage:"Disimpegno fino alla fine del turno: niente avvisi di attacco di opportunità.",
-      dodge:"Schivata fino all'inizio del suo prossimo turno.",
+      dodge:(()=>{const cure=pcDwarvenFortitudePlan(presentation?.item,turnActionDraft.fortitude);
+        return `Schivata fino all'inizio del suo prossimo turno.${cure?.change?` Tempra Nanica: ${cure.roll} ${cure.con<0?"−":"+"} ${Math.abs(cure.con)} = ${cure.amount} PF, ${cure.change.hp} → ${cure.change.afterHP}.`:""}`;})(),
       help:turnActionDraft.mode==="attack"?`${targetName}: il primo attacco di un alleato contro di lui ha vantaggio.`:`${targetName}: vantaggio alla prossima prova del compito.`,
       hide:request.stealth!==undefined?`Nascosto, Furtività ${request.stealth}.`:"Nascosto, senza il totale di Furtività.",
       ready:readyChosen?`${readyChosen.label} (${readyCost}): si tiene con la concentrazione fino all'inizio del suo prossimo turno e si rilascia con la reazione.`
         :"Azione preparata fino all'inizio del suo prossimo turno."}[kind] || "";
     total.title=total.textContent;
     // Help's creature and mode, Hide's Stealth, Ready's mode and spell: above the card, their state from the draft.
-    if(turnActionBox) turnActionBox.hidden=!["help","hide","ready"].includes(kind);
+    const fortitudeOffered=kind==="dodge" && pcDwarvenFortitudeOffered(presentation?.item);
+    if(turnActionBox) turnActionBox.hidden=!["help","hide","ready"].includes(kind) && !fortitudeOffered;
+    if(fortitudeRow) fortitudeRow.hidden=!fortitudeOffered;
+    if(fortitudeInput) fortitudeInput.disabled=busy || invalidated || launchBusy;
     if(helpModeRow) helpModeRow.hidden=kind!=="help";
     if(helpTargetRow) helpTargetRow.hidden=kind!=="help";
     if(hideRow) hideRow.hidden=kind!=="hide";

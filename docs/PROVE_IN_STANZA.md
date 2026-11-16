@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **326** |
+| **B. Console attacchi, mostri e capacità** | **330** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -93,6 +93,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B64. Maestro delle Armature Pesanti | 4 |
 | B65. Carica, Maestro degli Scudi, Lottatore da Taverna, Appostato | 4 |
 | B66. Lottatore: vantaggio e Immobilizza | 4 |
+| B67. Tempra Nanica | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -118,7 +119,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **689** |
+| **Totale** | **693** |
 
 ## A. Incantesimi
 
@@ -1231,6 +1232,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F8-2 (decisione P3). Le voc
 - [ ] **Immobilizza:** nella riga «Tiene Ogre» c'è **Immobilizza**; premuto, l'ogre e il personaggio sono Trattenuti, e il registro dice «immobilizza … Trattenuti tutti e due». Il pulsante sparisce finché dura.
 - [ ] **La fine della presa:** **Lascia andare** (o, dalla console dell'ogre, **Sfugge**) toglie Afferrato e i due Trattenuto; **Non sfugge** lascia tutto.
 - [ ] **Annulla:** l'Annulla di Immobilizza toglie i due Trattenuto e lascia la presa. Senza il talento, Immobilizza non c'è.
+
+### B67. Tempra Nanica
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F8-3 (piano dei PF §7.34.4, decisione P4). Le voci sono nuove: nessuna lista le aveva. Serve un nano con Tempra Nanica e Costituzione +3, a 20/45 PF, nel suo turno. Ogni voce in vista compatta ed estesa, guardando anche la barra PF sulla mappa.
+
+- [ ] **Il campo:** in Azioni → Schivata c'è «Tempra Nanica»; senza il talento il campo non c'è.
+- [ ] **La cura:** scritto 7, il totale dice «Tempra Nanica: 7 + 3 = 10 PF, 20 → 30»; **Registra** mette la Schivata e porta il nano a 30/45, sulla mappa anche. A 43/45 arriva a 45.
+- [ ] **Vuoto o fuori misura:** vuoto, la Schivata di sempre; 0 o 13 tengono spento **Registra** con il motivo.
+- [ ] **Annulla:** l'Annulla della console toglie la Schivata e riporta il nano a 20/45.
 
 ## C. Tracker e UX
 

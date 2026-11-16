@@ -477,6 +477,24 @@ test("Sweeping Attack: the target, the second creature and the die in one Histor
   assert.equal(meta("aria").classFeatureState?.resources?.["guerriero-dadi-superiorita"]?.current ?? 5, 5);
 });
 
+// Lot F8-3 of docs/STUDIO_TALENTI.md: Dwarven Fortitude's cure in the Dodge's own entry; one Undo takes both back.
+test("Dwarven Fortitude: the Dodge with the Hit Die cures in its own entry; one Undo takes the pill and the cure back", async () => {
+  Object.assign(meta("aria"), { hp: 20, hpMax: 45 });
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "guerriero", level: 5 }], abilityModifiers: { con: 3 },
+    species: { id: "nano" }, feats: [{ id: "tempra-nanica", ability: "con" }] });
+  const pills = () => (meta("aria").conditions?.instances || meta("aria").conditions || []).filter((instance) => instance.active !== false)
+    .map((instance) => instance.condition);
+  const presentation = await runtime.getPcAttackPresentation("aria", "holy-sword");
+  const result = await runtime.executePcTurnAction({ sourceId: "aria", kind: "dodge", fortitude: "7", attackInstanceId: "dodge-1",
+    sceneIdentity: presentation.sceneIdentity });
+  assert.deepEqual([meta("aria").hp, pills()], [30, ["Schivata"]]);
+  assert.equal(result.turnAction.fortitude.amount, 10);
+  const entries = (await history.getHistoryEntries()).filter((entry) => entry.kind === "pc-attack");
+  assert.equal(entries.length, 1);
+  await history.undoHistoryThrough(entries[0].id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual([meta("aria").hp, pills()], [20, []]);
+});
+
 // Lot F8-2 of docs/STUDIO_TALENTI.md: Grappler's pin through the runtime: Restrained on both in one entry, its Undo, and
 // the grapple's end that takes both away.
 test("Grappler: Immobilizza puts Restrained on both, one Undo takes them away; letting go ends both", async () => {
