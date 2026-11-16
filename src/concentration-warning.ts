@@ -104,6 +104,19 @@ function warningsFromURL(): Warning[] {
   }
 }
 
+// Lot F4 of docs/STUDIO_TALENTI.md: the sheet's Constitution save and the feats' advantage or disadvantage, carried by
+// the notice (saveHint: { bonus, roll, reason }), which the tracker passes on untouched.
+function saveHintOf(warning: Warning) {
+  const hint = warning.notice?.saveHint;
+  if (!hint || typeof hint !== "object") return null;
+  const bonus = Number.isInteger(hint.bonus) ? Number(hint.bonus) : null;
+  const roll = String(hint.roll || "").trim().slice(0, 60);
+  const reason = String(hint.reason || "").trim().slice(0, 160);
+  return bonus !== null || roll ? { bonus, roll, reason } : null;
+}
+
+const signed = (value: number) => (value >= 0 ? "+" : "−") + Math.abs(value);
+
 function closePopoverSdk() {
   if (runtimeScope.popoverId === POPOVER_ID) {
     return OBR.popover.close(POPOVER_ID);
@@ -137,8 +150,9 @@ function render(role: string, warnings: Warning[] = warningsFromURL()) {
   const panel = document.createElement("section");
   panel.className = warnings.length === 1 ? "warning warning-single" : "warning warning-multiple";
   panel.setAttribute("role", "alert");
+  const primaryHint = saveHintOf(primary);
   panel.setAttribute("aria-label", warnings.length === 1
-    ? "Tiro salvezza su Concentrazione per " + primary.name + ", CD " + primary.dc
+    ? "Tiro salvezza su Concentrazione per " + primary.name + ", CD " + primary.dc + (primaryHint?.roll ? ", " + primaryHint.roll : "")
     : warnings.length + " tiri salvezza su Concentrazione richiesti");
 
   const portrait = document.createElement("div");
@@ -193,8 +207,19 @@ function render(role: string, warnings: Warning[] = warningsFromURL()) {
     identity.className = "identity";
     const name = document.createElement("div");
     name.className = "name";
-    name.textContent = warnings.length === 1 ? "TS di Costituzione" : warning.name;
+    const hint = saveHintOf(warning);
+    const bonus = hint && hint.bonus !== null ? signed(hint.bonus) : "";
+    name.textContent = warnings.length === 1 ? "TS di Costituzione" + (bonus ? " " + bonus : "") : warning.name;
     identity.appendChild(name);
+    // Lot F4: «vantaggio», «svantaggio»; with several creatures their save's total too. The feat in the tooltip.
+    const hintText = warnings.length === 1 ? hint?.roll || "" : [bonus ? "TS " + bonus : "", hint?.roll || ""].filter(Boolean).join(" · ");
+    if (hintText) {
+      const note = document.createElement("div");
+      note.className = "save-hint";
+      note.textContent = hintText;
+      if (hint?.reason) note.title = hint.reason;
+      identity.appendChild(note);
+    }
     if (warning.spellName) {
       const spellName = document.createElement("div");
       spellName.className = "spell-name";

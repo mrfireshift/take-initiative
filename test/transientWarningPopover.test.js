@@ -70,7 +70,10 @@ test("la concentrazione usa i controlli reminder senza timer per il GM", () => {
   assert.match(concentration, /result\.status === "applied" \|\| result\.status === "already-resolved"/);
   assert.match(concentration, /panel\.className = warnings\.length === 1 \? "warning warning-single"/);
   assert.match(concentration, /title\.textContent = warnings\.length === 1 \? primary\.name/);
-  assert.match(concentration, /name\.textContent = warnings\.length === 1 \? "TS di Costituzione" : warning\.name/);
+  // Lot F4 of docs/STUDIO_TALENTI.md: the sheet's Constitution save after it, and the feats' advantage or disadvantage,
+  // from the notice's saveHint (which the tracker passes on untouched, above).
+  assert.match(concentration, /name\.textContent = warnings\.length === 1 \? "TS di Costituzione" \+ \(bonus \? " " \+ bonus : ""\) : warning\.name/);
+  assert.match(concentration, /const hint = saveHintOf\(warning\);/);
   assert.match(concentration, /identity\.appendChild\(name\)/);
   assert.match(concentration, /if \(warning\.spellName\)/);
   assert.match(concentration, /if \(warnings\.length > 1\) \{[\s\S]{0,180}dc\.textContent = "CD "/);

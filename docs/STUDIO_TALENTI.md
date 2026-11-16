@@ -4,7 +4,7 @@ Data: 15 novembre 2026. Stato: **studio, decisioni D1–D15 approvate
 dall'utente il 15/11** (§9); **F0 fatto il 15/11** (§7.1), **F1 il 16/11**
 (§7.2), **la prima parte di F3 il 16/11** (§7.3); **il piano di F3b il 16/11,
 con S1–S9 approvate** (§7.4), **F3b-1, F3b-2, F3b-3, F3b-4 e F3b-5 il 16/11**
-(§7.5–§7.9): F3 è chiuso.
+(§7.5–§7.9): F3 è chiuso. **F4 il 16/11** (§7.10).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -1295,6 +1295,40 @@ spostato a mano.
   La scheda Capacità della console resta com'è: `pcAttackFeatureFormCore.js` è
   in lavorazione in un'altra sessione.
 - **Documenti:** le prove in stanza sono in B33.
+
+### 7.10 F4, fatto il 16/11
+
+**Concentrazione.** Come la §5.5 e la tabella dei lotti.
+
+- **L'avviso del TS di concentrazione dopo un danno** dice, accanto al tiro:
+  - «vantaggio» se chi si concentra ha Incantatore da Guerra;
+  - «svantaggio» se chi ha inflitto il danno ha Sterminatore di Maghi;
+  - «vantaggio e svantaggio annullati» con tutti e due;
+  - il talento nel suggerimento, mai il nome dell'attaccante: l'avviso arriva
+    anche ai giocatori.
+- **Il totale del TS di Costituzione:** «TS di Costituzione +5».
+  - È quello della scheda, Resiliente compreso; per un mostro importato, il suo
+    modificatore.
+  - Un PG senza il TS nella scheda non mostra numeri: la competenza la sa la
+    scheda.
+- **Chi ha colpito** lo dicono le due console. `postBossDamage` riceve
+  `sourceId` e lo passa con il danno; `broadcastConcentrationSaveWarnings`
+  legge quel token insieme a quello ferito. Il tracker, i PF rapidi, le aree
+  del pannello e le reazioni restano come sono: lì lo svantaggio non compare.
+- **Il percorso dei dati:**
+  - la nota viaggia nella `notice` dell'avviso (`saveHint`), che il tracker
+    passa al popup senza toccarla;
+  - il normalizzatore di `initiativeList.js` tiene solo i campi suoi, quindi
+    quel file non cambia, come promesso dalla tabella dei rischi (§6);
+  - il popup ha l'altezza fissa del tracker: la nota sta nella riga che c'era;
+  - le aure, che chiedono il TS senza danno, non cambiano.
+- **Una cosa per le trasformazioni:** il totale del TS è quello della scheda,
+  non della forma. `pcAttackTargetSaveBonus` lo legge dalla forma nella
+  sessione delle trasformazioni, non ancora committata. Quando arriva, lo
+  stesso vale per questo avviso (`concentrationSaveBonus` in
+  `concentrationSaveReminderCore.js`).
+- **Documenti:** le prove in stanza sono in B36 (B34 e B35 sono delle
+  trasformazioni, in lavorazione).
 
 ---
 

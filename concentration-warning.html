@@ -204,6 +204,20 @@
         font-size: 10px;
         font-weight: 800;
       }
+      /* Lot F4 of docs/STUDIO_TALENTI.md: «vantaggio» or «svantaggio» from the feats, next to the save. It gives way
+         before the save's name and total; the whole of it is in its tooltip. */
+      .save-hint {
+        flex: 0 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        color: var(--accent);
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: var(--obrt-type-micro, 10px);
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .warning-single .name { flex: none; }
       .spell-name {
         overflow: hidden;
         color: rgba(255, 255, 255, .50);

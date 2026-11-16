@@ -41,10 +41,24 @@ export async function broadcastConcentrationSaveWarnings(changes = [], options =
     || `${now}-${++concentrationDamageSequence}`;
   const getItems = options.getItems
     || ((itemIds) => OBR.scene.items.getItems(itemIds));
-  const items = Array.isArray(options.items)
+  let items = Array.isArray(options.items)
     ? options.items
     : await getItems([...damageById.keys()]);
-  const normalizedChanges = [...damageById].map(([itemId, damage]) => ({ itemId, damage }));
+  // Lot F4 of docs/STUDIO_TALENTI.md: the creature that dealt the damage, when the caller knows it (the consoles), read
+  // with the damaged ones for Mage Slayer.
+  const sourceById = new Map((Array.isArray(changes) ? changes : []).filter((change) => change?.itemId && change?.sourceId)
+    .map((change) => [String(change.itemId).trim(), String(change.sourceId).trim()]));
+  const missingSourceIds = [...new Set(sourceById.values())].filter((id) => id && !items.some((item) => item?.id === id));
+  if (missingSourceIds.length) {
+    // The warning never waits on the attacker: without it, no disadvantage.
+    try {
+      items = items.concat(await getItems(missingSourceIds));
+    } catch {
+      // keep the damaged creatures only
+    }
+  }
+  const normalizedChanges = [...damageById].map(([itemId, damage]) => ({ itemId, damage,
+    ...(sourceById.get(itemId) ? { sourceId: sourceById.get(itemId) } : {}) }));
   const warnings = concentrationSaveWarningsForItems({
     items,
     changes: normalizedChanges,

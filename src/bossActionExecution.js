@@ -35,7 +35,9 @@ async function removeBossSeamDrawings({api=OBR,sourceId,itemIds=[],isCurrent}) {
   return [];
 }
 
-export async function postBossDamage({item,change,result,sceneEpoch,sceneIdentity,isCurrent}) {
+// sourceId: who dealt the damage (the two consoles), for a concentration save made at disadvantage by Mage Slayer (lot F4
+// of docs/STUDIO_TALENTI.md).
+export async function postBossDamage({item,change,result,sceneEpoch,sceneIdentity,isCurrent,sourceId=""}) {
   if (!change?.changed || !isCurrent()) return [];
   const [{syncHPBarNow,syncHPTextBatchNow},{syncHPBatchToMemory},{refreshConditionLabels},
     {broadcastConcentrationSaveWarnings},{effectSaveReminderNoticesForDamage},{sendProjectedReminderPayload}] = await Promise.all([
@@ -51,7 +53,7 @@ export async function postBossDamage({item,change,result,sceneEpoch,sceneIdentit
     Promise.resolve().then(()=>isCurrent()?syncHPTextBatchNow(updates):undefined),
     Promise.resolve().then(()=>isCurrent()?syncHPBatchToMemory(updates.map(update=>({itemId:update.tokenId,hp:update.hp,hpMax:update.hpMax})),{sceneEpoch,items:memoryItems,isCurrent}):undefined),
     Promise.resolve().then(()=>isCurrent()?refreshConditionLabels([item.id]):undefined),
-    Promise.resolve().then(()=>isCurrent()?broadcastConcentrationSaveWarnings([{itemId:item.id,damage:change.requested}],{
+    Promise.resolve().then(()=>isCurrent()?broadcastConcentrationSaveWarnings([{itemId:item.id,damage:change.requested,...(sourceId?{sourceId}:{})}],{
       causeHistoryEntryId:result.historyEntry?.id || "",sceneEpoch,warningRuntimeScope:sceneIdentity,
     }):undefined),
     Promise.resolve().then(async()=>{
@@ -430,7 +432,7 @@ export function createBossActionRuntime({
       if(result.duplicate!==true && scope.isCurrent()) {
         for(const row of damaged) {
           try {warnings.push(...(await postDamage({item:row.item,change:row.change,result,sceneEpoch:scope.epoch,
-            sceneIdentity:scope.scene.sceneIdentity,isCurrent:scope.isCurrent}) || []));}
+            sceneIdentity:scope.scene.sceneIdentity,isCurrent:scope.isCurrent,sourceId:scope.item.id}) || []));}
           catch(error) {warnings.push(String(error?.message || error));}
         }
       }

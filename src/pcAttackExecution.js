@@ -316,7 +316,7 @@ export function createPcAttackRuntime({
         ...(plan.burstChanges || []).map(row=>({item:row.item,change:row.change}))];
       if(result.duplicate!==true && scope.isCurrent()) for(const row of damaged) {
         try {warnings.push(...(await postDamage({item:row.item,change:row.change,result,sceneEpoch:scope.epoch,
-          sceneIdentity:scope.scene.sceneIdentity,isCurrent:scope.isCurrent}) || []));}
+          sceneIdentity:scope.scene.sceneIdentity,isCurrent:scope.isCurrent,sourceId:scope.item.id}) || []));}
         catch(error) {warnings.push(String(error?.message || error));}
       }
       if(result.duplicate!==true && plan.tempHpChanges?.length && scope.isCurrent()) {
@@ -469,7 +469,7 @@ export function createPcAttackRuntime({
       const warnings=[];
       if(result.duplicate!==true && scope.isCurrent()) for(const row of plan.changes) {
         try {warnings.push(...(await postDamage({item:row.item,change:row.change,result,sceneEpoch:scope.epoch,
-          sceneIdentity:scope.scene.sceneIdentity,isCurrent:scope.isCurrent}) || []));}
+          sceneIdentity:scope.scene.sceneIdentity,isCurrent:scope.isCurrent,sourceId:scope.item.id}) || []));}
         catch(error) {warnings.push(String(error?.message || error));}
       }
       // The metallic breath's conditions on creatures the damage projection did not refresh.
@@ -523,7 +523,7 @@ export function createPcAttackRuntime({
       if(result.duplicate!==true && scope.isCurrent()) {
         if(plan.change?.changed) {
           try {warnings.push(...(await postDamage({item:targetItem,change:plan.change,result,sceneEpoch:scope.epoch,
-            sceneIdentity:scope.scene.sceneIdentity,isCurrent:scope.isCurrent}) || []));}
+            sceneIdentity:scope.scene.sceneIdentity,isCurrent:scope.isCurrent,sourceId:scope.item.id}) || []));}
           catch(error) {warnings.push(String(error?.message || error));}
         } else {
           try {await refreshLabels([targetItem.id]);}

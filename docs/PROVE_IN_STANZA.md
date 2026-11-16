@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **220** |
+| **B. Console attacchi, mostri e capacità** | **225** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -67,6 +67,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B31. Incantatore Rituale | 5 |
 | B32. Statblock dai PDF e da GM Binder | 5 |
 | B33. La spinta di Telecinesi | 3 |
+| B36. Concentrazione: Incantatore da Guerra e Sterminatore di Maghi | 5 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -92,7 +93,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **583** |
+| **Totale** | **588** |
 
 ## A. Incantesimi
 
@@ -856,6 +857,16 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3b-5 (decisione S8). Le vo
 - [ ] **La card:** in Capacità, «Telecinesi: spinta telecinetica» è un'azione bonus e dice «Nel plugin: TS su Forza CD 14 (Intelligenza): chi lo fallisce si sposta di 1,5 m; il token si sposta a mano.». Con Carisma scelto come +1 del talento, la CD diventa 13 (Carisma). Da provare in vista compatta ed estesa.
 - [ ] **Senza livello:** tolto il livello dalla scheda, la riga chiede livello e modificatori invece di dare una CD.
 - [ ] **Nella console:** nella scheda Capacità della console, fra le altre capacità, c'è «Telecinesi: spinta telecinetica · azione bonus», solo da leggere; il token del nemico si sposta a mano sulla mappa.
+
+### B36. Concentrazione: Incantatore da Guerra e Sterminatore di Maghi
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F4. Le voci sono nuove: nessuna lista le aveva. Serve un PG incantatore con Incantatore da Guerra e il TS di Costituzione nella scheda (Statistiche), un PG con Sterminatore di Maghi e una spada negli Attacchi, un nemico incantatore e Benedizione da lanciare. Ogni avviso va guardato nella finestra del GM e sullo schermo del tavolo.
+
+- [ ] **Incantatore da Guerra:** il PG con il talento, concentrato su Benedizione, prende danni dalla console Boss o dal tracker. L'avviso dice «TS di Costituzione +5» (il valore della scheda) e «vantaggio»; passando sopra «vantaggio» compare il talento.
+- [ ] **Sterminatore di Maghi:** il PG con il talento colpisce con la spada, dalla console attacchi, il nemico concentrato: l'avviso dice «svantaggio». Lo stesso danno scritto a mano nel tracker non lo dice: lì il plugin non sa chi ha colpito.
+- [ ] **Tutti e due:** lo Sterminatore colpisce il PG con Incantatore da Guerra concentrato: l'avviso dice «vantaggio e svantaggio annullati».
+- [ ] **Più creature:** un trucchetto ad area della console attacchi (Turbine di Spade) colpisce due creature concentrate: ogni riga ha il suo «TS +N» e, dove serve, «vantaggio» o «svantaggio».
+- [ ] **Il mostro e il PG senza TS:** un mostro importato e concentrato mostra il suo modificatore di Costituzione; un PG senza il TS di Costituzione nella scheda non mostra numeri. **Superato** e **Fallito** funzionano come prima.
 
 ## C. Tracker e UX
 
