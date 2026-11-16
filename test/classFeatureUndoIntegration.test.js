@@ -343,3 +343,157 @@ test("Usa reazione: a reaction feature with nothing to spend marks only the reac
   scene.metadata = { [STATE_KEY]: { order: [], current: 0, round: 1 } };
   await assert.rejects(classFeatureRuntime.useClassFeatureReaction({ sourceId: "rogue", featureId: UNCANNY_DODGE_ID }), /Fuori dal combattimento/);
 });
+
+// Trasformazioni, lotto W2a (docs/PIANO_TRASFORMAZIONI.md): la forma scelta nella console va sulla pill della Forma
+// Selvatica, controllata con i limiti del druido; i PF restano quelli del druido fino a W5.
+const WILD_SHAPE_ID = "druido-forma-selvatica";
+const WILD_SHAPE_POOL_ID = "druido-forma-selvatica-usi";
+function druidToken(level) {
+  return {
+    id: "druid",
+    name: "Druida",
+    layer: "CHARACTER",
+    position: { x: 400, y: 0 },
+    metadata: {
+      [META_KEY]: {
+        hp: 30,
+        hpMax: 30,
+        conditions: { version: 2, instances: [] },
+        initiativeCard: {
+          classFeaturesConfigured: true,
+          enabledClassFeatureIds: [WILD_SHAPE_ID],
+          characterBuild: [{ classId: "druido", level, subclassId: "" }],
+        },
+        classFeatureState: {
+          version: 1,
+          resources: { [WILD_SHAPE_POOL_ID]: { current: 2, maximum: 2, unlimited: false } },
+          instances: [],
+        },
+      },
+    },
+  };
+}
+const crocodileForm = {
+  name: "Crocodile", ref: "Crocodile|MM", source: "5etools", type: "beast", cr: "1/2", size: "large",
+  hitPoints: { average: 19, formula: "3d10 + 3" }, armorClass: 12, speeds: { walk: 6, swim: 9 }, actions: [],
+};
+const druidMeta = () => scene.items.find((item) => item.id === "druid").metadata[META_KEY];
+const wildShapePill = () => (druidMeta().conditions?.instances || []).find((instance) => instance.effectId === WILD_SHAPE_ID);
+
+test("W2a, W5b: la forma scelta nella console va sulla pill con i suoi PF, quelli del druido messi da parte; l'Annulla toglie tutto", async () => {
+  scene.items.push(druidToken(4));
+  await classFeatureRuntime.activateClassFeature({ sourceId: "druid", featureId: WILD_SHAPE_ID, transformationForm: crocodileForm });
+  const pill = wildShapePill();
+  assert.equal(pill.displayLabel, "Forma Selvatica · Crocodile");
+  assert.equal(pill.mechanics.transformation.kind, "wild-shape");
+  assert.equal(pill.mechanics.transformation.keepsMind, true);
+  assert.equal(pill.mechanics.transformation.form.name, "Crocodile");
+  assert.deepEqual(pill.mechanics.transformation.form.speeds, { walk: 6, swim: 9 });
+  assert.equal(pill.mechanics.transformation.formHp, 19);
+  assert.match(pill.effectDetail, /^Crocodile \(bestia, GS 1\/2\): CA 12 · PF 19 · 6 m, nuoto 9 m\. Il druido prende i PF della forma/);
+  assert.deepEqual([druidMeta().hp, druidMeta().hpMax, pill.mechanics.transformation.stash], [19, 19, { hp: 30, hpMax: 30 }]);
+  assert.equal(druidMeta().classFeatureState.resources[WILD_SHAPE_POOL_ID].current, 1);
+  const [entry] = await waitForHistoryCount(1);
+  await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(wildShapePill(), undefined);
+  assert.deepEqual([druidMeta().hp, druidMeta().hpMax], [30, 30]);
+  assert.equal(druidMeta().classFeatureState.resources[WILD_SHAPE_POOL_ID].current, 2);
+});
+
+test("W2a: una forma oltre i limiti del druido non si attiva e non spende l'uso", async () => {
+  scene.items.push(druidToken(2));
+  await assert.rejects(
+    classFeatureRuntime.activateClassFeature({ sourceId: "druid", featureId: WILD_SHAPE_ID, transformationForm: crocodileForm }),
+    /Forma non ammessa: GS 1\/2: oltre il limite di GS 1\/4 al 2° livello\. Nuota: le forme che nuotano arrivano al 4° livello\./,
+  );
+  assert.equal(wildShapePill(), undefined);
+  assert.equal(druidMeta().classFeatureState.resources[WILD_SHAPE_POOL_ID].current, 2);
+});
+
+test("W2a: senza forma, come dalla scheda, la Forma Selvatica resta la pill di prima", async () => {
+  scene.items.push(druidToken(4));
+  await classFeatureRuntime.activateClassFeature({ sourceId: "druid", featureId: WILD_SHAPE_ID });
+  const pill = wildShapePill();
+  assert.equal(pill.displayLabel, undefined);
+  assert.equal(pill.mechanics.transformation.form, undefined);
+  assert.match(pill.effectDetail, /La forma si sceglie nella console attacchi/);
+});
+
+test("W3b: le difese della forma vanno sulla pill, e il motore le legge con quelle del druido", async () => {
+  scene.items.push(druidToken(4));
+  const { damageDefensesForItem } = await import("../src/damageDefensesCore.js");
+  const frostWolf = { ...crocodileForm, name: "Frost Wolf Pup", ref: "Frost Wolf Pup|HB", speeds: { walk: 12 },
+    damageDefenses: { resistances: ["cold"], immunities: [], vulnerabilities: ["fire"] } };
+  await classFeatureRuntime.activateClassFeature({ sourceId: "druid", featureId: WILD_SHAPE_ID, transformationForm: frostWolf });
+  assert.deepEqual(wildShapePill().mechanics.damageDefenses, { resistances: ["cold"], vulnerabilities: ["fire"] });
+  const defenses = damageDefensesForItem(scene.items.find((item) => item.id === "druid"), META_KEY);
+  assert.ok(defenses.resistances.includes("cold"));
+  assert.ok(defenses.vulnerabilities.includes("fire"));
+});
+
+test("W4a: la pill porta le velocità della forma, che sostituiscono quelle del druido", async () => {
+  scene.items.push(druidToken(4));
+  await classFeatureRuntime.activateClassFeature({ sourceId: "druid", featureId: WILD_SHAPE_ID, transformationForm: crocodileForm });
+  assert.deepEqual(wildShapePill().mechanics.movement,
+    { label: "Forma Selvatica · Crocodile", modes: { walk: { replaceMeters: 6 }, swim: { replaceMeters: 9 } } });
+});
+
+// Trasformazioni, lotto W6: la durata della forma e il Circolo della Luna.
+const COMBAT_WILD_SHAPE_ID = "druido-circolo-della-luna-forma-selvatica-da-combattimento";
+function moonDruidToken(level) {
+  const token = druidToken(level);
+  const card = token.metadata[META_KEY].initiativeCard;
+  card.characterBuild = [{ classId: "druido", level, subclassId: "druido-circolo-della-luna" }];
+  card.enabledClassFeatureIds = [WILD_SHAPE_ID, COMBAT_WILD_SHAPE_ID];
+  return token;
+}
+
+test("W6: la forma dura metà del livello da druido in ore, 600 round l'una", async () => {
+  scene.items.push(druidToken(4));
+  await classFeatureRuntime.activateClassFeature({ sourceId: "druid", featureId: WILD_SHAPE_ID, transformationForm: crocodileForm });
+  const instance = druidMeta().classFeatureState.instances.find((entry) => entry.featureId === WILD_SHAPE_ID);
+  assert.equal(instance.expiresRound - instance.startedRound + 1, 1200, "4th level: 2 hours");
+});
+
+test("W6: dalla scheda, senza forma, la pill dura lo stesso; i PF non cambiano", async () => {
+  scene.items.push(druidToken(6));
+  await classFeatureRuntime.activateClassFeature({ sourceId: "druid", featureId: WILD_SHAPE_ID });
+  const instance = druidMeta().classFeatureState.instances.find((entry) => entry.featureId === WILD_SHAPE_ID);
+  assert.equal(instance.expiresRound - instance.startedRound + 1, 1800, "6th level: 3 hours");
+  assert.deepEqual([druidMeta().hp, druidMeta().hpMax], [30, 30]);
+  assert.equal(wildShapePill().mechanics?.transformation?.form, undefined);
+});
+
+test("W6: Forma Selvatica da Combattimento: azione bonus; in forma la cura spende uno slot e cura la forma; un Annulla rimette tutto", async () => {
+  scene.items.push(moonDruidToken(4));
+  const { getEnabledClassFeatures } = await import("../src/classFeatureCatalog.js");
+  const { getClassFeatureDefinition } = await import("../src/classFeatureCatalog.js");
+  assert.equal(getEnabledClassFeatures(druidMeta().initiativeCard).find((entry) => entry.id === WILD_SHAPE_ID).activation.primary,
+    "azione_bonus");
+  assert.equal(getClassFeatureDefinition(WILD_SHAPE_ID).activation.primary, "azione", "the catalog's own stays an action");
+  await assert.rejects(classFeatureRuntime.activateClassFeature({ sourceId: "druid", featureId: COMBAT_WILD_SHAPE_ID, slotLevel: 1,
+    value: 6 }), /Serve una Forma Selvatica/);
+  await classFeatureRuntime.activateClassFeature({ sourceId: "druid", featureId: WILD_SHAPE_ID, transformationForm: crocodileForm });
+  const hit = await effects.runEffectsMutation([{ type: "hp:set", updates: [{ itemId: "druid", hp: 5, hpMax: 19,
+    hpIntent: { mode: "damage", amount: 14, eventId: "bite" } }] }], { kind: "hp", label: "Danno", targetIds: ["druid"] });
+  effects.requireAppliedEffectsMutation(hit);
+  await assert.rejects(classFeatureRuntime.activateClassFeature({ sourceId: "druid", featureId: COMBAT_WILD_SHAPE_ID, slotLevel: 2,
+    value: 17 }), /da 2 a 16/);
+  await classFeatureRuntime.activateClassFeature({ sourceId: "druid", featureId: COMBAT_WILD_SHAPE_ID, slotLevel: 2, value: 11 });
+  const { spellSlotPoolId } = await import("../src/spellSlotCore.js");
+  const slotsLeft = () => druidMeta().classFeatureState.resources?.[spellSlotPoolId(2)]?.current;
+  assert.deepEqual([druidMeta().hp, druidMeta().hpMax, slotsLeft(), wildShapePill().mechanics.transformation.stash],
+    [16, 19, 2, { hp: 30, hpMax: 30 }]);
+  const entries = await waitForHistoryCount(3);
+  assert.match(entries.at(-1).label, /Forma Selvatica da Combattimento: \+11 PF, slot di 2°/);
+  await history.undoHistoryThrough(entries.at(-1).id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual([druidMeta().hp, slotsLeft() ?? 3], [5, 3]);
+});
+
+test("ritratto: scelto nella console, la Forma Selvatica lo porta sulla pill per il controllore della taglia", async () => {
+  scene.items.push(druidToken(4));
+  const portrait = { url: "https://images.test/bestiary/tokens/MM/Crocodile.webp", width: 280, height: 280 };
+  await classFeatureRuntime.activateClassFeature({ sourceId: "druid", featureId: WILD_SHAPE_ID, transformationForm: crocodileForm,
+    transformationPortrait: portrait });
+  assert.deepEqual(wildShapePill().mechanics.transformation.portrait, { ...portrait, mime: "image/webp" });
+});

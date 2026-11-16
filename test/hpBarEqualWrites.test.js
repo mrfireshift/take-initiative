@@ -85,3 +85,31 @@ test("a bar already right is not written again; a token without bars still gets 
     await background.unmountHPBars();
   }
 });
+
+// Trasformazioni (16/11/2026): a token grown to a form's size can hand its scale to its bar and number. The flush puts
+// them back to their own size, once; a second pass finds nothing to write.
+test("la barra e il numero non tengono la scala del token: tornano a 1, una volta sola", async () => {
+  markSceneEpochReady("hp-bar-own-scale");
+  items = [{ id: "goblin", layer: "CHARACTER", type: "IMAGE", zIndex: 4,
+    metadata: { [KEY]: { hp: 40, hpMax: 40, attitude: "pc", inInitiative: true } } }];
+  try {
+    await background.mountHPBars();
+    await until(() => widget("bg") && widget("fg") && label()?.text?.plainText === "40/40", "the bars are created");
+    await sleep(400);
+    for (const item of [widget("bg"), widget("fg"), label()]) {
+      item.scale = { x: 2, y: 2 };
+      item.disableAttachmentBehavior = ["ROTATION", "VISIBLE", "COPY", "SCALE"];
+    }
+    writes.length = 0;
+    changeListener({ items: structuredClone(items.filter(item => item.id === "goblin")), flags: { tokenScale: true } });
+    await until(() => [widget("bg"), widget("fg"), label()].every(item => item.scale?.x === 1 && item.scale?.y === 1),
+      "the bar and the number are back to their own size");
+    assert.equal(label().text.style.fontSize, 12);
+    writes.length = 0;
+    changeListener({ items: structuredClone(items.filter(item => item.id === "goblin")), flags: { tokenScale: true } });
+    await sleep(500);
+    assert.deepEqual(writes, [], "nothing left to write");
+  } finally {
+    await background.unmountHPBars();
+  }
+});

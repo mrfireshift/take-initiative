@@ -21,6 +21,7 @@ import {
 import { ROOM_METADATA_DOMAIN_MAX_BYTES } from "./roomMetadataBudget.js";
 import { retainHPMapWithinByteBudget } from "./hpMemoryRetention.js";
 import { maxHpBaseValues, maxHpEffectiveValues } from "./maxHpModifierCore.js";
+import { transformationStashForMeta } from "./transformationHpCore.js";
 
 let __attSubMounted = false;        // evita doppie subscribe
 let __hpApplyBusyEpoch = null;
@@ -75,7 +76,10 @@ function portraitUrlFromItem(item) {
 }
 
 function memoryKeyFromItem(item) {
-  return `${baseName(item?.name)}||${portraitUrlFromItem(item)}`;
+  // Trasformazioni (16/11/2026): a token wearing its form's portrait is still its own creature: its key keeps the image
+  // the transformation put aside (transformationTokenBefore).
+  const ownImage = item?.metadata?.[META_KEY]?.transformationTokenBefore?.image?.url;
+  return `${baseName(item?.name)}||${typeof ownImage === "string" && ownImage ? ownImage : portraitUrlFromItem(item)}`;
 }
 
 function pcKeyFromItem(item) {
@@ -212,8 +216,10 @@ async function persistRemovedHPItems(items = [], sceneEpoch = currentSceneEpoch(
     if (!key) continue;
 
     const meta = item.metadata?.[META_KEY] || {};
-    const hp = Number(meta.hp);
-    const hpMax = Number(meta.hpMax);
+    // Trasformazioni, lotto W5d (§5.8): in a form, the creature's own HP, which its pill keeps.
+    const own = transformationStashForMeta(meta);
+    const hp = Number(own ? own.hp : meta.hp);
+    const hpMax = Number(own ? own.hpMax : meta.hpMax);
     if (!Number.isFinite(hp) || !Number.isFinite(hpMax) || hpMax <= 0) continue;
     // CAP-MAXHP (decision M0): the creature without the bonus or reduction of its pills.
     const base = maxHpBaseValues({ hp: Math.max(0, Math.floor(hp)), hpMax: Math.max(0, Math.floor(hpMax)) }, meta);
@@ -381,8 +387,10 @@ export async function syncHPBatchToMemory(
     const liveHp = Number(meta.hp);
     const liveHpMax = Number(meta.hpMax);
     const fromToken = !!live && Number.isFinite(liveHp) && Number.isFinite(liveHpMax) && liveHpMax > 0;
-    const hp = Math.max(0, Math.floor(fromToken ? liveHp : Number(update.hp) || 0));
-    const hpMax = Math.max(0, Math.floor(fromToken ? liveHpMax : Number(update.hpMax) || 0));
+    // Trasformazioni, lotto W5d (§5.8): in a form, the creature's own HP, which its pill keeps.
+    const own = transformationStashForMeta(meta);
+    const hp = Math.max(0, Math.floor(own ? own.hp : fromToken ? liveHp : Number(update.hp) || 0));
+    const hpMax = Math.max(0, Math.floor(own ? own.hpMax : fromToken ? liveHpMax : Number(update.hpMax) || 0));
     const base = !update.remove && hpMax > 0 ? maxHpBaseValues({ hp, hpMax }, meta) : { hp, hpMax };
     memoryUpdates.push({
       key,

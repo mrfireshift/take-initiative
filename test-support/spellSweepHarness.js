@@ -305,6 +305,11 @@ function targetContextFor(id, targetIds, outcome) {
   if (id === "xanathar-turbine") Object.assign(values, { turbineStrengthOutcome: outcome === "failed" ? "failed" : "passed" });
   // CAP-MAXHP, lotto X4: each creature's 2d10, the average one.
   if (id === "heroes-feast") Object.assign(values, { feastRoll: 11 });
+  // Trasformazioni, lotto W7: the form of each target, a wolf.
+  if (["polymorph", "true-polymorph", "animal-shapes", "shapechange", "xanathar-metamorfosi-di-massa"].includes(id)) {
+    Object.assign(values, { form: { name: "Wolf", type: "beast", cr: "1/4", size: "medium", hitPoints: { average: 11 }, speeds: { walk: 12 },
+      actions: [] } });
+  }
   return Object.keys(values).length ? Object.fromEntries(targetIds.map((target) => [target, values])) : {};
 }
 
@@ -323,6 +328,8 @@ async function castOnce({ id, phase, variant, outcome }) {
       : mode === "geometric" ? [TARGET_ONE, TARGET_TWO] : [TARGET_ONE];
   const limit = presentation.targeting?.limit?.maximum;
   if (Number.isInteger(limit) && limit > 0) targetIds = targetIds.slice(0, limit);
+  // Trasformazioni, lotto W7: Shapechange is the caster's own form, its token selected as the target.
+  if (id === "shapechange") targetIds = [CASTER];
   const outcomeMode = presentation.outcomes?.mode;
   const options = presentation.outcomes?.options || [];
   const saveValue = firstOption(outcomeMode === "attack" ? [] : options, outcome === "failed" ? ["failed"] : ["passed"]);

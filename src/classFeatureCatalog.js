@@ -263,7 +263,23 @@ export function getEnabledClassFeatures(profile) {
     }
     result.push(feature);
   }
-  return [...result, ...getSpeciesFeatures(profile), ...getFeatFeatures(profile)];
+  return withActivationOverrides([...result, ...getSpeciesFeatures(profile), ...getFeatFeatures(profile)]);
+}
+
+// Trasformazioni, lotto W6 (docs/PIANO_TRASFORMAZIONI.md): an enabled feature that changes how another is used (Combat
+// Wild Shape: Wild Shape as a bonus action), from its data (passiveMechanics.activationOverrides: { featureId: activation }).
+// The other feature comes back as a copy with that activation; the catalog's own stays as it is.
+function withActivationOverrides(features) {
+  const overrides = new Map();
+  for (const feature of features) {
+    for (const [featureId, primary] of Object.entries(feature?.passiveMechanics?.activationOverrides || {})) {
+      if (String(primary || "").trim()) overrides.set(featureId, String(primary).trim());
+    }
+  }
+  if (!overrides.size) return features;
+  return features.map((feature) => (overrides.has(feature.id)
+    ? { ...feature, activation: { ...(feature.activation || {}), primary: overrides.get(feature.id) } }
+    : feature));
 }
 
 // Species traits are always enabled for the profile's species and ancestry.

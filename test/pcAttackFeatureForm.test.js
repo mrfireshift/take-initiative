@@ -200,3 +200,51 @@ test("Rage asks the 1d12 of Shadowy Tendrils' temporary hit points, only when th
   assert.match(request({ [`auto:${SURGE}`]: "1" }).error, /1d12/u, "the roll is required");
   assert.equal(request({ [`auto:${SURGE}`]: "2" }).params.autoChoiceValues, undefined, "Teleport asks none");
 });
+
+// Trasformazioni, lotto W2a (docs/PIANO_TRASFORMAZIONI.md): la Forma Selvatica chiede la forma nella console.
+test("Forma Selvatica: il campo «Forma» e la forma nella chiamata, obbligatoria", () => {
+  const druid = { characterBuild: [{ classId: "druido", level: 4, subclassId: "" }] };
+  const wildShape = form("druido-forma-selvatica", druid);
+  assert.equal(wildShape.kind, "activate");
+  assert.deepEqual(wildShape.fields.find((entry) => entry.type === "transformation-form"),
+    { id: "form", type: "transformation-form", label: "Forma", kind: "wild-shape" });
+  assert.match(pcAttackFeatureRequest(feature("druido-forma-selvatica"), wildShape, {}, { sourceId: "druid" }).error,
+    /Scegli la forma: una delle forme rapide, o «Altra forma…»\./);
+  const wolf = { name: "Wolf", type: "beast", cr: "1/4", size: "medium", speeds: { walk: 12 }, actions: [] };
+  const request = pcAttackFeatureRequest(feature("druido-forma-selvatica"), wildShape, { form: wolf }, { sourceId: "druid" });
+  assert.equal(request.fn, "activateClassFeature");
+  assert.equal(request.params.transformationForm, wolf);
+  const moon = { characterBuild: [{ classId: "druido", level: 10, subclassId: "druido-circolo-della-luna" }] };
+  assert.equal(form("druido-circolo-della-luna-forma-selvatica-elementale", moon).fields
+    .find((entry) => entry.type === "transformation-form")?.kind, "elemental-wild-shape");
+  assert.equal(form("paladino-aura-di-protezione").fields.some((entry) => entry.type === "transformation-form"), false);
+  assert.equal("transformationForm" in (pcAttackFeatureRequest(feature("paladino-aura-di-protezione"),
+    form("paladino-aura-di-protezione"), {}, { sourceId: "pal" }).params || {}), false);
+});
+
+// Trasformazioni, lotto W6: la cura della Forma Selvatica da Combattimento, solo in forma, con uno slot rimasto.
+test("Forma Selvatica da Combattimento: slot e d8 nella console, solo in forma", () => {
+  const COMBAT = "druido-circolo-della-luna-forma-selvatica-da-combattimento";
+  const definition = getClassFeatureDefinition(COMBAT);
+  const slots = [{ level: 1, current: 0 }, { level: 2, current: 2 }];
+  const out = pcAttackFeatureForm(definition, { activeFeatureIds: [] }, { spellSlots: slots });
+  assert.match(out.disabledReason, /Richiede prima Forma Selvatica/);
+  const shaped = pcAttackFeatureForm(definition, { activeFeatureIds: ["druido-forma-selvatica"] }, { spellSlots: slots });
+  assert.deepEqual([shaped.disabledReason, shaped.label, shaped.fields[0].options], ["", "Cura", [{ value: "2", label: "Slot di 2° · 2d8" }]]);
+  assert.match(pcAttackFeatureRequest(definition, shaped, {}, { sourceId: "druid" }).error, /risultato dei 2d8/);
+  assert.deepEqual(pcAttackFeatureRequest(definition, shaped, { value: "9" }, { sourceId: "druid" }),
+    { fn: "activateClassFeature", params: { sourceId: "druid", featureId: COMBAT, slotLevel: 2, value: 9 } });
+  assert.equal(pcAttackFeatureForm(definition, { activeFeatureIds: ["druido-forma-selvatica"] }, { spellSlots: [] }).disabledReason,
+    "Nessuno slot rimasto.");
+});
+
+test("Forma Selvatica: il ritratto scelto va nella chiamata, con la forma", () => {
+  const druid = { characterBuild: [{ classId: "druido", level: 4, subclassId: "" }] };
+  const wildShape = form("druido-forma-selvatica", druid);
+  const wolf = { name: "Wolf", type: "beast", cr: "1/4", size: "medium", speeds: { walk: 12 }, actions: [] };
+  const portrait = { url: "https://images.test/bestiary/tokens/MM/Wolf.webp", width: 280, height: 280 };
+  assert.equal(pcAttackFeatureRequest(feature("druido-forma-selvatica"), wildShape, { form: wolf, formPortrait: portrait }, { sourceId: "druid" })
+    .params.transformationPortrait, portrait);
+  assert.equal("transformationPortrait" in pcAttackFeatureRequest(feature("druido-forma-selvatica"), wildShape, { form: wolf, formPortrait: null },
+    { sourceId: "druid" }).params, false);
+});

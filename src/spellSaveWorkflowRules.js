@@ -745,6 +745,63 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
       })],
     }),
   }),
+  // Trasformazioni, lotto W7 (docs/PIANO_TRASFORMAZIONI.md): the form each target takes, in its row; the pills come from
+  // transformationSpellsCore.js. Polymorph and True Polymorph: a Wisdom save only for an unwilling creature, rolled at the
+  // table (a creature that makes it is left out of the cast, as a willing one asks none); Animal Shapes: willing creatures,
+  // no save; Shapechange: the caster itself.
+  polymorph: workflowRule({
+    spellId: "polymorph",
+    // The save is named once, by the spell (spellCastResolutionRules.js), and rolled at the table.
+    ability: undefined,
+    maximum: 1,
+    baseSlot: 4,
+    spatial: { mode: "caster-range", maxMeters: 18 },
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+    context: targetContext({ fields: [targetContextField({ id: "form", label: "Forma", type: "transformation-form", required: true })] }),
+  }),
+  "true-polymorph": workflowRule({
+    spellId: "true-polymorph",
+    // The save is named once, by the spell (spellCastResolutionRules.js), and rolled at the table.
+    ability: undefined,
+    maximum: 1,
+    baseSlot: 9,
+    spatial: { mode: "caster-range", maxMeters: 9 },
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+    context: targetContext({ fields: [targetContextField({ id: "form", label: "Forma", type: "transformation-form", required: true })] }),
+  }),
+  "animal-shapes": workflowRule({
+    spellId: "animal-shapes",
+    ability: "wis",
+    unlimitedTargets: true,
+    baseSlot: 8,
+    spatial: { mode: "caster-range", maxMeters: 9 },
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+    context: targetContext({ fields: [targetContextField({ id: "form", label: "Forma", type: "transformation-form", required: true })] }),
+  }),
+  // Lotto W7e (Xanathar): up to ten creatures within 36 m, each its own beast; the save, rolled at the table, only for an
+  // unwilling one (its Wisdom is named by spellCastResolutionRules.js).
+  "xanathar-metamorfosi-di-massa": workflowRule({
+    spellId: "xanathar-metamorfosi-di-massa",
+    ability: undefined,
+    maximum: 10,
+    baseSlot: 9,
+    spatial: { mode: "caster-range", maxMeters: 36 },
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+    context: targetContext({ fields: [targetContextField({ id: "form", label: "Forma", type: "transformation-form", required: true })] }),
+  }),
+  shapechange: workflowRule({
+    spellId: "shapechange",
+    ability: "wis",
+    maximum: 1,
+    baseSlot: 9,
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+    context: targetContext({ fields: [targetContextField({ id: "form", label: "Forma", type: "transformation-form", required: true })] }),
+  }),
   // All the curses on the creature it touches (cleanseSpellRules.js): nothing to choose.
   "remove-curse": workflowRule({
     spellId: "remove-curse",

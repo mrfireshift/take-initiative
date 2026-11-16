@@ -30,8 +30,9 @@ test("il catalogo runtime copre PHB, Xanathar, Tasha e Ranger Revised", () => {
     ["phb2014", "xanathar", "tasha", "ranger-revised"],
   );
   assert.equal(CLASS_FEATURE_CATALOG.validation.catalogRecords, 860);
-  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeImplemented, 271);
-  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeNotAutomated, 589);
+  // 272 with Combat Wild Shape (Trasformazioni, lotto W6).
+  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeImplemented, 272);
+  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeNotAutomated, 588);
   assert.ok(CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === rageId));
   assert.ok(CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === vowId));
   assert.ok(CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === twilightId));

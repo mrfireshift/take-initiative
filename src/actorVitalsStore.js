@@ -29,6 +29,7 @@ import {
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { DEATH_SAVES_FIELD } from "./deathSaveCore.js";
 import { maxHpBaseValues, maxHpEffectiveValues } from "./maxHpModifierCore.js";
+import { transformationHpPill, transformationNormalHp } from "./transformationHpCore.js";
 
 export const ACTOR_VITALS_ROOM_KEY = `${ID}/actorVitals`;
 export const ACTOR_VITALS_LOCAL_KEY = `${ID}/actorVitals/local`;
@@ -88,10 +89,12 @@ function normalizeHPMax(value) {
 
 // The token's hit points as the registry keeps them: without the bonus or reduction of its pills (CAP-MAXHP, decision M0
 // of 13/11/2026), so saving, the hydration's comparison and the initialization all see the creature as if they ended.
+// Trasformazioni, lotto W5d (docs/PIANO_TRASFORMAZIONI.md §5.8): in a form, the creature's own, which its pill keeps.
 function validCanonicalHP(item) {
   const meta = item?.metadata?.[`${ID}/meta`] || {};
-  const hp = normalizeHP(meta.hp);
-  const hpMax = normalizeHPMax(meta.hpMax);
+  const own = transformationNormalHp(meta);
+  const hp = normalizeHP(own.hp);
+  const hpMax = normalizeHPMax(own.hpMax);
   if (hp === null || hpMax === null) return null;
   return maxHpBaseValues({ hp, hpMax }, meta);
 }
@@ -230,6 +233,9 @@ export function createActorVitalsStore({
   logger = console,
   // After a restore, the automatic Privo di sensi follows the restored hit points (null: nothing, as in most tests).
   reconcileZeroHP = null,
+  // Trasformazioni, decision G41: a token still in a form whose creature was hurt or healed elsewhere: the form ends and
+  // the registry's HP come back, in one command of the coordinator (null: the token is left as it is).
+  endTransformations = null,
 } = {}) {
   let runtimeAuthority = normalizeAuthority(authority);
   let stopped = false;
@@ -486,11 +492,14 @@ export function createActorVitalsStore({
           if (actorProfileIdFromItem(item) !== actorProfileId) continue;
           const current = validCanonicalHP(item);
           if (!current || current.hp !== hp || current.hpMax !== hpMax) {
+            // G41: in a form, the HP of the token are the form's; the restore ends it rather than write over them.
+            const form = transformationHpPill(item?.metadata?.[`${ID}/meta`]?.conditions);
             restoreById.set(item.id, {
               actorProfileId,
               hp,
               hpMax,
               expectedFields: canonicalHPFieldsSnapshot(item),
+              ...(form ? { transformationInstanceId: String(form.id || "") } : {}),
             });
           }
         }
@@ -540,6 +549,7 @@ export function createActorVitalsStore({
       safeRestoreById.clear();
       for (const { id, ...update } of sharedSafeRestores) safeRestoreById.set(id, update);
       const restoredIds = [];
+      const transformationRestores = [];
       if (safeRestoreById.size) {
         await itemsApi.updateItems([...safeRestoreById.keys()], (drafts) => {
           if (stopped || !isSceneEpochCurrent(sceneEpoch)) return;
@@ -557,11 +567,22 @@ export function createActorVitalsStore({
               }
               continue;
             }
+            if (update.transformationInstanceId && !update.absent) {
+              const effective = maxHpEffectiveValues({ hp: update.hp, hpMax: update.hpMax }, item.metadata?.[`${ID}/meta`] || {});
+              transformationRestores.push({ itemId: item.id, instanceId: update.transformationInstanceId, ...effective,
+                expectedFields: update.expectedFields });
+              continue;
+            }
             item.metadata = update.absent
               ? metadataWithoutCanonicalHP(item)
               : metadataWithCanonicalHP(item, update.hp, update.hpMax);
             if (!update.absent) restoredIds.push(item.id);
           }
+        });
+      }
+      if (transformationRestores.length && typeof endTransformations === "function" && isSceneEpochCurrent(sceneEpoch)) {
+        await endTransformations(transformationRestores, { sceneEpoch }).catch((error) => {
+          logger?.warn?.("[actorVitals] transformation restore:", error?.message || error);
         });
       }
       if (restoredIds.length && typeof reconcileZeroHP === "function" && isSceneEpochCurrent(sceneEpoch)) {
@@ -766,7 +787,13 @@ async function reconcileZeroHPAfterRestore(itemIds, options) {
   return reconcileZeroHPConditionsForItems(itemIds, options);
 }
 
-export const actorVitalsStore = createActorVitalsStore({ reconcileZeroHP: reconcileZeroHPAfterRestore });
+async function endTransformationsAfterRestore(restores, options) {
+  const { endTransformationsForRestoredHp } = await import("./transformationHpRestore.js");
+  return endTransformationsForRestoredHp(restores, options);
+}
+
+export const actorVitalsStore = createActorVitalsStore({ reconcileZeroHP: reconcileZeroHPAfterRestore,
+  endTransformations: endTransformationsAfterRestore });
 
 export async function startActorVitalsRuntime(options = {}) {
   return actorVitalsStore.start(options);

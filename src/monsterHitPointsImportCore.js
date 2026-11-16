@@ -5,6 +5,7 @@ import { ID } from "./constants.js";
 import { bossMetadataSnapshot, isBossActionCreature } from "./bossActionExecutionCore.js";
 import { resolveSharedHpGroup } from "./sharedHpCore.js";
 import { maxHpEffectiveValues } from "./maxHpModifierCore.js";
+import { transformationHpPill } from "./transformationHpCore.js";
 
 const META_KEY = `${ID}/meta`;
 export const MAX_MONSTER_HIT_POINTS = 9999;
@@ -46,6 +47,8 @@ export function planMonsterHitPointsImport({ items = [], sourceId = "", hp, over
     const name = item.name || item.id;
     const shared = resolveSharedHpGroup(items, item.id, { metadataKey: META_KEY });
     if (String(meta.attitude || "").trim().toLowerCase() === "pc") skipped.push({ id: item.id, name, reason: "pc" });
+    // Trasformazioni (docs/PIANO_TRASFORMAZIONI.md §5.13): in a form, the token's HP are the form's; its own wait in the pill.
+    else if (transformationHpPill(meta.conditions)) skipped.push({ id: item.id, name, reason: "transformed" });
     // A member of a pool, its source, or a broken link: the shared pool is never set from one creature's stat block.
     else if (String(meta.sharedHpSourceId || "").trim() || (!shared.status && shared.memberIds?.length > 1)) skipped.push({ id: item.id, name, reason: "shared" });
     else if (hasCanonicalHitPoints(item) && !overwrite) skipped.push({ id: item.id, name, reason: "has-hp" });
@@ -68,6 +71,7 @@ const SKIP_TEXT = Object.freeze({
   pc: ["è un personaggio", "sono personaggi", ": i PF dei personaggi si impostano dal tracker"],
   shared: ["condivide i PF con altri token", "condividono i PF con altri token", ": la riserva si imposta dal tracker"],
   wounded: ["è ferito", "sono feriti", ": i PF di un mostro ferito non si toccano"],
+  transformed: ["è in un'altra forma", "sono in un'altra forma", ": i suoi PF tornano quando la forma finisce"],
 });
 
 // One line for the sheet's status: what was set, then what was left alone, one clause per reason ("Goblin ha già i suoi

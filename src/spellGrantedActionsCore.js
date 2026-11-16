@@ -69,15 +69,53 @@ function grantedAction(record) {
   return null;
 }
 
-// The actions this token's pills grant, one per spell record (a raw quick action: the console sanitizes it).
+// Trasformazioni, lotto W3a (docs/PIANO_TRASFORMAZIONI.md): the form a pill carries (mechanics.transformation.form, put
+// there by the console, its attacks quick actions already) gives them while the pill lasts, with ids naming the pill and
+// the action (spell-grant:<pill>#<action>). Primal Strike (Circle of the Moon, 6th level): the form's attacks are magical.
+// Beast Spells (18th level): a druid casts in its form. Read from the token as it is: no imports.
+const WILD_SHAPE_KINDS = new Set(["wild-shape", "elemental-wild-shape"]);
+function transformationGrant(item) {
+  const meta = item?.metadata?.[META_KEY] || {};
+  const conditions = Array.isArray(meta.conditions) ? meta.conditions
+    : Array.isArray(meta.conditions?.instances) ? meta.conditions.instances : [];
+  const pill = conditions.find((instance) => instance && instance.active !== false
+    && instance.mechanics?.transformation?.form && typeof instance.mechanics.transformation.form === "object");
+  if (!pill) return null;
+  const template = pill.mechanics.transformation;
+  const form = template.form;
+  const build = Array.isArray(meta.initiativeCard?.characterBuild) ? meta.initiativeCard.characterBuild : [];
+  const druid = build.find((entry) => entry?.classId === "druido");
+  const druidLevel = Math.floor(Number(druid?.level)) || 0;
+  const wildShape = WILD_SHAPE_KINDS.has(template.kind);
+  const primalStrike = wildShape && text(druid?.subclassId) === "druido-circolo-della-luna" && druidLevel >= 6;
+  // The id the console keeps as it is (quickActionsCore.js keeps [a-zA-Z0-9:_-], 96 characters at most): the activation
+  // (the pill's parentEffectId, else its id) and the action, cut short.
+  const idPart = (value, max) => text(value).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, max);
+  const activation = idPart(pill.parentEffectId || pill.id, 48);
+  const actions = (Array.isArray(form.actions) ? form.actions : [])
+    .filter((action) => action && typeof action === "object" && idPart(action.id, 24) && text(action.label))
+    .map((action) => ({ ...action, id: spellGrantActionId(`form-${activation}-${idPart(action.id, 24)}`),
+      ...(primalStrike ? { magical: true } : {}) }));
+  return {
+    actions,
+    transformation: Object.freeze({ name: text(form.name), canCast: template.canCast === true || (wildShape && druidLevel >= 18) }),
+  };
+}
+
+// The actions this token's pills grant, one per spell record and those of a form (a raw quick action: the console
+// sanitizes it). When the token is in a form the list says so in its property transformation ({ name, canCast }, not an
+// element): the picker sets the card's weapons and spells aside (pcAttackPickerEntries).
 export function spellGrantedActionsForItem(item) {
   const records = item?.metadata?.[META_KEY]?.[SPELLS_KEY];
+  const grant = transformationGrant(item);
   const seen = new Set();
-  return (Array.isArray(records) ? records : []).map(grantedAction).filter((action) => {
+  const actions = [...(Array.isArray(records) ? records : []).map(grantedAction), ...(grant?.actions || [])].filter((action) => {
     if (!action || seen.has(action.id)) return false;
     seen.add(action.id);
     return true;
   });
+  if (grant) Object.defineProperty(actions, "transformation", { value: grant.transformation, enumerable: false });
+  return actions;
 }
 
 export function spellGrantedActionForItem(item, actionId) {

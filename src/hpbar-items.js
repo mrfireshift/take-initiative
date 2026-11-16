@@ -5,7 +5,7 @@ import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { reconcileOwnedSceneItems } from "./sceneItemReconcileCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { mapHpDisclosure } from "./options/optionsProjection.js";
-import { unrotatedTokenBounds } from "./tokenFootprintCore.js";
+import { attachmentBehaviorsWith, unrotatedTokenBounds } from "./tokenFootprintCore.js";
 import { quickHPBarSegments, quickHPStateOf, TEMP_HP_COLOR } from "./quickHpCore.js";
 
 /* ========= Chiavi metadata ========= */
@@ -337,10 +337,23 @@ async function computeBarLayout(tokenId, tokenSnapshot = null){
   return { barW, barH, leftX, topY, tokenZ };
 }
 
+// Trasformazioni (16/11/2026): the bar and its number keep their own size whatever the token's. Owlbear may hand them
+// the token's scale when it changes (a form's size, lot W4b): the flush puts it back to 1, and does not inherit it.
+function hasHPBarOwnScale(it) {
+  return Math.abs(Number(it?.scale?.x ?? 1)) === 1 && Math.abs(Number(it?.scale?.y ?? 1)) === 1
+    && (Array.isArray(it?.disableAttachmentBehavior) ? it.disableAttachmentBehavior : []).includes("SCALE");
+}
+
+function restoreHPBarOwnScale(it) {
+  if (Math.abs(Number(it?.scale?.x ?? 1)) !== 1 || Math.abs(Number(it?.scale?.y ?? 1)) !== 1) it.scale = { x: 1, y: 1 };
+  it.disableAttachmentBehavior = attachmentBehaviorsWith(it.disableAttachmentBehavior, "ROTATION", "VISIBLE", "COPY", "SCALE");
+}
+
 // Whether the flush's update would change this bar or label: the same fields, with the same rules, as its updater.
 // An item already in that state stays out of the write, which would otherwise reach every client as a change.
 function hpBarUpdateChangesItem(it, u) {
   if (it.locked !== true || it.disableHit !== true) return true;
+  if (!hasHPBarOwnScale(it)) return true;
   if (u.position && (it.position?.x !== u.position.x || it.position?.y !== u.position.y)) return true;
   if (u.zIndex !== undefined && it.zIndex !== u.zIndex) return true;
   if (u.visible !== undefined && it.visible !== !!u.visible) return true;
@@ -508,13 +521,17 @@ async function flushQueued(){
     const hptextByToken = new Map();
     const hptextCountsByToken = new Map();
     const hpbarKindsByToken = new Map();
+    // The tokens whose bar or number carries a scale of its own (hasHPBarOwnScale): they are written again.
+    const rescaledTokenIds = new Set();
     for (const it of allItemsNow) {
       const m = it.metadata?.[HPTEXT_META_FLAG];
       if (m?.targetId) {
         hptextByToken.set(m.targetId, it);
         hptextCountsByToken.set(m.targetId, (hptextCountsByToken.get(m.targetId) || 0) + 1);
+        if (!hasHPBarOwnScale(it)) rescaledTokenIds.add(m.targetId);
       }
       const barMeta = it.metadata?.[HPBAR_META_FLAG];
+      if (barMeta?.targetId && !hasHPBarOwnScale(it)) rescaledTokenIds.add(barMeta.targetId);
       if (barMeta?.targetId) {
         if (!hpbarKindsByToken.has(barMeta.targetId)) hpbarKindsByToken.set(barMeta.targetId, new Map());
         const counts = hpbarKindsByToken.get(barMeta.targetId);
@@ -583,6 +600,7 @@ async function flushQueued(){
           && textItem?.text?.plainText === hpTextValue(hp, hpMax, tokenId)
           && textItem?.visible === playerTextVisible;
         if (!keysChanged.length
+          && !rescaledTokenIds.has(tokenId)
           && barKinds?.get("bg") === 1
           && barKinds?.get("fg") === 1
           && (barKinds?.get("temp") || 0) === (tempW > 0 ? 1 : 0)
@@ -687,6 +705,7 @@ async function flushQueued(){
             if (!u) { continue; }
             it.locked = true;
             it.disableHit = true;
+            restoreHPBarOwnScale(it);
 
             const isText = !!it.text;
 
@@ -957,10 +976,12 @@ function hpTextNeedsUpdate(item, spec) {
     || item.position?.y !== spec.position.y
     || item.zIndex !== spec.zIndex
     || item.visible !== spec.visible
-    || item.text?.plainText !== spec.text;
+    || item.text?.plainText !== spec.text
+    || !hasHPBarOwnScale(item);
 }
 
 function applyHPTextSpec(item, spec) {
+  restoreHPBarOwnScale(item);
   item.layer = "ATTACHMENT";
   item.attachedTo = spec.tokenId;
   item.locked = true;

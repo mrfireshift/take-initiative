@@ -456,6 +456,7 @@ export function buildBossActionMutation({
         hpIntent:{mode:"damage",amount:change.requested,eventId:actionInstanceId,...(criticalHit && change.deathSaveDamage?{critical:true}:{})},
         expectedHP:bossMetadataSnapshot(targetMeta,"hp"),expectedHPMax:bossMetadataSnapshot(targetMeta,"hpMax")}]:[]),
       ...(drain?.healing.changed?[{itemId:sourceItem.id,hp:drain.healing.afterHP,hpMax:drain.healing.hpMax,tempHp:drain.healing.afterTempHp,
+        hpIntent:{mode:"heal",amount:drain.healing.requested,eventId:`${actionInstanceId}:drain`},
         expectedHP:bossMetadataSnapshot(sourceMeta,"hp"),expectedHPMax:bossMetadataSnapshot(sourceMeta,"hpMax")}]:[]),
     ]}] : []),...conditionOperations,
     ...(consumedMarks.length?[{type:"condition:remove-instances",targetIds:[targetItem.id],removals:consumedMarks.map((instanceId)=>({itemId:targetItem.id,instanceId}))}]:[]),
@@ -1015,9 +1016,13 @@ export function buildBossThrowMutation({
   } : null;
   const operations = [
     ...(change.changed || collision?.change.changed ? [{ type: "hp:set", updates: [
+      // The damage declared, as the other actions do (the contract of docs/PIANO_TRASFORMAZIONI.md §5.14): a creature in a
+      // form keeps the excess past 0, and a massive damage is seen.
       ...(change.changed ? [{ itemId: targetItem.id, hp: change.afterHP, hpMax: change.hpMax, tempHp: change.afterTempHp,
+        hpIntent: { mode: "damage", amount: change.requested, eventId: actionInstanceId },
         expectedHP: bossMetadataSnapshot(targetMeta, "hp"), expectedHPMax: bossMetadataSnapshot(targetMeta, "hpMax") }] : []),
       ...(collision?.change.changed ? [{ itemId: collisionItem.id, hp: collision.change.afterHP, hpMax: collision.change.hpMax, tempHp: collision.change.afterTempHp,
+        hpIntent: { mode: "damage", amount: collision.change.requested, eventId: `${actionInstanceId}:${collisionItem.id}` },
         expectedHP: bossMetadataSnapshot(collision.meta, "hp"), expectedHPMax: bossMetadataSnapshot(collision.meta, "hpMax") }] : []),
     ] }] : []),
     ...(released.length ? [{ type: "condition:remove-instances", targetIds: [targetItem.id], removals: released.map((entry) => ({ itemId: targetItem.id, instanceId: entry.id })) }] : []),

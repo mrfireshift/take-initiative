@@ -11,6 +11,10 @@ export function decorateCompositeEffectsHistoryEntry({
   // CAP-TEMP: the coordinator's record of the temporary hit points (granted, absorbed, removed...), for the combat log.
   const tempHpChanges = (Array.isArray(mutation) ? mutation : [mutation])
     .flatMap(result => (Array.isArray(result?.plan?.tempHpChanges) ? clone(result.plan.tempHpChanges) : []));
+  // Lot U3b and Trasformazioni (W5e): why some HP differ from what the command asked (Warding Bond, Death Ward, a form
+  // back at 0 HP), for the combat log, as the coordinator's own History keeps them (payload.reactions).
+  const reactionRecords = (Array.isArray(mutation) ? mutation : [mutation])
+    .flatMap(result => (Array.isArray(result?.plan?.reactionRecords) ? clone(result.plan.reactionRecords) : []));
   if (Array.isArray(mutation)) {
     const combined = new Map();
     for (const result of mutation.filter(Boolean)) {
@@ -156,9 +160,10 @@ export function decorateCompositeEffectsHistoryEntry({
   ])));
   return {
     ...entry,
-    ...(sharedHpGroups.length || tempHpChanges.length ? { payload: { ...(entry?.payload || {}),
+    ...(sharedHpGroups.length || tempHpChanges.length || reactionRecords.length ? { payload: { ...(entry?.payload || {}),
       ...(sharedHpGroups.length ? { sharedHp: { groups: sharedHpGroups } } : {}),
-      ...(tempHpChanges.length ? { tempHp: tempHpChanges } : {}) } } : {}),
+      ...(tempHpChanges.length ? { tempHp: tempHpChanges } : {}),
+      ...(reactionRecords.length ? { reactions: [...(entry?.payload?.reactions || []), ...reactionRecords] } : {}) } } : {}),
     changes: effectiveChanges,
     effectsMutation: {
       version: 1,

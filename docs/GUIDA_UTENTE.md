@@ -989,6 +989,61 @@ Gli incantesimi:
 
   Se la creatura non ha l'effetto scelto, ricevi solo una nota.
 
+### Forme: Forma Selvatica e incantesimi di trasformazione
+
+La Forma Selvatica del druido e cinque incantesimi trasformano una creatura: **Trasformazione**, **Metamorfosi**, **Metamorfosi Pura**, **Forme Animali** e **Metamorfosi di Massa**. La forma va su una pill, e la creatura prende attacchi, CA, TS fisici, difese, velocità, taglia e PF della forma. Le regole sono quelle del 2014.
+
+#### Scegliere la forma
+
+- **Forma Selvatica:** console attacchi → **Capacità** → **Forma Selvatica**, campo **Forma**. Ci sono le forme rapide della scheda, fino a 8. Una forma oltre i limiti del druido (GS, nuoto o volo per livello) è segnata «non ammessa», con il motivo.
+- **Altra forma…** importa una forma che non è tra le rapide: dall'archivio di 5eTools del GM, o incollando il JSON di un mostro o il testo di uno statblock. **Usa** la prende solo per questa volta; **Usa e salva** la aggiunge alle rapide, e con 8 forme chiede quale sostituire. **Togli dalle rapide** ne toglie una.
+- **I libri della ricerca:** sono tutti quelli dell'archivio di 5eTools del browser del GM, non solo il Manuale dei Mostri. Si aggiungono dalla scheda di una creatura, **Importa da una scheda → Archivio online**, una volta sola. I libri delle regole 2024 restano fuori. Si cerca per nome o per sigla del libro (per esempio «VGM»); l'elenco mostra al massimo 12 forme ammesse, dal GS più alto. Un libro aggiunto con la console aperta compare alla riapertura di **Altra forma…**.
+- **Da un token nella stanza…** (in **Altra forma…**) prende la forma da un mostro della scena. Se la sua card viene da 5eTools (segnata «5eTools»), la forma si legge dall'archivio, con tipo e GS. Altrimenti si costruisce dai numeri della card, e tipo e GS li scegli tu, come per un testo incollato.
+- **Statblock** apre lo statblock completo della forma scelta: tratti, multiattacco, azioni.
+- **Usa il ritratto della forma sul token**: compare, già spuntata, se nelle Opzioni c'è l'indirizzo delle immagini di 5eTools e il ritratto della forma esiste. Il token e la card del tracker prendono il ritratto finché dura la forma.
+- **Dalla scheda personaggio** la Forma Selvatica mette la pill senza forma: per i PF, gli attacchi e la taglia la forma si sceglie dalla console.
+- **La durata** è metà del livello da druido, in ore, anche quando la Forma Selvatica parte dalla scheda personaggio.
+- **Circolo della Luna:** la Forma Selvatica è un'azione bonus. In forma, **Forma Selvatica da Combattimento** cura spendendo uno slot: scegli lo slot e scrivi i d8 tirati al tavolo. Dal 10° c'è la **Forma Selvatica Elementale**, con i quattro elementali.
+
+#### In forma
+
+- **I PF:** la creatura prende i PF della forma; i suoi restano da parte sulla pill, e il registro di combattimento lo dice.
+  - Il danno consuma prima i PF temporanei, poi quelli della forma.
+  - **A 0 PF della forma** la creatura torna alla sua, con il danno in eccesso sui suoi PF. Interdizione alla morte, TS contro la morte, danno massiccio e concentrazione guardano i suoi PF veri. Le anteprime della console e del pannello lo dicono prima: «torna alla sua forma: PF 34 → 28».
+  - **Se la forma finisce in altro modo** (**Termina**, la ✕, la scadenza, la concentrazione di chi lancia, un **Annulla**) tornano i suoi PF interi.
+  - **Scrivere 0 sui PF dalla card** chiude la forma senza eccesso, con un avviso: per il danno in eccesso usa la Console effetti manuali.
+  - **Aiuto, Ferire o Banchetto degli eroi** durante la forma cambiano i PF messi da parte, non quelli della forma.
+  - **Riposo del gruppo** chiude la forma e parte dai PF della creatura.
+- **La console attacchi:**
+  - in **Attacchi** ci sono gli attacchi della forma al posto delle armi della scheda; con il Colpo Primordiale (Circolo della Luna, 6° livello) sono magici;
+  - gli incantesimi sono nascosti, salvo Incantesimi Bestiali (18° livello) e Trasformazione;
+  - sopra gli attacchi, la riga **Multiattacco** è quella della forma: il multiattacco della creatura torna quando la forma finisce;
+  - in **Capacità** ci sono **Forma: tratti**, **Forma: multiattacco e altre azioni**, **Forma: reazioni** e **Forma: statblock**, da leggere. Il testo completo viene dall'archivio di 5eTools del GM: senza archivio si vedono i nomi dei tratti e il multiattacco;
+  - finita la forma, la console torna sulle armi della creatura.
+- **La scheda della card** mostra la CA della forma; passandoci sopra, il titolo dice quella della creatura.
+- **Movimento e taglia:** le velocità sono quelle della forma, e il riquadro Movimento nomina la pill. Il token prende la taglia della forma, e alla fine torna come prima. La taglia e il ritratto li cambia il background del GM, che deve essere collegato.
+- **Cambio di scena:** la memoria dei PF tiene i PF della creatura, non della forma. In una scena nuova arriva con i suoi PF e senza la pill. Tornando in una scena dove ha ancora la pill, la forma resta se i PF non sono cambiati; se è stata ferita o curata altrove, la forma finisce con i PF della memoria.
+- **I giocatori online** vedono i PF della forma come vedono i loro.
+
+#### Gli incantesimi
+
+Si lanciano dal pannello degli incantesimi. Ogni riga di bersaglio ha il campo **Forma**, con le forme rapide della scheda di chi lancia, **Altra forma…**, **Statblock** e il ritratto. Il pulsante resta «Completa il contesto dei bersagli» finché ogni riga non ha la sua forma. Quando la concentrazione finisce, la forma finisce e tornano i PF.
+
+- **Trasformazione:** chi lancia seleziona il proprio token come bersaglio. La forma va fino al suo livello, non costrutto né non morto. Tiene mente, capacità e incantesimi.
+- **Metamorfosi:** una bestia fino al GS del bersaglio, o al suo livello se è un PG. La scheda di un mostro non tiene il GS: il campo avvisa che quel limite lo controlli tu. Il TS su Saggezza si tira al tavolo, solo per chi non è consenziente: chi lo supera va tolto dai bersagli. Su una creatura a 0 PF non ha effetto.
+- **Metamorfosi Pura:** come Metamorfosi, con qualsiasi tipo di creatura.
+- **Forme Animali:** più creature consenzienti, ognuna con la sua bestia, Grande o meno e GS 4 al massimo. Nessun TS.
+- **Cambiare forma** durante Trasformazione o Forme Animali: nella console della creatura trasformata, **Capacità → Cambia forma**. Il campo **Forma nuova** ha i limiti dell'incantesimo e le forme rapide di chi lancia. Con Trasformazione, se la forma nuova ha più PF di quelli attuali, i PF restano quelli attuali. Con Forme Animali, la forma nuova arriva con i suoi PF interi. I PF della creatura restano da parte, e un **Annulla** rimette la forma di prima.
+- **Metamorfosi di Massa:** fino a dieci creature, con una bestia fino al loro GS, o a metà del livello. La creatura tiene i suoi PF e riceve come temporanei i PF della forma. Altri PF temporanei non li sostituiscono: il plugin li tiene e lo dice, con una notifica e nella riga di stato della Console effetti manuali. Senza più temporanei, da morta o alla fine dell'incantesimo, torna normale.
+- **Impulso di Magia Selvaggia 77–78:** il popup dell'Impulso apre Metamorfosi sullo stregone, senza slot, con la **Pecora** già scelta (le statistiche della capra del Manuale dei Mostri). Se lo stregone supera il TS al tavolo, chiudi il pannello.
+
+#### Cosa resta al tavolo
+
+- Una creatura con PF condivisi, un token d'incantesimo, un boss o senza PF tracciati prende la pill come etichetta: tiene i suoi PF e le sue statistiche, e il dettaglio della pill dice perché.
+- Metamorfosi Pura che diventa permanente dopo l'ora intera: non c'è un comando, e il plugin la tiene come incantesimo a concentrazione. La permanenza la gestisci tu.
+- I tratti della forma (olfatto acuto, tattiche del branco…) si leggono in Capacità: il vantaggio lo applichi tu.
+- Le azioni di un mostro trasformato nella console Boss restano quelle del mostro.
+
 ### TS contro la morte
 
 Un PG a 0 PF, né stabile né morto, riceve a inizio turno il promemoria **TS contro la morte**, con i successi e i fallimenti accumulati (●●○ / ✕○○). Il popup compare anche sullo schermo del tavolo, ma i pulsanti li ha solo il GM: dopo il tiro del d20 segna **Successo**, **Fallimento**, **1 naturale** (due fallimenti) o **20 naturale** (torna a 1 PF). Ogni tiro è una voce annullabile della Cronologia. Se il GM chiude la sua carta con la × senza registrare, si chiude anche quella sullo schermo del tavolo.

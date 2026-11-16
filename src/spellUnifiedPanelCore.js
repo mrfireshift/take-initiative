@@ -2365,7 +2365,8 @@ function hasSessionValue(value, field = null) {
   if (["boolean", "checkbox"].includes(type)) {
     return value === true || value === false || value === "true" || value === "false";
   }
-  if (["structured", "object", "record", "json"].includes(type)) {
+  // Trasformazioni, lotto W7: a form (its snapshot) is a value of its own.
+  if (["structured", "object", "record", "json", "transformation-form"].includes(type)) {
     return !!value
       && typeof value === "object"
       && Object.keys(value).length > 0;

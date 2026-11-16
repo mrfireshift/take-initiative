@@ -64,17 +64,21 @@ export function pcAttackPickerEntries(card, { activeSpellIds = [], grantedAction
       add(cantrip ? "cantrips" : "spells", action.id, spellId, attackLabel(spellId), { level: cantrip ? 0 : getPcAttackSpell(spellId)?.level ?? null });
     }
   };
+  // Trasformazioni, lotto W3a (docs/PIANO_TRASFORMAZIONI.md): in a form (spellGrantedActionsForItem's transformation) its
+  // attacks take the place of the card's weapons and breath weapons, and the spells wait unless the form casts (Beast Spells).
+  const transformation = grantedActions?.transformation || null;
   // A magic weapon (✦ Magica, lotto M5) says so in its entry.
-  for (const action of attackActions) {
+  for (const action of transformation ? [] : attackActions) {
     if (["cantrip", "spell"].includes(action.source?.kind)) continue;
     const activation = pcAttackActionActivation(action.label);
     add("attacks", action.id, "", action.label || action.id, { ...(action.magical === true ? { magical: true } : {}), ...(activation ? { activation } : {}) });
   }
-  for (const action of pcAttackBreathActionsForCard(profile)) add("attacks", action.id, "", action.label || action.id);
+  for (const action of transformation ? [] : pcAttackBreathActionsForCard(profile)) add("attacks", action.id, "", action.label || action.id);
   for (const action of (Array.isArray(grantedActions) ? grantedActions : []).map(pcAttackAction).filter(Boolean)) {
-    add("attacks", action.id, "", action.label || action.id);
+    add("attacks", action.id, "", action.label || action.id, action.magical === true ? { magical: true } : {});
   }
   entries.features = pcAttackFeatureEntries(profile);
+  if (transformation && !transformation.canCast) return PC_ATTACK_PICKER_TABS.flatMap((tab) => entries[tab.id]);
   // Not the rituals of Ritual Caster's book (lot F3b-4 of docs/STUDIO_TALENTI.md): ten minutes longer, never a turn's cast
   // nor a readied one; the sheet and the 🪄 menu cast them.
   const book = spellbookGroupsForProfile(profile)

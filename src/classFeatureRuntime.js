@@ -69,6 +69,15 @@ import { normalizeEffectSaveReminders } from "./effectSaveReminderCore.js";
 import { proficiencyBonusForLevel, totalCharacterLevel } from "./abilityModifiersCore.js";
 import { damageDefensesForItem } from "./damageDefensesCore.js";
 import { isReactionClassFeature, planReactionSpend } from "./reactionTrackerCore.js";
+import {
+  sanitizeTransformationForm,
+  transformationContextForCharacter,
+  transformationFormAllowed,
+  transformationFormSummary,
+  transformationPillParts,
+  transformationTemplateOf,
+} from "./transformationFormsCore.js";
+import { transformationHpPill } from "./transformationHpCore.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
@@ -1023,6 +1032,47 @@ export function prepareDailyOrSlotFeatureActivation({
   };
 }
 
+// Trasformazioni, lotto W2a (docs/PIANO_TRASFORMAZIONI.md): the form chosen in the attack console goes on the pill, in
+// mechanics.transformation.form, checked against the limits of its source (the druid's level and circle). The pill's
+// label names it and its detail sums it up. Without a form (the character sheet) the pill stays as it was.
+// Lotto W6: Wild Shape lasts half the druid level in hours (PHB 2014, p. 67), 600 rounds each, as the other effects of an
+// hour; the pill ends with the rounds, through the usual expiry. The same from the console (with a form) and from the
+// character sheet (without one). The feature as it was when the level gives no hour.
+export function transformationFeatureWithDuration(feature, characterBuild = []) {
+  const template = transformationTemplateOf(feature);
+  if (!template) return feature;
+  const druidLevel = transformationContextForCharacter(characterBuild, template.kind).druidLevel || 0;
+  const hours = Math.floor(druidLevel / 2);
+  return hours > 0 ? { ...feature, duration: { ...(feature.duration || {}), rounds: hours * 600 } } : feature;
+}
+
+export function prepareTransformationFeatureActivation({ feature, form, characterBuild = [], portrait = null } = {}) {
+  const template = transformationTemplateOf(feature);
+  const clean = sanitizeTransformationForm(form);
+  if (!template || !clean) throw new Error("Scegli una forma valida prima di attivare la capacità.");
+  const check = transformationFormAllowed(clean, transformationContextForCharacter(characterBuild, template.kind));
+  if (!check.allowed) throw new Error(`Forma non ammessa: ${check.reasons.join(" ")}`);
+  const plan = feature.effectPlan || {};
+  const label = String(plan.conditionName || feature.name || "Forma").trim();
+  // Lots W3b (G27) and W4a: the form's damage defenses and speeds on the pill, with the form (transformationPillParts).
+  const parts = transformationPillParts({ template, form: clean, label, portrait,
+    detail: "Il druido prende i PF della forma; i suoi tornano alla fine, e a 0 PF della forma con il danno in eccesso." });
+  return {
+    feature: {
+      ...transformationFeatureWithDuration(feature, characterBuild),
+      effectPlan: {
+        ...plan,
+        displayLabel: parts.displayLabel,
+        detail: parts.detail,
+        mechanics: {
+          ...(plan.mechanics || {}),
+          ...parts.mechanics,
+        },
+      },
+    },
+  };
+}
+
 export function prepareUniversalSpeechFeatureActivation({
   feature,
   mode,
@@ -1343,6 +1393,56 @@ export async function convertClassFeatureSpellSlot({
   };
 }
 
+// Trasformazioni, lotto W6 (docs/PIANO_TRASFORMAZIONI.md): Combat Wild Shape's healing (PHB 2014, p. 69). In a form, a
+// bonus action and a spell slot give back 1d8 hit points per level of the slot, rolled at the table: the form's hit points
+// (meta.hp, lotto W5), as a heal through the coordinator, and the slot out of the inventory in the same command, so one
+// Undo gives both back.
+async function healWildShapeWithSlot({ feature, sourceItem, profile, slotLevel, value } = {}) {
+  const level = Number(slotLevel);
+  if (!Number.isInteger(level) || level < 1 || level > 9) throw classFeatureError("spell-slot-level-invalid");
+  const amount = Number(value);
+  if (!Number.isInteger(amount) || amount < level || amount > level * 8) {
+    throw new Error(`Scrivi il risultato dei ${level}d8: da ${level} a ${level * 8}.`);
+  }
+  const meta = sourceItem.metadata?.[META_KEY] || {};
+  if (!transformationHpPill(meta.conditions)) {
+    throw new Error("Serve una Forma Selvatica scelta dalla console: la cura va sui PF della forma.");
+  }
+  const slots = spellSlotStatus(profile.characterBuild, getClassFeatureState(sourceItem).resources)
+    .filter((row) => row.level === level && row.current > 0);
+  const slot = slots.find((row) => !row.pact) || slots[0] || null;
+  if (!slot) throw classFeatureError("spell-slot-unavailable");
+  const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: amount, hp: meta.hp, hpMax: meta.hpMax,
+    tempHp: meta.tempHp });
+  const operationId = classFeatureStateOperationId("wild-shape-slot-heal");
+  const healed = Math.max(0, change.afterHP - change.hp);
+  const mutation = await runEffectsMutation([{
+    type: "class-feature:adjust-resource",
+    operationId,
+    sourceId: sourceItem.id,
+    pool: getClassFeatureResourcePool(slot.poolId),
+    characterBuild: profile.characterBuild,
+    abilityModifiers: profile.abilityModifiers,
+    adjustment: { delta: -1 },
+  }, {
+    type: "hp:set",
+    updates: [{
+      itemId: sourceItem.id,
+      hp: change.afterHP,
+      hpMax: change.hpMax,
+      hpIntent: { mode: "heal", amount, eventId: operationId },
+      expectedHP: metadataFieldExpectation(meta, "hp"),
+      expectedHPMax: metadataFieldExpectation(meta, "hpMax"),
+    }],
+  }], {
+    kind: "class-feature",
+    label: `${feature.name}: +${healed} PF, slot di ${slot.level}°${slot.pact ? " del Patto" : ""}`,
+    targetIds: [sourceItem.id],
+  });
+  const result = requireClassFeatureStateMutation(mutation, operationId);
+  return { feature, ...result, slotLevel: slot.level, healed };
+}
+
 export async function applySorcerousRestoration({
   sourceId,
   featureId = "stregone-ripristino-stregonesco",
@@ -1426,6 +1526,8 @@ export async function activateClassFeature({
   autoChoiceValues = {},
   suppressAutoActivation = false,
   value,
+  // Lotto W6: the spell slot a feature spends (Combat Wild Shape's healing).
+  slotLevel = null,
   mode = "heal",
   slotConfirmed = false,
   conditionCount = 0,
@@ -1441,6 +1543,10 @@ export async function activateClassFeature({
   hit = true,
   spendReaction = true,
   position = null,
+  // Trasformazioni, lotto W2a: the form chosen in the attack console (prepareTransformationFeatureActivation).
+  transformationForm = null,
+  // 16/11/2026: its portrait on the token ({ url, width, height }), when chosen in the console.
+  transformationPortrait = null,
 } = {}) {
   const originEpoch = Number.isInteger(sceneEpoch) ? sceneEpoch : currentSceneEpoch();
   const feature = featureOverride || getClassFeatureDefinition(featureId);
@@ -1472,6 +1578,37 @@ export async function activateClassFeature({
   }
   const { sourceItem, profile } = await loadEnabledClassFeatureSource(sourceId, feature);
   const adapter = String(feature?.runtimeSupport?.adapter || "").trim();
+  // Trasformazioni, lotto W2a: the form chosen in the console, on the pill, then the activation as usual. From the
+  // character sheet (no form) the pill stays a label, with the same duration (lotto W6).
+  const timedWithoutForm = !featureOverride && !transformationForm && transformationTemplateOf(feature)
+    ? transformationFeatureWithDuration(feature, profile.characterBuild)
+    : feature;
+  if (!featureOverride && (transformationForm || timedWithoutForm !== feature) && transformationTemplateOf(feature)) {
+    const prepared = transformationForm
+      ? prepareTransformationFeatureActivation({
+        feature,
+        form: transformationForm,
+        characterBuild: profile.characterBuild,
+        portrait: transformationPortrait,
+      })
+      : { feature: timedWithoutForm };
+    return activateClassFeature({
+      sourceId: sourceItem.id,
+      featureId: feature.id,
+      targetIds,
+      choiceId,
+      autoChoiceIds,
+      autoChoiceValues,
+      suppressAutoActivation,
+      resourceValues,
+      featureOverride: prepared.feature,
+      sceneEpoch: originEpoch,
+      spendReaction,
+    });
+  }
+  if (adapter === "wild-shape-slot-heal") {
+    return healWildShapeWithSlot({ feature, sourceItem, profile, slotLevel, value });
+  }
   if (adapter === "lay-on-hands") {
     return applyLayOnHandsResolved({
       feature,

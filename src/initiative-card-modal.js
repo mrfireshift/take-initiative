@@ -179,6 +179,7 @@ import { spellTeleportDestinationPosition } from "./spellTeleportCore.js";
 import { speciesTeleportInfo, speciesTeleportRuleId } from "./speciesTeleportCore.js";
 import { speciesNaturalWeaponAction, speciesNaturalWeaponState } from "./speciesNaturalWeaponCore.js";
 import { readableResourceExpression } from "./resourceExpressionText.js";
+import { transformationArmorClassView } from "./transformationFormsCore.js";
 
 const META_KEY = `${ID}/meta`;
 const MODAL_ID = `${ID}/initiative-card-modal`;
@@ -4963,7 +4964,10 @@ function renderView() {
   $("characterBuildLine").hidden = buildLabels.length === 0;
   renderPortrait();
   $("hp").textContent = `${valueText(meta.hp)} / ${valueText(meta.hpMax)}`;
-  $("armorClass").textContent = valueText(profile.armorClass);
+  // Trasformazioni (docs/PIANO_TRASFORMAZIONI.md, lotto W3b): in a form, the form's AC, the creature's own in the title.
+  const armorClass = transformationArmorClassView(profile, meta);
+  $("armorClass").textContent = valueText(armorClass.armorClass);
+  $("armorClass").title = armorClass.title;
   $("passivePerception").textContent = valueText(profile.passivePerception);
   $("speed").textContent = valueText(profile.speed, profile.speed === null ? "" : " m");
   const otherSpeeds = monsterSpeedsText(profile[MONSTER_PROFILE_FIELD]);

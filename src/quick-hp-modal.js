@@ -980,6 +980,9 @@ async function applyOperationNow() {
       unchangedCount: reachedCount - changedIds.length,
     });
     if (coordinatedMutation.historyPending) status.textContent += " Cronologia in recupero; non ripetere l'azione.";
+    // Trasformazioni, lotto W7e: the temporary hit points Mass Polymorph kept, and why.
+    const lockedTempHp = (coordinatedMutation.plan?.reactionRecords || []).filter((record) => record?.kind === "temp-hp-locked");
+    if (lockedTempHp.length) status.textContent += ` ${lockedTempHp.map((record) => record.text).join(" · ")}.`;
     sharedHpSelection = { policy: "once", chosenTargetIds: {} };
     // «Crit» belongs to the hit just applied: the next one at 0 HP counts once unless chosen again.
     criticalIds = new Set();

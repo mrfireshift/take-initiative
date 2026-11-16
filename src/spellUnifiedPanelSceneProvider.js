@@ -45,6 +45,8 @@ import { magicalDamageDefensesForItem } from "./spellDamageDefenseCore.js";
 import { evasionForItem } from "./damageDefensesCore.js";
 import { isDodging } from "./attackAdvantagePillsCore.js";
 import { blinkSemanticDetail } from "./blinkRules.js";
+import { transformationStashForMeta } from "./transformationHpCore.js";
+import { characterTotalLevel } from "./transformationFormsCore.js";
 import { createSceneMetadataKeyWatcher } from "./sceneMetadataDigest.js";
 import {
   getSpellTeleportRule,
@@ -272,6 +274,10 @@ function targetCandidate(item, dpi = 150) {
     evasion: evasionForItem(item, `${ID}/meta`),
     // In Dodge: advantage on a Dexterity save, said on its row (lot T5 of docs/STUDIO_AZIONI_DI_TURNO.md).
     dodging: isDodging(item),
+    // Trasformazioni (G35): in a form, its own HP, for the preview's return at 0 HP of the form.
+    ...(transformationStashForMeta(meta) ? { transformationStash: transformationStashForMeta(meta) } : {}),
+    // Trasformazioni, lotto W7: a character's level, the limit of Polymorph's form on it.
+    ...(characterTotalLevel(meta.initiativeCard?.characterBuild) ? { characterLevel: characterTotalLevel(meta.initiativeCard.characterBuild) } : {}),
   };
 }
 

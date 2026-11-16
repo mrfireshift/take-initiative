@@ -61,7 +61,11 @@ function targetIdsFor(contract) {
   return Array.from({ length: count }, (_, index) => index ? `target-${index}` : "target");
 }
 
+// Trasformazioni, lotto W7: a beast every spell of a form accepts (Large, CR 1/4).
+const SAMPLE_FORM = { name: "Wolf", type: "beast", cr: "1/4", size: "medium", hitPoints: { average: 11 }, speeds: { walk: 12 }, actions: [] };
+
 function validContextValue(field) {
+  if (field?.type === "transformation-form") return SAMPLE_FORM;
   if (Array.isArray(field?.options) && field.options.length) return field.options[0].value;
   if (["number", "integer", "numeric"].includes(field?.type)) return 1;
   if (["boolean", "checkbox"].includes(field?.type)) return true;

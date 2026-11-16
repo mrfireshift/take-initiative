@@ -2126,6 +2126,18 @@ test("monster attack in the console: its bonus and reach under the picker, the M
   assert.deepEqual(f.$("pc-attack-outcomes").children.map((button) => button.dataset.outcome), ["hit", "critical", "miss"]);
 });
 
+// Trasformazioni (docs/PIANO_TRASFORMAZIONI.md, lotto W3): in una forma il multiattacco è quello della forma, o nessuno.
+test("a creature in a form shows the form's Multiattack over the Attacchi tab, not its own", async () => {
+  const inForm = (form) => ({ initiativeCard: dragonCard, conditions: { version: 2, instances: [{ id: "spell:poly:aria", condition: "Metamorfosi",
+    active: true, mechanics: { transformation: { kind: "polymorph", keepsMind: false, keepsFeatures: false, canCast: false, form } } }] } });
+  const bear = { name: "Brown Bear", type: "beast", cr: "1", size: "large", armorClass: 11, multiattack: "The bear makes two attacks: one with its bite and one with its claws." };
+  const f = fixture({ card: dragonCard, actionId: "bite", attacker: inForm(bear) }); await f.controller.ready; await tick();
+  assert.equal(f.$("pc-attack-multiattack").textContent, `Multiattacco: ${bear.multiattack}`);
+  const { multiattack: _none, ...wolf } = { ...bear, name: "Wolf" };
+  const g = fixture({ card: dragonCard, actionId: "bite", attacker: inForm(wolf) }); await g.controller.ready; await tick();
+  assert.equal(g.$("pc-attack-multiattack").hidden, true, "a form without Multiattack: none, not the dragon's");
+});
+
 test("monster save action in the console: its area and DC above the damage, drawn on the map or ticked by hand", async () => {
   const f = fixture({ card: dragonCard, actionId: "breath", attacker: { initiativeCard: dragonCard } }); await f.controller.ready; await tick();
   assert.equal(facts(f), "Cono di 18 m · TS Destrezza (CD 21) · metà se superato · Ricarica 5–6", "once, above the damage");

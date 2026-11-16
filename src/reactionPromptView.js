@@ -12,6 +12,7 @@ import { reactionTriggerEntry } from "./reactionTriggerCatalog.js";
 import { abilityModifier, proficiencyBonusForLevel, totalCharacterLevel } from "./abilityModifiersCore.js";
 import { featFeaturesForProfile } from "./featCatalog.js";
 import { reactionNoticeId } from "./reactionNoticeCore.js";
+import { activeTransformation, transformedCardView } from "./transformationFormsCore.js";
 
 const META_KEY = `${ID}/meta`;
 // The catalog's lots this build wires (reactionTriggerCatalog.js): the others stay in the catalog, unprompted.
@@ -41,7 +42,12 @@ export function reactionPromptCandidates({ event = null, items = [], state = nul
 
 // What a row says after the reaction's name: its effect and, for a bonus to the AC, the rolls it turns into a miss (the
 // console does not know the roll: the GM changes the outcome, decision of section 3.2). Pure.
-const cardOf = (items, id) => (Array.isArray(items) ? items : []).find((entry) => entry?.id === id)?.metadata?.[META_KEY]?.initiativeCard || {};
+// The card as the rules read it: a creature in a form has the form's AC and physical abilities (lotto W3b of
+// docs/PIANO_TRASFORMAZIONI.md, transformedCardView).
+const cardOf = (items, id) => {
+  const meta = (Array.isArray(items) ? items : []).find((entry) => entry?.id === id)?.metadata?.[META_KEY];
+  return transformedCardView(meta?.initiativeCard || {}, activeTransformation(meta));
+};
 export function reactionPromptEffectText(candidate, items = []) {
   const short = String(candidate?.short || "");
   // Absorb Elements: the type of this damage («fuoco», the spell's own choice id, is also its Italian label).

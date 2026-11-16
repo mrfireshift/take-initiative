@@ -19,6 +19,7 @@ import {
 } from "./classFeatureCore.js";
 import { getSpellDefinition } from "./spells-srd.js";
 import { isReactionClassFeature } from "./reactionTrackerCore.js";
+import { transformationTemplateOf } from "./transformationFormsCore.js";
 import { PC_TURN_ACTION_VIAS, pcNoOpportunitySpec, pcTurnActionViaKinds, pcTurnActionViaNote } from "./pcAttackTurnActionViaCore.js";
 import { PC_HELP_MODES, PC_HELP_MODE_LABELS, pcTurnActionLabel } from "./pcAttackTurnActionCore.js";
 
@@ -30,7 +31,8 @@ import { PC_HELP_MODES, PC_HELP_MODE_LABELS, pcTurnActionLabel } from "./pcAttac
 // sheet: Apri nella scheda), "reaction" (used with a reaction and nothing to spend: Usa reazione marks only the
 // reaction), "reference" (to read), "manual" (not automated yet, nothing to spend).
 // Field types: "select", "number", "checkbox", "spell-text" (a catalog spell), "target-spell" (the target's active
-// spell); showWhen: { field, value } shows a field only for that value of another one.
+// spell), "transformation-form" (the form of Wild Shape: the card's quick forms or «Altra forma…», with its kind);
+// showWhen: { field, value } shows a field only for that value of another one.
 
 // The sheet's ids (initiative-card-modal.js).
 const BARDIC_INSPIRATION_ADAPTER = "bardic-inspiration";
@@ -249,6 +251,21 @@ export function pcAttackFeatureForm(feature, state = {}, { characterBuild = [], 
       note: "Gli slot creati restano finché li spendi o fino al riposo lungo.",
       disabledReason: options.length ? "" : "Nessuna operazione possibile: punti e slot esauriti." };
   }
+  // Trasformazioni, lotto W6: Combat Wild Shape's healing, in a form: a slot left, and its 1d8 per level rolled at the table.
+  if (adapter === "wild-shape-slot-heal") {
+    const required = classFeatureRequiredActiveFeatureId(feature);
+    const inForm = !required || (state.activeFeatureIds || []).includes(required);
+    const levels = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+      .filter((level) => !Array.isArray(spellSlots) || spellSlots.some((row) => row.level === level && row.current > 0));
+    return { kind: "activate", label: "Cura", call: "activateClassFeature",
+      fields: levels.length ? [
+        { id: "slotLevel", type: "select", label: "Slot", options: levels.map((level) => ({ value: String(level), label: `Slot di ${level}° · ${level}d8` })) },
+        { id: "value", type: "number", label: "PF recuperati (tirati al tavolo)", min: 1, max: levels.at(-1) * 8, value: "" },
+      ] : [],
+      note: "Azione bonus, in forma: 1d8 per livello dello slot, sui PF della forma.",
+      disabledReason: !inForm ? `Richiede prima ${CLASS_FEATURE_BY_ID.get(required)?.name || "la Forma Selvatica"}.`
+        : levels.length ? "" : "Nessuno slot rimasto." };
+  }
   // Sorcerous Restoration: 4 points back, never above the maximum.
   if (adapter === "sorcerous-restoration") {
     return { kind: "activate", label: "Recupera 4", call: "applySorcerousRestoration", fields: [] };
@@ -301,6 +318,9 @@ export function pcAttackFeatureForm(feature, state = {}, { characterBuild = [], 
   ].filter(Boolean))];
   const missing = required.find((id) => !(state.activeFeatureIds || []).includes(id)) || "";
   const fields = [choiceField(feature, enabledIds)].filter(Boolean);
+  // Trasformazioni, lotto W2a (docs/PIANO_TRASFORMAZIONI.md): the form to take, for a pill that carries one.
+  const transformation = transformationTemplateOf(feature);
+  if (transformation) fields.push({ id: "form", type: "transformation-form", label: "Forma", kind: transformation.kind });
   for (const childId of Array.isArray(feature.autoActivateFeatureIds) ? feature.autoActivateFeatureIds : []) {
     if (!enabledIds.includes(childId)) continue;
     const child = CLASS_FEATURE_BY_ID.get(childId);
@@ -387,6 +407,12 @@ export function pcAttackFeatureRequest(feature, form, values = {}, { sourceId = 
     return { fn: "activateClassFeature", params: { sourceId, featureId: feature.id, resourceValues: { [twinnedSpellPoolId(feature)]: cost } } };
   }
   const adapter = adapterOf(feature);
+  if (adapter === "wild-shape-slot-heal") {
+    const slotLevel = Number(values.slotLevel || form.fields?.[0]?.options?.[0]?.value);
+    if (!Number.isInteger(slotLevel)) return { error: "Scegli lo slot." };
+    if (!String(values.value ?? "").trim()) return { error: `Inserisci il risultato dei ${slotLevel}d8.` };
+    return { fn: "activateClassFeature", params: { sourceId, featureId: feature.id, slotLevel, value: Number(values.value) } };
+  }
   if (adapter === "unsettling-words") {
     if (!String(values.value ?? "").trim()) return { error: "Inserisci il risultato del dado." };
     return { fn: "activateClassFeature", params: { sourceId, featureId: feature.id, ...targets, value: values.value } };
@@ -419,7 +445,15 @@ export function pcAttackFeatureRequest(feature, form, values = {}, { sourceId = 
     }
     autoChoiceValues[childId] = roll;
   }
+  // The form of a transformation (lotto W2a): required in the console; the runtime checks it against the limits.
+  const formField = (Array.isArray(form.fields) ? form.fields : []).some((field) => field.type === "transformation-form");
+  if (formField && !(values.form && typeof values.form === "object")) {
+    return { error: "Scegli la forma: una delle forme rapide, o «Altra forma…»." };
+  }
   return { fn: "activateClassFeature", params: { sourceId, featureId: feature.id, ...targets,
     ...(values.choice ? { choiceId: values.choice } : {}), ...(Object.keys(autoChoiceIds).length ? { autoChoiceIds } : {}),
-    ...(Object.keys(autoChoiceValues).length ? { autoChoiceValues } : {}) } };
+    ...(Object.keys(autoChoiceValues).length ? { autoChoiceValues } : {}),
+    ...(formField ? { transformationForm: values.form } : {}),
+    // 16/11/2026: the form's portrait on the token, when its box is ticked (pcAttackTransformationField.js).
+    ...(formField && values.formPortrait && typeof values.formPortrait === "object" ? { transformationPortrait: values.formPortrait } : {}) } };
 }

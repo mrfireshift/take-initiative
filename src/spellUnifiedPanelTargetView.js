@@ -4,6 +4,40 @@ import {
   createNode,
   createSelect,
 } from "./spellUnifiedPanelDom.js";
+import { transformationFormField } from "./pcAttackTransformationField.js";
+
+// Trasformazioni, lotto W7 (docs/PIANO_TRASFORMAZIONI.md): the «Forma» of a row, the field of the attack console (W2a)
+// with the caster's quick forms and «Altra forma…». Its own state (the import panel, the search, the text) lives here,
+// by target, across the panel's renders; the form chosen goes in the row's context (targetContext[id].form).
+const transformationFieldStates = new Map();
+function transformationContextControl(documentRef, target, field, callbacks) {
+  const values = transformationFieldStates.get(target.key) || {};
+  transformationFieldStates.set(target.key, values);
+  values.form = target.values?.[field.id] && typeof target.values[field.id] === "object" ? target.values[field.id] : null;
+  const portraitBefore = JSON.stringify(target.values?.formPortrait || null);
+  const caster = callbacks.transformationCaster?.() || null;
+  const card = caster?.metadata?.["com.thebigpicture.initiative/meta"]?.initiativeCard || {};
+  const block = transformationFormField({
+    documentRef,
+    field: { ...field, context: callbacks.transformationContext?.(target.key) || null },
+    values,
+    card,
+    item: caster,
+    // «Altra forma…» from a monster's token in the room (lotto W2a, G37).
+    creatures: callbacks.transformationCreatures?.() || [],
+    // The form and its portrait on the token (16/11/2026), in one write of the row's context.
+    rerender: () => (callbacks.onTargetContextFields
+      ? callbacks.onTargetContextFields(target.key, { [field.id]: values.form || "", formPortrait: values.formPortrait || "" })
+      : callbacks.onTargetContextChange?.(target.key, field.id, values.form || "")),
+    setStatus: (message, tone) => callbacks.onTransformationStatus?.(message, tone),
+  });
+  block.setAttribute("data-context-field", field.id);
+  // The portrait the field settled on in this render goes to the row's context when it changed.
+  if (JSON.stringify(values.formPortrait || null) !== portraitBefore && callbacks.onTargetContextFields) {
+    queueMicrotask(() => callbacks.onTargetContextFields(target.key, { formPortrait: values.formPortrait || "" }));
+  }
+  return block;
+}
 
 const DEFAULT_OUTCOME_OPTIONS = Object.freeze([
   { value: "passed", label: "Superato" },
@@ -560,6 +594,10 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
         className: "unified-target-context__grid",
       });
       for (const field of target.fields || targets.context.fields) {
+        if (field.type === "transformation-form") {
+          grid.append(transformationContextControl(documentRef, target, field, callbacks));
+          continue;
+        }
         const control = field.type === "select"
           ? createSelect(documentRef, {
             id: `spell-unified-context-${target.key}-${field.id}`,

@@ -15,6 +15,7 @@ import { mountClassFeatureReminderController } from "./classFeatureReminderContr
 import { mountPreparedSpellResolutionController } from "./preparedSpellResolutionController.js";
 import { mountCallLightningTurnPromptController } from "./callLightningTurnPromptController.js";
 import { mountCompulsionMovementReminderController } from "./compulsionMovementReminderController.js";
+import { mountTransformationTokenSizeController } from "./transformationTokenSize.js";
 import { mountPcAttackTurnController } from "./pcAttackTurnController.js";
 import { mountBossCollapseController } from "./bossCollapseController.js";
 import { mountEffectsMutationCoordinatorService, runEffectsMutation } from "./effectsMutations.js";
@@ -354,6 +355,8 @@ OBR.onReady(async () => {
     void mountPreparedSpellResolutionController();
     void mountCallLightningTurnPromptController();
     void mountCompulsionMovementReminderController();
+    // Trasformazioni, lotto W4b: the token's size follows its form (decision G36).
+    void mountTransformationTokenSizeController();
     void mountPcAttackTurnController();
     void mountBossCollapseController();
   }).catch((error) => {

@@ -6,6 +6,7 @@ import { abilityModifier, proficiencyBonusForLevel, totalCharacterLevel } from "
 import { DEATH_SAVE_DEAD_CONDITION } from "./deathSaveCore.js";
 import { returnFromDeathCondition, returnFromDeathPill } from "./stabilizeSpellRules.js";
 import { planMaxHpChange } from "./maxHpModifierCore.js";
+import { TRANSFORMATION_REVERTED_FLAG, transformationHpPill, transformationStashOf } from "./transformationHpCore.js";
 
 // Lot U6' of the system UX audit, "Riposo del gruppo": the party's short and long rest in one command (PHB 2014,
 // p. 186). The resources come back as on each character's sheet (classFeatureRuntime.js); on a long rest the HP go to
@@ -34,7 +35,11 @@ export function groupRestMembers(items = []) {
     .map((item) => {
       const meta = item.metadata?.[META_KEY] || {};
       const tracked = Number.isFinite(Number(meta.hp)) && Number.isFinite(Number(meta.hpMax)) && Number(meta.hpMax) > 0;
-      const state = tracked ? quickHPStateOf(meta) : { hp: null, hpMax: null, tempHp: 0 };
+      // Trasformazioni, decision G38 (docs/PIANO_TRASFORMAZIONI.md §5.9): a character in a form rests as itself: the rest
+      // ends the form and starts from the HP its pill keeps.
+      const form = tracked ? transformationHpPill(meta.conditions) : null;
+      const own = form ? transformationStashOf(form) : null;
+      const state = tracked ? quickHPStateOf(own ? { ...meta, ...own } : meta) : { hp: null, hpMax: null, tempHp: 0 };
       return {
         id: item.id,
         name: text(item.name) || "Personaggio",
@@ -53,6 +58,7 @@ export function groupRestMembers(items = []) {
         returnPill: returnFromDeathPill(meta),
         // CAP-MAXHP (decision M11): its pills, for those of the maximum that the rest outlasts.
         pills: activePills(meta).map((instance) => ({ ...instance })),
+        ...(form ? { transformation: { id: text(form.id), label: text(form.displayLabel || form.condition) } } : {}),
       };
     })
     .sort((left, right) => left.name.localeCompare(right.name, "it"));
@@ -79,7 +85,8 @@ export function planGroupRestHpWrites({ members = [], longRest = false, recovere
     const maxAfter = restored ? restored.hpMax : hpMax;
     const nextHp = longRest ? maxAfter : Math.min(maxAfter, (restored ? restored.hp : hp) + integer(recovered?.[member.id]));
     const nextTemp = longRest ? 0 : tempHp;
-    if (nextHp === hp && nextTemp === tempHp && maxAfter === hpMax) continue;
+    // A character in a form gets its own HP written even when the rest changes none of them (G38).
+    if (nextHp === hp && nextTemp === tempHp && maxAfter === hpMax && !member.transformation) continue;
     updates.push({
       itemId: member.id,
       hp: nextHp,
@@ -109,10 +116,14 @@ export function groupRestEndingPillIds(member, longRest = false) {
   return groupRestEndingPills(member, longRest).map((pill) => text(pill.id)).filter(Boolean);
 }
 
-// The removals of those pills, in the rest's own command.
+// The removals of those pills, in the rest's own command. A form ends too (G38), with the mark: the rest writes the HP
+// (planGroupRestHpWrites), and the coordinator does not put the stash back over them.
 export function planGroupRestPillEndings({ members = [], longRest = false } = {}) {
-  const removals = (Array.isArray(members) ? members : []).flatMap((member) => groupRestEndingPillIds(member, longRest)
-    .map((instanceId) => ({ itemId: member.id, instanceId })));
+  const removals = (Array.isArray(members) ? members : []).flatMap((member) => [
+    ...groupRestEndingPillIds(member, longRest).map((instanceId) => ({ itemId: member.id, instanceId })),
+    ...(member?.transformation?.id && groupRestBenefits(member, longRest)
+      ? [{ itemId: member.id, instanceId: member.transformation.id, [TRANSFORMATION_REVERTED_FLAG]: true }] : []),
+  ]);
   return removals.length ? [{ type: "condition:remove-instances", removals }] : [];
 }
 
@@ -149,6 +160,8 @@ export function groupRestMemberSummary(member, update, { resourcesRestored = fal
   }
   // CAP-MAXHP, decision M11: what the rest ended of the maximum (Aid, Harm).
   for (const pill of groupRestEndingPills(member, longRest)) parts.push(`${text(pill.condition) || "effetto"} finito`);
+  // G38: the form ends before the rest.
+  if (member?.transformation) parts.push(`${member.transformation.label || "forma"}: torna alla sua forma`);
   if (resourcesRestored) parts.push("risorse ripristinate");
   if (member?.sharedHp) parts.push("PF condivisi: da aggiornare a mano");
   return parts.length ? parts.join(" · ") : "nulla da ripristinare";

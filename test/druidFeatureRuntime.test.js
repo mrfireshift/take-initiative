@@ -73,8 +73,9 @@ test("Druido: il batch implementa 13 capacità senza adapter nuovi", () => {
   const implemented = CLASS_FEATURE_CATALOG.features.filter((entry) =>
     entry.classId === "druido" && entry.runtimeSupport.status === "implemented"
   );
-  // 13 dal batch, più Infestazione Fungina e Legame Migliorato (P2-dati) e Manto di Stelle (difese delle capacità, L2).
-  assert.equal(implemented.length, 16);
+  // 13 dal batch, più Infestazione Fungina e Legame Migliorato (P2-dati), Manto di Stelle (difese delle capacità, L2) e la
+  // Forma Selvatica da Combattimento (Trasformazioni, lotto W6, con un adapter suo: la cura con lo slot).
+  assert.equal(implemented.length, 17);
   assert.equal(CONDITIONS.length + RESOURCE_ONLY.length, 13);
   for (const id of CONDITIONS) assert.equal(feature(id).runtimeSupport.adapter, "condition", id);
   for (const id of RESOURCE_ONLY) {
@@ -83,14 +84,20 @@ test("Druido: il batch implementa 13 capacità senza adapter nuovi", () => {
   }
 });
 
-test("Forma Selvatica è un marker: spende un uso e non tocca i PF", () => {
+// Trasformazioni, lotto W2a (docs/PIANO_TRASFORMAZIONI.md): la pill porta la trasformazione; la forma la sceglie la
+// console (classFeatureUndoIntegration.test.js). Senza forma, come dalla scheda, resta un segnaposto che non tocca i PF.
+test("Forma Selvatica senza forma: spende un uso, porta la trasformazione da scegliere e non tocca i PF", () => {
   const { activation, conditions } = activate("druido-forma-selvatica", { build: druid(2) });
   assert.equal(activation.state.resources[WILD_SHAPE].maximum, 2);
   assert.equal(activation.state.resources[WILD_SHAPE].current, 1);
   assert.equal(conditions[0].condition, "Forma Selvatica");
-  assert.equal(conditions[0].mechanics, undefined);
-  assert.match(conditions[0].effectDetail, /non sostituisce i PF/u);
+  assert.deepEqual(conditions[0].mechanics, {
+    transformation: { kind: "wild-shape", keepsMind: true, keepsFeatures: true, canCast: false },
+  });
+  assert.match(conditions[0].effectDetail, /La forma si sceglie nella console attacchi, che le dà i suoi PF: a 0 PF il druido torna ai suoi/u);
   assert.equal(activation.instance.expiresRound ?? null, null);
+  const elemental = feature("druido-circolo-della-luna-forma-selvatica-elementale");
+  assert.equal(elemental.effectPlan.mechanics.transformation.kind, "elemental-wild-shape");
 });
 
 test("al 20° livello Forma Selvatica è illimitata", () => {
@@ -151,9 +158,10 @@ test("le cure variabili e le capacità senza pool restano fuori", () => {
     assert.equal(classFeatureRuntimeSupport(feature(id)).ready, false, id);
   }
   for (const id of [
-    "druido-circolo-della-luna-forma-selvatica-da-combattimento",
     "druido-circolo-delle-spore-alone-di-spore",
   ]) {
     assert.equal(classFeatureIsReferenceOnly(feature(id)), true, id);
   }
+  // Trasformazioni, lotto W6: la cura della Forma Selvatica da Combattimento ha un adapter suo, con lo slot e la forma.
+  assert.equal(feature("druido-circolo-della-luna-forma-selvatica-da-combattimento").runtimeSupport.adapter, "wild-shape-slot-heal");
 });

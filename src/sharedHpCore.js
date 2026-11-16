@@ -1,5 +1,6 @@
 import { ID } from "./constants.js";
 import { calculateQuickHPChange, quickHPStateOf, quickHPTempHpPatchField, quickHPWriteWithinMax } from "./quickHpCore.js";
+import { transformationHpPill } from "./transformationHpCore.js";
 
 const META_KEY = `${ID}/meta`;
 const text = value => typeof value === "string" ? value.trim() : "";
@@ -77,6 +78,8 @@ export function planSharedHpLinks(items, operation, { metadataKey = META_KEY } =
   const source = byId.get(operation.sourceId);
   const sourceMeta = metaOf(source, metadataKey);
   if (!real(source) || !validHP(sourceMeta) || text(sourceMeta.sharedHpSourceId)) return conflict(operation.sourceId);
+  // Trasformazioni (§5.13): a creature in a form holds the form's HP; a pool would copy them to the others.
+  if (transformationHpPill(sourceMeta.conditions)) return conflict(source.id, "shared-hp-transformed");
   if (operation.expectedSourceHP && (operation.expectedSourceHP.hp !== sourceMeta.hp
     || operation.expectedSourceHP.hpMax !== sourceMeta.hpMax)) return conflict(source.id, "shared-hp-incompatible-values");
   // Keep source values and topology checked at commit, even if they are unchanged.
@@ -88,6 +91,7 @@ export function planSharedHpLinks(items, operation, { metadataKey = META_KEY } =
       return conflict(id);
     }
     const meta = metaOf(item, metadataKey);
+    if (transformationHpPill(meta.conditions)) return conflict(id, "shared-hp-transformed");
     const fields = {};
     // CAP-TEMP: the source's HP and temporary hit points (quickHpCore.js).
     const state = quickHPStateOf(sourceMeta);

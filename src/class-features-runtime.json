@@ -15722,7 +15722,15 @@
       "effectPlan": {
         "kind": "condition",
         "conditionName": "Forma Selvatica",
-        "detail": "Trasformato in una bestia per un massimo di metà livello da druido in ore. Statistiche e PF della bestia restano al GM: il plugin non sostituisce i PF del druido. Termina con un'azione bonus, se cade privo di sensi, scende a 0 PF o muore; i danni in eccesso passano alla forma normale."
+        "detail": "Trasformato in una bestia per un massimo di metà livello da druido in ore. La forma si sceglie nella console attacchi, che le dà i suoi PF: a 0 PF il druido torna ai suoi, con il danno in eccesso. Termina con un'azione bonus, a 0 PF, privo di sensi o morto.",
+        "mechanics": {
+          "transformation": {
+            "kind": "wild-shape",
+            "keepsMind": true,
+            "keepsFeatures": true,
+            "canCast": false
+          }
+        }
       },
       "breaksConcentration": false,
       "duration": {
@@ -15753,7 +15761,7 @@
       "page": 69,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -15761,12 +15769,18 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "wild-shape-slot-heal",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
+      },
+      "requiresActiveFeatureId": "druido-forma-selvatica",
+      "passiveMechanics": {
+        "activationOverrides": {
+          "druido-forma-selvatica": "azione_bonus"
+        }
       },
       "quickActionEligible": false,
       "targetMode": "self",
@@ -15777,12 +15791,15 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌕",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "none",
+        "detail": "Forma Selvatica diventa un'azione bonus. In forma, con un'azione bonus e uno slot: 1d8 PF per livello dello slot, sui PF della forma."
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": null
@@ -17374,7 +17391,15 @@
         "kind": "condition",
         "conditionName": "Forma Selvatica",
         "displayLabel": "Forma Selvatica · Elementale",
-        "detail": "Due usi di Forma Selvatica: elementale dell'acqua, dell'aria, del fuoco o della terra. Statistiche e PF dell'elementale restano al GM."
+        "detail": "Due usi di Forma Selvatica: elementale dell'acqua, dell'aria, del fuoco o della terra. La forma si sceglie nella console attacchi, che le dà i suoi PF: a 0 PF il druido torna ai suoi, con il danno in eccesso.",
+        "mechanics": {
+          "transformation": {
+            "kind": "elemental-wild-shape",
+            "keepsMind": true,
+            "keepsFeatures": true,
+            "canCast": false
+          }
+        }
       },
       "breaksConcentration": false,
       "duration": {
@@ -50504,7 +50529,7 @@
     "mechanicRecords": 860,
     "activeFeatures": 860,
     "resourcePools": 105,
-    "runtimeImplemented": 271,
-    "runtimeNotAutomated": 589
+    "runtimeImplemented": 272,
+    "runtimeNotAutomated": 588
   }
 }

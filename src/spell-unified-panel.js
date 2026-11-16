@@ -63,6 +63,8 @@ import { isDamageRollReaction } from "./damageReactionCore.js";
 import { spellPanelDamageTypes } from "./spellDamageDefenseCore.js";
 import { MAGIC_MISSILE_SPELL_ID } from "./magicMissileCore.js";
 import { LIFE_TRANSFERENCE_SPELL_ID } from "./spellHpRelationCore.js";
+import { characterTotalLevel } from "./transformationFormsCore.js";
+import { transformationSpellFieldContext } from "./transformationSpellsCore.js";
 import { PRISMATIC_SPRAY_SPELL_ID } from "./prismaticSprayRules.js";
 import { sanitizeQuickActions } from "./quickActionsCore.js";
 import {
@@ -4091,6 +4093,28 @@ export function bootSpellUnifiedPanel(
       if (!["attack", "attack-and-save"].includes(state.model?.targets?.outcomes?.mode)) return;
       patchSession({ attackOutcome: value });
     },
+    // Trasformazioni, lotto W7: the «Forma» of a row reads the caster's quick forms and the limits of the spell.
+    transformationCaster: () => state.casters.find((item) => item.id === state.session?.casterId) || null,
+    // «Altra forma…» from a monster's token in the room: the scene's creatures, as the caster's list has them.
+    transformationCreatures: () => state.casters,
+    transformationContext: (targetId) => transformationSpellFieldContext({
+      spellId: state.contract?.spell?.id,
+      targetLevel: state.targetCandidates.find((candidate) => candidate?.key === targetId)?.characterLevel,
+      casterLevel: characterTotalLevel(state.casters.find((item) => item.id === state.session?.casterId)
+        ?.metadata?.[`${ID}/meta`]?.initiativeCard?.characterBuild),
+    }),
+    onTransformationStatus: (message, tone) => patchSession({ feedback: { state: tone === "error" ? "error" : "info",
+      message: String(message || "") } }, { clearFeedback: false }),
+    // Several fields of a row at once (the «Forma» and its portrait).
+    onTargetContextFields: (targetId, fields) => patchSession({
+      targetContext: {
+        ...state.session.targetContext,
+        [targetId]: {
+          ...(state.session.targetContext?.[targetId] || {}),
+          ...(fields && typeof fields === "object" ? fields : {}),
+        },
+      },
+    }),
     onTargetContextChange: (targetId, field, value) => patchSession({
       targetContext: {
         ...state.session.targetContext,

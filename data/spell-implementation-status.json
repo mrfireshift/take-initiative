@@ -2730,13 +2730,13 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 300,
-      "PARTIAL": 15,
-      "NO AUTOMATION REQUIRED": 146,
+      "COMPLETE / CURRENT": 303,
+      "PARTIAL": 13,
+      "NO AUTOMATION REQUIRED": 145,
       "MISSING": 1,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 16,
+    "implementableBacklog": 14,
     "readiness": {
       "GREEN": {
         "count": 0,
@@ -2744,11 +2744,11 @@
       },
       "YELLOW": {
         "count": 4,
-        "percent": 25
+        "percent": 28.6
       },
       "RED": {
-        "count": 12,
-        "percent": 75
+        "count": 10,
+        "percent": 71.4
       }
     },
     "scenarios": [
@@ -3773,14 +3773,18 @@
       "id": "animal-shapes",
       "spell": "Forme animali",
       "level": 8,
-      "status": "PARTIAL",
-      "readiness": "RED",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spellSaveWorkflowRules.js",
+        "src/transformationSpellsCore.js",
+        "src/transformationFormsCore.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/effectsMutations.js",
+        "src/transformationHpCore.js"
       ],
       "mechanicsRequired": [
-        "Forma, statistiche, pool HP sostitutivo e ripristino richiedono un dominio esplicito; non è un semplice condition descriptor."
+        "Trasformazioni W7d: più creature consenzienti, ognuna con la sua bestia (Grande o meno, GS 4 o meno), senza TS; PF della forma (W5). Cambio di forma con l'azione di chi lancia, dalla console (G28)."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -3793,9 +3797,7 @@
         "C-HISTORY",
         "C-CONCENTRATION"
       ],
-      "missingCapabilities": [
-        "FORM-STATE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -3803,7 +3805,7 @@
         "mode": "discrete",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Forma, statistiche, pool HP sostitutivo e ripristino richiedono un dominio esplicito; non è un semplice condition descriptor."
+        "required": "Trasformazioni W7d: più creature consenzienti, ognuna con la sua bestia (Grande o meno, GS 4 o meno), senza TS; PF della forma (W5). Cambio di forma con l'azione di chi lancia, dalla console (G28)."
       },
       "concentration": true,
       "durationLifecycle": {
@@ -3832,8 +3834,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "TRANSFORMATION",
-      "estimatedEffort": "HIGH, individual design",
-      "recommendedBatch": "RED / individual",
+      "estimatedEffort": "No scheduled implementation",
+      "recommendedBatch": "BLUE / no batch",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "animal-shapes",
@@ -3862,7 +3864,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Forma, statistiche, pool HP sostitutivo e ripristino richiedono un dominio esplicito; non è un semplice condition descriptor.",
+        "reason": "Trasformazioni W7d: più creature consenzienti, ognuna con la sua bestia (Grande o meno, GS 4 o meno), senza TS; PF della forma (W5). Cambio di forma con l'azione di chi lancia, dalla console (G28).",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -29745,11 +29747,15 @@
       "status": "PARTIAL",
       "readiness": "RED",
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spellSaveWorkflowRules.js",
+        "src/transformationSpellsCore.js",
+        "src/transformationFormsCore.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/effectsMutations.js",
+        "src/transformationHpCore.js"
       ],
       "mechanicsRequired": [
-        "Forma, statistiche, pool HP sostitutivo e ripristino richiedono un dominio esplicito; non è un semplice condition descriptor."
+        "Trasformazioni W7b: la forma per bersaglio nella riga del pannello (forme rapide di chi lancia o «Altra forma…»), una bestia entro il GS o il livello del bersaglio; TS al tavolo solo per chi non è consenziente; pill dell'istanza con la forma, PF della forma scambiati dal coordinatore (W5), fine con la concentrazione. Restano: le azioni del mostro in forma nella console Boss (W3c) e il GS dei mostri, che la scheda non tiene."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -29763,7 +29769,7 @@
         "C-CONCENTRATION"
       ],
       "missingCapabilities": [
-        "FORM-STATE"
+        "FORM-SWITCH"
       ],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
@@ -29772,7 +29778,7 @@
         "mode": "discrete",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Forma, statistiche, pool HP sostitutivo e ripristino richiedono un dominio esplicito; non è un semplice condition descriptor."
+        "required": "Trasformazioni W7b: la forma per bersaglio nella riga del pannello (forme rapide di chi lancia o «Altra forma…»), una bestia entro il GS o il livello del bersaglio; TS al tavolo solo per chi non è consenziente; pill dell'istanza con la forma, PF della forma scambiati dal coordinatore (W5), fine con la concentrazione. Restano: le azioni del mostro in forma nella console Boss (W3c) e il GS dei mostri, che la scheda non tiene."
       },
       "concentration": true,
       "durationLifecycle": {
@@ -29831,7 +29837,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Forma, statistiche, pool HP sostitutivo e ripristino richiedono un dominio esplicito; non è un semplice condition descriptor.",
+        "reason": "Trasformazioni W7b: la forma per bersaglio nella riga del pannello (forme rapide di chi lancia o «Altra forma…»), una bestia entro il GS o il livello del bersaglio; TS al tavolo solo per chi non è consenziente; pill dell'istanza con la forma, PF della forma scambiati dal coordinatore (W5), fine con la concentrazione. Restano: le azioni del mostro in forma nella console Boss (W3c) e il GS dei mostri, che la scheda non tiene.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -34158,14 +34164,18 @@
       "id": "shapechange",
       "spell": "Trasformazione",
       "level": 9,
-      "status": "PARTIAL",
-      "readiness": "RED",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spellSaveWorkflowRules.js",
+        "src/transformationSpellsCore.js",
+        "src/transformationFormsCore.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/effectsMutations.js",
+        "src/transformationHpCore.js"
       ],
       "mechanicsRequired": [
-        "Forma, statistiche, pool HP sostitutivo e ripristino richiedono un dominio esplicito; non è un semplice condition descriptor."
+        "Trasformazioni W7a: la forma di chi lancia, entro il suo livello, non costrutto né non morto; tiene mente, capacità e incantesimi; PF della forma (W5). Cambio di forma con un'azione dalla console (G28), i PF non sopra gli attuali."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -34178,9 +34188,7 @@
         "C-HISTORY",
         "C-CONCENTRATION"
       ],
-      "missingCapabilities": [
-        "FORM-STATE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -34188,7 +34196,7 @@
         "mode": "none",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Forma, statistiche, pool HP sostitutivo e ripristino richiedono un dominio esplicito; non è un semplice condition descriptor."
+        "required": "Trasformazioni W7a: la forma di chi lancia, entro il suo livello, non costrutto né non morto; tiene mente, capacità e incantesimi; PF della forma (W5). Cambio di forma con un'azione dalla console (G28), i PF non sopra gli attuali."
       },
       "concentration": true,
       "durationLifecycle": {
@@ -34217,8 +34225,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "TRANSFORMATION",
-      "estimatedEffort": "HIGH, individual design",
-      "recommendedBatch": "RED / individual",
+      "estimatedEffort": "No scheduled implementation",
+      "recommendedBatch": "BLUE / no batch",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "shapechange",
@@ -34247,7 +34255,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Forma, statistiche, pool HP sostitutivo e ripristino richiedono un dominio esplicito; non è un semplice condition descriptor.",
+        "reason": "Trasformazioni W7a: la forma di chi lancia, entro il suo livello, non costrutto né non morto; tiene mente, capacità e incantesimi; PF della forma (W5). Cambio di forma con un'azione dalla console (G28), i PF non sopra gli attuali.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -39179,11 +39187,15 @@
       "status": "PARTIAL",
       "readiness": "RED",
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spellSaveWorkflowRules.js",
+        "src/transformationSpellsCore.js",
+        "src/transformationFormsCore.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/effectsMutations.js",
+        "src/transformationHpCore.js"
       ],
       "mechanicsRequired": [
-        "Forma, statistiche, pool HP sostitutivo e ripristino richiedono un dominio esplicito; non è un semplice condition descriptor."
+        "Trasformazioni W7c: come Metamorfosi, con qualsiasi tipo di creatura. Restano: oggetti fuori (G31), le azioni del mostro in forma (W3c). La forma permanente dopo l'ora resta al tavolo (G30 scartato)."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -39197,7 +39209,7 @@
         "C-CONCENTRATION"
       ],
       "missingCapabilities": [
-        "FORM-STATE"
+        "PERMANENT-FORM"
       ],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
@@ -39206,7 +39218,7 @@
         "mode": "discrete",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Forma, statistiche, pool HP sostitutivo e ripristino richiedono un dominio esplicito; non è un semplice condition descriptor."
+        "required": "Trasformazioni W7c: come Metamorfosi, con qualsiasi tipo di creatura. Restano: oggetti fuori (G31), le azioni del mostro in forma (W3c). La forma permanente dopo l'ora resta al tavolo (G30 scartato)."
       },
       "concentration": true,
       "durationLifecycle": {
@@ -39265,7 +39277,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Forma, statistiche, pool HP sostitutivo e ripristino richiedono un dominio esplicito; non è un semplice condition descriptor.",
+        "reason": "Trasformazioni W7c: come Metamorfosi, con qualsiasi tipo di creatura. Restano: oggetti fuori (G31), le azioni del mostro in forma (W3c). La forma permanente dopo l'ora resta al tavolo (G30 scartato).",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -48501,14 +48513,18 @@
       "id": "xanathar-metamorfosi-di-massa",
       "spell": "Metamorfosi di Massa",
       "level": 9,
-      "status": "NO AUTOMATION REQUIRED",
-      "readiness": "BLUE",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/supplementSpellRules.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spellSaveWorkflowRules.js",
+        "src/transformationSpellsCore.js",
+        "src/transformationFormsCore.js",
+        "src/transformationHpCore.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/effectsMutations.js"
       ],
       "mechanicsRequired": [
-        "Confine di prodotto manuale esplicito verificato nei test spellAutomationAudit e nel comportamento corrente; non riaprire come backlog."
+        "Trasformazioni W7e (testo verificato sulla Guida di Xanathar, decisioni del 16/11/2026): fino a dieci creature entro 36 m, ognuna con la bestia della sua riga (GS fino al suo, o metà del livello); TS su Saggezza al tavolo solo per chi non è consenziente; tiene i suoi PF e ha come PF temporanei quelli della forma, che altre fonti non sostituiscono (il coordinatore li tiene e lo dice); senza più PF temporanei, morto o a fine incantesimo torna alla sua forma."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -48529,7 +48545,7 @@
         "mode": "discrete",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Confine di prodotto manuale esplicito verificato nei test spellAutomationAudit e nel comportamento corrente; non riaprire come backlog."
+        "required": "Trasformazioni W7e (testo verificato sulla Guida di Xanathar, decisioni del 16/11/2026): fino a dieci creature entro 36 m, ognuna con la bestia della sua riga (GS fino al suo, o metà del livello); TS su Saggezza al tavolo solo per chi non è consenziente; tiene i suoi PF e ha come PF temporanei quelli della forma, che altre fonti non sostituiscono (il coordinatore li tiene e lo dice); senza più PF temporanei, morto o a fine incantesimo torna alla sua forma."
       },
       "concentration": true,
       "durationLifecycle": {
@@ -48591,7 +48607,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Confine di prodotto manuale esplicito verificato nei test spellAutomationAudit e nel comportamento corrente; non riaprire come backlog.",
+        "reason": "Trasformazioni W7e (testo verificato sulla Guida di Xanathar, decisioni del 16/11/2026): fino a dieci creature entro 36 m, ognuna con la bestia della sua riga (GS fino al suo, o metà del livello); TS su Saggezza al tavolo solo per chi non è consenziente; tiene i suoi PF e ha come PF temporanei quelli della forma, che altre fonti non sostituiscono (il coordinatore li tiene e lo dice); senza più PF temporanei, morto o a fine incantesimo torna alla sua forma.",
         "scope": "Explicit existing product decision"
       },
       "observed": {
@@ -62955,6 +62971,10 @@
     {
       "date": "2026-11-13",
       "note": "CAP-MAXHP: Aiuto, Ferire, Banchetto degli eroi e Ristorare superiore completi; la memoria dei PG tiene il massimo senza i bonus delle pill (M0)."
+    },
+    {
+      "date": "2026-11-16",
+      "note": "Trasformazioni: Trasformazione e Forme Animali completi, con il cambio di forma dalla console (G28); Metamorfosi Pura resta parziale, la forma permanente al tavolo (G30 scartato)."
     }
   ]
 }

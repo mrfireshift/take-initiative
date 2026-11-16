@@ -28,6 +28,18 @@ const MANUAL = Object.freeze({ duration: null, unit: "rounds" });
 const buff = (name, icon, duration, extra = {}) => Object.freeze({ kind: "buff", buff: Object.freeze({ name, icon, ...duration, ...extra }) });
 const condition = (conditionName, rounds, extra = {}) => Object.freeze({ kind: "condition", conditionName, rounds, ...extra });
 const spell = (extra = {}) => Object.freeze({ kind: "spell", ...extra });
+
+// Trasformazioni, lotto W7e (decision of 16/11/2026): the sheep of 77–78. The 2014 Monster Manual has none: the goat's
+// statistics, under the sheep's name. The surge's Polymorph opens with it chosen in the sorcerer's row.
+export const WILD_MAGIC_SURGE_SHEEP_FORM = Object.freeze({
+  name: "Pecora", ref: "Pecora|statistiche della capra (MM 2014)", source: "MM", type: "beast", cr: "0", size: "medium",
+  hitPoints: Object.freeze({ average: 4, formula: "1d8" }), armorClass: 10,
+  abilities: Object.freeze({ str: 12, dex: 10, con: 11, int: 2, wis: 10, cha: 5 }), speeds: Object.freeze({ walk: 12 }),
+  actions: Object.freeze([Object.freeze({ id: "form-1", label: "Cornata", kind: "attack", range: "melee", attackBonus: 3,
+    components: Object.freeze([Object.freeze({ type: "bludgeoning", formula: "1d4+1" })]) })]),
+  notes: "Statistiche della capra. Carica: dopo 6 m in linea retta, un colpo fa 2d4 contundenti in più e il bersaglio supera "
+    + "un TS su Forza CD 10 o cade prono. Piede fermo: vantaggio ai TS su Forza e Destrezza contro gli effetti che fanno cadere prono.",
+});
 const manual = (hint, pill = null) => Object.freeze({ kind: "manual", hint, ...(pill ? { pill } : {}) });
 
 // One action per row of the table, keyed by its range. The short pill names are the plugin's own words: the
@@ -75,7 +87,7 @@ export const WILD_MAGIC_SURGE_ACTIONS = Object.freeze({
   "71-72": buff("Resistenza a tutto", "🛡️", MINUTE, { defenses: [{ kind: "resistance", type: BUFF_ALL_DAMAGE_TYPES }] }),
   "73-74": condition("Avvelenato", 0, { selection: true, note: "Seleziona la creatura tirata a caso; 1d4 ore, fine manuale." }),
   "75-76": buff("Luce radiosa", "☀️", MINUTE, { notes: ["Luce intensa 9 m", "Accieca entro 1,5 m"] }),
-  "77-78": spell({ self: true, rounds: 600 }),
+  "77-78": spell({ self: true, rounds: 600, form: WILD_MAGIC_SURGE_SHEEP_FORM }),
   "79-80": buff("Farfalle e petali", "✨", MINUTE),
   "81-82": buff("Azione aggiuntiva", "⚡", ROUND),
   "83-84": manual("1d10 necrotici a ogni creatura entro 9 m, lo Stregone recupera il totale: risolvilo con la console Effetti."),
@@ -202,6 +214,8 @@ export function planWildMagicSurgeAction(row, {
           ...(slotLevel ? { slotLevel } : {}),
           ...(action.rounds ? { durationTurns: action.rounds } : {}),
           targetIds: action.self ? [id] : [],
+          // Lotto W7e: a form already chosen in the sorcerer's row (77–78, the sheep).
+          ...(action.form && action.self ? { targetContext: { [id]: { form: action.form } } } : {}),
           origin: "wild-magic-surge",
           // PHB 2014: a spell the surge casts needs no concentration and lasts its full duration.
           withoutConcentration: true,

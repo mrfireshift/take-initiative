@@ -918,3 +918,27 @@ test("L12: il GM viene avvisato quando il registro della stanza scarta un profil
     await stopRuntime(runtime);
   }
 });
+
+// Trasformazioni, lotto W2a (docs/PIANO_TRASFORMAZIONI.md, G37): le forme rapide della Forma Selvatica stanno sulla
+// scheda, passano dal registro della stanza a un'altra scena, e un salvataggio di un altro campo non le tocca.
+test("W2a: le forme rapide della scheda vanno nel registro della stanza e seguono il personaggio in un'altra scena", async () => {
+  reset();
+  storedProfile().quickActions = [];
+  const runtime = await startRuntime();
+  try {
+    const wolf = { name: "Wolf", ref: "Wolf|MM", source: "5etools", type: "beast", cr: "1/4", size: "medium",
+      speeds: { walk: 12 }, actions: [], junk: true };
+    await runtime.cards.saveInitiativeCard("hero", "Hero", { transformationForms: [wolf, wolf] },
+      { commandId: "forms-save", transportTimeoutMs: 100 });
+    assert.deepEqual(storedProfile().transformationForms.map((form) => form.name), ["Wolf"]);
+    assert.equal(storedProfile().transformationForms[0].junk, undefined);
+    assert.deepEqual(roomCardRegistry().hero.profile.transformationForms.map((form) => form.ref), ["Wolf|MM"]);
+    await runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass: 15 }, { commandId: "ac-save", transportTimeoutMs: 100 });
+    assert.equal(storedProfile().armorClass, 15);
+    assert.deepEqual(storedProfile().transformationForms.map((form) => form.name), ["Wolf"]);
+    const profile = await runtime.cards.loadInitiativeCard(sceneTwoHero());
+    assert.deepEqual(profile.transformationForms.map((form) => form.name), ["Wolf"]);
+  } finally {
+    await stopRuntime(runtime);
+  }
+});

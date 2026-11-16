@@ -13,6 +13,8 @@ import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAtta
   pcAttackMonsterAreaNote, pcAttackMonsterTags, pcAttackSpellBonusTags, pcAttackMagicToggleable, pcAttackMagicHint, pcAttackDefenseText } from "./pcAttackCore.js";
 import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileCore.js";
 import { PC_ATTACK_MONSTER_GROUP_TITLES, pcAttackMonsterTraitEntries } from "./pcAttackMonsterTraitsCore.js";
+import { TRANSFORMATION_FORM_GROUP_TITLES, transformationFormEntries, transformationFormOf, transformationFormStatblockRef } from "./transformationStatblockCore.js";
+import { transformationChangeEntries } from "./transformationSpellsCore.js";
 import { monsterStatblockTextRef } from "./monsterStatblockTextCore.js";
 import { createMonsterStatblockTextLoader } from "./monsterStatblockTextLoader.js";
 import { getPcAttackSpell, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
@@ -31,6 +33,7 @@ import { privateTextMissingNote } from "./privatePackCore.js";
 import { getClassFeatureDefinition } from "./classFeatureCatalog.js";
 import { classFeatureTargeting } from "./classFeatureCore.js";
 import { pcAttackFeatureForm, pcAttackFeatureRequest } from "./pcAttackFeatureFormCore.js";
+import { transformationFormField } from "./pcAttackTransformationField.js";
 import { getSpellCatalog, getSpellDefinition } from "./spells-srd.js";
 import { spellCanBeReadied } from "./spellCastPhaseCore.js";
 import { hasReactionUsed, hasReadiedAction, isOffTurn, isReactionClassFeature, readiedHoldName } from "./reactionTrackerCore.js";
@@ -238,14 +241,21 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   let statblockText=overrides.statblockText || null;
   async function monsterTraitEntries(item) {
     const card=item?.metadata?.[META_KEY]?.initiativeCard || {};
+    // Trasformazioni (16/11/2026): an actor in a form reads the form's stat block, from the GM's archive or its snapshot.
+    const shape=transformationFormOf(item?.metadata?.[META_KEY]);
+    const shapeRef=transformationFormStatblockRef(shape);
+    if(shapeRef) statblockText ||= createMonsterStatblockTextLoader();
+    const shapeView=shapeRef?await statblockText.view(shapeRef,{fromArchive:true,revision:shapeRef}).catch(()=>null):null;
+    // G28: Shapechange and Animal Shapes let the form change while they last («Cambia forma», renderFormChange).
+    const shapeEntries=shape?[...transformationFormEntries(shape,shapeView),...transformationChangeEntries(item)]:[];
     // The console is the GM's (pcAttackLauncher.js): the sheet's rule, an NPC's monster card only.
     const ref=monsterStatblockTextRef({isGM:true,attitude:item?.metadata?.[META_KEY]?.attitude,card});
-    if(!ref) return [];
+    if(!ref) return shapeEntries;
     statblockText ||= createMonsterStatblockTextLoader();
     // Read again only when the card's monster changes (a new import): the reloads on every token change cost nothing.
     const view=await statblockText.view(ref,{fromArchive:card[MONSTER_PROFILE_FIELD]?.source==="5etools",
       revision:JSON.stringify(card[MONSTER_PROFILE_FIELD] || null)}).catch(()=>null);
-    return pcAttackMonsterTraitEntries(view);
+    return [...shapeEntries,...pcAttackMonsterTraitEntries(view)];
   }
   const params=new URLSearchParams(globalThis.location?.search || "");
   // The open console follows the turn (pcAttackTurnController.js): the actor changes in place.
@@ -1257,7 +1267,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     };
     const groupOf=entry=>entry.tab==="features"?entry.group:favourite(entry)?"pinned":entry.level;
     const groupTitle=group=>group==="pinned"?"★ Preferiti":group==="usable"?"Utilizzabili":group==="other"?"Altre capacità":Number.isInteger(group)?`${group}° livello`
-      :PC_ATTACK_MONSTER_GROUP_TITLES[group] || "Altri";
+      :PC_ATTACK_MONSTER_GROUP_TITLES[group] || TRANSFORMATION_FORM_GROUP_TITLES[group] || "Altri";
     // The favourites first, then the levels (or the features' groups) in their order.
     const groups=[...new Set(inTab.map(groupOf))].sort((left,right)=>Number(right==="pinned")-Number(left==="pinned"));
     // A level header carries its slots (shown by the CSS from data-slots): "slot 2/3", the pact's "patto 1/2".
@@ -1392,7 +1402,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const concentrationNames=()=>Object.entries(presentation?.item?.metadata?.[META_KEY]?.[`${ID}/concentration`] || {})
     .map(([key,entry])=>readiedHoldName(String(entry?.name || entry?.spellId || key).trim(),entry)).filter(Boolean);
   function renderMonster() {
-    const multiattack=sanitizeMonsterProfile(attackerCard()[MONSTER_PROFILE_FIELD])?.multiattack || "";
+    // Trasformazioni (docs/PIANO_TRASFORMAZIONI.md, lotto W3): a creature in a form attacks as the form, with its Multiattack
+    // (or none); its own stays aside until the form ends.
+    const shape=transformationFormOf(presentation?.item?.metadata?.[META_KEY]);
+    const multiattack=(shape?shape.multiattack:sanitizeMonsterProfile(attackerCard()[MONSTER_PROFILE_FIELD])?.multiattack) || "";
     if(multiattackLine) {
       multiattackLine.hidden=!multiattack || currentEntry()?.tab!=="attacks";
       multiattackLine.textContent=multiattack?`Multiattacco: ${multiattack}`:"";
@@ -1492,6 +1505,14 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // A field shown only for one value of another (a confirmation for a slot spent, for a stolen spell).
     const syncShown=()=>{for(const row of rows) if(row.__showWhen) row.hidden=values[row.__showWhen.field]!==row.__showWhen.value;};
     const fields=(form.fields || []).map(field=>{
+      // Trasformazioni, lotto W2a: the form of Wild Shape, a block of its own (pcAttackTransformationField.js).
+      if(field.type==="transformation-form") {
+        const block=transformationFormField({documentRef,field,values,card:presentation?.item?.metadata?.[META_KEY]?.initiativeCard || {},
+          item:presentation?.item || null,disabled:busy || launchBusy || invalidated || blocked,
+          rerender:()=>{launchSignature="";renderLaunch();},setStatus,creatures:presentation?.targets || []});
+        rows.push(block);
+        return block;
+      }
       const row=node("label","",field.type==="checkbox"?"feature-field feature-check":"feature-field");
       if(field.type!=="checkbox") row.append(node("span",field.label,"feature-field-label"));
       let control;
@@ -1872,13 +1893,47 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     syncTarget();
   }
   // A monster's trait, reaction or legendary action (fase 4, lotto 5): its text to read, no button (decision D9).
+  // G28 (docs/PIANO_TRASFORMAZIONI.md): «Cambia forma» while Shapechange or Animal Shapes lasts: the «Forma» field of
+  // Wild Shape with the spell's limits, the quick forms of whoever casts it, and one command (transformationChangeRuntime.js).
+  const formChangeValues=new Map();
+  function renderFormChange(entry) {
+    const change=entry.change || {};
+    const values=formChangeValues.get(sourceId) || {};
+    formChangeValues.set(sourceId,values);
+    const signature=JSON.stringify(["form-change",entry.key,entry.text,launchBusy,busy,invalidated]);
+    if(signature===launchSignature) return;
+    launchSignature=signature;
+    const caster=change.kind==="animal-shapes"?(presentation?.targets || []).find(item=>item.id===change.casterId) || null:presentation?.item || null;
+    const field=transformationFormField({documentRef,values,card:caster?.metadata?.[META_KEY]?.initiativeCard || {},item:caster,
+      field:{id:"form",type:"transformation-form",label:"Forma nuova",kind:change.kind,context:change.context || null},
+      disabled:busy || launchBusy || invalidated,rerender:()=>{launchSignature="";renderLaunch();},setStatus,
+      creatures:presentation?.targets || []});
+    const run=node("button",launchBusy?"Cambio…":"Cambia forma","quick-action-add");
+    run.type="button";
+    run.disabled=busy || launchBusy || invalidated || !values.form;
+    run.addEventListener("click",()=>void runFormChange(values));
+    launchBox.replaceChildren(launchHead(entry,[capitalized(entry.activation)]),node("p",entry.text,"spell-text"),field,run);
+  }
+  async function runFormChange(values) {
+    if(launchBusy || busy || invalidated || !values.form) return;
+    launchBusy=true;launchSignature="";renderLaunch();
+    try {
+      const runtime=overrides.formChangeRuntime || await import("./transformationChangeRuntime.js");
+      const result=await runtime.changeTransformationForm({sourceId,form:values.form,portrait:values.formPortrait || null});
+      values.form=null;values.formPortrait=null;values.formStatblockOpen=false;
+      setStatus(`Registrato: ${result.label}.`,"ok");
+    } catch(error) {setStatus(String(error?.message || error || "Forma non cambiata."),"error");}
+    finally {launchBusy=false;launchSignature="";renderLaunch();}
+  }
   function renderMonsterTrait(entry) {
     $("pc-attack-title").textContent=actorName();
-    const kind={"monster-trait":"Tratto","monster-reaction":"Reazione","monster-legendary":"Azione leggendaria","monster-bonus":"Azione bonus"}[entry.group] || "";
+    const kind={"monster-trait":"Tratto","monster-reaction":"Reazione","monster-legendary":"Azione leggendaria","monster-bonus":"Azione bonus",
+      "form-trait":"Tratto della forma","form-action":"Azione della forma","form-reaction":"Reazione della forma","form-statblock":"Forma"}[entry.group] || "";
     $("pc-attack-subtitle").textContent=pickerNamesEntry?"":[plainLabel(entry.label),kind].filter(Boolean).join(" · ");
     if(applyRow) applyRow.hidden=true;
     apply.hidden=true;
     if(launchButton) launchButton.hidden=true;
+    if(entry.group==="form-change") {renderFormChange(entry);return;}
     const signature=JSON.stringify(["monster",entry.key,entry.label,entry.text]);
     if(signature===launchSignature) return;
     launchSignature=signature;
@@ -2685,7 +2740,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     total.replaceChildren();total.title=view.ready?"":view.blocker;total.dataset.kind="";
     if(view.ready) {
       const strong=node("strong",String(draft.outcome==="miss"?0:view.total));
-      total.append(strong,node("span",draft.outcome==="miss"?" danni":` danni · PF ${view.hp.before} → ${view.hp.after}`));
+      total.append(strong,node("span",draft.outcome==="miss"?" danni":` danni · PF ${view.hp.before} → ${view.hp.after}${view.hp.formReturn?` · ${view.hp.formReturn.text}`:""}`));
       const secondaryCounts=(view.secondary?.defenseCounts || []).map(row=>damageDefenseCount(row)).join(", ");
       if(view.secondary?.hp) total.append(node("span",` · seconda: ${view.secondary.total}${secondaryCounts?` (${secondaryCounts})`:""}`));
       if(view.spell?.casterHeal) total.append(node("span",` · caster PF ${view.spell.casterHeal.before} → ${view.spell.casterHeal.after}`));

@@ -88,6 +88,7 @@ import {
   magicMissileTargetText,
 } from "./magicMissileCore.js";
 import { spellHpRelationChanges, spellHpRelationRule } from "./spellHpRelationCore.js";
+import { transformationPreviewReturn } from "./transformationHpCore.js";
 import {
   MASS_HEAL_SHARE_FIELD,
   MASS_HEAL_SPELL_ID,
@@ -329,6 +330,7 @@ function normalizeTargetCandidates(
       ...(candidate?.damageDefenses ? { damageDefenses: clone(candidate.damageDefenses) } : {}),
       ...(candidate?.evasion === true ? { evasion: true } : {}),
       ...(candidate?.dodging === true ? { dodging: true } : {}),
+      ...(candidate?.transformationStash ? { transformationStash: clone(candidate.transformationStash) } : {}),
       turbineSize: asText(candidate?.turbineSize) || null,
       layer: asText(candidate?.layer) || null,
       isCreature: candidate?.isCreature === true || asText(candidate?.layer) === "CHARACTER",
@@ -619,11 +621,14 @@ function hpPreviewFor(
           requested: primary.requested + area.requested, delta, changed: delta !== 0,
           primaryRequested: primary.requested, areaRequested: area.requested };
       }
+      // Trasformazioni (G35): a form brought to 0 HP: where the creature lands, after its row's label.
+      const formReturn = transformationPreviewReturn({ stash: candidate.transformationStash, change });
       return {
         ...base,
         factor: immune ? "immune" : factor,
         ...(evasion ? { evasion: true } : {}),
-        factorLabel: isHealing
+        ...(formReturn ? { transformationReturn: formReturn } : {}),
+        factorLabel: [isHealing
           ? "Cura"
           : attackMiss
             ? "Mancato"
@@ -635,7 +640,7 @@ function hpPreviewFor(
               ? "No danno"
             : factor === QUICK_HP_FACTORS.HALF
               ? "Metà"
-              : "Pieno",
+              : "Pieno", formReturn?.text].filter(Boolean).join(" · "),
         afterHP: change.afterHP,
         delta: change.delta,
         change,

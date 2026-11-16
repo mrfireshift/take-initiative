@@ -111,6 +111,20 @@ import {
 import { planZoneLandings, zoneFallConditionOperation } from "./zoneLandingCore.js";
 import { maxHpConditionOptionsAsLabel, planMaxHpChange } from "./maxHpModifierCore.js";
 import {
+  TRANSFORMATION_REVERTED_FLAG,
+  isTransformationFormPill,
+  lockedTemporaryHpPill,
+  transformationTemporaryHpOf,
+  planTransformationEnd,
+  planTransformationRevert,
+  planTransformationStart,
+  transformationConditionOptionsAsLabel,
+  transformationFormHpOf,
+  transformationStashOf,
+  transformationStashWithMaxHp,
+  withTransformationStash,
+} from "./transformationHpCore.js";
+import {
   ELEVATION_FIELD,
   readElevation,
 } from "./distance3d.js";
@@ -998,6 +1012,61 @@ function withWardingBondWrites(operations, itemsById) {
     records: bond.records };
 }
 
+// Trasformazioni, lotto W5b (docs/PIANO_TRASFORMAZIONI.md §5.3): a write that brings a form to 0 HP (its HP swapped, the
+// pill holding the creature's own) brings the creature back with its own HP less the excess. The write becomes that one,
+// with one damage intent for the excess and the temporary hit points it took (critical and death kept), and the creature
+// is the one with its own HP for what follows: Death Ward, the death saves, the concentration at 0 (G34). null otherwise.
+function transformationRevertedWrite(item, update, meta) {
+  const death = hpWriteInstantDeath(update);
+  const revert = planTransformationRevert({ itemId: item.id, meta, hpAfter: update.hp,
+    damageToHp: hpWriteDamageToHp(update, meta), instantDeath: !!death });
+  if (!revert) return null;
+  const intents = update.hpIntents?.length ? update.hpIntents : [update.hpIntent].filter(Boolean);
+  const absorbed = Math.max(0, quickHPStateOf(meta).tempHp - hpWriteTempHp(update, meta));
+  const { hpIntent: _ownIntent, ...rest } = update;
+  const shapedMeta = { ...meta, hp: revert.stash.hp, hpMax: revert.stash.hpMax };
+  return {
+    revert,
+    meta: shapedMeta,
+    item: { ...item, metadata: { ...item.metadata, [META_KEY]: shapedMeta } },
+    update: { ...rest, hp: revert.hp, hpMax: revert.hpMax, hpIntents: [
+      ...intents.filter((intent) => intent?.mode !== "damage"),
+      { mode: "damage", amount: revert.excess + absorbed, eventId: "transformation-excess",
+        ...(hpWriteCritical(update) ? { critical: true } : {}),
+        ...(death ? { instantDeath: true, ...(death.deathDetail ? { deathDetail: death.deathDetail } : {}) } : {}) },
+    ] },
+  };
+}
+
+// Trasformazioni, lotto W7e (decision of 16/11/2026): Mass Polymorph's temporary hit points, which no other source
+// replaces. A write that would raise them keeps them as they are, and says why (the combat log and the writer's message).
+// null when the write leaves them, or lowers them (damage, a rest, the GM taking them off).
+function lockedTemporaryHpWrite(itemId, meta, tempHp) {
+  if (tempHp === null || tempHp === undefined) return null;
+  const pill = lockedTemporaryHpPill(meta);
+  const before = quickHPStateOf(meta).tempHp;
+  if (!pill || !(Number(tempHp) > before)) return null;
+  const label = String(pill.displayLabel || pill.condition || "Forma").trim();
+  return { tempHp: before, record: { id: String(itemId || ""), kind: "temp-hp-locked",
+    text: `${label}: i PF temporanei della forma non si sostituiscono con altri` } };
+}
+
+// Lotto W7e: a creature that dies in its Mass Polymorph form is back to its own (the pill ends, and its temporary hit
+// points with it, lotto T3a).
+function temporaryFormPillRemovals(itemId, meta) {
+  const removals = getConditionInstances(meta?.conditions || {})
+    .filter((instance) => instance?.active !== false && transformationTemporaryHpOf(instance) !== null)
+    .map((instance) => ({ itemId, instanceId: String(instance.id || "") }));
+  return removals.length ? [{ type: "condition:remove-instances", removals }] : [];
+}
+
+// The form's pill ends with the return, marked: the planner of the pills that end (planCommandTransformationWrites) does
+// not write the whole stash over the HP the return wrote.
+function transformationRevertRemoval(itemId, revert) {
+  return { type: "condition:remove-instances",
+    removals: [{ itemId, instanceId: revert.instanceId, [TRANSFORMATION_REVERTED_FLAG]: true }] };
+}
+
 // A spell's token with hit points (Mano arcana, an animated object) is an object, not a creature: no death saves and
 // no Privo di sensi. Brought to 0 HP by an HP write it leaves the map as it is (its HP are not written, so the
 // Undo puts it back with them), and Mano arcana's spell ends, as executeSpellBoardTokenStateUpdate does.
@@ -1158,6 +1227,38 @@ function withMaxHpTargetsChecked(operations, sceneItems) {
   });
 }
 
+// Trasformazioni, decision G25: a form's pill swaps the HP only where planCommandTransformationWrites writes them; a boss
+// mode, a spell's token, shared HP or HP not tracked get it as a label, with the reason (transformationConditionOptionsAsLabel).
+// The forms with temporary HP (Mass Polymorph) are left as they are: their own writer decides.
+function withTransformationTargetsChecked(operations, sceneItems) {
+  const swaps = (operation) => operation?.type === "condition:add"
+    && transformationFormHpOf({ mechanics: operation.options?.mechanics }) !== null;
+  if (!operations.some(swaps)) return operations;
+  const byId = new Map(sceneItems.map((item) => [item.id, item]));
+  const sharedIds = sharedHpMemberIds(sceneItems);
+  const reasonOf = (item) => {
+    if (!item) return "";
+    if (item.metadata?.[META_KEY]?.initiativeCard?.bossActionBinding) return "boss";
+    if (spellBoardTokenHpTarget(item)) return "token";
+    if (sharedIds.has(item.id)) return "shared";
+    return maxHpWritable(item, sharedIds) ? "" : "untracked";
+  };
+  return operations.flatMap((operation) => {
+    if (!swaps(operation)) return [operation];
+    const groups = new Map();
+    for (const targetId of uniqueIds(operation.targetIds)) {
+      const reason = reasonOf(byId.get(targetId));
+      if (!groups.has(reason)) groups.set(reason, []);
+      groups.get(reason).push(targetId);
+    }
+    if (!groups.size || (groups.size === 1 && groups.has(""))) return [operation];
+    return [...groups].map(([reason, targetIds]) => (reason
+      ? { ...operation, operationId: createId("effect-operation"), targetIds,
+        options: transformationConditionOptionsAsLabel(operation.options, reason) }
+      : { ...operation, targetIds }));
+  });
+}
+
 // The hit points a command leaves on a creature, from its own patches over the stored ones; aware: a patch already wrote
 // them knowing the pills of the command (a rest, a cure: maxHpAware).
 function maxHpProjectedFields(meta, patchLists, id) {
@@ -1186,14 +1287,15 @@ function maxHpProjectedFields(meta, patchLists, id) {
 // the command's own patches are rewritten, so the last word is one, and a patch is added where there is none. The old
 // encoding moves to its own field in the same write. A creature it raises from 0 HP leaves its death saves as with a
 // cure: riseOperations end Stabile and the automatic Privo di sensi, and the plan is built again with them.
-function planCommandMaxHpWrites({ plan, sceneItems, patchLists }) {
+function planCommandMaxHpWrites({ plan, sceneItems, patchLists, skipIds = new Set() }) {
   const patches = [];
   const riseOperations = [];
   const byId = new Map(sceneItems.map((item) => [item.id, item]));
   const sharedIds = sharedHpMemberIds(sceneItems);
   for (const change of Array.isArray(plan?.changes) ? plan.changes : []) {
     const item = byId.get(change?.id);
-    if (!item || !maxHpWritable(item, sharedIds)) continue;
+    // Trasformazioni (W5b, G33): a creature in a form keeps the maximum's effects on its stash (planCommandTransformationWrites).
+    if (!item || !maxHpWritable(item, sharedIds) || skipIds.has(item.id)) continue;
     const meta = item.metadata?.[META_KEY] || {};
     const { fields, aware } = maxHpProjectedFields(meta, patchLists, item.id);
     if (aware || !(Number(fields.hpMax) > 0) || !Number.isFinite(Number(fields.hp))) continue;
@@ -1261,6 +1363,163 @@ function planCommandMaxHpWrites({ plan, sceneItems, patchLists }) {
   }
   // The History keeps the hit points and the maximum before and after: the combat log reads them there.
   return { patches, riseOperations: riseOperations.map(prepareOperation) };
+}
+
+// Trasformazioni, lotto W5b: the HP a form's start or end writes, over the command's own patches for the creature (the
+// last word is one) or in a patch of its own; the old encoding's temporary hit points go to their field, as in X1.
+function writeTransformationHp(patches, patchLists, item, meta, fields, hp, hpMax) {
+  let wroteHp = false;
+  let wroteMax = false;
+  let wroteTemp = false;
+  for (const list of patchLists) {
+    for (const [index, patch] of list.entries()) {
+      if (patch?.id !== item.id) continue;
+      const next = { ...patch.fields };
+      let touched = false;
+      if (next.hp && next.hp.mode !== "assert" && next.hp.mode !== "delete") {
+        next.hp = { ...next.hp, value: hp };
+        wroteHp = touched = true;
+      }
+      if (next.hpMax && next.hpMax.mode !== "assert" && next.hpMax.mode !== "delete") {
+        next.hpMax = { ...next.hpMax, value: hpMax };
+        wroteMax = touched = true;
+      }
+      if (next.tempHp && next.tempHp.mode !== "assert") wroteTemp = true;
+      if (touched) list[index] = { ...patch, fields: next };
+    }
+  }
+  const added = {};
+  if (!wroteHp) added.hp = { value: hp, expected: metadataFieldSnapshot(meta, "hp") };
+  if (!wroteMax) added.hpMax = { value: hpMax, expected: metadataFieldSnapshot(meta, "hpMax") };
+  if (!wroteTemp && Number(fields.hp) > Number(fields.hpMax)) {
+    const tempHpField = quickHPTempHpPatchField(meta, quickHPStateOf(fields).tempHp);
+    if (tempHpField) added.tempHp = tempHpField;
+  }
+  if (Object.keys(added).length) patches.push({ id: item.id, fields: added });
+}
+
+// The pills of a form a removal of this command ended with the mark: their HP are already written.
+function transformationRevertedInstanceIds(operations) {
+  return new Set(operations
+    .filter((operation) => operation?.type === "condition:remove-instances")
+    .flatMap((operation) => (Array.isArray(operation.removals) ? operation.removals : []))
+    .filter((removal) => removal?.[TRANSFORMATION_REVERTED_FLAG] === true)
+    .map((removal) => String(removal.instanceId || "").trim())
+    .filter(Boolean));
+}
+
+// Trasformazioni, lotto W5b (docs/PIANO_TRASFORMAZIONI.md §5.3): the pills of a form that arrive, change or end in this
+// command, with their HP, and the effects on the maximum that move a stash (G33).
+// - A form that arrives: the stash is the creature's own HP as the command leaves them (or the one of the form it is
+//   already in, G28, whose pill makes way), the form's HP are written, and the pill gets the stash in this same command
+//   (operations: a condition:set-instances; the plan is built again with it, as for the falls and the rises).
+// - A form that ends without the mark (its action, its duration, the ✕): the stash comes back whole.
+// - A form that stays: Aid or Harm arriving or ending move its stash, never the form's HP.
+// Creatures with shared hit points, a spell's token or a boss mode keep their HP (G25). handledIds: the creatures it
+// decided, which planCommandMaxHpWrites leaves alone.
+function planCommandTransformationWrites({ plan, sceneItems, patchLists, revertedInstanceIds = new Set() }) {
+  const patches = [];
+  const records = [];
+  const handledIds = new Set();
+  const instancesByTarget = {};
+  const byId = new Map(sceneItems.map((item) => [item.id, item]));
+  const sharedIds = sharedHpMemberIds(sceneItems);
+  for (const change of Array.isArray(plan?.changes) ? plan.changes : []) {
+    const item = byId.get(change?.id);
+    if (!item || !change.fields?.conditions) continue;
+    const before = Array.isArray(change.before?.conditions) ? change.before.conditions : [];
+    const after = Array.isArray(change.after?.conditions) ? change.after.conditions : [];
+    const activeBeforeIds = new Set(before.filter((instance) => instance && instance.active !== false)
+      .map((instance) => String(instance.id || "")));
+    const shapedBefore = before.find((instance) => isTransformationFormPill(instance) && transformationStashOf(instance)) || null;
+    const arriving = [...after].reverse()
+      .find((instance) => isTransformationFormPill(instance) && !activeBeforeIds.has(String(instance.id || ""))) || null;
+    if (!arriving && !shapedBefore) continue;
+    const meta = item.metadata?.[META_KEY] || {};
+    if (!maxHpWritable(item, sharedIds) || meta.initiativeCard?.bossActionBinding) continue;
+    const { fields, aware } = maxHpProjectedFields(meta, patchLists, item.id);
+    const previous = shapedBefore ? transformationStashOf(shapedBefore) : null;
+    if (arriving) {
+      const state = quickHPStateOf(fields);
+      const own = previous || { hp: state.hp, hpMax: state.hpMax };
+      const stash = previous || !aware ? transformationStashWithMaxHp(own, before, after) : own;
+      const start = planTransformationStart({ itemId: item.id, pill: arriving, state: stash, previous: previous ? stash : null,
+        currentHp: state.hp });
+      if (!start) continue;
+      instancesByTarget[item.id] = after
+        .filter((instance) => instance === arriving || !isTransformationFormPill(instance))
+        .map((instance) => (instance === arriving ? withTransformationStash(instance, start.stash) : instance));
+      writeTransformationHp(patches, patchLists, item, meta, fields, start.hp, start.hpMax);
+      records.push(start.record);
+      handledIds.add(item.id);
+      continue;
+    }
+    const staying = after.find((instance) => String(instance?.id || "") === String(shapedBefore.id)
+      && isTransformationFormPill(instance)) || null;
+    if (staying) {
+      const moved = transformationStashWithMaxHp(previous, before, after);
+      if (moved !== previous) {
+        instancesByTarget[item.id] = after.map((instance) => (instance === staying ? withTransformationStash(instance, moved) : instance));
+      }
+      handledIds.add(item.id);
+      continue;
+    }
+    // Ended by the return at 0 (or a rest): those HP are the creature's own already, and X1 reads them as such.
+    if (revertedInstanceIds.has(String(shapedBefore.id || ""))) continue;
+    const end = planTransformationEnd({ itemId: item.id, pill: shapedBefore,
+      stash: transformationStashWithMaxHp(previous, before, after) });
+    writeTransformationHp(patches, patchLists, item, meta, fields, end.hp, end.hpMax);
+    records.push(end.record);
+    handledIds.add(item.id);
+  }
+  const operations = Object.keys(instancesByTarget).length
+    ? [prepareOperation({ type: "condition:set-instances", instancesByTarget })]
+    : [];
+  return { patches, records, handledIds, operations };
+}
+
+// Trasformazioni, lotto W7e: a Mass Polymorph pill that arrives gives its creature the form's hit points as temporary ones,
+// in this command, with the pill as their source: they end it when gone (endsWhenTempHpGone, lotto T3a), go with it when
+// it ends, and no other source replaces them (tempHpLocked). The creature's own hit points stay. Over the command's own
+// patches for the creature, or in a patch of its own; tempHpRecords for the combat log.
+function planCommandTemporaryFormWrites({ plan, sceneItems, patchLists }) {
+  const patches = [];
+  const records = [];
+  const tempHpRecords = [];
+  const byId = new Map(sceneItems.map((item) => [item.id, item]));
+  for (const change of Array.isArray(plan?.changes) ? plan.changes : []) {
+    const item = byId.get(change?.id);
+    if (!item || !change.fields?.conditions || spellBoardTokenHpTarget(item)) continue;
+    const activeBeforeIds = new Set((change.before?.conditions || []).filter((instance) => instance && instance.active !== false)
+      .map((instance) => String(instance.id || "")));
+    const arriving = [...(change.after?.conditions || [])].reverse().find((instance) => instance && instance.active !== false
+      && transformationTemporaryHpOf(instance) !== null && !activeBeforeIds.has(String(instance.id || "")));
+    if (!arriving) continue;
+    const meta = item.metadata?.[META_KEY] || {};
+    const amount = transformationTemporaryHpOf(arriving);
+    const source = String(arriving.id || "");
+    let wrote = false;
+    for (const list of patchLists) {
+      for (const [index, patch] of list.entries()) {
+        if (patch?.id !== item.id || !patch.fields?.tempHp || patch.fields.tempHp.mode === "assert") continue;
+        list[index] = { ...patch, fields: { ...patch.fields, tempHp: { ...patch.fields.tempHp, mode: undefined, value: amount },
+          tempHpSource: { value: source, ...(patch.fields.tempHpSource?.expected ? { expected: patch.fields.tempHpSource.expected } : {}) } } };
+        wrote = true;
+      }
+    }
+    if (!wrote) {
+      patches.push({ id: item.id, fields: {
+        tempHp: { value: amount, expected: metadataFieldSnapshot(meta, "tempHp") },
+        tempHpSource: { value: source, expected: metadataFieldSnapshot(meta, "tempHpSource") },
+      } });
+    }
+    const before = quickHPStateOf(meta).tempHp;
+    const mode = quickHPTempHpChangeMode({ before, after: amount });
+    if (mode) tempHpRecords.push({ id: item.id, before, after: amount, mode });
+    const label = String(arriving.displayLabel || arriving.condition || "Forma").trim();
+    records.push({ id: item.id, kind: "transformation", text: `${label}: ${amount} PF temporanei della forma, i suoi PF restano` });
+  }
+  return { patches, records, tempHpRecords };
 }
 
 function expandStateDependentOperations(operations, sceneItems, derived = null) {
@@ -1568,6 +1827,8 @@ export async function prepareEffectsMutation(operations = [], {
   } }));
   const hpItemsById = new Map(hpProjectedItems.map((item) => [item.id, item]));
   const instantDeathIds = new Set();
+  // Trasformazioni, lotto W5b: the creatures whose form a write of this command brought to 0 HP.
+  const revertedIds = new Set();
   const zeroHpBoardTokenIds = new Set();
   const tempHpRecords = [];
   // Lot U3b: why the HP of a creature are not what its write asked (Warding Bond, Death Ward), for the combat log.
@@ -1591,11 +1852,20 @@ export async function prepareEffectsMutation(operations = [], {
       if (!item || !Number.isFinite(update.hp) || !Number.isFinite(update.hpMax)) {
         return { status: EFFECTS_MUTATION_STATUS.CONFLICT, reason: "invalid-hp-target", conflicts: [{ itemId: update.itemId }] };
       }
-      const meta = item.metadata?.[META_KEY] || {};
+      const formMeta = item.metadata?.[META_KEY] || {};
       const boardToken = spellBoardTokenHpTarget(item);
+      // Trasformazioni, lotto W5b: a form brought to 0 HP ends first; what follows sees the creature with its own HP.
+      const shaped = boardToken || hpWriteIsRest(update) ? null : transformationRevertedWrite(item, update, formMeta);
+      if (shaped) {
+        update = shaped.update;
+        reactionRecords.push(shaped.revert.record);
+        hpOperations.push(transformationRevertRemoval(item.id, shaped.revert));
+        revertedIds.add(item.id);
+      }
+      const meta = shaped ? shaped.meta : formMeta;
       // CAP-REACTION, lotto 2: Death Ward leaves 1 HP (or the HP it has, against a death without damage) and ends.
-      const ward = boardToken ? null : planDeathWard({ item, hpAfter: update.hp, damage: hpWriteDamageToHp(update, meta),
-        instantDeath: !!hpWriteInstantDeath(update) });
+      const ward = boardToken ? null : planDeathWard({ item: shaped ? shaped.item : item, hpAfter: update.hp,
+        damage: hpWriteDamageToHp(update, meta), instantDeath: !!hpWriteInstantDeath(update) });
       if (ward) {
         reactionRecords.push(ward.record);
         update = withoutInstantDeath({ ...update, hp: ward.hp });
@@ -1606,9 +1876,17 @@ export async function prepareEffectsMutation(operations = [], {
         planZeroHpSpellBoardToken(item, boardToken, hpOperations, zeroHpBoardTokenIds);
         continue;
       }
-      const deathSaveFields = boardToken ? {} : planDeathSaveHpWrite(item, update, hpOperations, instantDeathIds);
+      const deathSaveFields = boardToken ? {} : planDeathSaveHpWrite(shaped ? shaped.item : item, update, hpOperations,
+        instantDeathIds);
       // CAP-TEMP: the temporary hit points the write leaves, when it says them (quickHpCore.js).
-      const tempHp = update.tempHp === undefined || update.tempHp === null ? null : hpWriteTempHp(update, meta);
+      let tempHp = update.tempHp === undefined || update.tempHp === null ? null : hpWriteTempHp(update, meta);
+      // Lotto W7e: Mass Polymorph's temporary hit points stay.
+      const lockedTemp = boardToken ? null : lockedTemporaryHpWrite(item.id, meta, tempHp);
+      if (lockedTemp) {
+        tempHp = lockedTemp.tempHp;
+        update = { ...update, tempHp, tempHpSourceId: undefined };
+        reactionRecords.push(lockedTemp.record);
+      }
       const tempHpField = tempHp === null ? null : quickHPTempHpPatchField(meta, tempHp);
       const tempHpRecord = tempHp === null ? null : hpWriteTempHpRecord(item.id, meta, update, tempHp);
       if (tempHpRecord) tempHpRecords.push(tempHpRecord);
@@ -1631,11 +1909,12 @@ export async function prepareEffectsMutation(operations = [], {
         ...(tempHpSourceField ? { tempHpSource: tempHpSourceField } : {}),
         ...deathSaveFields,
       } });
-      // Damage the temporary hit points took is damage too (a charm that ends when the creature takes damage).
+      // Damage the temporary hit points took is damage too (a charm that ends when the creature takes damage). A form
+      // brought to 0 took damage, even when none is left for the creature's own HP.
       const before = quickHPStateOf(meta);
       if (operation.damageEnds !== false && update.sharedHpMirror !== true && !hpWriteIsRest(update)
         && Number.isFinite(Number(meta.hp))
-        && update.hp + hpWriteTempHp(update, meta) < before.hp + before.tempHp) {
+        && (shaped || update.hp + hpWriteTempHp(update, meta) < before.hp + before.tempHp)) {
         const removals = resolveDamageEndsConditionRemovals(getConditionInstances(meta.conditions || {}))
           .map((instanceId) => ({ itemId: item.id, instanceId }));
         if (removals.length) hpOperations.push({ type: "condition:remove-instances", removals });
@@ -1657,10 +1936,20 @@ export async function prepareEffectsMutation(operations = [], {
     const item = hpItemsById.get(patch.id);
     const meta = item?.metadata?.[META_KEY] || {};
     // CAP-REACTION, lotto 2: Death Ward, as in the hp:set block above.
-    const tempHpField = patch.fields.tempHp;
+    let tempHpField = patch.fields.tempHp;
+    // Lotto W7e: Mass Polymorph's temporary hit points stay: the patch leaves them, and their source.
+    const lockedTemp = item && tempHpField && tempHpField.mode !== "assert"
+      ? lockedTemporaryHpWrite(item.id, meta, tempHpField.mode === "delete" ? 0 : Number(tempHpField.value)) : null;
+    if (lockedTemp) {
+      const { tempHp: _tempHp, tempHpSource: _tempHpSource, ...fields } = patch.fields;
+      patch = { ...patch, tempHpSourceId: undefined, fields };
+      metadataPatches[patchIndex] = patch;
+      tempHpField = undefined;
+      reactionRecords.push(lockedTemp.record);
+    }
     const patchTempHp = !tempHpField || tempHpField.mode === "assert" ? undefined
       : tempHpField.mode === "delete" ? 0 : Number(tempHpField.value);
-    const patchWrite = { hp: Number(hpField.value), tempHp: patchTempHp, hpIntent: patch.hpIntent, hpIntents: patch.hpIntents };
+    let patchWrite = { hp: Number(hpField.value), tempHp: patchTempHp, hpIntent: patch.hpIntent, hpIntents: patch.hpIntents };
     const patchTempHpRecord = item && patchTempHp !== undefined && Number.isFinite(patchTempHp)
       ? hpWriteTempHpRecord(item.id, meta, patchWrite, patchTempHp) : null;
     if (patchTempHpRecord) tempHpRecords.push(patchTempHpRecord);
@@ -1679,8 +1968,25 @@ export async function prepareEffectsMutation(operations = [], {
       const ending = spellBoardTokenHpTarget(item) ? null : tempHpSourcePillEnding(item, meta, beforeTempHp, patchTempHp);
       if (ending) hpOperations.push(ending);
     }
-    const ward = item && !spellBoardTokenHpTarget(item) ? planDeathWard({ item, hpAfter: patchWrite.hp,
-      damage: hpWriteDamageToHp(patchWrite, meta), instantDeath: !!hpWriteInstantDeath(patchWrite) }) : null;
+    // Trasformazioni, lotto W5b: the return of the hp:set block above, on the patch's copy: its HP, its maximum (the
+    // creature's own, with the expectation the patch had) and its intents.
+    const shaped = item && !spellBoardTokenHpTarget(item) && !hpWriteIsRest(patchWrite)
+      ? transformationRevertedWrite(item, patchWrite, meta) : null;
+    if (shaped) {
+      const hpMaxField = patch.fields.hpMax;
+      const hpMaxExpected = hpMaxField?.expected ? hpMaxField.expected : metadataFieldSnapshot(meta, "hpMax");
+      patch = { ...patch, hpIntent: undefined, hpIntents: shaped.update.hpIntents, fields: { ...patch.fields,
+        hp: { ...hpField, value: shaped.update.hp }, hpMax: { value: shaped.update.hpMax, expected: hpMaxExpected } } };
+      metadataPatches[patchIndex] = patch;
+      patchWrite = { hp: shaped.update.hp, tempHp: patchTempHp, hpIntents: shaped.update.hpIntents };
+      reactionRecords.push(shaped.revert.record);
+      hpOperations.push(transformationRevertRemoval(item.id, shaped.revert));
+      revertedIds.add(item.id);
+    }
+    const hpItem = shaped ? shaped.item : item;
+    const hpMeta = shaped ? shaped.meta : meta;
+    const ward = item && !spellBoardTokenHpTarget(item) ? planDeathWard({ item: hpItem, hpAfter: patchWrite.hp,
+      damage: hpWriteDamageToHp(patchWrite, hpMeta), instantDeath: !!hpWriteInstantDeath(patchWrite) }) : null;
     if (ward) {
       reactionRecords.push(ward.record);
       patch = { ...withoutInstantDeath(patch), fields: { ...patch.fields, hp: { ...hpField, value: ward.hp } } };
@@ -1693,11 +1999,29 @@ export async function prepareEffectsMutation(operations = [], {
     if (!item || !Number.isFinite(hp) || !Number.isFinite(hpMax)) continue;
     // A spell's token never has death saves (its own HP writers remove it at 0 HP).
     if (spellBoardTokenHpTarget(item)) continue;
-    const deathSaveFields = planDeathSaveHpWrite(item, { hp, hpMax, tempHp: patchTempHp, hpIntent: patch.hpIntent,
+    const deathSaveFields = planDeathSaveHpWrite(hpItem, { hp, hpMax, tempHp: patchTempHp, hpIntent: patch.hpIntent,
       hpIntents: patch.hpIntents }, hpOperations, instantDeathIds);
     if (Object.keys(deathSaveFields).length) hpPatches.push({ id: patch.id, fields: deathSaveFields });
-    planZeroHpConcentrationBreak(item, meta.hp, hp, hpOperations);
+    planZeroHpConcentrationBreak(item, hpMeta.hp, hp, hpOperations);
+    // After a return, Privo di sensi follows the creature's own HP (the writer's own, read on the form, goes below).
+    if (shaped) {
+      item.metadata[META_KEY] = { ...hpMeta, hp, hpMax };
+      hpOperations.push({ type: "condition:reconcile-zero-hp", targetIds: [item.id] });
+    }
   }
+  // Trasformazioni, lotto W5b: a writer that saw the form at 0 HP added Privo di sensi; the creature is back with its own
+  // HP, and the coordinator's reconcile above decides.
+  if (revertedIds.size) {
+    for (let index = hpOperations.length - 1; index >= 0; index -= 1) {
+      const operation = hpOperations[index];
+      if (operation?.type !== "condition:add" || operation.options?.type !== ZERO_HP_UNCONSCIOUS_TYPE) continue;
+      const targetIds = uniqueIds(operation.targetIds).filter((id) => !revertedIds.has(id));
+      if (targetIds.length) hpOperations[index] = { ...operation, targetIds };
+      else hpOperations.splice(index, 1);
+    }
+  }
+  // Lotto W7e: dead in a Mass Polymorph form, the creature is back to its own.
+  for (const id of instantDeathIds) hpOperations.push(...temporaryFormPillRemovals(id, hpItemsById.get(id)?.metadata?.[META_KEY]));
   // Instant death: Morto, not Privo di sensi (neither the coordinator's nor one a writer adds with its HP, as a
   // reminder's damage does).
   if (instantDeathIds.size) {
@@ -1763,6 +2087,8 @@ export async function prepareEffectsMutation(operations = [], {
   };
   // CAP-MAXHP, decision M9: a bonus to the maximum only where the coordinator writes the hit points.
   effectsOperations.splice(0, effectsOperations.length, ...withMaxHpTargetsChecked(effectsOperations, sceneItems));
+  // Trasformazioni, decision G25: the same for a form's hit points.
+  effectsOperations.splice(0, effectsOperations.length, ...withTransformationTargetsChecked(effectsOperations, sceneItems));
   let plan = buildEffectsMutationPlan(
     sceneItems.map(normalizedSceneItem),
     effectsOperations,
@@ -1814,7 +2140,23 @@ export async function prepareEffectsMutation(operations = [], {
   // CAP-MAXHP, lotto X1 (docs/PIANO_CAP_MAXHP.md): the maximum of a pill that arrives or ends, written in this command over
   // what it already writes (planCommandMaxHpWrites). A creature it raises from 0 HP leaves Privo di sensi: the plan is
   // built again with that, as for the falls above.
-  const maxHpPlan = planCommandMaxHpWrites({ plan, sceneItems, patchLists: [hpPatches, metadataPatches, tempHpExpiryPatches] });
+  // Trasformazioni, lotto W5b (§5.3): the forms that arrive, change or end in this command go first; a form that arrives
+  // keeps its stash on its pill, so the plan is built again with it.
+  const transformationPlan = planCommandTransformationWrites({ plan, sceneItems,
+    patchLists: [hpPatches, metadataPatches, tempHpExpiryPatches],
+    revertedInstanceIds: transformationRevertedInstanceIds(preparedOperations) });
+  if (transformationPlan.operations.length) {
+    effectsOperations.push(...transformationPlan.operations);
+    plan = buildEffectsMutationPlan(sceneItems.map(normalizedSceneItem), effectsOperations, planOptions);
+  }
+  reactionRecords.push(...transformationPlan.records);
+  // Lotto W7e: Mass Polymorph's temporary hit points, with its pill.
+  const temporaryFormPlan = planCommandTemporaryFormWrites({ plan, sceneItems,
+    patchLists: [hpPatches, metadataPatches, tempHpExpiryPatches] });
+  reactionRecords.push(...temporaryFormPlan.records);
+  tempHpRecords.push(...temporaryFormPlan.tempHpRecords);
+  const maxHpPlan = planCommandMaxHpWrites({ plan, sceneItems, patchLists: [hpPatches, metadataPatches, tempHpExpiryPatches],
+    skipIds: transformationPlan.handledIds });
   if (maxHpPlan.riseOperations.length) {
     effectsOperations.push(...maxHpPlan.riseOperations);
     plan = buildEffectsMutationPlan(sceneItems.map(normalizedSceneItem), effectsOperations, planOptions);
@@ -1826,6 +2168,8 @@ export async function prepareEffectsMutation(operations = [], {
       ...hpPatches,
       ...metadataPatches,
       ...tempHpExpiryPatches,
+      ...transformationPlan.patches,
+      ...temporaryFormPlan.patches,
       ...maxHpPlan.patches,
       ...classFeatureStatePlan.patches,
     ],
@@ -5397,6 +5741,17 @@ function compatibilityPlan(result) {
   };
 }
 
+// Trasformazioni, lotto W7e (decision of 16/11/2026): a write whose temporary hit points Mass Polymorph kept says why,
+// wherever it came from (the HP popup, the attack console, the spell panel, the sheet), in Owlbear's notification.
+function notifyLockedTemporaryHp(result) {
+  const texts = [...new Set((Array.isArray(result?.plan?.reactionRecords) ? result.plan.reactionRecords : [])
+    .filter((record) => record?.kind === "temp-hp-locked")
+    .map((record) => String(record.text || "").trim())
+    .filter(Boolean))];
+  if (!texts.length) return;
+  void Promise.resolve().then(() => OBR.notification?.show?.(`${texts.join(" · ")}.`, "WARNING")).catch(() => {});
+}
+
 export async function runEffectsMutation(operations = [], options = {}) {
   const sceneEpoch = Number.isInteger(options.sceneEpoch)
     ? options.sceneEpoch
@@ -5464,6 +5819,7 @@ export async function runEffectsMutation(operations = [], options = {}) {
       });
       void enqueuePendingEffectsPostCommitRetry().catch(() => {});
     }
+    notifyLockedTemporaryHp(compatible);
     return compatible;
   }
   if (!effectsMutationCoordinator) return compatibilityPlan(backgroundResultError(
@@ -5483,6 +5839,7 @@ export async function runEffectsMutation(operations = [], options = {}) {
   }).catch((error) => {
     console.warn("[effects] matched visual end:", error?.message || error);
   });
+  notifyLockedTemporaryHp(compatible);
   return compatible;
 }
 

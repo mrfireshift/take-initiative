@@ -54,6 +54,14 @@ import { CLEANSE_SPELL_ID_SET, massHealSkipped, planCleanseTarget } from "./clea
 import { spellHpRelationChanges, spellHpRelationRule } from "./spellHpRelationCore.js";
 import { MASS_HEAL_SPELL_ID, massHealAllocation, massHealAllocationText } from "./massHealCore.js";
 import { deathWardPill, planDeathWard, planWardingBondDamage } from "./reactionHpCore.js";
+import {
+  TRANSFORMATION_REVERTED_FLAG,
+  lockedTemporaryHpPill,
+  transformationRevertedChange,
+  transformationTemporaryHpOf,
+} from "./transformationHpCore.js";
+import { transformationSpellTemplate } from "./transformationFormsCore.js";
+import { transformationSpellApplications } from "./transformationSpellsCore.js";
 import { initialSpellUses, spellHasInitialUses } from "./spellApplicationPlanCore.js";
 import { ZONE_RESOURCE_SPENDS, zoneTriggerResourceSpend } from "./zoneResourceCore.js";
 import {
@@ -641,8 +649,15 @@ function planAreaHpBranch({ spell, command, resolution, liveItems, allItems, cas
     const outcome = outcomeOf(item.id);
     const context = targetContexts?.[item.id] || {};
     const before = planHpBranchBeforeDamage({ spellId: spell.id, outcome, item, context });
+    // Trasformazioni, lotto W5c (G40): a form brought to 0 HP is back to the creature with the excess, and the spell
+    // reads that one: Disintegrate turns to dust, and Finger of Death kills, only a creature down to 0 of its own HP.
+    const formChange = changes.get(item.id);
+    const reverted = transformationRevertedChange({ itemId: item.id, meta: itemMeta(item), change: formChange });
     const after = planHpBranchAfterDamage({
-      spellId: spell.id, outcome, item, change: changes.get(item.id), context,
+      spellId: spell.id, outcome, item, context,
+      change: reverted
+        ? { ...reverted.change, requested: reverted.revert.excess + Math.max(0, Number(formChange.absorbedByTempHp) || 0) }
+        : formChange,
       casterId: text(caster?.id), casterName: itemName(caster),
     });
     // CAP-REACTION, lotto 2: Death Ward negates the death (and what follows it: the zombie, the dust); it ends.
@@ -663,6 +678,38 @@ function planAreaHpBranch({ spell, command, resolution, liveItems, allItems, cas
     if (death && !warded) deaths.set(item.id, death);
   }
   return { conditionApplications, deaths, wardedIds };
+}
+
+// Trasformazioni, lotto W5c (docs/PIANO_TRASFORMAZIONI.md §5.5), on the HP this command writes itself: a form brought to 0
+// HP is back to the creature, with its own HP less the excess (transformationRevertedChange). The entry becomes the
+// creature's: its change, and its item with its own HP, for Death Ward, the death saves and Privo di sensi; the form's
+// metadata stay for the restore of a failed commit. The form's pill ends with the mark, so the coordinator does not write
+// the whole stash over these HP.
+function applyAreaTransformationReverts(entries) {
+  const operations = [];
+  const records = [];
+  for (const entry of entries) {
+    const meta = itemMeta(entry.item);
+    // Lotto W7e: Mass Polymorph's temporary hit points, which no other source replaces (Negative Energy Flood's, here).
+    const locked = lockedTemporaryHpPill(meta);
+    if (locked && entry.change?.afterTempHp > entry.change?.tempHp) {
+      entry.change = { ...entry.change, afterTempHp: entry.change.tempHp, delta: entry.change.afterHP - entry.change.hp,
+        changed: entry.change.afterHP !== entry.change.hp };
+      records.push({ id: entry.item.id, kind: "temp-hp-locked",
+        text: `${String(locked.displayLabel || locked.condition || "Forma").trim()}: i PF temporanei della forma non si sostituiscono con altri` });
+      continue;
+    }
+    const reverted = transformationRevertedChange({ itemId: entry.item?.id, meta, change: entry.change });
+    if (!reverted) continue;
+    entry.transformationFormMeta = meta;
+    entry.item = { ...entry.item, metadata: { ...entry.item.metadata,
+      [META_KEY]: { ...meta, hp: reverted.revert.stash.hp, hpMax: reverted.revert.stash.hpMax } } };
+    entry.change = reverted.change;
+    operations.push({ type: "condition:remove-instances",
+      removals: [{ itemId: entry.item.id, instanceId: reverted.revert.instanceId, [TRANSFORMATION_REVERTED_FLAG]: true }] });
+    records.push(reverted.revert.record);
+  }
+  return { operations, records };
 }
 
 // CAP-REACTION, lotto 2 (reactionHpCore.js), on the HP this command writes itself: Warding Bond's damage on the
@@ -699,6 +746,9 @@ function applyAreaReactionHp(entries, allItems = [], wardedIds = new Set()) {
   if (bond.removals.length) operations.push({ type: "condition:remove-instances", removals: bond.removals });
   notes.push(...bond.notes);
   records.push(...bond.records);
+  const reverts = applyAreaTransformationReverts(entries);
+  operations.push(...reverts.operations);
+  records.push(...reverts.records);
   const wardsUsed = new Set();
   for (const entry of entries) {
     if (entry.change.mode !== QUICK_HP_MODES.DAMAGE) continue;
@@ -1682,6 +1732,16 @@ async function buildPlan(command, runtime) {
   if (!resolution.valid) {
     return { valid: false, errors: errorList(resolution.errors, "spell-resolution-invalid") };
   }
+  // Trasformazioni, lotto W7 (docs/PIANO_TRASFORMAZIONI.md): each target the spell takes gets the form of its row, a pill
+  // of the spell's instance; the coordinator swaps the hit points (lotto W5).
+  if (transformationSpellTemplate(spell.id) && !zoneTriggerResolution) {
+    const shaped = transformationSpellApplications({ spellId: spell.id, takenIds: resolution.failedIds || [], targetContexts,
+      items: [...liveItems, ...(caster ? [caster] : [])], caster });
+    if (shaped.errors.length) {
+      return { valid: false, errors: shaped.errors.map((message) => ({ code: "transformation-form", message })) };
+    }
+    resolution.conditionApplications = [...(resolution.conditionApplications || []), ...shaped.applications];
+  }
   const monsterActionSaveDC = command?.monsterActionContext?.spellcasting?.saveDC;
   if (monsterActionSaveDC !== undefined) {
     for (const application of resolution.conditionApplications || []) {
@@ -2490,6 +2550,15 @@ async function buildPlan(command, runtime) {
     ? planAreaDeathSaves(entries)
     : { operations: [], instantDeathIds: new Set() };
   effectOperations.push(...areaDeathSaves.operations);
+  // Lotto W7e: dead in a Mass Polymorph form, the creature is back to its own (the pill ends, its temporary hit points
+  // with it).
+  for (const entry of entries) {
+    if (!areaDeathSaves.instantDeathIds.has(entry.item.id)) continue;
+    const removals = getConditionInstances(itemMeta(entry.item).conditions || {})
+      .filter((instance) => instance?.active !== false && transformationTemporaryHpOf(instance) !== null)
+      .map((instance) => ({ itemId: entry.item.id, instanceId: String(instance.id || "") }));
+    if (removals.length) effectOperations.push({ type: "condition:remove-instances", removals });
+  }
   const zeroHPBoardTokenIds = uniqueIds(entries
     .filter((entry) => (
       entry.change.afterHP === 0
@@ -2498,7 +2567,7 @@ async function buildPlan(command, runtime) {
     ))
     .map((entry) => entry.item.id));
   const damageEndsRemovals = entries
-    .filter((entry) => entry.change?.delta < 0)
+    .filter((entry) => entry.change?.delta < 0 || entry.change?.transformationReverted === true)
     .flatMap((entry) => {
       const meta = itemMeta(entry.item);
       const instances = getConditionInstances(meta.conditions || {});
@@ -2904,9 +2973,11 @@ async function restoreHPIfUnchanged(runtime, entries) {
       if (Number(meta.hp) !== Number(entry.change.afterHP)
         || Number(meta.hpMax) !== Number(entry.change.hpMax)
         || entry.change.afterTempHp !== undefined && Math.max(0, Number(meta.tempHp) || 0) !== entry.change.afterTempHp) continue;
-      const restored = { ...meta, hp: entry.change.hp, hpMax: entry.change.hpMax };
+      // Trasformazioni, lotto W5c: after a return at 0 the change is the creature's; the form's HP come back.
+      const formMeta = entry.transformationFormMeta || null;
+      const restored = { ...meta, hp: formMeta ? formMeta.hp : entry.change.hp, hpMax: formMeta ? formMeta.hpMax : entry.change.hpMax };
       // The temporary hit points as they were (the field as it was, the old encoding included).
-      const before = itemMeta(entry.item);
+      const before = formMeta || itemMeta(entry.item);
       if (entry.change.afterTempHp !== undefined) {
         restored.hp = before.hp;
         for (const field of ["tempHp", "tempHpSource"]) {

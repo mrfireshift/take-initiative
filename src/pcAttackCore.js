@@ -44,6 +44,8 @@ import { speciesNaturalWeaponActionId } from "./speciesNaturalWeaponCore.js";
 import { spellTargetRangeMeters } from "./spellAreaCatalog.js";
 import { consumedAdvantagePills, hiddenPills } from "./attackAdvantagePillsCore.js";
 import { isOffTurn, readiedSpellHold } from "./reactionTrackerCore.js";
+import { activeTransformation, transformedCardView } from "./transformationFormsCore.js";
+import { transformationPreviewReturn, transformationStashForMeta } from "./transformationHpCore.js";
 import { PC_ATTACK_RIDERS, PC_ATTACK_SPELL_RIDERS, getPcAttackRider, pcAttackHasPotentCantrip, pcAttackRiderDice, pcAttackRiderFeatureActive, pcAttackRidersForCard, pcAttackRiderSlotLevels } from "./pcAttackRiderCatalog.js";
 
 export const PC_ATTACK_HISTORY_KIND = "pc-attack";
@@ -77,7 +79,8 @@ export function pcAttackAreaOutcomes(attack) {
 // throw, else, for an NPC's monster card, its ability modifier (a monster without proficiency); null when unknown.
 export function pcAttackTargetSaveBonus(item, ability) {
   const meta = item?.metadata?.[META_KEY] || {};
-  const card = meta.initiativeCard || {};
+  // Trasformazioni, lotto W3b (G26): a creature in a form saves with the form's physical abilities.
+  const card = transformedCardView(meta.initiativeCard || {}, activeTransformation(meta));
   const save = Number(card.savingThrows?.[ability]);
   if (card.savingThrows?.[ability] !== null && card.savingThrows?.[ability] !== undefined && Number.isFinite(save)) return Math.trunc(save);
   const modifier = Number(card.abilityModifiers?.[ability]);
@@ -90,8 +93,10 @@ export function pcAttackTargetSaveBonus(item, ability) {
 export function pcAttackTargetConditionImmune(item, condition) {
   const card = item?.metadata?.[META_KEY]?.initiativeCard;
   const monster = card?.[MONSTER_PROFILE_FIELD]?.conditionImmunities;
+  // Trasformazioni, lotto W3b (G27): a form's immunities join the creature's own.
+  const form = activeTransformation(item?.metadata?.[META_KEY])?.form?.conditionImmunities;
   const wanted = String(condition || "").trim().toLocaleLowerCase("it");
-  return !!wanted && [...(Array.isArray(monster) ? monster : []), ...creatureConditionImmunities(card)]
+  return !!wanted && [...(Array.isArray(monster) ? monster : []), ...(Array.isArray(form) ? form : []), ...creatureConditionImmunities(card)]
     .some((name) => String(name || "").trim().toLocaleLowerCase("it") === wanted);
 }
 
@@ -1326,8 +1331,12 @@ export function pcAttackPreview({
   const hitEffectCounts = markNonmagicalDefenses((hitPlan?.components || []).filter((component) => component.defense)
     .map((component) => ({ type: component.type, defense: component.defense, before: Number(component.inputAmount), after: component.amount })), targetCard);
   const meta = targetItem?.metadata?.[META_KEY] || {};
+  // Trasformazioni (G35): a hit that brings a form to 0 HP also says where the creature lands (formReturn).
+  const hpChange = targetItem && Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax) && !miss
+    ? calculateQuickHPChange({ value: total, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp }) : null;
+  const formReturn = transformationPreviewReturn({ stash: transformationStashForMeta(meta), change: hpChange });
   const hp = targetItem && Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax)
-    ? { before: meta.hp, after: miss ? meta.hp : calculateQuickHPChange({ value: total, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp }).afterHP, hpMax: meta.hpMax }
+    ? { before: meta.hp, after: miss ? meta.hp : hpChange.afterHP, hpMax: meta.hpMax, ...(formReturn ? { formReturn } : {}) }
     : null;
   const options = chosenRiders.length && sourceItem ? riderOptionsFor(attack, { sourceItem, targetItem, turnState }) : [];
   const riderBlock = chosenRiders.map((rider) => {

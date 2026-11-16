@@ -646,7 +646,7 @@ da questo audit.
 - Opzioni trackable del runtime: **361**; definizioni con tracking persistente verificate dall'audit: **361**; definizioni con regole d'area: **144** (162 regole).
 - Workflow che richiedono smoke test runtime: **423**.
 - Lacune RAW confermate P1: **7**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `933392077331517e`.
+- Impronta deterministica: `613fc6e373ef2f10`.
 
 ## Decisioni di prodotto chiuse
 
@@ -660,8 +660,8 @@ da questo audit.
 | --- | ---: |
 | FULL | 66 |
 | MANUAL | 51 |
-| PARTIAL | 253 |
-| TRACK_ONLY | 107 |
+| PARTIAL | 258 |
+| TRACK_ONLY | 102 |
 
 ### Stato di copertura (coverageStatus)
 
@@ -702,7 +702,7 @@ da questo audit.
 | --- | ---: |
 | ACTIVE_ACTION | 61 |
 | AREA_GEOMETRY | 144 |
-| CAST | 285 |
+| CAST | 290 |
 | CLEANUP | 135 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 361 |
@@ -929,7 +929,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Fondersi nella pietra | `meld-into-stone` | SRD 5.1 / 3 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Forma eterea | `etherealness` | SRD 5.1 / 7 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Forma gassosa | `gaseous-form` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Forme animali | `animal-shapes` | SRD 5.1 / 8 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; varianti rilevanti non modellate |
+| Forme animali | `animal-shapes` | SRD 5.1 / 8 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; varianti rilevanti non modellate |
 | Fortezza della Mente | `tasha-fortezza-della-mente` | Tasha / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Fortezza Possente | `xanathar-fortezza-possente` | Xanathar / 8 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Frantumare | `shatter` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1017,9 +1017,9 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Manto del Crociato | `legacy-crusaders-mantle` | Legacy / 3 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | partial | P2 | testo regolamentare locale mancante |
 | Marchio del cacciatore | `hunters-mark` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Messaggio | `message` | SRD 5.1 / 0 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Metamorfosi | `polymorph` | SRD 5.1 / 4 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Metamorfosi di Massa | `xanathar-metamorfosi-di-massa` | Xanathar / 9 | TRACK_ONLY | ACCEPTED | MANUAL | UNIFIED | reachable | — | — |
-| Metamorfosi pura | `true-polymorph` | SRD 5.1 / 9 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Metamorfosi | `polymorph` | SRD 5.1 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Metamorfosi di Massa | `xanathar-metamorfosi-di-massa` | Xanathar / 9 | PARTIAL | ACCEPTED | MANUAL | UNIFIED | reachable | — | — |
+| Metamorfosi pura | `true-polymorph` | SRD 5.1 / 9 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Minuscole Meteore di Melf | `xanathar-minuscole-meteore-di-melf` | Xanathar / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Miraggio arcano | `mirage-arcane` | SRD 5.1 / 7 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Miscela Caustica di Tasha | `tasha-miscela-caustica-di-tasha` | Tasha / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1210,7 +1210,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Trabocchetto | `xanathar-trabocchetto` | Xanathar / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Trama ipnotica | `hypnotic-pattern` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Trasferimento di Vita | `xanathar-trasferimento-di-vita` | Xanathar / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Trasformazione | `shapechange` | SRD 5.1 / 9 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; varianti rilevanti non modellate |
+| Trasformazione | `shapechange` | SRD 5.1 / 9 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; varianti rilevanti non modellate |
 | Trasformazione di Tenser | `xanathar-trasformazione-di-tenser` | Xanathar / 6 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Traslazione arborea | `tree-stride` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Trasmutare Roccia | `xanathar-trasmutare-roccia` | Xanathar / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

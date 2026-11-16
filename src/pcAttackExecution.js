@@ -201,8 +201,11 @@ export function createPcAttackRuntime({
     const card=getCard(scope.item);
     const picker=pcAttackPickerEntries(card,{activeSpellIds:spellbookActiveSpellIds(scope.item?.metadata?.[`${ID}/meta`]),
       grantedActions:spellGrantedActionsForItem(scope.item)});
-    const chosen=actionId?null:pcAttackPickerDefault(picker,{lastAttack:scope.item?.metadata?.[`${ID}/meta`]?.pcAttackState?.lastAttack,attackOnly:true});
-    const action=actionId || chosen?attackOf(scope.item,actionId || chosen.actionId):null;
+    // Trasformazioni (docs/PIANO_TRASFORMAZIONI.md): an action a pill gave that is gone (a form ended with Termina or at 0
+    // HP, a spell's concentration over) opens the console on the default one, not on an error.
+    const asked=actionId && isSpellGrantActionId(actionId) && !spellGrantedActionForItem(scope.item,actionId)?"":actionId;
+    const chosen=asked?null:pcAttackPickerDefault(picker,{lastAttack:scope.item?.metadata?.[`${ID}/meta`]?.pcAttackState?.lastAttack,attackOnly:true});
+    const action=asked || chosen?attackOf(scope.item,asked || chosen.actionId):null;
     const items=await itemsRead;
     if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri l'attacco.");
     const round=Number(scope.turnState?.round);

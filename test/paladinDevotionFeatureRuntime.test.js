@@ -373,8 +373,9 @@ test("le capacità di Devozione attivabili hanno emoji calzanti e nessuna tracci
 
 test("il catalogo include le cinque capacità di Devozione e i quattro privilegi implementati incrementano i conteggi derivati", () => {
   assert.equal(DEVOTION_IDS.every((id) => CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === id)), true);
-  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeImplemented, 271);
-  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeNotAutomated, 589);
+  // 272 with Combat Wild Shape (Trasformazioni, lotto W6).
+  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeImplemented, 272);
+  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeNotAutomated, 588);
 });
 
 test("Abiurare Nemico espone due esiti (TS fallito e TS superato) con movement ed endsOnDamage differenziati", () => {

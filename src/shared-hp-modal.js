@@ -114,6 +114,7 @@ const SHARED_HP_ERROR_TEXT = Object.freeze({
   "shared-hp-busy": "un'altra modifica è in corso: riprova tra un attimo.",
   "shared-hp-stale-scene": "la scena è cambiata: riapri il pannello.",
   "current-value-mismatch": "un token è cambiato nel frattempo.",
+  "shared-hp-transformed": "un token è in un'altra forma (Forma Selvatica, Metamorfosi): collegalo quando la forma finisce.",
 });
 function sharedHpErrorText(error) {
   const reason = String(error?.message || "");

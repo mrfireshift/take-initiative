@@ -7426,6 +7426,14 @@ function bindHPEditorForEntry(
         try { await OBR.notification.show("PF applicati parzialmente; usa la cronologia per annullare prima di ripetere.", "WARNING"); }
         catch (error) { console.warn("[hp] partial commit notification:", error); }
       }
+      // Trasformazioni, decision G39: a form the editor brought to 0 HP ended, and the creature's own HP came back whole
+      // (no excess from a typed value: the damage with its excess goes through the manual effects console).
+      const formReturn = hpMutations.flatMap((mutation) => mutation?.plan?.reactionRecords || [])
+        .find((record) => record?.kind === "transformation");
+      if (formReturn) {
+        try { await OBR.notification.show(`${formReturn.text}. Per il danno in eccesso usa la Console effetti manuali.`, "INFO"); }
+        catch (error) { console.warn("[hp] transformation notification:", error); }
+      }
     }),
     afterCommit: customAfterCommit || (async ({
       recalibratesMax,

@@ -857,6 +857,20 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3b-3 (decisioni S2, S3, S8
 - [ ] **Dove non compare:** niente promemoria su un incantesimo a contatto (Stretta folgorante), su un TS (Fiamma sacra), su Dardo incantato e sugli attacchi con le armi.
 - [ ] **L'import:** `{ "feats": [{ "name": "Spell Sniper", "class": "warlock", "cantrips": ["Eldritch Blast"] }] }` sceglie Warlock e Deflagrazione occulta; con «Luce» al suo posto l'import la segnala fuori dalla lista.
 
+### B30. Forma Selvatica: la forma sulla pill
+
+Fonte: [PIANO_TRASFORMAZIONI.md](PIANO_TRASFORMAZIONI.md), lotto W2a (G37, con «Altra forma…»). Le voci sono nuove. Serve un druido di 4° livello con la Forma Selvatica e, nel browser del GM, l'archivio 5eTools con il Monster Manual. I PF del druido non cambiano ancora: arrivano con W5.
+
+- [ ] **Il campo:** in Capacità, Forma Selvatica mostra «Forma» con il menu delle forme rapide e «Altra forma…». **Attiva** senza forma dice «Scegli la forma: una delle forme rapide, o «Altra forma…».» e non spende l'uso.
+- [ ] **L'archivio:** «Altra forma…», cerca «wolf»: l'elenco mostra solo le forme ammesse al 4° livello. Scelto Wolf, l'anteprima dice «Wolf (bestia, GS 1/4): CA 13 · PF 11 · 12 m». Cercando «eagle» non compare la Giant Eagle, che vola.
+- [ ] **Usa:** la pill del druido si chiama «Forma Selvatica · Wolf» e il dettaglio riassume la forma; l'uso scende a 1/2; i PF restano quelli del druido. In vista compatta ed estesa.
+- [ ] **Usa e salva:** incollato il testo di un Crocodile e premuto **Leggi**, «Usa e salva» lo mette fra le forme rapide e il menu lo mostra subito. Con 8 forme rapide compare «Al posto di…».
+- [ ] **Una forma rifiutata:** con un druido di 2° livello, il Crocodile dice «GS 1/2: oltre il limite di GS 1/4 al 2° livello.» e «Nuota: le forme che nuotano arrivano al 4° livello.», e i pulsanti restano spenti. Nel menu una forma rapida non ammessa ha «· non ammessa» e non si sceglie.
+- [ ] **Forma Elementale:** un druido del Circolo della Luna di 10° livello vede solo i quattro elementali del Monster Manual; la salamandra è rifiutata.
+- [ ] **Togli dalle rapide e Annulla:** «Togli dalle rapide» toglie la forma dalla scheda. Dopo un'attivazione, l'Annulla toglie la pill e rimette l'uso.
+- [ ] **Online:** il giocatore del druido sceglie dalle forme rapide e incolla un JSON con «Altra forma…»; nel suo browser la ricerca dice che l'archivio non c'è.
+- [ ] **Dalla scheda:** attivata dalla scheda personaggio, senza forma, la pill resta «Forma Selvatica» e dice che la forma si sceglie nella console.
+
 ### B31. Incantatore Rituale
 
 Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3b-4 (decisioni S3, S6, S7). Le voci sono nuove: nessuna lista le aveva. Serve un guerriero di 5° livello con i modificatori nella scheda (Int +3) e gli slot vuoti o nessuno slot.
@@ -885,6 +899,29 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3b-5 (decisione S8). Le vo
 - [ ] **Senza livello:** tolto il livello dalla scheda, la riga chiede livello e modificatori invece di dare una CD.
 - [ ] **Nella console:** nella scheda Capacità della console, fra le altre capacità, c'è «Telecinesi: spinta telecinetica · azione bonus», solo da leggere; il token del nemico si sposta a mano sulla mappa.
 
+### B34. Forma Selvatica: la console usa la forma
+
+Fonte: [PIANO_TRASFORMAZIONI.md](PIANO_TRASFORMAZIONI.md), lotto W3 (G26, G27). Le voci sono nuove. Serve un druido del Circolo della Luna di 6° livello con una scimitarra e un trucchetto nella scheda, un Brown Bear fra le forme rapide (B30) e un nemico. I PF del druido non cambiano ancora: arrivano con W5.
+
+- [ ] **Gli attacchi della forma:** attivata la Forma Selvatica con il Brown Bear, in Attacchi ci sono «Bite ✦» e «Claws ✦», non la scimitarra; le schede Trucchetti e Incantesimi spariscono, Capacità e Azioni restano. Da provare in vista compatta ed estesa.
+- [ ] **Colpo Primordiale:** su Claws «✦ Magica» è già acceso; contro un nemico resistente alle armi non magiche il danno resta intero. Con un druido di 5° livello, o di un altro circolo, non lo è.
+- [ ] **Registrare:** Claws contro il nemico, Colpito, 11 danni: «Registrato: Colpito, 11 danni…». L'Annulla della console rimette i PF del nemico.
+- [ ] **La fine:** «Termina» in Capacità toglie la forma: tornano la scimitarra e i trucchetti.
+- [ ] **Il bersaglio in forma:** un nemico che costringe il druido in forma a un TS su Forza vede il bonus dell'orso (+4), non quello del druido; su Saggezza quello del druido. L'avviso di Scudo, se il druido ce l'ha, dice la CA dell'orso (11).
+- [ ] **Difese e immunità:** una forma con una resistenza (da JSON o testo) la dà al druido mentre dura; le immunità alle condizioni della forma si sommano a quelle del druido.
+
+### B35. Forma Selvatica: velocità e taglia
+
+Fonte: [PIANO_TRASFORMAZIONI.md](PIANO_TRASFORMAZIONI.md), lotto W4 (G36). Le voci sono nuove. Serve un druido di 6° livello del Circolo della Luna, Medio, con velocità 9 m, e fra le forme rapide un Brown Bear (Grande, 12 m e scalare 9 m), un Giant Toad (6 m e nuotare 12 m) e un Hunter Shark (solo nuotare 12 m). Movimento acceso nelle Opzioni.
+
+- [ ] **Il passo della forma:** in Brown Bear il riquadro Movimento dice 12 m, ha anche Scalare 9 m e nomina «Forma Selvatica · Brown Bear»; il druido muove l'orso e lo Speed Tracker scala dai 12 m. In vista compatta ed estesa.
+- [ ] **Più lento:** in Giant Toad il passo è 6 m, non i 9 m del druido; Nuotare 12 m.
+- [ ] **Senza passo:** in Hunter Shark c'è solo Nuotare 12 m.
+- [ ] **Sopra la forma:** Passo Veloce sull'orso dà 15 m; Afferrato lo porta a 0.
+- [ ] **La taglia:** in Brown Bear il token diventa di 2×2 caselle, allineato alla griglia, e lo Speed Tracker non conta lo spostamento. **Termina** lo riporta a una casella; anche l'Annulla dell'attivazione. La barra PF segue il token.
+- [ ] **A mano:** ridimensionato a mano dal GM mentre è in forma, il token resta come l'ha lasciato il GM finché la forma non cambia.
+- [ ] **Online:** il giocatore attiva la forma dalla sua console; la taglia la cambia il background del GM, che deve essere aperto.
+
 ### B36. Concentrazione: Incantatore da Guerra e Sterminatore di Maghi
 
 Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F4. Le voci sono nuove: nessuna lista le aveva. Serve un PG incantatore con Incantatore da Guerra e il TS di Costituzione nella scheda (Statistiche), un PG con Sterminatore di Maghi e una spada negli Attacchi, un nemico incantatore e Benedizione da lanciare. Ogni avviso va guardato nella finestra del GM e sullo schermo del tavolo.
@@ -894,6 +931,23 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F4. Le voci sono nuove: nes
 - [ ] **Tutti e due:** lo Sterminatore colpisce il PG con Incantatore da Guerra concentrato: l'avviso dice «vantaggio e svantaggio annullati».
 - [ ] **Più creature:** un trucchetto ad area della console attacchi (Turbine di Spade) colpisce due creature concentrate: ogni riga ha il suo «TS +N» e, dove serve, «vantaggio» o «svantaggio».
 - [ ] **Il mostro e il PG senza TS:** un mostro importato e concentrato mostra il suo modificatore di Costituzione; un PG senza il TS di Costituzione nella scheda non mostra numeri. **Superato** e **Fallito** funzionano come prima.
+
+### B37. Forma Selvatica: i PF della forma
+
+Fonte: [PIANO_TRASFORMAZIONI.md](PIANO_TRASFORMAZIONI.md), lotto W5 (§5, G33–G41). Le voci sono nuove. Serve un druido di 6° livello del Circolo della Luna a 34/40 PF, con un Wolf (11 PF) fra le forme rapide, un goblin con la console Boss e un incantatore con Disintegrazione, Aiuto e Interdizione alla morte. Ogni voce in vista compatta ed estesa, guardando anche la barra PF sulla mappa.
+
+- [ ] **L'inizio:** in Wolf il druido passa a 11/11 sul tracker e sulla mappa. Il registro del combattimento dice «11 PF della forma, i suoi (34/40) messi da parte». L'Annulla lo riporta a 34/40, senza la pill.
+- [ ] **Il ritorno a 0:** 15 danni dalla Console effetti manuali: il druido torna a 30/40 e la pill finisce. Il registro dice «a 0 PF torna alla sua forma, 4 di danno in eccesso sui suoi PF». L'Annulla rimette il lupo a 11/11 con la pill.
+- [ ] **A 0 anche il druido:** 45 danni lo lasciano a 0, privo di sensi, con i TS contro la morte; con 85 muore per danno massiccio.
+- [ ] **Console e aree:** un attacco del goblin che porta il lupo a 0, poi Disintegrazione da 28: il druido torna con l'eccesso, non in polvere. Prima di lanciare, l'anteprima della console e del pannello dice «torna alla sua forma: PF 34 → …».
+- [ ] **Interdizione alla morte:** con 15 danni sul lupo resta; con 50 il druido resta a 1 PF e l'interdizione finisce.
+- [ ] **PF temporanei:** con 5 PF temporanei, 15 danni li tolgono e lasciano il lupo a 1/11, senza ritorno.
+- [ ] **Aiuto durante la forma:** il lupo resta 11/11; a **Termina** il druido torna a 39/45.
+- [ ] **La fine in altro modo:** **Termina** con il lupo ferito: il druido torna con i suoi 34/40 interi.
+- [ ] **L'editor in linea:** scrivere 0 sui PF del lupo chiude la forma; il druido torna a 34/40 e un avviso rimanda alla Console effetti manuali per l'eccesso.
+- [ ] **Riposo del gruppo:** un riposo lungo con il druido in forma chiude la forma e porta il druido al suo massimo; il riepilogo dice «torna alla sua forma».
+- [ ] **Cambio di scena:** con il druido in forma, cambia scena. Nella scena nuova arriva con i suoi PF e senza la pill. Tornando nella vecchia la forma resta se i PF non sono cambiati, e finisce con i PF del registro se nel frattempo è stato ferito.
+- [ ] **Online:** il giocatore del druido vede i PF della forma come vede i suoi.
 
 ### B38. PF temporanei: Condottiero Ispiratore e le delizie del Cuoco
 
@@ -913,6 +967,26 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F5-2 (decisioni H3, H5). Le
 - [ ] **Senza Dadi Vita:** sul PNG senza classi né formula, **Cura** chiede i Dadi Vita; scritti nel campo, cura senza superare i PF massimi.
 - [ ] **I limiti:** un bersaglio a più di 1,5 m è rifiutato, e un PG a PF pieni non viene curato. Senza selezione si cura il guaritore stesso.
 
+### B40. Circolo della Luna: azione bonus, cura con lo slot e durata
+
+Fonte: [PIANO_TRASFORMAZIONI.md](PIANO_TRASFORMAZIONI.md), lotto W6. Le voci sono nuove. Serve un druido di 6° livello del Circolo della Luna con la Forma Selvatica da Combattimento accesa nella scheda, un Brown Bear fra le forme rapide, gli slot della scheda e un druido di 4° livello di un altro circolo.
+
+- [ ] **Azione bonus:** nella console, in Capacità, la Forma Selvatica del druido della Luna dice «Azione bonus»; quella del druido dell'altro circolo dice «Azione».
+- [ ] **La cura:** fuori forma, «Forma Selvatica da Combattimento» dice «Richiede prima Forma Selvatica». In orso ferito, propone gli slot rimasti («Slot di 2° · 2d8») e i PF tirati al tavolo: **Cura** alza i PF dell'orso, toglie lo slot e scrive la cura nella Cronologia; l'**Annulla** rimette PF e slot. In vista compatta ed estesa.
+- [ ] **I limiti della cura:** un risultato fuori dai dadi (17 con 2d8) viene rifiutato; senza slot rimasti il pulsante è spento.
+- [ ] **La durata:** la pill della forma scade dopo metà del livello da druido in ore (3 ore al 6°, 1800 round).
+
+### B41. Gli incantesimi di forma
+
+Fonte: [PIANO_TRASFORMAZIONI.md](PIANO_TRASFORMAZIONI.md), lotto W7 (W7a–W7d). Le voci sono nuove. Serve un mago di 17° livello con un Wolf e un Ogre fra le forme rapide della sua scheda, un orco nemico, un PG di 5° livello e due alleati. Ogni voce dal pannello degli incantesimi, guardando anche la barra PF sulla mappa.
+
+- [ ] **Metamorfosi:** sull'orco, la riga del bersaglio ha il campo «Forma» con le forme rapide del mago e «Altra forma…»; il pulsante resta «Completa il contesto dei bersagli» finché non si sceglie. Con il lupo l'orco diventa 11/11 e la pill dice «Metamorfosi · Wolf». Sotto il TS il pannello dice «Saggezza, se non è consenziente»: se l'orco supera il TS al tavolo, toglilo dai bersagli.
+- [ ] **Fine della concentrazione:** il mago perde la concentrazione: l'orco torna con i suoi PF e la pill sparisce.
+- [ ] **I limiti:** su un PG di 5° livello, una forma di GS 6 è «non ammessa»; l'Ogre lo è solo con Metamorfosi Pura. Su un mostro il pannello avvisa che il GS lo controlla il tavolo. Su una creatura a 0 PF, Metamorfosi viene rifiutata.
+- [ ] **Forme Animali:** su due alleati, ognuno con la sua bestia, senza TS: ognuno prende i PF della sua forma.
+- [ ] **Trasformazione:** il mago seleziona sé stesso come bersaglio e prende la forma, con i PF della forma; su un altro il pannello la rifiuta.
+- [ ] **Altra forma…:** dal campo della riga si importa una forma dall'archivio o da un testo, la si usa una volta o la si salva fra le forme rapide del mago.
+
 ### B42. Riposo del gruppo: Tenace e il cibo del Cuoco
 
 Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F5-3 (decisione H6). Le voci sono nuove: nessuna lista le aveva. Serve un PG con Tenace e Costituzione +3 nella scheda, e un PG di 5° livello con Cuoco.
@@ -920,6 +994,17 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F5-3 (decisione H6). Le voc
 - [ ] **Tenace:** in **Riposo del gruppo** sotto il PG con Tenace c'è «Tenace: almeno 6 PF per Dado Vita.»; il campo dei PF recuperati resta da scrivere a mano.
 - [ ] **Il cuoco:** con il PG con Cuoco fra quelli scelti, sotto l'elenco c'è «Cuoco (…): chi ha mangiato il suo cibo e spende Dadi Vita recupera 1d8 PF in più, fino a 7 creature.»; tolta la spunta al cuoco, la nota sparisce.
 - [ ] **Il riposo non cambia:** **Riposo breve** aggiunge i PF scritti a mano e **Riposo lungo** porta i PF al massimo, come prima.
+
+### B43. Metamorfosi di Massa e l'Impulso della pecora
+
+Fonte: [PIANO_TRASFORMAZIONI.md](PIANO_TRASFORMAZIONI.md), lotto W7e (decisioni del 16/11). Le voci sono nuove. Serve un mago di 17° livello con un Wolf fra le forme rapide, due goblin, un PG di 1° livello e uno stregone della Magia Selvaggia. Ogni voce guardando anche la barra PF sulla mappa.
+
+- [ ] **Il lancio:** sui due goblin, ognuno con il lupo nella sua riga: restano 7/7 e hanno 11 PF temporanei; la pill dice «Metamorfosi di Massa · Wolf».
+- [ ] **Il blocco:** dare PF temporanei a un goblin dalla Console effetti manuali (o con Vita Falsata): restano gli 11, una notifica e la riga di stato della console dicono «i PF temporanei della forma non si sostituiscono con altri». Toglierli a mano è permesso.
+- [ ] **La fine:** un goblin perde i PF temporanei con un colpo: la forma finisce e il danno in più va ai suoi PF. All'altro il mago perde la concentrazione: PF temporanei e pill se ne vanno.
+- [ ] **La morte:** Parola del potere uccidere su un goblin ancora in forma: «Morto», e pill e PF temporanei spariscono.
+- [ ] **Il limite:** sul PG di 1° livello l'orso bruno (GS 1) è «non ammesso», oltre metà del suo livello.
+- [ ] **L'Impulso 77–78:** lo stregone scrive 77 nel popup dell'Impulso: il pannello apre Metamorfosi su di lui, senza slot, con «Importata: Pecora» già scelta. Se il TS al tavolo fallisce, **Applica** lo fa pecora 4/4, con i suoi PF sulla pill; se lo supera, chiudi il pannello.
 
 ### B44. Reazioni dei talenti: Duellante Difensivo, Seconda Possibilità, Scomparire
 
@@ -929,6 +1014,20 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F6-1. Le voci sono nuove: n
 - [ ] **Seconda Possibilità:** il mostro colpisce l'halfling: l'avviso dice «L'attaccante ritira il d20». **Usa** spende l'uso e la reazione; al colpo dopo l'avviso non c'è più, e l'uso torna con un riposo breve.
 - [ ] **Scomparire:** il mostro danneggia lo gnomo; dopo **Registra** l'avviso dice «Invisibile fino al suo prossimo turno». **Usa** mette la pill «Invisibile · Scomparire» sullo gnomo e spende uso e reazione; alla fine del suo prossimo turno la pill se ne va.
 - [ ] **La fine con l'attacco:** con la pill ancora attiva, lo gnomo attacca dalla console attacchi: **Registra** toglie la pill.
+
+### B45. Forma: il numero della barra PF, il ritratto e lo statblock
+
+Fonte: [PIANO_TRASFORMAZIONI.md](PIANO_TRASFORMAZIONI.md), «Dopo le prime prove in stanza» (16/11). Le voci sono nuove. Serve il druido della Luna di B40, con un Brown Bear importato dall'archivio di 5eTools, e l'indirizzo delle immagini di 5eTools nelle Opzioni del GM.
+
+- [ ] **Il numero della barra:** in Brown Bear il token è 2×2; sotto, il numero dei PF ha la stessa grandezza di quello dei token di una casella, centrato sulla barra, che è larga quanto il token. Tornato druido, tutto come prima. Lo stesso con un mostro reso Grande dallo statblock.
+- [ ] **Il ritratto:** nella console, scelta la forma, sotto c'è «Usa il ritratto della forma sul token» con l'anteprima, già spuntato. Attivata la forma, il token ha il ritratto dell'orso, a 2×2, e anche la card del tracker; i giocatori lo vedono.
+- [ ] **Il ritorno:** **Termina**, 0 PF, Annulla dell'attivazione, riposo: il token torna con la sua immagine, la sua misura e la sua posizione di griglia. Lo stesso dal pannello degli incantesimi con Metamorfosi.
+- [ ] **Senza ritratto:** togliendo la spunta, il token tiene la sua immagine. Una forma senza ritratto nello specchio, o importata da testo, non mostra la casella; senza l'indirizzo delle immagini nelle Opzioni nemmeno.
+- [ ] **La memoria:** un PG senza identità cambia scena in forma con il ritratto: nella scena nuova arriva con i suoi PF.
+- [ ] **Lo statblock nel campo:** scelta la forma, **Statblock** apre il suo statblock completo (caratteristiche, sensi, tratti come Keen Smell, Multiattack, attacchi); **Chiudi statblock** lo chiude. Anche nel pannello degli incantesimi, nella riga di Metamorfosi.
+- [ ] **Lo statblock in forma:** in Capacità ci sono «Forma: tratti» (Keen Smell con il suo testo), «Forma: multiattacco e altre azioni» e «Forma: statblock»; gli attacchi restano solo in Attacchi. Finita la forma, le voci spariscono.
+- [ ] **Senza l'archivio:** su un browser senza l'archivio di 5eTools (un giocatore online), o con una forma importata da testo, ci sono i nomi dei tratti e il multiattacco, con «Il testo è nell'archivio di 5eTools del GM».
+- [ ] **Un altro libro:** con la console del druido aperta, aggiungi un libro dalla scheda di una creatura (**Importa da una scheda → Archivio online**, per esempio Volo's Guide to Monsters). Chiudi e riapri **Altra forma…** senza chiudere la console: cercando «VGM» compaiono le sue bestie ammesse, con «(VGM)» accanto al GS.
 
 ### B46. Sentinella
 
@@ -1037,6 +1136,20 @@ Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto TD (decisio
 - [ ] **Indagatore:** con il ladro Indagatore al 9° livello la scheda ha Occhio di Lince e non Occhio Infallibile; al 13° ha anche Occhio Infallibile, con attivazione «Azione».
 - [ ] **Attivazioni:** nella scheda Capacità della console, Nascondersi in Piena Vista del ranger dice «un minuto» e Tutt'Uno con le Ombre «azione», non più «reazione».
 - [ ] **Azioni bonus del mostro:** nel turno del goblin del Multiverso, la scheda Capacità della console ha il gruppo **Azioni bonus** con Fuga agile, fra i tratti e le reazioni, e il suo testo. Da provare in vista compatta ed estesa.
+
+### B58. Forme: i punti rimasti del piano
+
+Fonte: [PIANO_TRASFORMAZIONI.md](PIANO_TRASFORMAZIONI.md), «I punti rimasti» (16/11). Le voci sono nuove. Servono il druido di B40, un mago di 17° livello con Trasformazione, un druido con Forme Animali e, nell'archivio di 5eTools del GM, il Manuale dei Mostri.
+
+- [ ] **Dopo Termina:** la console del druido in Brown Bear, ferma su Bite: **Termina**. La console torna sull'arma del druido, senza «Azione di attacco non trovata».
+- [ ] **La durata dalla scheda:** la Forma Selvatica attivata dalla scheda personaggio (senza forma) dura metà del livello da druido in ore, come dalla console: al 4° livello la pill scade dopo 1200 round.
+- [ ] **Il multiattacco:** in Brown Bear, sopra gli attacchi, «Multiattacco: The bear makes two attacks…». Un mostro con il suo multiattacco, in Metamorfosi da lupo, non mostra più il suo.
+- [ ] **La CA nella scheda:** in Brown Bear la scheda della card del druido mostra CA 11; passandoci sopra, il titolo dice la CA del druido. Finita la forma, torna la sua.
+- [ ] **Le etichette (G25):** Metamorfosi su un boss e su una creatura a PF condivisi: la pill «Metamorfosi · Wolf» c'è, i PF restano i loro, e il dettaglio della pill dice «Qui la forma resta un'etichetta (modalità boss)» o «(PF condivisi)». La console del boss resta quella del boss.
+- [ ] **Il lancio del boss:** un boss che lancia un druido in forma di lupo per più danni dei PF del lupo: il druido torna con i suoi PF meno l'eccesso, come per gli altri attacchi.
+- [ ] **Da un token nella stanza:** «Altra forma…» → **Da un token nella stanza…**: un mostro importato da 5eTools (segnato «5eTools») dà la forma completa, con tipo e GS; uno scritto a mano dà la forma dalla sua card, con **Tipo…** e il GS da scegliere. Il druido stesso non è nell'elenco.
+- [ ] **Cambia forma (Trasformazione):** il mago in Trasformazione da Ogre, ferito a 40: in Capacità, **Cambia forma** → Brown Bear: 34/34. Ferito a 20 e di nuovo Ogre: 20/59, i PF non salgono. **Annulla** rimette l'orso; fine della concentrazione: il mago torna con i suoi PF.
+- [ ] **Cambia forma (Forme Animali):** sulla creatura trasformata, **Cambia forma** propone le forme rapide del druido che lancia; la forma nuova arriva con i suoi PF interi. Una forma oltre GS 4 o più grande di Grande è «non ammessa».
 
 ## C. Tracker e UX
 

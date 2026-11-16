@@ -187,6 +187,16 @@ function baseModeSources(baseSpeedMeters, rules) {
   const sources = new Map([["walk", Math.max(0, Number(baseSpeedMeters) || 0)]]);
   const copies = [];
 
+  // Trasformazioni, lotto W4a (docs/PIANO_TRASFORMAZIONI.md): a form's speeds replace the creature's own (replaceMeters),
+  // even a slower one; the other effects still grant, add and multiply on top of them.
+  for (const rule of rules) {
+    const modes = rule?.modes && typeof rule.modes === "object" ? rule.modes : {};
+    for (const mode of MOVEMENT_MODE_ORDER) {
+      const replaced = finiteNonNegative(modes[mode]?.replaceMeters);
+      if (replaced != null) sources.set(mode, replaced);
+    }
+  }
+
   for (const rule of rules) {
     const modes = rule?.modes && typeof rule.modes === "object" ? rule.modes : {};
     for (const mode of MOVEMENT_MODE_ORDER) {
@@ -380,6 +390,7 @@ function resolveMode({
       }
       touched ||= collectDirectional(rule, definition);
       touched ||= finiteNonNegative(definition.grantMeters) != null
+        || finiteNonNegative(definition.replaceMeters) != null
         || !!definition.copyFrom
         || !!definition.copy;
     }
