@@ -45,9 +45,9 @@ test("the catalog holds the 72 feats of the three manuals, 34 of them half feats
   }
   // The 23 feats of lot F0, the 9 of lot F1, the 7 of lot F3a, Magic Initiate and Artificer Initiate (lot F3b-2), Spell
   // Sniper (lot F3b-3), Ritual Caster (lot F3b-4), Inspiring Leader and Chef (lot F5-1), Healer (lot F5-2), Durable
-  // (lot F5-3), Defensive Duelist, Fade Away and Second Chance (lot F6-1) have a line of their own; the others wait for
-  // their lot.
-  assert.equal(FEATS.filter((entry) => !entry.plugin.startsWith("Per ora solo riferimento")).length, 23 + 9 + 7 + 2 + 1 + 1 + 2 + 1 + 1 + 3);
+  // (lot F5-3), Defensive Duelist, Fade Away and Second Chance (lot F6-1), Sentinel (lot F6-2) have a line of their own;
+  // the others wait for their lot.
+  assert.equal(FEATS.filter((entry) => !entry.plugin.startsWith("Per ora solo riferimento")).length, 23 + 9 + 7 + 2 + 1 + 1 + 2 + 1 + 1 + 3 + 1);
 });
 
 test("feats resolve by id like the species traits, but stay out of the class catalog", () => {
@@ -56,10 +56,11 @@ test("feats resolve by id like the species traits, but stay out of the class cat
   // F3b-1), Magic Initiate's and Artificer Initiate's (lot F3b-2), in test/featChosenSpells.test.js; Telekinetic's shove
   // (lot F3b-5, test/featTelekineticShove.test.js); Inspiring Leader's speech and the Chef's treat (lot F5-1,
   // test/featTemporaryHp.test.js); Healer's cure (lot F5-2, test/featHealer.test.js); Fade Away's pill (lot F6-1,
-  // test/featReactions.test.js).
-  assert.equal(FEAT_FEATURES.length, 72 + 2 + 10 + 19 + 8 + 73 + 73 + 1 + 2 + 1 + 1);
+  // test/featReactions.test.js); Sentinel's speed 0 (lot F6-2, test/featSentinel.test.js).
+  assert.equal(FEAT_FEATURES.length, 72 + 2 + 10 + 19 + 8 + 73 + 73 + 1 + 2 + 1 + 1 + 1);
   assert.deepEqual(FEAT_FEATURES.filter((record) => record.featPart && !record.innateSpell).map((record) => record.id),
-    ["talento-condottiero-ispiratore-discorso", "talento-guaritore-cura", "talento-scomparire-invisibile", "talento-bisturi-da-battaglia-critico",
+    ["talento-condottiero-ispiratore-discorso", "talento-guaritore-cura", "talento-sentinella-velocita-zero", "talento-scomparire-invisibile",
+      "talento-bisturi-da-battaglia-critico",
       "talento-cuoco-delizia", "talento-martello-vivente-critico", "talento-telecinesi-spinta"]);
   for (const record of FEAT_FEATURES) {
     assert.ok(record.featPart ? record.id.startsWith(`talento-${record.featId}-`) : record.id === `talento-${record.featId}`, record.id);

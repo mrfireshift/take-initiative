@@ -2917,6 +2917,8 @@ function renderClassFeatures() {
             ? "fino al termine del prossimo turno"
           : durationTiming === "turn-end"
             ? "fino alla fine del turno corrente"
+          : durationTiming === "target-turn-end"
+            ? "fino alla fine del turno del bersaglio"
           : parentFeature
             ? `fino al termine di ${parentFeature.name || parentFeatureId}`
           : remaining === null

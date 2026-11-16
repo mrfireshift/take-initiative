@@ -5,7 +5,10 @@
 // - Entering (Halo of Spores, 3 m): the mover is within 3 m at the end and was not at the start.
 // The mover with "Movimento: no AdO" (Zephyr Strike) or "Disimpegno" (the Disengage action of the attack console's Azioni
 // tab, docs/STUDIO_AZIONI_DI_TURNO.md, D4) provokes nothing; a Disengage taken at the table the plugin cannot know (J3).
+// A reactor with Sentinel (lot F6-2 of docs/STUDIO_TALENTI.md) still reacts to a Disengage; Zephyr Strike, which is not
+// one, keeps it out too.
 import { ID } from "./constants.js";
+import { featFeaturesForProfile } from "./featCatalog.js";
 
 const META_KEY = `${ID}/meta`;
 export const DEFAULT_REACH_METERS = 1.5;
@@ -31,13 +34,20 @@ export function reactorReachMeters(item) {
 
 // Zephyr Strike's "Movimento: no AdO" on the mover: its spell pill (supplementSpellRules.js), or a pill with that label.
 export const ZEPHYR_STRIKE_SPELL_ID = "xanathar-colpo-dello-zefiro";
+const activeConditions = (item) => (Array.isArray(metaOf(item).conditions?.instances) ? metaOf(item).conditions.instances : [])
+  .filter((entry) => entry?.active !== false);
 function hasNoOpportunityPill(item) {
   const meta = metaOf(item);
   const spells = Array.isArray(meta[`${ID}/spells`]) ? meta[`${ID}/spells`] : [];
-  const conditions = Array.isArray(meta.conditions?.instances) ? meta.conditions.instances : [];
   return spells.some((pill) => text(pill?.spellId) === ZEPHYR_STRIKE_SPELL_ID || JSON.stringify(pill || {}).includes(NO_OPPORTUNITY_PILL))
-    || conditions.some((entry) => entry?.active !== false && [NO_OPPORTUNITY_PILL, DISENGAGE_PILL].includes(text(entry?.condition, 80)));
+    || activeConditions(item).some((entry) => text(entry?.condition, 80) === NO_OPPORTUNITY_PILL);
 }
+// The Disengage action's pill: no opportunity attack, except from a reactor with Sentinel.
+const hasDisengagePill = (item) => activeConditions(item).some((entry) => text(entry?.condition, 80) === DISENGAGE_PILL);
+// Sentinel's record (featCatalog.js), on the reactor's sheet.
+export const SENTINEL_FEATURE_ID = "talento-sentinella";
+const ignoresDisengage = (reactor) => featFeaturesForProfile(metaOf(reactor).initiativeCard || {})
+  .some((feature) => feature.id === SENTINEL_FEATURE_ID);
 
 const validPoint = (point) => point && Number.isFinite(Number(point.x)) && Number.isFinite(Number(point.y));
 
@@ -59,9 +69,10 @@ export function movementReactionEvents({ mover = null, path = [], others = [], d
   const leaving = [];
   const entering = [];
   const noOpportunity = hasNoOpportunityPill(mover);
+  const disengaged = hasDisengagePill(mover);
   for (const reactor of Array.isArray(others) ? others : []) {
     if (!reactor?.id || reactor.id === mover.id) continue;
-    if (!noOpportunity) {
+    if (!noOpportunity && (!disengaged || ignoresDisengage(reactor))) {
       const reach = reactorReachMeters(reactor) + 1e-6;
       let inside = false;
       for (const step of steps) {

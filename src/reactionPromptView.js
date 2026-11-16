@@ -71,6 +71,12 @@ export function reactionPromptEffectText(candidate, items = []) {
     return `TS di caratteristica da incantatore${Number.isInteger(dc) && dc > 0 ? ` CD ${dc}` : ""}: se lo fallisce, non ha effetto sul ladro, che lo ruba`;
   }
   if (effect.kind === "reduce-roll") return short;
+  // An attack with the reaction for another (Sentinel, lot F6-2 of docs/STUDIO_TALENTI.md): against the attacker, never
+  // "on" the creature attacked.
+  if (effect.kind === "attack" && onAlly) {
+    const attacker = (Array.isArray(items) ? items : []).find((entry) => entry?.id === candidate.targetIds?.[0]);
+    return String(attacker?.name || "").trim() ? `${short} contro ${String(attacker.name).trim()}` : short;
+  }
   return `${short}${onAlly}`;
 }
 

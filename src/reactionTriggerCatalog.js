@@ -17,6 +17,7 @@
 // requiresReactorCondition / requiresAttackerCondition: an active pill on the reactor (Rage, Bladesong) or, from the
 // reactor, on the attacker (Hexblade's Curse).
 // attackerRangeMeters: the attacker within this distance of the reactor (unknown distance: the reaction stays).
+// unlessProtectedHasFeature: the creature attacked keeps it out when it has one of the entry's features too (Sentinel).
 // filters: range ("melee" | "ranged"), attackRoll (an attack with a roll), critical, damageTypes (any of them).
 // flow: what Usa opens, an existing flow: "cast-spell" (castReactionSpell), "spell-panel" (openReactionSpellPanel),
 // "use-feature" (the Capacità tab's use: resource and reaction), "off-turn-attack" (the console off turn, with the
@@ -223,6 +224,13 @@ export const REACTION_TRIGGER_CATALOG = Object.freeze([
   triggers: ["hit", "miss"], timing: "after", attackerRangeMeters: 1.5, flow: "off-turn-attack", targetsAttacker: true, lot: "R3c",
   effect: { kind: "attack" }, short: "Attacco (Grande o più)",
   rule: "Una creatura Grande o più grande entro 1,5 m lo attacca: subito dopo, un attacco con arma contro di lei." }),
+  // Lot F6-2 (decision K2): Sentinel, a hostile creature within 1.5 m attacks another, hit or missed; not when the creature
+  // attacked has the feat too.
+  feature({ id: "sentinel-strike", label: "Sentinella", featureIds: ["talento-sentinella"],
+    triggers: ["hit", "miss"], timing: "after", protects: "other", attackerRangeMeters: 1.5, filters: { attackRoll: true },
+    unlessProtectedHasFeature: true, flow: "off-turn-attack", targetsAttacker: true, lot: "F6",
+    effect: { kind: "attack" }, short: "Attacco in mischia",
+    rule: "Una creatura entro 1,5 m attacca un altro, che non ha Sentinella: un attacco in mischia con arma contro di lei." }),
 
   // E. A spell cast nearby.
   spell({ id: "counterspell", label: "Controincantesimo", spellId: "counterspell", slotLevel: 3, triggers: ["spell-cast"],

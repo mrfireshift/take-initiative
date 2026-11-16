@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **240** |
+| **B. Console attacchi, mostri e capacità** | **244** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -72,6 +72,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B39. Guaritore: la cura con la borsa | 4 |
 | B42. Riposo del gruppo: Tenace e il cibo del Cuoco | 3 |
 | B44. Reazioni dei talenti: Duellante Difensivo, Seconda Possibilità, Scomparire | 4 |
+| B46. Sentinella | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -97,7 +98,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **603** |
+| **Totale** | **607** |
 
 ## A. Incantesimi
 
@@ -906,6 +907,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F6-1. Le voci sono nuove: n
 - [ ] **Seconda Possibilità:** il mostro colpisce l'halfling: l'avviso dice «L'attaccante ritira il d20». **Usa** spende l'uso e la reazione; al colpo dopo l'avviso non c'è più, e l'uso torna con un riposo breve.
 - [ ] **Scomparire:** il mostro danneggia lo gnomo; dopo **Registra** l'avviso dice «Invisibile fino al suo prossimo turno». **Usa** mette la pill «Invisibile · Scomparire» sullo gnomo e spende uso e reazione; alla fine del suo prossimo turno la pill se ne va.
 - [ ] **La fine con l'attacco:** con la pill ancora attiva, lo gnomo attacca dalla console attacchi: **Registra** toglie la pill.
+
+### B46. Sentinella
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F6-2 (decisioni K1 e K2). Le voci sono nuove: nessuna lista le aveva. In combattimento, con l'interruttore **Movimento** acceso nelle Opzioni: un PG con Sentinella, un PG senza e due goblin nemici.
+
+- [ ] **Il Disimpegno:** un goblin accanto ai due PG prende il Disimpegno (pill «Disimpegno») e si allontana nel suo turno: l'avviso del movimento offre l'attacco di opportunità solo al PG con Sentinella. Con il Colpo dello Zefiro sul goblin non compare niente.
+- [ ] **La velocità 0:** **Usa** sull'attacco di opportunità apre la console del PG fuori turno; su un colpo in mischia c'è «Sentinella: velocità 0», con «Solo con un attacco di opportunità». Spuntata, **Registra** mette «Velocità 0 · Sentinella» sul goblin: lo Speed Tracker gli dà 0 m, e la pill sparisce alla fine del suo turno. Nel turno del PG la stessa voce è spenta.
+- [ ] **L'attacco per un altro:** un goblin entro 1,5 m dal PG con Sentinella attacca l'altro PG: dopo **Registra**, colpito o mancato, l'avviso offre «Sentinella · Attacco in mischia»; **Usa** apre la console del PG fuori turno, con il goblin selezionato.
+- [ ] **Quando non c'è:** niente avviso se il goblin attacca il PG con Sentinella, se il PG attaccato ha anche lui Sentinella o se il goblin è a più di 1,5 m.
 
 ## C. Tracker e UX
 

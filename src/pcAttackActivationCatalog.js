@@ -201,6 +201,10 @@ export const PC_ATTACK_ACTIVATIONS = Object.freeze([
     size: "al massimo una taglia più grande di te", effect: Object.freeze({ note: "Spostato di 1,5 m in uno spazio libero." }) }),
   Object.freeze({ id: "talento-martello-vivente-critico", requires: Object.freeze({ damageType: "bludgeoning", critical: true }),
     effect: Object.freeze({ pill: true }) }),
+  // Sentinel (lot F6-2, decision K1): speed 0 until the end of the target's turn, on a melee hit made with the reaction,
+  // off the attacker's turn. The console cannot tell an opportunity attack from another reaction's: the GM ticks it.
+  Object.freeze({ id: "talento-sentinella-velocita-zero", requires: Object.freeze({ range: "melee", reaction: true }),
+    effect: Object.freeze({ pill: true }), hint: "Solo con un attacco di opportunità." }),
 ]);
 
 const ACTIVATION_BY_ID = new Map(PC_ATTACK_ACTIVATIONS.map((activation) => [activation.id, activation]));

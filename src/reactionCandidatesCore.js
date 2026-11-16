@@ -183,6 +183,13 @@ function filtersMatch(entry, event) {
   return true;
 }
 
+// One of the entry's features on the creature's sheet, whatever its resource (Sentinel, lot F6-2: the creature attacked
+// with the feat too keeps the strike out).
+function hasEnabledFeature(item, featureIds) {
+  const wanted = new Set(featureIds || []);
+  return getEnabledClassFeatures(metaOf(item).initiativeCard || {}).some((feature) => wanted.has(feature.id));
+}
+
 // The creatures of an attack the reactor protects with this entry (one candidate each).
 function protectedTargets(entry, reactor, attacker, targets, distance) {
   if (entry.attackerRangeMeters !== null && entry.protects !== "other") {
@@ -199,7 +206,8 @@ function protectedTargets(entry, reactor, attacker, targets, distance) {
         && within(distance, reactor, target, entry.rangeMeters) === true);
     case "other":
       if (!attacker || !hostile(reactor, attacker) || within(distance, reactor, attacker, entry.attackerRangeMeters) !== true) return [];
-      return targets.filter((target) => target.id !== reactor.id).slice(0, 1);
+      return targets.filter((target) => target.id !== reactor.id
+        && !(entry.unlessProtectedHasFeature && hasEnabledFeature(target, entry.featureIds))).slice(0, 1);
     default:
       return [];
   }

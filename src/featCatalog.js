@@ -299,6 +299,10 @@ const RITUAL_SPELLS = [
 const UNTIL_NEXT_TURN = "next-turn";
 // Until the end of the character's next turn: Fade Away's (lot F6-1).
 const UNTIL_NEXT_TURN_END = "next-turn-end";
+// Until the end of the target's turn, the one in progress: Sentinel's speed 0 (lot F6-2, classFeatureDurationTiming).
+const UNTIL_TARGET_TURN_END = "target-turn-end";
+// The pill Sentinel's opportunity attack puts on the creature it hits (lot F6-2): its speed is 0 (setMeters).
+export const SENTINEL_SPEED_CONDITION = "Velocità 0";
 // The pills of the critical parts, which the attack console reminds about (pcAttackTargetNotes).
 export const CRUSHER_CRITICAL_CONDITION = "Martello Vivente";
 export const SLASHER_CRITICAL_CONDITION = "Bisturi da Battaglia: critico";
@@ -387,7 +391,15 @@ const DEFINITIONS = [
     plugin: "La competenza nel tiro salvezza va compresa nel totale della scheda." }),
   // Its line is counted on the character's level (featPluginLine).
   feat("phb", 170, "Robusto", "Tough", { plugin: "+2 PF massimi per livello, da comprendere nei PF massimi della scheda: il plugin non li scrive." }),
-  feat("phb", 170, "Sentinella", "Sentinel"),
+  // Lot F6-2 (decisions K1, K2): the reaction prompts' strike when a creature nearby attacks another
+  // (reactionTriggerCatalog.js), the Disengage that does not stop its opportunity attacks (opportunityAttackCore.js) and
+  // the speed 0, an activation of the attack console on a melee hit made off turn (pcAttackActivationCatalog.js).
+  feat("phb", 170, "Sentinella", "Sentinel", { activation: "reazione",
+    plugin: "Il Disimpegno non ferma i suoi attacchi di opportunità. Avviso quando una creatura entro 1,5 m attacca un altro. Nella console, fuori turno, «velocità 0» sul bersaglio colpito.",
+    parts: [{ key: "velocita-zero", name: "Sentinella: velocità 0",
+      description: "Quando colpisci una creatura con un attacco di opportunità, la sua velocità diventa 0 per il resto del turno. Nella console si spunta sul colpo in mischia fatto fuori turno.",
+      effect: { conditionName: SENTINEL_SPEED_CONDITION, label: "Velocità 0 · Sentinella", movement: { setMeters: 0 },
+        timing: UNTIL_TARGET_TURN_END, detail: "Velocità 0 per il resto del turno: l'ha colpito un attacco di opportunità di Sentinella." } }] }),
   feat("phb", 170, "Sterminatore di Maghi", "Mage Slayer"),
   // Lot F5-3 (decision H6): a note in the party's rest (groupRestCore.js).
   feat("phb", 170, "Tenace", "Durable", { abilities: ["con"],

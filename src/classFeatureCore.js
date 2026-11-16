@@ -631,6 +631,9 @@ export function classFeatureDurationTiming(feature) {
     || timing === "until-end-of-turn"
     || timing === "current-turn-end"
   ) return "turn-end";
+  // Until the end of the target's turn in progress (Sentinel's speed 0, lot F6-2 of docs/STUDIO_TALENTI.md): the pill's
+  // expiry follows the target, as the Boss console's do (actor "target").
+  if (timing === "target-turn-end" || timing === "until-target-turn-end") return "target-turn-end";
   return null;
 }
 
@@ -871,6 +874,7 @@ export function classFeatureConditionInstance(
   const nextTurnTiming = durationTiming === "next-turn";
   const nextTurnEndTiming = durationTiming === "next-turn-end";
   const turnEndTiming = durationTiming === "turn-end";
+  const targetTurnEndTiming = durationTiming === "target-turn-end";
   const remaining = classFeatureRemainingRounds(
     activation,
     activation?.startedRound,
@@ -920,6 +924,13 @@ export function classFeatureConditionInstance(
           mode: "turn-end",
           actor: "source",
           actorId: sourceId,
+          remaining: 1,
+        }
+      : targetTurnEndTiming
+        ? {
+          mode: "turn-end",
+          actor: "target",
+          actorId: target,
           remaining: 1,
         }
       : remaining === null
@@ -1277,6 +1288,7 @@ export function planClassFeatureActivation({
     : durationTiming === "next-turn"
       || durationTiming === "next-turn-end"
       || durationTiming === "turn-end"
+      || durationTiming === "target-turn-end"
       ? null
       : optionalInteger(feature?.duration?.rounds, 1, 99999);
   const instance = {

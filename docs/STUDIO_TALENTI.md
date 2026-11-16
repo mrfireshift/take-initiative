@@ -6,8 +6,8 @@ dall'utente il 15/11** (§9); **F0 fatto il 15/11** (§7.1), **F1 il 16/11**
 con S1–S9 approvate** (§7.4), **F3b-1, F3b-2, F3b-3, F3b-4 e F3b-5 il 16/11**
 (§7.5–§7.9): F3 è chiuso. **F4 il 16/11** (§7.10). **Il piano di F5 il 16/11,
 con H1–H7 approvate** (§7.11), **F5-1, F5-2 e F5-3 il 16/11** (§7.12–§7.14):
-F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 in attesa** (§7.15), **F6-1
-il 16/11** (§7.16).
+F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 approvate** (§7.15), **F6-1 e
+F6-2 il 16/11** (§7.16, §7.17).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -1562,8 +1562,8 @@ nessuna scrittura di PF.
 ### 7.15 F6, piano (16/11)
 
 **Reazioni.** Otto talenti in cinque sottolotti. F6-1 si fa subito: usa solo
-flussi che esistono e non ha scelte aperte. Gli altri aspettano le decisioni
-K1–K6 (§7.15.7).
+flussi che esistono e non ha scelte aperte. Gli altri seguono le decisioni
+K1–K6 (§7.15.7), approvate il 16/11.
 
 #### 7.15.1 Che cosa fanno (PHB 2014, Xanathar)
 
@@ -1707,7 +1707,8 @@ K1–K6 (§7.15.7).
 
 #### 7.15.7 Decisioni
 
-In attesa dell'utente. F6-1 non ne dipende.
+**Esito:** il 16/11 l'utente le ha approvate tutte come raccomandate («Approvo,
+vai con F6-2»). F6-1 non ne dipende.
 
 | # | Decisione | Possibilità | Raccomandazione |
 |---|---|---|---|
@@ -1745,6 +1746,37 @@ In attesa dell'utente. F6-1 non ne dipende.
 - **`reactionPromptView.js`** ha righe non committate delle trasformazioni (la
   CA della forma): il commit prende HEAD + le righe di F6-1.
 - **Documenti:** le prove in stanza sono in B44 (B43 è delle trasformazioni).
+
+### 7.17 F6-2, fatto il 16/11
+
+**Sentinella.** Come la §7.15, con K1 e K2.
+
+- **Il Disimpegno** (`opportunityAttackCore.js`): chi si disimpegna non provoca
+  attacchi di opportunità, tranne quelli di un reattore con Sentinella. Il
+  Colpo dello Zefiro non è un Disimpegno: con la sua pill non reagisce nessuno.
+- **La velocità 0:**
+  - una seconda voce del talento, `talento-sentinella-velocita-zero`, con la
+    pill «Velocità 0 · Sentinella» (`setMeters: 0`);
+  - un'attivazione della console sui colpi in mischia fuori dal proprio turno
+    (`requires.reaction`), con il suggerimento «Solo con un attacco di
+    opportunità»: la spunta il GM (K1);
+  - la scadenza nuova `target-turn-end` (`classFeatureCore.js`): la pill finisce
+    con il turno del bersaglio, quello in corso, come le pill della console Boss
+    (`actor: "target"`). Il modale della card la chiama «fino alla fine del
+    turno del bersaglio».
+- **L'attacco per un altro** (K2):
+  - voce `sentinel-strike`: colpito e mancato, dopo, una creatura ostile entro
+    1,5 m che attacca un altro;
+  - Usa apre la console fuori turno con l'attaccante selezionato;
+  - `unlessProtectedHasFeature` (`reactionCandidatesCore.js`) la toglie se il
+    bersaglio attaccato ha anche lui Sentinella;
+  - la riga dell'avviso dice «Attacco in mischia contro Orco», cioè contro chi
+    ha attaccato, e non «su» chi è stato attaccato (`reactionPromptEffectText`).
+    Gli altri testi non cambiano.
+- **La riga «Nel plugin»** di Sentinella dice dove sta ogni parte.
+- **`reactionPromptView.js`** ha righe non committate delle trasformazioni: il
+  commit prende HEAD + le righe di F6-2.
+- **Documenti:** le prove in stanza sono in B46 (B45 è delle trasformazioni).
 
 ---
 
