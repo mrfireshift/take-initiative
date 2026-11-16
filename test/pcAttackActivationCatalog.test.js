@@ -35,7 +35,8 @@ test("the 3A, 3B and 3C scope: every class with an on-hit activation", () => {
   assert.deepEqual(PC_ATTACK_ACTIVATIONS.filter((activation) => getClassFeatureDefinition(activation.id).speciesId).map((activation) => activation.id),
     ["specie-goblin-furia-dei-piccoli", "specie-goblin-multiverso-furia-dei-piccoli", "specie-giff-scintilla-astrale",
     "specie-dhampir-morso-vampirico-potenziamento", "specie-mezzorco-attacchi-selvaggi"]);
-  assert.equal(PC_ATTACK_ACTIVATIONS.filter((activation) => activation.group === "manovra").length, 12);
+  // The Battle Master's twelve, and the same for Martial Adept's cards (lot F9-3 of docs/STUDIO_TALENTI.md).
+  assert.equal(PC_ATTACK_ACTIVATIONS.filter((activation) => activation.group === "manovra").length, 12 + 12);
   assert.equal(PC_ATTACK_ACTIVATIONS.filter((activation) => activation.group === "tiro-arcano").length, 8);
 });
 

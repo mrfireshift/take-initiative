@@ -372,7 +372,7 @@ function importedFeats(data, unresolved) {
     // The options a feat borrows from a class (lot F9): a fighting style, an invocation, the metamagic options (lot F9-2),
     // by name. A name outside the feat's options, or one more than it lets choose, is reported.
     const optionNames = [source.options ?? source.opzioni ?? source.style ?? source.stile ?? source.invocation ?? source.supplica
-      ?? source.metamagic ?? source.metamagia].flat().map(text).filter(Boolean);
+      ?? source.metamagic ?? source.metamagia ?? source.maneuvers ?? source.manovre].flat().map(text).filter(Boolean);
     const candidates = featBorrowedCandidates(feat.id);
     const optionIds = [];
     for (const optionName of optionNames) {

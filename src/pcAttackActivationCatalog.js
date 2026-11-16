@@ -45,7 +45,7 @@ const arcaneShot = (slug, fields) => Object.freeze({
   requires: Object.freeze({ range: "ranged" }), ...fields,
 });
 
-export const PC_ATTACK_ACTIVATIONS = Object.freeze([
+const BASE_ACTIVATIONS = Object.freeze([
   // Battle Master: the superiority die adds to the damage; the save DC is 8 + proficiency + Strength or Dexterity.
   maneuver("attacco-minaccioso", { save: "wis", effect: Object.freeze({ pill: true }) }),
   maneuver("attacco-adescante", { save: "wis", effect: Object.freeze({ pill: true }) }),
@@ -206,6 +206,17 @@ export const PC_ATTACK_ACTIVATIONS = Object.freeze([
   Object.freeze({ id: "talento-sentinella-velocita-zero", requires: Object.freeze({ range: "melee", reaction: true }),
     effect: Object.freeze({ pill: true }), hint: "Solo con un attacco di opportunità." }),
 ]);
+
+// Martial Adept (lot F9-3 of docs/STUDIO_TALENTI.md, decision D14): each maneuver again for the feat's card,
+// "talento-adepto-marziale-<maneuver>", with its d6 instead of the Battle Master's die; its cost, the feat's die, comes
+// from the card. Same group: still one maneuver per attack.
+const MANEUVER_PREFIX = "guerriero-maestro-di-battaglia-manovre-";
+const MARTIAL_ADEPT_DIE = Object.freeze({ fixed: "1d6" });
+const martialAdeptManeuver = (activation) => Object.freeze({ ...activation, id: `talento-adepto-marziale-${activation.id.slice(MANEUVER_PREFIX.length)}`,
+  ...(activation.dice ? { dice: MARTIAL_ADEPT_DIE } : {}), ...(activation.rollBonus ? { rollBonus: MARTIAL_ADEPT_DIE } : {}) });
+
+export const PC_ATTACK_ACTIVATIONS = Object.freeze([...BASE_ACTIVATIONS,
+  ...BASE_ACTIVATIONS.filter((activation) => activation.id.startsWith(MANEUVER_PREFIX)).map(martialAdeptManeuver)]);
 
 const ACTIVATION_BY_ID = new Map(PC_ATTACK_ACTIVATIONS.map((activation) => [activation.id, activation]));
 

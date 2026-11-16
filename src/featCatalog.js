@@ -327,7 +327,13 @@ const DEFINITIONS = [
   feat("phb", 165, "Abile", "Skilled", { plugin: ON_SHEET }),
   feat("phb", 165, "Adepto Elementale", "Elemental Adept", { prerequisite: "Saper lanciare almeno un incantesimo",
     choices: ["damageType"], repeatable: true }),
-  feat("phb", 165, "Adepto Marziale", "Martial Adept"),
+  // Lot F9-3 (decision D14): the two maneuvers chosen, cards of the feat with its own superiority die, a d6 back with a
+  // short or long rest: on a hit in the attack console (pcAttackActivationCatalog.js), Parry and Riposte in the reaction
+  // prompts, the others from their cards.
+  feat("phb", 165, "Adepto Marziale", "Martial Adept",
+    { plugin: "Le due manovre scelte nei Talenti della scheda sono card di questo talento, con il suo dado d6: nella console sul colpo, negli avvisi (Parata, Replica), le altre dalla card. Torna col riposo breve.",
+      pool: { key: "dado", name: "Adepto Marziale: dado di superiorità", count: 1, rest: "breve", options: true },
+      borrowed: { key: "manovra", label: "Manovra", count: 2, parentFeatureId: "guerriero-maestro-di-battaglia-manovre" } }),
   feat("phb", 165, "Aggressore Selvaggio", "Savage Attacker", {
     plugin: "Nella console attacchi, sui colpi in mischia, il promemoria: una volta per turno ritiri i dadi dell'arma e tieni il totale che preferisci." }),
   feat("phb", 165, "Allerta", "Alert", {

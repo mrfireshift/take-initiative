@@ -32,8 +32,8 @@ test("seven feats grant spells of their own: one record each, with a spell of th
     ["riposo_breve", "riposo_lungo"]);
   // Fortunato and Orcish Fury, the eight uses of these spells, the chosen slots of the Touched feats (lot F3b-1), of
   // Magic Initiate and of Artificer Initiate (lot F3b-2), the Chef's treats (lot F5-1), the uses of Fade Away and
-  // Second Chance (lot F6-1), and Metamagic Adept's points (lot F9-2).
-  assert.equal(FEAT_RESOURCE_POOLS.length, 2 + 8 + 2 + 2 + 1 + 2 + 1);
+  // Second Chance (lot F6-1), Metamagic Adept's points (lot F9-2) and Martial Adept's die (lot F9-3).
+  assert.equal(FEAT_RESOURCE_POOLS.length, 2 + 8 + 2 + 2 + 1 + 2 + 1 + 1);
 });
 
 test("a feat's spell is cast with the feat's use and DC: the half feat's ability, chosen or the highest it offers", () => {

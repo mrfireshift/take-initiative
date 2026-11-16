@@ -121,7 +121,8 @@ export const REACTION_TRIGGER_CATALOG = Object.freeze([
   triggers: ["hit"], timing: "before", filters: { attackRoll: true }, lot: "R3b", flow: "modifier",
   effect: { kind: "halve" }, short: "Danno dimezzato",
   rule: "Colpito da un attaccante che vede: dimezza il danno di questo attacco." }),
-  feature({ id: "parry-maneuver", label: "Parata", featureIds: ["guerriero-maestro-di-battaglia-manovre-parata"],
+  // Lot F9-3: Martial Adept's maneuver too (featCatalog.js), with the feat's die.
+  feature({ id: "parry-maneuver", label: "Parata", featureIds: ["guerriero-maestro-di-battaglia-manovre-parata", "talento-adepto-marziale-parata"],
     triggers: ["damage"], timing: "before", filters: { range: "melee", attackRoll: true }, lot: "R3b", flow: "modifier",
     effect: { kind: "reduce", dice: "superiority", ability: "dex" }, short: "− dado di superiorità + Des",
     rule: "Danneggiato da un attacco in mischia: riduce il danno di un dado di superiorità + modificatore di Destrezza." }),
@@ -208,7 +209,7 @@ export const REACTION_TRIGGER_CATALOG = Object.freeze([
     rule: "Una creatura entro 9 m danneggia un altro: TS Saggezza, radiosi pari al danno inflitto, metà se lo supera." }),
 
   // D. Miss: notices.
-  feature({ id: "riposte", label: "Replica", featureIds: ["guerriero-maestro-di-battaglia-manovre-replica"],
+  feature({ id: "riposte", label: "Replica", featureIds: ["guerriero-maestro-di-battaglia-manovre-replica", "talento-adepto-marziale-replica"],
     triggers: ["miss"], timing: "after", filters: { range: "melee" }, flow: "off-turn-attack", targetsAttacker: true, lot: "R3c",
     effect: { kind: "attack", plusDice: "superiority" }, short: "Attacco + dado di superiorità",
     rule: "Mancato in mischia: un attacco in mischia contro l'attaccante, con il dado di superiorità ai danni." }),

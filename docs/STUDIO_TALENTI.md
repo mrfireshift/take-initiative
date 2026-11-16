@@ -8,7 +8,7 @@ con S1–S9 approvate** (§7.4), **F3b-1, F3b-2, F3b-3, F3b-4 e F3b-5 il 16/11**
 con H1–H7 approvate** (§7.11), **F5-1, F5-2 e F5-3 il 16/11** (§7.12–§7.14):
 F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 approvate** (§7.15), **F6-1…F6-5
 il 16/11** (§7.16–§7.20): F6 è chiuso. **Il piano di F9 il 16/11** (§7.21),
-**F9-1 e F9-2 il 16/11** (§7.22, §7.23).
+**F9-1, F9-2 e F9-3 il 16/11** (§7.22–§7.24).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -1962,6 +1962,28 @@ classe).
 - **`classFeatureCatalog.js` e `pcAttackFeatureFormCore.js`** hanno righe non
   committate di altre sessioni: il commit prende HEAD + le righe di F9-2.
 - **Documenti:** le prove in stanza sono in B51.
+
+### 7.24 F9-3, fatto il 16/11
+
+**Adepto Marziale.** Come la §7.21, con D14.
+
+- **Le manovre:** due delle sedici del Maestro di Battaglia, nei menu «Manovra»
+  della scheda; nell'import, `maneuvers` (o `manovre`), per nome italiano.
+- **Il dado:** un d6 del talento, di nuovo col riposo breve o lungo; lo
+  spendono le card delle manovre. Le card copiano dalla classe anche la pill e
+  il bersaglio (Attacco Minaccioso mette Spaventato).
+- **Nella console, sul colpo:** ogni manovra del Maestro di Battaglia ha la sua
+  copia per la card del talento (`talento-adepto-marziale-…`), con 1d6 al posto
+  del dado della classe; la CD resta 8 + competenza + Forza o Destrezza, e
+  resta una manovra per attacco (lo stesso gruppo). Il Maestro di Battaglia
+  tiene il suo dado.
+- **Negli avvisi:** Parata e Replica hanno anche gli id del talento; la
+  riduzione e l'attacco li scrive il GM come per la classe.
+- **Le altre** (Colpo del Comandante, Incoraggiamento, Scarto Elusivo, Attacco
+  con Finta…) si usano dalla card, che spende il d6.
+- **`classFeatureCatalog.js`** ha righe non committate delle trasformazioni: il
+  commit prende HEAD + le righe di F9-3.
+- **Documenti:** le prove in stanza sono in B53 (B52 è delle azioni di turno).
 
 ---
 

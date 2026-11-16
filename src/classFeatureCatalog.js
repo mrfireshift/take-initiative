@@ -51,6 +51,11 @@ function featOptionUse(feat, source) {
     completenessStatus: source.completenessStatus,
     runtimeSupport: source.runtimeSupport,
     trackingMode: source.trackingMode,
+    // Lot F9-3: a maneuver's pill (Menacing Attack's Frightened), on the creature selected, with its expiry.
+    targetMode: source.targetMode,
+    targeting: source.targeting,
+    effectPlan: source.effectPlan,
+    duration: source.duration,
     trackedResourcePoolIds: Object.freeze([poolId]),
     resourceCosts: Object.freeze(costs),
   };

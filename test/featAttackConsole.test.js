@@ -33,9 +33,13 @@ const GWM = "talento-maestro-d-armi-possenti";
 
 test("the console's feats are records of the sheet's feats, never a class's or a species'", () => {
   const feats = PC_ATTACK_ACTIVATIONS.filter((activation) => CLASS_FEATURE_BY_ID.get(activation.id)?.featId).map((activation) => activation.id);
-  // Sentinel's speed 0 (lot F6-2, test/featSentinel.test.js).
+  // Sentinel's speed 0 (lot F6-2, test/featSentinel.test.js); Martial Adept's twelve maneuvers (lot F9-3,
+  // test/featMartialAdept.test.js).
+  const maneuvers = ["attacco-minaccioso", "attacco-adescante", "colpo-distraente", "attacco-sbilanciante", "attacco-con-spinta",
+    "attacco-disarmante", "attacco-con-manovra", "attacco-con-affondo", "attacco-con-spazzata", "attacco-preciso", "replica", "attacco-con-finta"];
   assert.deepEqual(feats, [GWM, "talento-tiratore-scelto", "talento-stile-penetrante", "talento-furia-orchesca", "talento-bisturi-da-battaglia",
-    "talento-bisturi-da-battaglia-critico", "talento-martello-vivente", "talento-martello-vivente-critico", "talento-sentinella-velocita-zero"]);
+    "talento-bisturi-da-battaglia-critico", "talento-martello-vivente", "talento-martello-vivente-critico", "talento-sentinella-velocita-zero",
+    ...maneuvers.map((slug) => `talento-adepto-marziale-${slug}`)]);
   assert.deepEqual(activations(actor([])).filter((entry) => entry.id.startsWith("talento-")), [], "without the feat, no activation");
 });
 

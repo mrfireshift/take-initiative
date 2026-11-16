@@ -47,9 +47,9 @@ test("the catalog holds the 72 feats of the three manuals, 34 of them half feats
   // Sniper (lot F3b-3), Ritual Caster (lot F3b-4), Inspiring Leader and Chef (lot F5-1), Healer (lot F5-2), Durable
   // (lot F5-3), Defensive Duelist, Fade Away and Second Chance (lot F6-1), Sentinel (lot F6-2), Polearm Master (lot F6-3),
   // Mage Slayer and War Caster (lot F6-4), Flames of Phlegethos (lot F6-5), Fighting Initiate and Eldritch Adept (lot
-  // F9-1), Metamagic Adept (lot F9-2) have a line of their own; the others wait for their lot.
+  // F9-1), Metamagic Adept (lot F9-2), Martial Adept (lot F9-3) have a line of their own; the others wait for their lot.
   assert.equal(FEATS.filter((entry) => !entry.plugin.startsWith("Per ora solo riferimento")).length,
-    23 + 9 + 7 + 2 + 1 + 1 + 2 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 2 + 1);
+    23 + 9 + 7 + 2 + 1 + 1 + 2 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 2 + 1 + 1);
 });
 
 test("feats resolve by id like the species traits, but stay out of the class catalog", () => {
@@ -96,7 +96,9 @@ test("the sheet's feats follow the species traits, each once; an unknown id give
 test("Fortunato's three points: a button that spends one, back with the long rest", () => {
   const lucky = feature("fortunato");
   const pool = CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("talento-fortunato-punti-usi");
-  assert.deepEqual(FEAT_RESOURCE_POOLS.map((entry) => entry.id).slice(0, 2), ["talento-fortunato-punti-usi", "talento-furia-orchesca-dado-usi"]);
+  // Martial Adept's die (lot F9-3) comes first, in the manual's order.
+  assert.deepEqual(FEAT_RESOURCE_POOLS.map((entry) => entry.id).slice(0, 3),
+    ["talento-adepto-marziale-dado-usi", "talento-fortunato-punti-usi", "talento-furia-orchesca-dado-usi"]);
   assert.deepEqual(pool.capacity, { type: "fixed", value: 3 });
   assert.deepEqual(pool.refresh.map((entry) => entry.event), ["riposo_lungo"]);
   assert.equal(classFeatureRuntimeSupport(lucky).ready, true);
