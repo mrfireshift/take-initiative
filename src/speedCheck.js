@@ -371,12 +371,21 @@ function parseSpeedMeters(rawSpeed) {
 
 // speedProfile: the card the base speed was read from, where the stat block's other speeds are too (a namesake may have
 // it only in the room's registry, not on its token).
+// Lot F2-1 of docs/STUDIO_TALENTI.md (decision M3): Mobile's record (featCatalog.js, featFeatureId("mobilita")). After a
+// Dash in the turn, difficult terrain costs it no extra movement: the profile is resolved a second time without that
+// cost (mobileDashCostMultiplier), and the step's cost picks it while the turn has a Dash, the panel's or the console's.
+export const MOBILE_FEATURE_ID = "talento-mobilita";
+const MOBILE_DASH_INSTANCE = Object.freeze({ id: "feat-mobile-dash", effectId: MOBILE_FEATURE_ID, condition: "Mobilità", active: true,
+  mechanics: Object.freeze({ movement: Object.freeze({ ignoreDifficultTerrain: true }) }) });
+const turnDashCount = (state) => (Number(state?.dashCount) || 0) + (Number(state?.actionDashCount) || 0);
+
 function conditionSpeedForItem(item, baseSpeedMeters, preferredMode = "walk", speedProfile = null) {
   const meta = item?.metadata?.[META_KEY] || {};
   const conditions = meta.conditions || {};
   const spells = meta[SPELLS_META_KEY] || [];
   const card = getInitiativeCard(item);
-  const passiveFeatureInstances = getEnabledClassFeatures(card)
+  const features = getEnabledClassFeatures(card);
+  const passiveFeatureInstances = features
     .map((feature) => {
       const movement = classFeaturePassiveMovementMechanics(feature);
       if (!movement) return null;
@@ -390,16 +399,15 @@ function conditionSpeedForItem(item, baseSpeedMeters, preferredMode = "walk", sp
     })
     .filter(Boolean);
   const statblockSpeeds = monsterSpeedsMovementInstance(speedProfile || card, baseSpeedMeters);
-  return resolveConditionSpeed(
-    baseSpeedMeters,
-    [
-      ...passiveFeatureInstances,
-      ...(statblockSpeeds ? [statblockSpeeds] : []),
-      ...getConditionInstances(conditions),
-    ],
-    spells,
-    preferredMode,
-  );
+  const instances = [
+    ...passiveFeatureInstances,
+    ...(statblockSpeeds ? [statblockSpeeds] : []),
+    ...getConditionInstances(conditions),
+  ];
+  const resolved = resolveConditionSpeed(baseSpeedMeters, instances, spells, preferredMode);
+  if (!features.some((feature) => feature?.id === MOBILE_FEATURE_ID)) return resolved;
+  const dashed = resolveConditionSpeed(baseSpeedMeters, [...instances, MOBILE_DASH_INSTANCE], spells, preferredMode);
+  return { ...resolved, mobileDashCostMultiplier: dashed.movementCostMultiplier };
 }
 
 async function liveDirectionalMovementModifiers(state) {
@@ -512,6 +520,7 @@ function applyResolvedMovementState(state, resolved, totalMeters) {
     conditionReasons: resolved.reasons,
     prone: resolved.prone,
     movementCostMultiplier: resolved.movementCostMultiplier,
+    mobileDashCostMultiplier: resolved.mobileDashCostMultiplier ?? null,
     movementImmunities: resolved.movementImmunities || [],
     directionalCostModifiers: resolved.directionalCostModifiers || [],
     blockedWarningSent: false,
@@ -904,6 +913,7 @@ async function loadMovementState(turn, { itemId: requestedItemId = "", boardToke
     conditionReasons: resolvedSpeed.reasons,
     prone: resolvedSpeed.prone,
     movementCostMultiplier: resolvedSpeed.movementCostMultiplier,
+    mobileDashCostMultiplier: resolvedSpeed.mobileDashCostMultiplier ?? null,
     movementImmunities: resolvedSpeed.movementImmunities || [],
     directionalCostModifiers: resolvedSpeed.directionalCostModifiers || [],
     climbing: meta?.[CLIMBING_META_FIELD] === true,
@@ -1296,7 +1306,9 @@ async function processSpeedCheckMovement(movement, turn) {
     ? []
     : await liveDirectionalMovementModifiers(state);
   if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
-  const terrainModifiers = verticalMovement
+  // Mobile after a Dash (lot F2-1): neither the map's difficult terrain nor the profile's costs it extra.
+  const mobileDash = Number.isFinite(state.mobileDashCostMultiplier) && turnDashCount(state) > 0;
+  const terrainModifiers = verticalMovement || mobileDash
     ? []
     : await liveTerrainMovementModifiers(state).catch(() => []);
   if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
@@ -1309,7 +1321,8 @@ async function processSpeedCheckMovement(movement, turn) {
     afterPosition: rawAfter,
     // PHB: each extra cost adds a foot per foot. The profile's difficult terrain does not stack with the map's (the
     // higher one); Prone (crawling) and climbing add to either.
-    baseMultiplier: Math.max(1, (Number(state.movementCostMultiplier) || 1) - (state.prone === true ? 1 : 0)),
+    baseMultiplier: Math.max(1, (Number(mobileDash ? state.mobileDashCostMultiplier : state.movementCostMultiplier) || 1)
+      - (state.prone === true ? 1 : 0)),
     extraCost: (state.prone === true ? 1 : 0)
       + (climbingMovement ? climbingMovementCostMultiplier(state.climbing, state.movementModes) - 1 : 0),
     directionalModifiers,

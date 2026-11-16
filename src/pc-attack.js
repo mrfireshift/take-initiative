@@ -4,7 +4,7 @@ import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { createPcAttackRuntime, pcAttackSmiteSlotPlans, pcAttackSpellSlotPlan } from "./pcAttackExecution.js";
 import { spellSlotStatus } from "./spellSlotCore.js";
 import { pcAttackAreaOutcomes, pcAttackTargetActionImmune, pcAttackTargetConditionImmune, pcAttackTargetEvasion, pcAttackTargetSaveBonus,
-  pcAttackFeetLabel, pcAttackMonsterFailureText, pcAttackSave, pcAttackSaveLabel as hitSaveLabel } from "./pcAttackCore.js";
+  pcAttackFeetLabel, pcAttackGrappleEscapeAdvantage, pcAttackMonsterFailureText, pcAttackSave, pcAttackSaveLabel as hitSaveLabel } from "./pcAttackCore.js";
 import { DODGE_SAVE_NOTE, dodgeSaveAdvantage } from "./attackAdvantagePillsCore.js";
 import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint, pcAttackActivationOptions,
   pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction, pcAttackOutcomesFor, pcAttackSaveLabel, pcAttackDamageFactor,
@@ -1755,7 +1755,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const on=presentation?pcGrapplesOn(presentation.item,presentation.targets):[];
     grappleBox.hidden=!holds.length && !on.length;
     if(grappleBox.hidden){grappleSignature="";return;}
-    const signature=JSON.stringify([holds,on,busy,invalidated]);
+    // Squat Nimbleness (lot F2-1): the advantage on the actor's own escape, in its row and its tooltip.
+    const squat=on.length?pcAttackGrappleEscapeAdvantage(attackerCard()):"";
+    const signature=JSON.stringify([holds,on,busy,invalidated,squat]);
     if(signature===grappleSignature) return;
     grappleSignature=signature;
     const actor=actorName();
@@ -1773,9 +1775,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         button("Lascia andare",`${actor} lascia andare ${hold.name} (nessuna azione)`,()=>void endGrapple(hold.targetId,hold.instanceId,"release")),
         button("Sfugge",escapeTitle(hold.name),()=>void endGrapple(hold.targetId,hold.instanceId,"escaped")),
         button("Non sfugge",`${hold.name} tenta di sfuggire e resta Afferrato`,()=>void endGrapple(hold.targetId,hold.instanceId,"escape-failed"))])),
-      ...on.map(grab=>row(`Afferrato${grab.name?` da ${grab.name}`:""}${grab.escapeDC?` (CD ${grab.escapeDC})`:""}`,
-        `${actor}: Afferrato${grab.name?` da ${grab.name}`:""}${grab.escapeDC?` (CD ${grab.escapeDC} per sfuggire)`:""}`,[
-        button("Sfugge",escapeTitle(actor,grab.escapeDC),()=>void endGrapple(sourceId,grab.instanceId,"escaped")),
+      ...on.map(grab=>row(`Afferrato${grab.name?` da ${grab.name}`:""}${grab.escapeDC?` (CD ${grab.escapeDC})`:""}${squat?" · vantaggio":""}`,
+        `${actor}: Afferrato${grab.name?` da ${grab.name}`:""}${grab.escapeDC?` (CD ${grab.escapeDC} per sfuggire)`:""}${squat?`, con vantaggio (${squat})`:""}`,[
+        button("Sfugge",`${escapeTitle(actor,grab.escapeDC)}${squat?` con vantaggio (${squat})`:""}`,()=>void endGrapple(sourceId,grab.instanceId,"escaped")),
         button("Non sfugge",`${actor} tenta di sfuggire e resta Afferrato`,()=>void endGrapple(sourceId,grab.instanceId,"escape-failed"))])));
   }
   function endGrapple(grappledId,instanceId,outcome) {

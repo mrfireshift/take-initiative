@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **293** |
+| **B. Console attacchi, mostri e capacità** | **297** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -85,6 +85,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B55. Adepto Marziale | 4 |
 | B56. Paura Draconica | 4 |
 | B57. Dati corretti dall'audit delle azioni | 3 |
+| B59. Mobilità e Agilità Tarchiata | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -110,7 +111,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **656** |
+| **Totale** | **660** |
 
 ## A. Incantesimi
 
@@ -1150,6 +1151,15 @@ Fonte: [PIANO_TRASFORMAZIONI.md](PIANO_TRASFORMAZIONI.md), «I punti rimasti» (
 - [ ] **Da un token nella stanza:** «Altra forma…» → **Da un token nella stanza…**: un mostro importato da 5eTools (segnato «5eTools») dà la forma completa, con tipo e GS; uno scritto a mano dà la forma dalla sua card, con **Tipo…** e il GS da scegliere. Il druido stesso non è nell'elenco.
 - [ ] **Cambia forma (Trasformazione):** il mago in Trasformazione da Ogre, ferito a 40: in Capacità, **Cambia forma** → Brown Bear: 34/34. Ferito a 20 e di nuovo Ogre: 20/59, i PF non salgono. **Annulla** rimette l'orso; fine della concentrazione: il mago torna con i suoi PF.
 - [ ] **Cambia forma (Forme Animali):** sulla creatura trasformata, **Cambia forma** propone le forme rapide del druido che lancia; la forma nuova arriva con i suoi PF interi. Una forma oltre GS 4 o più grande di Grande è «non ammessa».
+
+### B59. Mobilità e Agilità Tarchiata
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F2-1 (decisioni M3, M6). Le voci sono nuove: nessuna lista le aveva. Servono un PG con velocità 9 m e Mobilità, un nano con Agilità Tarchiata, una Ragnatela e un mostro che afferra. Movimento acceso nelle Opzioni; ogni voce in vista compatta ed estesa.
+
+- [ ] **Le velocità:** nel suo turno il riquadro Movimento del PG con Mobilità dice 12 m; quello del nano (7,5 m) 9 m. Nei Talenti della scheda la riga «Nel plugin» dei due talenti lo dice.
+- [ ] **Mobilità e lo Scatto:** il PG nella Ragnatela: 3 caselle costano 9 m. Con **Scatto** nel riquadro Movimento, le 3 caselle dopo costano 4,5 m; tolto lo Scatto, di nuovo il doppio. Lo stesso con Azioni → Scatto della console attacchi. Senza il talento lo Scatto non cambia il costo.
+- [ ] **Il terreno della mappa:** nella Tormenta Primordiale di Auril (o in una Cucitura), dopo uno Scatto, il PG con Mobilità paga le caselle come fuori.
+- [ ] **Sfuggire alla presa:** il nano afferrato dal mostro apre la console: la riga dice «Afferrato da … · vantaggio» e il titolo di **Sfugge** aggiunge «con vantaggio (Agilità Tarchiata)». Il PG con Mobilità, afferrato, non ha il vantaggio.
 
 ## C. Tracker e UX
 

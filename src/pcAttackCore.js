@@ -282,6 +282,13 @@ export const DRAGON_FEAR_VARIANT = "paura-draconica";
 const DRAGON_FEAR_FEATURE_ID = "talento-paura-draconica";
 const hasDragonFear = (card) => featFeaturesForProfile(card).some((feature) => feature.id === DRAGON_FEAR_FEATURE_ID);
 
+// Lot F2-1 of docs/STUDIO_TALENTI.md (decision M6): Squat Nimbleness's advantage on the check to escape a grapple, for
+// the console's row of the grapple: the feat's name, "" without it.
+const SQUAT_NIMBLENESS_FEATURE_ID = "talento-agilita-tarchiata";
+export function pcAttackGrappleEscapeAdvantage(card = {}) {
+  return featFeaturesForProfile(card).find((feature) => feature.id === SQUAT_NIMBLENESS_FEATURE_ID)?.name || "";
+}
+
 // The breath's dice at the character's total level ("3d6" at 6th level for the PHB breath).
 export function pcAttackBreathDice(breath, card = {}) {
   const level = totalCharacterLevel(card?.characterBuild) || 1;

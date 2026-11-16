@@ -88,10 +88,10 @@ const ON_SHEET = "Le competenze vanno riportate nella scheda del personaggio.";
 const feat = (book, page, name, english, { prerequisite = "", abilities = [], choices = [], species = [], speciesOptions = [],
   repeatable = false, plugin = LATER, pool = null, srdEntryId = "", srdText = "", effect = null, parts = [], naturalWeapon = null,
   spells = [], spellAbility = "", chosenSpells = [], classChoices = [], cantrips = 0, cantripIds = null, cantripLabel = "",
-  rituals = false, activation = "", borrowed = null } = {}) => ({
+  rituals = false, activation = "", borrowed = null, speedMeters = 0 } = {}) => ({
   book, page, name, english, prerequisite, abilities, choices, species, speciesOptions, repeatable, plugin, pool, srdEntryId, srdText,
   effect, parts, naturalWeapon, spells, spellAbility, chosenSpells, classChoices, cantrips, cantripIds, cantripLabel, rituals,
-  activation, borrowed,
+  activation, borrowed, speedMeters,
 });
 // The six classes Magic Initiate, Spell Sniper and Ritual Caster draw from, with their casting ability (PHB 2014).
 const CASTER_CLASSES = ["bardo", "chierico", "druido", "stregone", "warlock", "mago"];
@@ -404,7 +404,10 @@ const DEFINITIONS = [
     plugin: "La portata 3 m (falcione, alabarda, picca) si sceglie nei Talenti della scheda. Avviso di reazione quando un nemico entra nella portata; l'altra estremità (1d4 contundenti) si aggiunge agli Attacchi da questa card.",
     naturalWeapon: { label: "Altra estremità dell'arma", dice: "1d4", type: "bludgeoning", ability: "str" } }),
   feat("phb", 170, "Mente Acuta", "Keen Mind", { abilities: ["int"], plugin: AT_TABLE }),
-  feat("phb", 170, "Mobilità", "Mobile"),
+  // Lot F2-1 (decision M3): +3 m in the Speed Tracker; with a Dash in the turn, difficult terrain costs no extra
+  // movement (speedCheck.js, MOBILE_FEATURE_ID).
+  feat("phb", 170, "Mobilità", "Mobile", { speedMeters: 3,
+    plugin: "+3 m nello Speed Tracker. Dopo uno Scatto nel turno, dal riquadro Movimento o dalla console, il terreno difficile non costa movimento in più." }),
   feat("phb", 170, "Osservatore", "Observant", { abilities: ["int", "wis"],
     plugin: "Il +5 alla Percezione passiva va compreso in quella della scheda." }),
   feat("phb", 170, "Resiliente", "Resilient", { abilities: ALL_ABILITIES,
@@ -431,8 +434,11 @@ const DEFINITIONS = [
     plugin: "Nella console attacchi, a distanza: «−5/+10», −5 al tiro e +10 ai danni se colpisce. Gittata lunga e copertura restano al tavolo." }),
 
   // Guida Omnicomprensiva di Xanathar, capitolo 1, pp. 73–75: the racial feats.
+  // Lot F2-1 (decision M6): +1,5 m in the Speed Tracker; the advantage to escape a grapple in the attack console's row
+  // of the grapple (pc-attack.js).
   feat("xge", 74, "Agilità Tarchiata", "Squat Nimbleness", { prerequisite: "Nano o specie di taglia Piccola",
-    species: [...DWARVES, ...SMALL], abilities: ["str", "dex"] }),
+    species: [...DWARVES, ...SMALL], abilities: ["str", "dex"], speedMeters: 1.5,
+    plugin: "+1,5 m nello Speed Tracker. Il vantaggio per sfuggire a una presa è scritto nella riga «Afferrato da …» della console attacchi." }),
   feat("xge", 74, "Alta Magia Drow", "Drow High Magic", { prerequisite: "Elfo (drow)", species: ["elfo"], speciesOptions: ["drow"],
     plugin: "Individuazione del magico a volontà, Levitazione e Dissolvi magie una volta per riposo lungo ciascuno, senza slot e con Carisma: si lanciano dalle loro card.",
     spellAbility: "cha", spells: [
@@ -590,6 +596,7 @@ export const FEATS = Object.freeze(DEFINITIONS.map((definition) => {
     repeatable: definition.repeatable,
     plugin: definition.plugin,
     activation: definition.activation,
+    speedMeters: definition.speedMeters,
     borrowed: definition.borrowed ? Object.freeze({ ...definition.borrowed }) : null,
     pool: definition.pool ? Object.freeze({ ...definition.pool }) : null,
     srdEntryId: definition.srdEntryId,
@@ -716,6 +723,9 @@ function featRecord(entry) {
     breaksConcentration: false,
     resourceCosts: Object.freeze(poolId ? [Object.freeze({ poolId, amount: 1 })] : []),
     ...(entry.naturalWeapon ? { naturalWeapon: entry.naturalWeapon } : {}),
+    // Lot F2-1: a passive speed, as Fast Movement's (speedCheck.js reads it from getEnabledClassFeatures).
+    ...(entry.speedMeters ? { passiveMechanics: Object.freeze({ movement: Object.freeze({ addMeters: entry.speedMeters,
+      label: `${entry.name} (+${String(entry.speedMeters).replace(".", ",")} m)` }) }) } : {}),
   });
 }
 

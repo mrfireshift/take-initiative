@@ -79,7 +79,8 @@ stub("../src/initiativeCards.js", {
     return env.registryCard || item.metadata?.[META_KEY]?.initiativeCard || {};
   },
 });
-stub("../src/classFeatureCatalog.js", { getEnabledClassFeatures: () => [] });
+// A card may name its features for a test (Mobile, lot F2-1 of docs/STUDIO_TALENTI.md); none by default.
+stub("../src/classFeatureCatalog.js", { getEnabledClassFeatures: (card) => card?.diagnosticFeatures || [] });
 stub("../src/classFeatureCore.js", { classFeaturePassiveMovementMechanics: () => null });
 stub("../src/conditions.js", { getConditionInstances: (conditions) => conditions?.instances || [] });
 stub("../src/sceneItemEvents.js", {
@@ -1041,4 +1042,54 @@ test("the attack console's dashes count in the movement panel and go with their 
   await metadataEdit((meta) => { meta.pcAttackState.turnActions = { turnKey: "2:0:hero", dashes: 3 }; });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(env.snapshot.dashCount, 0, "another turn's dashes");
+});
+
+// Mobile (lot F2-1 of docs/STUDIO_TALENTI.md, decision M3): after a Dash in the turn, the panel's or the console's,
+// difficult terrain costs no extra movement, the creature's own (a web) and the map's (Primal Blizzard); the steps
+// before the Dash stay charged, and without the feat a Dash changes no cost.
+const WEB = { id: "web", active: true, condition: "Terreno difficile / Ragnatela", mechanics: { movement: { costMultiplier: 2 } } };
+function mobileHero(features = [{ id: "talento-mobilita" }], x = 0) {
+  const hero = token("hero", x);
+  hero.metadata[META_KEY].initiativeCard.diagnosticFeatures = features;
+  hero.metadata[META_KEY].conditions = { instances: [clone(WEB)] };
+  return hero;
+}
+test("Mobile: after the panel's Dash the creature's own difficult terrain costs no extra, from the Dash on", async () => {
+  const api = await runtime({ items: [mobileHero(), token("ally")] });
+  await ready();
+  await move(api, 0, 3);
+  assert.equal(env.snapshot.totalMeters, 9, "3 cells in the web before the Dash: double cost");
+  api.adjustSpeedCheckDash(1);
+  await move(api, 3, 6);
+  assert.equal(env.snapshot.totalMeters, 13.5, "3 cells more after the Dash: 4,5 m");
+  api.adjustSpeedCheckDash(-1);
+  await move(api, 6, 7);
+  assert.equal(env.snapshot.totalMeters, 16.5, "the Dash taken back: double cost again");
+});
+
+test("Mobile: the attack console's Dash counts too; without the feat a Dash changes no cost", async () => {
+  const api = await runtime({ items: [mobileHero(), token("ally")] });
+  await ready();
+  await metadataEdit((meta) => { meta.pcAttackState = { version: 1, turnActions: { turnKey: "1:0:hero", dashes: 1 } }; });
+  await until(() => env.snapshot.dashCount === 1);
+  await move(api, 0, 3);
+  assert.equal(env.snapshot.totalMeters, 4.5);
+  const plain = await runtime({ items: [mobileHero([]), token("ally")] });
+  await ready();
+  plain.adjustSpeedCheckDash(1);
+  await move(plain, 0, 3);
+  assert.equal(env.snapshot.totalMeters, 9, "no Mobile: the web costs double with the Dash too");
+});
+
+test("Mobile: after a Dash the map's difficult terrain (Primal Blizzard) costs no extra either", async () => {
+  const profile = await importBossActionHTML(readFileSync(new URL("fixtures/boss-actions/auril-phase-3.html", import.meta.url), "utf8"));
+  const auril = token("auril");
+  auril.metadata[META_KEY] = { attitude: "enemy", customAuras: bossProfileAuras(profile) };
+  const hero = mobileHero([{ id: "talento-mobilita" }], 5);
+  hero.metadata[META_KEY].conditions = { instances: [] };
+  const api = await runtime({ items: [hero, token("ally"), auril] });
+  await ready();
+  api.adjustSpeedCheckDash(1);
+  await move(api, 5, 8);
+  assert.equal(env.snapshot.totalMeters, 4.5, "1 cell inside the blizzard + 2 outside, none at double cost");
 });

@@ -8,7 +8,8 @@ con S1–S9 approvate** (§7.4), **F3b-1, F3b-2, F3b-3, F3b-4 e F3b-5 il 16/11**
 con H1–H7 approvate** (§7.11), **F5-1, F5-2 e F5-3 il 16/11** (§7.12–§7.14):
 F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 approvate** (§7.15), **F6-1…F6-5
 il 16/11** (§7.16–§7.20): F6 è chiuso. **Il piano di F9 il 16/11** (§7.21),
-**F9-1…F9-4 il 16/11** (§7.22–§7.25): F9 è chiuso.
+**F9-1…F9-4 il 16/11** (§7.22–§7.25): F9 è chiuso. **Il piano di F2 il 16/11,
+con M1–M6 approvate** (§7.26), **F2-1 il 16/11** (§7.27).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -2005,6 +2006,117 @@ classe).
 - **`pcAttackCore.js` e `pc-attack.js`** hanno righe non committate di altre
   sessioni: il commit prende HEAD + le righe di F9-4.
 - **Documenti:** le prove in stanza sono in B56.
+
+### 7.26 F2, piano (16/11)
+
+**Movimento.** Due talenti e, per decisione dell'utente del 16/11 (riferita
+dallo studio delle azioni di turno, §10.3 e T4b, commit `58bee9dc`), due
+capacità che usano lo stesso effetto: niente attacchi di opportunità da **una
+sola** creatura. Tre sottolotti; le decisioni M1–M6 sono nuove (§7.26.5).
+
+#### 7.26.1 Che cosa fanno (PHB 2014, Xanathar)
+
+| Talento o capacità | Che cosa conta per il plugin |
+|---|---|
+| Mobilità | +3 m di velocità. Nel turno in cui fa lo Scatto, il terreno difficile non costa movimento in più. Dopo un attacco in mischia contro una creatura, colpita o mancata, quella creatura non gli fa attacchi di opportunità per il resto del turno. |
+| Agilità Tarchiata | +1,5 m di velocità; vantaggio nella prova per sfuggire a una presa. |
+| Gioco di Gambe (ladro Spadaccino) | Come la terza parte di Mobilità, ma solo nel suo turno. |
+| Attacco con Manovra (Maestro di Battaglia) | Sul colpo, oltre al dado di superiorità: un alleato che lo vede o lo sente può usare la reazione per muoversi fino a metà della sua velocità senza attacchi di opportunità dal bersaglio. |
+
+#### 7.26.2 Che cosa c'è già
+
+- **La velocità dei talenti:** un record con attivazione «passiva» e
+  `passiveMechanics.movement` arriva da solo allo Speed Tracker
+  (`conditionSpeedForItem` in `speedCheck.js` legge
+  `getEnabledClassFeatures`, talenti compresi). Per i +3 m e i +1,5 m basta il
+  dato sul record.
+- **Gli Scatti del turno:** quelli del contatore del riquadro Movimento
+  (`dashCount`) e quelli della console (`consoleDashCount`, Azioni → Scatto).
+- **Il terreno difficile:** le aree della mappa (`liveTerrainMovementModifiers`)
+  e il moltiplicatore del profilo. Entrambi saltano quando il profilo ha
+  l'immunità `difficult-terrain`.
+- **Gli attacchi di opportunità** (`opportunityAttackCore.js`): «Movimento: no
+  AdO» li esclude **tutti** (Colpo dello Zefiro, le capacità di T4b);
+  «Disimpegno» anche, ma Sentinella lo scavalca. Manca l'esclusione di **una**
+  creatura.
+- **La presa nella console:** la riga «Afferrato da …» con «Sfugge» e «Non
+  sfugge».
+
+#### 7.26.3 Il meccanismo nuovo: «No AdO» da una creatura
+
+- **Una pill sul mover,** «No AdO: Goblin», fino alla fine del turno in corso
+  (`expiry` come la pill di T4b), con
+  `mechanics.noOpportunityFrom: ["<id del goblin>"]`.
+- **`movementReactionEvents`** salta i reattori elencati, sia uscendo dalla
+  portata sia entrando in quella di Maestro delle Armi su Asta. Sentinella non
+  scavalca: non è un Disimpegno.
+- **Chi la mette:**
+  - il comando dell'attacco, per Mobilità e Gioco di Gambe;
+  - quello di Attacco con Manovra, sull'alleato.
+- **L'Annulla dell'attacco la toglie.** Toglierla a mano rimette gli avvisi.
+
+#### 7.26.4 Sottolotti
+
+| Lotto | Contenuto | File | Scrive PF? |
+|---|---|---|---|
+| **F2-1** | Le velocità: +3 m e +1,5 m sui record. Mobilità con lo Scatto: niente costo in più del terreno difficile (M3). Agilità Tarchiata: «con vantaggio» nella riga della presa (M6). | `featCatalog.js`, `speedCheck.js` (solo quali costi del terreno valgono), `pc-attack.js` | No |
+| **F2-2** | L'esclusione di una creatura negli attacchi di opportunità. Mobilità e Gioco di Gambe dal comando dell'attacco in mischia (M1, M2, M5). Gioco di Gambe passa da «riferimento» ad automatica negli override. | `opportunityAttackCore.js`, `pcAttackCore.js`, `runtime-feature-overrides.json` e il catalogo rigenerato | No |
+| **F2-3** | Attacco con Manovra: nella console, sul colpo, il menu dell'alleato; la pill sull'alleato e la sua reazione spesa nello stesso comando (M4). | `pcAttackActivationCatalog.js`, `pcAttackCore.js`, `pc-attack.js` | No |
+
+#### 7.26.5 Decisioni
+
+| # | Decisione | Possibilità | Raccomandazione |
+|---|---|---|---|
+| **M1** | Come si segna «niente AdO da quella creatura» | (a) una pill sul mover per creatura, «No AdO: Goblin», fino alla fine del turno; (b) un registro invisibile dei bersagli del turno nello stato della console (l'idea della §5) | **(a)**: il GM vede perché un avviso non arriva e può toglierla. Vale anche per l'alleato di Attacco con Manovra, che non attacca, e finisce da sola. Sulla mappa non compare (`mapVisible: false`), solo nel tracker. |
+| **M2** | Quando Mobilità la mette | (a) da sola, a ogni attacco in mischia registrato dalla console, colpito o mancato, attacchi con incantesimo in mischia compresi; (b) una spunta del GM | **(a)**: il talento vale sempre, e una spunta si dimentica. Gli attacchi registrati fuori dalla console restano al tavolo. |
+| **M3** | Mobilità, Scatto e terreno difficile | (a) da solo: con almeno uno Scatto nel turno (contatore o console), da quel momento il terreno difficile non costa in più; i passi già fatti restano contati; (b) una pill da accendere | **(a)**: nessuna contabilità del GM. Il turno prima dello Scatto si corregge, se serve, con il contatore. |
+| **M4** | Attacco con Manovra | (a) sul colpo, un menu «Alleato» con le creature amiche nell'ordine di iniziativa; pill «No AdO: <bersaglio>» sull'alleato e la sua reazione spesa, nello stesso comando; (b) la pill senza spendere la reazione; (c) resta la nota | **(a)**: la reazione si spende quando l'alleato si muove, e la scelta dell'alleato è già il suo sì. Il mezzo movimento lo conta il tavolo: fuori dal suo turno lo Speed Tracker non lo segue. |
+| **M5** | Gioco di Gambe | (a) come Mobilità, solo nel turno del ladro; (b) resta testo | **(a)**: stesso codice, una condizione in più. |
+| **M6** | Il vantaggio di Agilità Tarchiata | (a) «con vantaggio (Agilità Tarchiata)» nella riga «Afferrato da …» e nel suo «Sfugge»; (b) solo la riga «Nel plugin» | **(a)**: lo si legge dove si tira. |
+
+#### 7.26.6 Rischi, come chiede AGENTS.md
+
+- **PF:** nessun sottolotto li scrive.
+- **Metadata:** pill con `mechanics`, aggiunte con le operazioni delle
+  condizioni che fondono le istanze; nessuna chiave nuova.
+- **Speed Tracker (F2-1):** cambia solo quali costi del terreno valgono per chi
+  ha Mobilità e ha fatto lo Scatto. Code, turno attivo e limite di movimento
+  restano come sono. `speedCheckCore.js` ha righe non committate di un'altra
+  sessione: F2-1 non lo tocca.
+- **Turno attivo:** la pill scade a fine turno come quella di T4b (creatura del
+  turno dallo stato); nessun cambio all'ordine.
+- **Catalogo delle capacità:** gli override si rigenerano, e il test confronta i
+  file byte per byte. `runtime-feature-overrides.json` e
+  `class-features-runtime.json` hanno righe di altre sessioni: il commit prende
+  HEAD + le righe del sottolotto.
+- **Righe di altre sessioni:** anche `pcAttackCore.js` e `pc-attack.js`; stesso
+  metodo.
+
+**Esito:** il 16/11 l'utente ha approvato M1–M6 come raccomandate («Approvo,
+vai con F2-1»).
+
+### 7.27 F2-1, fatto il 16/11
+
+**Le velocità, lo Scatto di Mobilità, la presa di Agilità Tarchiata.**
+
+- **Le velocità:** il talento dice `speedMeters` e il record diventa una
+  velocità passiva (`passiveMechanics.movement.addMeters`, etichetta «Mobilità
+  (+3 m)»), letta dallo Speed Tracker come Movimento Veloce. Mobilità +3 m,
+  Agilità Tarchiata +1,5 m.
+- **Mobilità e lo Scatto (M3):** `speedCheck.js` risolve il profilo di chi ha
+  Mobilità una seconda volta, come se ignorasse il terreno difficile
+  (`mobileDashCostMultiplier`). Il costo di ogni passo lo usa quando il turno ha
+  uno Scatto, del riquadro Movimento o della console, e salta le aree della
+  mappa (Tormenta Primordiale, Cucitura). I passi prima dello Scatto restano
+  contati; tolto lo Scatto, torna il costo pieno. Code, turno attivo e limite di
+  movimento non cambiano.
+- **Agilità Tarchiata (M6):** nella console, la riga «Afferrato da …» del
+  personaggio con il talento dice «· vantaggio», e il titolo di **Sfugge**
+  «con vantaggio (Agilità Tarchiata)» (`pcAttackGrappleEscapeAdvantage`).
+- **Le righe «Nel plugin»** dei due talenti lo dicono.
+- **Righe di altre sessioni:** `pcAttackCore.js`; il commit prende HEAD + le
+  righe di F2-1.
+- **Documenti:** le prove in stanza sono in B59 (B58 è delle trasformazioni).
 
 ---
 
