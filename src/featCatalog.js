@@ -74,11 +74,14 @@ const ON_SHEET = "Le competenze vanno riportate nella scheda del personaggio.";
 // class's ability; cantrips: how many cantrips it lets choose (choice.cantripIds), in the book as "Talento" (decision S2).
 // Lot F3b-3: cantripIds: the cantrips it lets choose among when not every one of the catalog (Spell Sniper's, with an attack
 // roll), cantripLabel the label of their menu.
+// Lot F3b-4: rituals: it keeps a ritual book (Ritual Caster), choice.ritualIds, in the book as "Talento" cast only as
+// rituals (decisions S6, S7).
 const feat = (book, page, name, english, { prerequisite = "", abilities = [], choices = [], species = [], speciesOptions = [],
   repeatable = false, plugin = LATER, pool = null, srdEntryId = "", srdText = "", effect = null, parts = [], naturalWeapon = null,
-  spells = [], spellAbility = "", chosenSpells = [], classChoices = [], cantrips = 0, cantripIds = null, cantripLabel = "" } = {}) => ({
+  spells = [], spellAbility = "", chosenSpells = [], classChoices = [], cantrips = 0, cantripIds = null, cantripLabel = "",
+  rituals = false } = {}) => ({
   book, page, name, english, prerequisite, abilities, choices, species, speciesOptions, repeatable, plugin, pool, srdEntryId, srdText,
-  effect, parts, naturalWeapon, spells, spellAbility, chosenSpells, classChoices, cantrips, cantripIds, cantripLabel,
+  effect, parts, naturalWeapon, spells, spellAbility, chosenSpells, classChoices, cantrips, cantripIds, cantripLabel, rituals,
 });
 // The six classes Magic Initiate, Spell Sniper and Ritual Caster draw from, with their casting ability (PHB 2014).
 const CASTER_CLASSES = ["bardo", "chierico", "druido", "stregone", "warlock", "mago"];
@@ -248,6 +251,44 @@ const CANTRIPS = [
 // attack console's cantrips.
 const ATTACK_CANTRIP_IDS = ["fire-bolt", "eldritch-blast", "xanathar-ferocia-primordiale", "phb2014-frusta-di-spine", "tasha-lama-roboante",
   "tasha-lama-verdefiamma", "xanathar-pietra-magica", "produce-flame", "ray-of-frost", "shocking-grasp", "chill-touch"];
+// Lot F3b-4: the catalog's rituals, Ritual Caster's, [spellId, name, level]: the SRD's (ritualIds of
+// spell-reference-it-runtime.json) and the other manuals' marked so in their italianReference. Checked against the
+// catalog by test/featChosenSpells.test.js.
+const RITUAL_SPELLS = [
+  ["alarm", "Allarme", 1],
+  ["xanathar-cerimonia", "Cerimonia", 1],
+  ["comprehend-languages", "Comprensione dei linguaggi", 1],
+  ["floating-disk", "Disco fluttuante", 1],
+  ["identify", "Identificare", 1],
+  ["detect-magic", "Individuazione del magico", 1],
+  ["detect-poison-and-disease", "Individuazione delle malattie e dei veleni", 1],
+  ["speak-with-animals", "Parlare con gli animali", 1],
+  ["purify-food-and-drink", "Purificare cibo e bevande", 1],
+  ["illusory-script", "Scritto illusorio", 1],
+  ["unseen-servant", "Servitore inosservato", 1],
+  ["find-familiar", "Trova famiglio", 1],
+  ["animal-messenger", "Animale messaggero", 2],
+  ["magic-mouth", "Bocca magica", 2],
+  ["locate-animals-or-plants", "Localizza animali o vegetali", 2],
+  ["phb2014-percezione-delle-bestie", "Percezione delle Bestie", 2],
+  ["augury", "Presagio", 2],
+  ["gentle-repose", "Riposo inviolato", 2],
+  ["xanathar-scritta-celeste", "Scritta Celeste", 2],
+  ["silence", "Silenzio", 2],
+  ["water-walk", "Camminare sull'acqua", 3],
+  ["tiny-hut", "Capanna", 3],
+  ["phantom-steed", "Destriero fantomatico", 3],
+  ["meld-into-stone", "Fondersi nella pietra", 3],
+  ["phb2014-morte-apparente", "Morte Apparente", 3],
+  ["water-breathing", "Respirare sott'acqua", 3],
+  ["divination", "Divinazione", 4],
+  ["commune", "Comunione", 5],
+  ["commune-with-nature", "Comunione con la natura", 5],
+  ["contact-other-plane", "Contattare altri piani", 5],
+  ["telepathic-bond", "Legame telepatico", 5],
+  ["instant-summons", "Evocazione istantanea", 6],
+  ["forbiddance", "Proibizione", 6],
+];
 // Until the start of the attacker's next turn: Slasher's and Crusher's pills.
 const UNTIL_NEXT_TURN = "next-turn";
 // The pills of the critical parts, which the attack console reminds about (pcAttackTargetNotes).
@@ -298,7 +339,9 @@ const DEFINITIONS = [
     pool: { key: "punti", name: "Punti fortuna", count: 3 } }),
   feat("phb", 167, "Guaritore", "Healer"),
   feat("phb", 168, "Incantatore da Guerra", "War Caster", { prerequisite: "Saper lanciare almeno un incantesimo" }),
-  feat("phb", 168, "Incantatore Rituale", "Ritual Caster", { prerequisite: "Intelligenza o Saggezza 13" }),
+  feat("phb", 168, "Incantatore Rituale", "Ritual Caster", { prerequisite: "Intelligenza o Saggezza 13",
+    plugin: "I rituali scelti nel libro come «Talento», solo come rituali e senza slot, con la caratteristica della classe scelta. Oltre metà del livello del personaggio la scheda avvisa.",
+    spellAbility: "class", classChoices: CASTER_CLASSES, rituals: true }),
   feat("phb", 168, "Iniziato alla Magia", "Magic Initiate", {
     plugin: "I due trucchetti nel libro come «Talento»; l'incantesimo di 1° livello una volta per riposo lungo senza slot, o con i tuoi slot, dalla sua card. CD e attacco con la caratteristica della classe scelta.",
     spellAbility: "class", classChoices: CASTER_CLASSES, cantrips: 2,
@@ -465,6 +508,9 @@ export const FEATS = Object.freeze(DEFINITIONS.map((definition) => {
       .filter(([spellId]) => !definition.cantripIds || definition.cantripIds.includes(spellId))
       .map(([spellId, spellName]) => Object.freeze({ spellId, name: spellName }))),
     cantripLabel: definition.cantripLabel,
+    // The rituals its menus offer (lot F3b-4): every one of the catalog, by level.
+    ritualCandidates: Object.freeze((definition.rituals ? RITUAL_SPELLS : [])
+      .map(([spellId, spellName, level]) => Object.freeze({ spellId, name: spellName, level }))),
   });
 }));
 // The cantrips a feat lets choose, by id: the same list for every feat that asks one (decision S4).
@@ -644,6 +690,8 @@ const CHOICE_KEY = /^[a-zA-Z][a-zA-Z0-9]{0,23}$/u;
 const MAX_CHOICE_KEYS = 8;
 const MAX_CHOICE_LIST = 12;
 const MAX_CHOICE_TEXT = 64;
+// The rituals a ritual book holds on the sheet (lot F3b-4): a choice's list.
+export const MAX_FEAT_RITUALS = MAX_CHOICE_LIST;
 
 function sanitizeChoiceValue(value) {
   if (typeof value === "string") return value.trim().slice(0, MAX_CHOICE_TEXT) || undefined;
@@ -748,13 +796,30 @@ function featChosenCantrips(profile) {
   });
 }
 
+// The rituals of the sheet's ritual books (lot F3b-4): [{ spellId, featId, entry }], the catalog's rituals only, each once.
+function featChosenRituals(profile) {
+  const seen = new Set();
+  return sanitizeFeats(profile?.[FEATS_FIELD]).flatMap((entry) => {
+    const definition = getFeat(entry.id);
+    if (!definition?.ritualCandidates.length) return [];
+    const ids = Array.isArray(entry.choice?.ritualIds) ? entry.choice.ritualIds : [];
+    return ids.filter((spellId) => {
+      if (seen.has(spellId) || !definition.ritualCandidates.some((ritual) => ritual.spellId === spellId)) return false;
+      seen.add(spellId);
+      return true;
+    }).map((spellId) => ({ spellId, featId: entry.id, entry }));
+  });
+}
+
 // The spells the profile's feats put in its book (lots F3a, F3b): those the slots can cast too and the chosen cantrips,
-// always prepared, as "Talento: <feat>", like a subclass's (spellbookGroups' granted).
+// always prepared, as "Talento: <feat>", like a subclass's (spellbookGroups' granted). The rituals of a ritual book (lot
+// F3b-4) are cast only as rituals: ritualOnly.
 export function featGrantedSpells(profile) {
   return [
     ...featFeaturesForProfile(profile).filter((feature) => feature.innateSpell?.slots)
       .map((feature) => ({ spellId: feature.innateSpell.spellId, source: `Talento: ${getFeat(feature.featId)?.name || feature.name}` })),
     ...featChosenCantrips(profile).map(({ spellId, featId }) => ({ spellId, source: `Talento: ${getFeat(featId).name}` })),
+    ...featChosenRituals(profile).map(({ spellId, featId }) => ({ spellId, source: `Talento: ${getFeat(featId).name}`, ritualOnly: true })),
   ];
 }
 
@@ -766,8 +831,9 @@ export function featSpellcastingAbility(profile, spellId) {
   if (!id || (Array.isArray(profile?.spellbook?.spellIds) && profile.spellbook.spellIds.includes(id))) return "";
   const record = featFeaturesForProfile(profile).find((feature) => feature.innateSpell?.spellId === id);
   if (record) return featSpellAbility(record, profile);
-  const cantrip = featChosenCantrips(profile).find((entry) => entry.spellId === id);
-  return cantrip ? featEntryAbility(getFeat(cantrip.featId), cantrip.entry, profile) : "";
+  const chosen = featChosenCantrips(profile).find((entry) => entry.spellId === id)
+    || featChosenRituals(profile).find((entry) => entry.spellId === id);
+  return chosen ? featEntryAbility(getFeat(chosen.featId), chosen.entry, profile) : "";
 }
 
 // "Robusto", "Adepto Elementale · fuoco", "Atleta · Des"; an unknown id says so.
@@ -814,9 +880,11 @@ export function featPluginLine(feature, profile = null) {
 
 // The sheet's warnings, never blocks (decision D8), one list per entry: a racial feat on another species, a feat
 // taken twice (Elemental Adept only with another type), a granted spell also among the quick actions (decision D7: the
-// sheet points it out and removes nothing).
-export function featWarnings(entries, species = null, quickActions = []) {
+// sheet points it out and removes nothing). characterBuild: the sheet's classes, for a ritual above half the character's
+// level (lot F3b-4, decision S7).
+export function featWarnings(entries, species = null, quickActions = [], characterBuild = null) {
   const list = (Array.isArray(entries) ? entries : []).map(sanitizeFeatEntry);
+  const ritualLevelLimit = Math.ceil(totalCharacterLevel({ characterBuild }) / 2);
   const speciesId = String(species?.id || "").trim();
   const optionId = String(species?.ancestryId || "").trim();
   const quickSpellIds = new Set((Array.isArray(quickActions) ? quickActions : [])
@@ -847,6 +915,15 @@ export function featWarnings(entries, species = null, quickActions = []) {
       if (cantripId && !cantrip) warnings.push(`Il trucchetto scelto (${cantripId}) non è un trucchetto del catalogo.`);
       else if (cantrip && !definition.cantripCandidates.some((candidate) => candidate.spellId === cantripId)) {
         warnings.push(`Il trucchetto scelto (${cantrip.name}) non è fra quelli del talento: ${definition.cantripLabel || "Trucchetto"}.`);
+      }
+    }
+    // A ritual book's spell that is no ritual of the catalog (it never reaches the book), or one above half the
+    // character's level, rounded up (lot F3b-4): kept, the GM decides.
+    for (const ritualId of definition.ritualCandidates.length && Array.isArray(entry.choice?.ritualIds) ? entry.choice.ritualIds : []) {
+      const ritual = definition.ritualCandidates.find((candidate) => candidate.spellId === ritualId);
+      if (!ritual) warnings.push(`Il rituale scelto (${ritualId}) non è un rituale del catalogo.`);
+      else if (ritualLevelLimit && ritual.level > ritualLevelLimit) {
+        warnings.push(`${ritual.name} è di ${ritual.level}° livello: oltre metà del livello del personaggio, al massimo ${ritualLevelLimit}°.`);
       }
     }
     const granted = [...definition.spells, ...chosen.map((entryChosen) => entryChosen.candidate).filter(Boolean)];

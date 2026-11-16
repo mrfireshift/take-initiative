@@ -43,9 +43,9 @@ test("the catalog holds the 72 feats of the three manuals, 34 of them half feats
     assert.ok(entry.english && entry.aliases.includes(entry.english), entry.id);
     assert.ok(entry.plugin.length > 10 && entry.plugin.length < 220, entry.id);
   }
-  // The 23 feats of lot F0, the 9 of lot F1, the 7 of lot F3a, Magic Initiate and Artificer Initiate (lot F3b-2) and Spell
-  // Sniper (lot F3b-3) have a line of their own; the others wait for their lot.
-  assert.equal(FEATS.filter((entry) => !entry.plugin.startsWith("Per ora solo riferimento")).length, 23 + 9 + 7 + 2 + 1);
+  // The 23 feats of lot F0, the 9 of lot F1, the 7 of lot F3a, Magic Initiate and Artificer Initiate (lot F3b-2), Spell
+  // Sniper (lot F3b-3) and Ritual Caster (lot F3b-4) have a line of their own; the others wait for their lot.
+  assert.equal(FEATS.filter((entry) => !entry.plugin.startsWith("Per ora solo riferimento")).length, 23 + 9 + 7 + 2 + 1 + 1);
 });
 
 test("feats resolve by id like the species traits, but stay out of the class catalog", () => {

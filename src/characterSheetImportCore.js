@@ -7,7 +7,7 @@ import { getSpellDefinition } from "./spells-srd.js";
 import { CLASS_FEATURE_CLASSES, getClassFeatureSubclasses } from "./classFeatureCatalog.js";
 import { MAX_CHARACTER_CLASSES, sanitizeCharacterBuild } from "./classFeatureCore.js";
 import { SPECIES, SUPERNATURAL_GIFTS, speciesDisplayName, supernaturalGiftDisplayName } from "./speciesTraitCore.js";
-import { FEATS, FEAT_CANTRIPS, FEAT_DAMAGE_TYPES, MAX_FEATS, featChoiceSlots, featDisplayName, sanitizeFeats } from "./featCatalog.js";
+import { FEATS, FEAT_CANTRIPS, FEAT_DAMAGE_TYPES, MAX_FEATS, MAX_FEAT_RITUALS, featChoiceSlots, featDisplayName, sanitizeFeats } from "./featCatalog.js";
 import { DAMAGE_TYPES, sanitizeDamageDefenses, hasDamageDefenses } from "./damageDefensesCore.js";
 import { ABILITY_KEYS, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
 import { MAX_QUICK_ACTIONS, MAX_QUICK_ACTION_ATTACKS, MAX_QUICK_ACTION_USES, sanitizeQuickAction } from "./quickActionsCore.js";
@@ -336,6 +336,19 @@ function importedFeats(data, unresolved) {
         : known ? ` (ne fa scegliere ${feat.cantrips})` : outside ? ` (fuori dalla lista: ${(feat.cantripLabel || "trucchetto").toLowerCase()})` : ""}`);
     }
     if (cantripIds.length) entry.choice = { ...(entry.choice || {}), cantripIds };
+    // The rituals of Ritual Caster's book (lot F3b-4): any ritual of the catalog, each once. A spell that is none, or one
+    // past the book's limit, is reported; one above half the character's level is the sheet's warning.
+    const ritualNames = [source.rituals ?? source.rituali ?? source.ritual ?? source.rituale].flat().map(text).filter(Boolean);
+    const ritualIds = [];
+    for (const ritualName of ritualNames) {
+      const spell = getSpellDefinition(ritualName);
+      const ritual = spell && feat.ritualCandidates.some((candidate) => candidate.spellId === spell.id);
+      if (ritual && ritualIds.includes(spell.id)) continue;
+      if (ritual && ritualIds.length < MAX_FEAT_RITUALS) ritualIds.push(spell.id);
+      else unresolved.push(`rituale "${ritualName}" per ${feat.name}${!feat.ritualCandidates.length ? ": il talento non ne fa scegliere"
+        : ritual ? ` (oltre il limite di ${MAX_FEAT_RITUALS})` : spell ? " (non è un rituale)" : ""}`);
+    }
+    if (ritualIds.length) entry.choice = { ...(entry.choice || {}), ritualIds };
     // The same feat written twice counts once; Elemental Adept twice only with two types.
     if (feats.some((other) => other.id === entry.id && (!feat.repeatable || other.choice?.damageType === entry.choice?.damageType))) continue;
     feats.push(entry);

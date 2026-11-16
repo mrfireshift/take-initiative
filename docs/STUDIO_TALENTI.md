@@ -3,8 +3,8 @@
 Data: 15 novembre 2026. Stato: **studio, decisioni D1–D15 approvate
 dall'utente il 15/11** (§9); **F0 fatto il 15/11** (§7.1), **F1 il 16/11**
 (§7.2), **la prima parte di F3 il 16/11** (§7.3); **il piano di F3b il 16/11,
-con S1–S9 approvate** (§7.4), **F3b-1, F3b-2 e F3b-3 il 16/11** (§7.5, §7.6,
-§7.7).
+con S1–S9 approvate** (§7.4), **F3b-1, F3b-2, F3b-3 e F3b-4 il 16/11** (§7.5,
+§7.6, §7.7, §7.8).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -1235,6 +1235,42 @@ di F3b-2. Il libro invece non è cambiato: i trucchetti scelti passano da
   - il promemoria è `pcAttackSpellSniperNote` in `pcAttackCore.js`;
   - `pcAttackTurnActionCore.js` lo aggiunge alle note dei talenti (F1).
 - **Documenti:** `docs/IMPORT_SCHEDA.md`; le prove in stanza sono in B29.
+
+### 7.8 F3b-4, fatto il 16/11
+
+**Incantatore Rituale.** Come la §7.4 con S3, S4, S6 e S7.
+
+- **La scelta:** la classe, come Iniziato alla Magia, e i rituali del libro dei
+  rituali in `feats[].choice.ritualIds`, fino a 12.
+  - I menu offrono i 33 rituali del catalogo, con il livello: 12 di 1° livello,
+    gli altri fino al 6°.
+  - La scheda ne mostra due, «Rituale 1» e «Rituale 2»; **+ Rituale** aggiunge
+    quelli trovati.
+- **Gli avvisi** (S7, D8): un rituale oltre metà del livello del personaggio,
+  arrotondata per eccesso, resta, con l'avviso «al massimo 3°». Un id che non è
+  un rituale del catalogo resta nella scelta, ma non arriva nel libro.
+- **Il libro** (S6). I rituali scelti sono «Talento: Incantatore Rituale · solo
+  come rituale»:
+  - il pulsante e ⚙ li lanciano senza slot;
+  - il 🪄 li offre come «Individuazione del magico (rituale)», anche lui senza
+    slot;
+  - non contano fra i preparati;
+  - `spellbookRitualCastable` li accetta per ogni classe.
+- **La console non li elenca.** Un rituale dura 10 minuti in più: non è il
+  lancio di un turno, e la preparazione di un'azione non deve offrirli né
+  spendere uno slot per loro.
+- **Un incantesimo già nel libro del PG** resta suo. Il mago con Individuazione
+  del magico nel grimorio la prepara e la lancia con lo slot; i numeri restano
+  quelli della scheda.
+- **CD e attacco** (S3): quelli della caratteristica della classe scelta, da
+  `featSpellcastingAbility`.
+- **L'import:** `rituals` dentro il talento, in italiano o in inglese.
+  - Un incantesimo che non è un rituale va fra i non riconosciuti.
+  - Il livello lo controlla la scheda, con l'avviso.
+- **I file:** `featCatalog.js`, `spellbookCatalog.js`, `pcAttackPickerCore.js`,
+  la scheda e l'import.
+- **Documenti:** `docs/IMPORT_SCHEDA.md`; le prove in stanza sono in B31 (la
+  B30 è di un'altra lista, in lavorazione).
 
 ---
 

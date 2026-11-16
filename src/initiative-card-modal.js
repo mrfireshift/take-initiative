@@ -167,6 +167,7 @@ import { privateTextMissingNote } from "./privatePackCore.js";
 import {
   FEATS, FEATS_FIELD, FEAT_ABILITY_LABELS, FEAT_BOOK_SOURCES, FEAT_DAMAGE_TYPES, MAX_FEATS,
   FEAT_CANTRIPS, FEAT_CLASS_LABELS, featChoiceSlots, featDisplayName, featPluginLine, featWarnings, getFeat, sanitizeFeats,
+  MAX_FEAT_RITUALS,
 } from "./featCatalog.js";
 
 perfBootPage(OBR);
@@ -1061,8 +1062,9 @@ function spellbookCantripAttack(spellId) {
 function spellbookSpellSummary(spell, cantripAttack) {
   // A wizard casts the rituals of its book even when it has not prepared them.
   if (!spell.prepared) return spellbookRitualCastable(profile, spell) ? "Non preparato · lanciabile come rituale" : "Non preparato";
-  // A spell of the subclass (subclassSpellsCatalog.js): always prepared, never counted.
-  if (spell.granted) return `🔒 ${spell.granted}`;
+  // A spell of the subclass (subclassSpellsCatalog.js): always prepared, never counted. A ritual of Ritual Caster's book
+  // (lot F3b-4) is cast only as a ritual.
+  if (spell.granted) return spell.ritualOnly ? `🔒 ${spell.granted} · solo come rituale` : `🔒 ${spell.granted}`;
   if (cantripAttack) return "Attacco · console attacchi";
   if (!spell.launchable) return "Solo riferimento";
   // The plugin records the cast and the slot it spends; the table resolves the spell. An attack cantrip deals its
@@ -1410,10 +1412,13 @@ function buildSpellbookEntry(spell) {
   // A spell the card cannot launch stays a reference: no button, nothing to press.
   const main = document.createElement(runnable ? "button" : "div");
   main.className = "quick-action";
+  // A ritual of Ritual Caster's book (lot F3b-4): cast as a ritual, no slot, from the button and from ⚙.
+  const cost = spell.ritualOnly ? "free" : "slot";
   if (runnable) {
     main.type = "button";
-    main.title = cantripAttack ? `Attacco con ${spell.label}` : `Lancia ${spell.label}`;
-    main.addEventListener("click", () => void launchSpellbookSpell(spell.id, "auto"));
+    main.title = cantripAttack ? `Attacco con ${spell.label}`
+      : spell.ritualOnly ? `Lancia ${spell.label} come rituale: nessuno slot, 10 minuti in più` : `Lancia ${spell.label}`;
+    main.addEventListener("click", () => void launchSpellbookSpell(spell.id, "auto", { cost }));
   } else {
     main.dataset.reference = "1";
   }
@@ -1451,7 +1456,7 @@ function buildSpellbookEntry(spell) {
     panel.textContent = "⚙";
     panel.title = `Apri ${spell.label} nel pannello incantesimi: slot, bersagli e scelte`;
     panel.setAttribute("aria-label", panel.title);
-    panel.addEventListener("click", () => void launchSpellbookSpell(spell.id, "review"));
+    panel.addEventListener("click", () => void launchSpellbookSpell(spell.id, "review", { cost }));
     entry.appendChild(panel);
   }
   if (hasDetails) {
@@ -1530,7 +1535,8 @@ function buildSpellbookDetails(spell, details) {
     higher.append(title, details.higherLevels);
     block.appendChild(higher);
   }
-  if (spellbookRitualCastable(profile, spell)) {
+  // The rituals of Ritual Caster's book (lot F3b-4) are cast as rituals by the row's own button.
+  if (spellbookRitualCastable(profile, spell) && !spell.ritualOnly) {
     const actions = document.createElement("div");
     actions.className = "rest-actions";
     const ritual = document.createElement("button");
@@ -5190,7 +5196,19 @@ function buildFeatEditorRow(entry = {}) {
   warning.hidden = true;
   // Only the choices of the feat chosen: the ability of a half feat with more than one, Elemental Adept's type, the spells
   // it lets choose (a spell outside the list, from an import or a newer client, stays selected and is warned about).
-  const syncChoices = ({ ability: chosenAbility = "", damageType = "", spellIds = [], classId = "", cantripIds = [] } = {}) => {
+  // Lot F3b-4: one menu per ritual of Ritual Caster's book, every ritual of the catalog with its level; one outside them
+  // (an import, a newer client) stays.
+  const ritualMenu = (feat, current, index) => {
+    const select = document.createElement("select");
+    select.dataset.featField = "ritual";
+    select.replaceChildren(new Option("Da scegliere", ""),
+      ...feat.ritualCandidates.map((ritual) => new Option(`${ritual.name} · ${ritual.level}°`, ritual.spellId)),
+      ...(current && !feat.ritualCandidates.some((ritual) => ritual.spellId === current) ? [new Option(`Fuori lista: ${current}`, current)] : []));
+    select.value = current;
+    select.addEventListener("change", syncFeatWarnings);
+    return makeLabel(`Rituale ${index + 1}`, select);
+  };
+  const syncChoices = ({ ability: chosenAbility = "", damageType = "", spellIds = [], classId = "", cantripIds = [], ritualIds = [] } = {}) => {
     const feat = getFeat(select.value);
     const abilities = feat?.abilityChoices.length > 1 ? feat.abilityChoices : [];
     ability.replaceChildren(new Option("Da scegliere", ""), ...abilities.map((key) => new Option(FEAT_ABILITY_LABELS[key], key)));
@@ -5227,11 +5245,30 @@ function buildFeatEditorRow(entry = {}) {
       spell.addEventListener("change", syncFeatWarnings);
       return makeLabel(slot.label, spell);
     }));
+    // Ritual Caster (lot F3b-4): two rituals to start, «+ Rituale» for each one found and copied in the book.
+    if (feat?.ritualCandidates.length) {
+      const chosenRituals = (Array.isArray(ritualIds) ? ritualIds : []).map((id) => String(id || "")).slice(0, MAX_FEAT_RITUALS);
+      const menus = Array.from({ length: Math.max(2, chosenRituals.length) }, (_, index) => ritualMenu(feat, chosenRituals[index] || "", index));
+      const addRitual = document.createElement("button");
+      addRitual.type = "button";
+      addRitual.className = "quick-action-add";
+      addRitual.textContent = "+ Rituale";
+      addRitual.title = "Un rituale trovato e copiato nel libro dei rituali";
+      addRitual.disabled = menus.length >= MAX_FEAT_RITUALS;
+      addRitual.addEventListener("click", () => {
+        const count = spellLabels.querySelectorAll("[data-feat-field='ritual']").length;
+        if (count >= MAX_FEAT_RITUALS) return;
+        addRitual.before(ritualMenu(feat, "", count));
+        addRitual.disabled = count + 1 >= MAX_FEAT_RITUALS;
+        syncFeatWarnings();
+      });
+      spellLabels.append(...menus, addRitual);
+    }
     choices.hidden = abilityLabel.hidden && damageLabel.hidden && classLabel.hidden && !spellLabels.children.length;
     row.classList.toggle("unknown", !!select.value && !feat);
   };
   syncChoices({ ability: entry?.ability, damageType: entry?.choice?.damageType, spellIds: entry?.choice?.spellIds,
-    classId: entry?.choice?.classId, cantripIds: entry?.choice?.cantripIds });
+    classId: entry?.choice?.classId, cantripIds: entry?.choice?.cantripIds, ritualIds: entry?.choice?.ritualIds });
   select.addEventListener("change", () => {
     syncChoices();
     syncFeatWarnings();
@@ -5258,7 +5295,7 @@ function syncFeatWarnings() {
   const entries = rows.map((row) => ({
     id: row.querySelector("[data-feat-field='id']").value,
     choice: { damageType: row.querySelector("[data-feat-field='damageType']").value, spellIds: featRowSpellIds(row),
-      cantripIds: featRowCantripIds(row) },
+      cantripIds: featRowCantripIds(row), ritualIds: featRowRitualIds(row) },
   }));
   // A granted spell also among the quick actions (decision D7): the editor's rows, or the saved ones while a row is incomplete.
   let quickActions = [];
@@ -5267,7 +5304,14 @@ function syncFeatWarnings() {
   } catch {
     quickActions = Array.isArray(profile?.quickActions) ? profile.quickActions : [];
   }
-  const warnings = featWarnings(entries, collectSpecies(), quickActions);
+  // The editor's classes, for a ritual above half the character's level (lot F3b-4); the saved ones while a row is incomplete.
+  let characterBuild = profile?.characterBuild;
+  try {
+    characterBuild = collectCharacterBuildEditor();
+  } catch {
+    characterBuild = profile?.characterBuild;
+  }
+  const warnings = featWarnings(entries, collectSpecies(), quickActions, characterBuild);
   rows.forEach((row, index) => {
     const id = entries[index].id;
     const unknown = id && !getFeat(id) ? ["Questa versione del plugin non conosce il talento: resta com'è."] : [];
@@ -5308,8 +5352,12 @@ function collectFeats() {
     if (classId !== null) delete kept.classId;
     const cantripIds = feat.cantrips ? featRowCantripIds(row) : null;
     if (cantripIds) delete kept.cantripIds;
+    // The rituals of Ritual Caster's book (lot F3b-4): the chosen ones, each once.
+    const ritualIds = feat.ritualCandidates.length ? [...new Set(featRowRitualIds(row).filter(Boolean))] : null;
+    if (ritualIds) delete kept.ritualIds;
     const choice = { ...kept, ...(damageType ? { damageType } : {}), ...(classId ? { classId } : {}),
-      ...(cantripIds?.some(Boolean) ? { cantripIds } : {}), ...(spellIds?.some(Boolean) ? { spellIds } : {}) };
+      ...(cantripIds?.some(Boolean) ? { cantripIds } : {}), ...(spellIds?.some(Boolean) ? { spellIds } : {}),
+      ...(ritualIds?.length ? { ritualIds } : {}) };
     return { id, ...(ability ? { ability } : {}), ...(Object.keys(choice).length ? { choice } : {}) };
   }));
 }
@@ -5322,6 +5370,11 @@ function featRowSpellIds(row) {
 // Its cantrips, the same way (lot F3b-2).
 function featRowCantripIds(row) {
   return Array.from(row.querySelectorAll("[data-feat-field='cantrip']")).map((select) => select.value);
+}
+
+// Its rituals, the same way (lot F3b-4).
+function featRowRitualIds(row) {
+  return Array.from(row.querySelectorAll("[data-feat-field='ritual']")).map((select) => select.value);
 }
 
 function collectDamageDefenses() {

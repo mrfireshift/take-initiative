@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { FEATS, FEAT_FEATURES, featChoiceSlots, featDisplayName, featFeaturesForProfile, featWarnings, sanitizeFeats } from "../src/featCatalog.js";
 import { planSpeciesSpellCost, speciesSpellActionId, speciesSpellCast } from "../src/speciesInnateSpellCore.js";
-import { spellbookGroupsForProfile } from "../src/spellbookCatalog.js";
+import { spellbookGroupsForProfile, spellbookRitualCastable, spellbookSpell, spellbookTrackerQuickActions } from "../src/spellbookCatalog.js";
+import { pcAttackPickerEntries } from "../src/pcAttackPickerCore.js";
 import { creatureCastableSpellIds } from "../src/attackReactionsCore.js";
 import { getSpellCatalog, getSpellDefinition } from "../src/spells-srd.js";
 import { parseCharacterSheetImport, sheetImportSectionSummary } from "../src/characterSheetImportCore.js";
@@ -128,8 +129,9 @@ test("Magic Initiate and Artificer Initiate choose among every 1st-level spell o
   assert.deepEqual(FEATS.filter((entry) => entry.cantrips).map((entry) => [entry.id, entry.cantrips]),
     [["cecchino-magico", 1], ["iniziato-alla-magia", 2], ["magia-degli-elfi-dei-boschi", 1], ["rudimenti-da-artefice", 1]]);
   const casters = ["bardo", "chierico", "druido", "stregone", "warlock", "mago"];
+  // Ritual Caster's class came with lot F3b-4.
   assert.deepEqual(FEATS.filter((entry) => entry.classChoices.length).map((entry) => [entry.id, entry.classChoices]),
-    [["cecchino-magico", casters], ["iniziato-alla-magia", casters]]);
+    [["cecchino-magico", casters], ["incantatore-rituale", casters], ["iniziato-alla-magia", casters]]);
 });
 
 test("Magic Initiate's spells take the chosen class's ability; the cantrips go in the book as «Talento»", () => {
@@ -238,4 +240,66 @@ test("Spell Sniper on the sheet and in the import: a cantrip without an attack r
   const result = parseCharacterSheetImport(JSON.stringify({ feats: [{ name: "Spell Sniper", class: "Warlock", cantrips: ["Luce", "Eldritch Blast"] }] }));
   assert.deepEqual(result.sections.feats, [{ id: "cecchino-magico", choice: { classId: "warlock", cantripIds: ["eldritch-blast"] } }]);
   assert.deepEqual(result.unresolved, ["trucchetto \"Luce\" per Cecchino Magico (fuori dalla lista: trucchetto con tiro per colpire)"]);
+});
+
+// Lot F3b-4 (decisions S3, S4, S6, S7): Ritual Caster's ritual book.
+const ritualCaster = (choice, extra = {}) => ({ characterBuild: [{ classId: "guerriero", level: 5 }], abilityModifiers: { int: 3, wis: 1, cha: 0 },
+  feats: [{ id: "incantatore-rituale", choice }], ...extra });
+
+test("Ritual Caster chooses among every ritual of the catalog, with its level", () => {
+  const ritualCasterFeat = FEATS.find((entry) => entry.id === "incantatore-rituale");
+  assert.deepEqual([ritualCasterFeat.spellAbility, ritualCasterFeat.cantrips, ritualCasterFeat.chosenSpells.length], ["class", 0, 0]);
+  const rituals = catalog.filter((spell) => spellbookSpell(spell.id).ritual);
+  assert.deepEqual(ritualCasterFeat.ritualCandidates.map((ritual) => ritual.spellId).sort(), rituals.map((spell) => spell.id).sort());
+  for (const ritual of ritualCasterFeat.ritualCandidates) {
+    const spell = getSpellDefinition(ritual.spellId);
+    assert.deepEqual([ritual.level, ritual.name], [spell.level, spell.displayName], ritual.spellId);
+  }
+  // Twelve of 1st level, the two a new ritual book holds.
+  assert.equal(ritualCasterFeat.ritualCandidates.filter((ritual) => ritual.level === 1).length, 12);
+  assert.ok(FEATS.filter((entry) => entry.id !== "incantatore-rituale").every((entry) => !entry.ritualCandidates.length));
+});
+
+test("the rituals go in the book as «Talento», cast only as rituals: no slot from the sheet and the 🪄 menu, never in the console", () => {
+  const fighter = ritualCaster({ classId: "mago", ritualIds: ["detect-magic", "find-familiar", "tiny-hut"] });
+  const book = spellbookGroupsForProfile(fighter).flatMap((group) => group.spells);
+  assert.deepEqual(book.map((spell) => [spell.id, spell.granted, spell.ritualOnly, spellbookRitualCastable(fighter, spell)]), [
+    ["detect-magic", "Talento: Incantatore Rituale", true, true],
+    ["find-familiar", "Talento: Incantatore Rituale", true, true],
+    ["tiny-hut", "Talento: Incantatore Rituale", true, true],
+  ]);
+  assert.deepEqual(spellbookTrackerQuickActions(fighter).map((action) => [action.label, action.cost]), [
+    ["Individuazione del magico (rituale)", "free"], ["Trova famiglio (rituale)", "free"], ["Capanna (rituale)", "free"],
+  ]);
+  // Ten minutes longer: the console neither casts them nor readies them.
+  assert.deepEqual(pcAttackPickerEntries(fighter).filter((entry) => entry.spellId), []);
+  // The class's ability (decision S3), the badge names the class.
+  assert.equal(featSpellcastingAbility(fighter, "tiny-hut"), "int");
+  assert.equal(featDisplayName(fighter.feats[0]), "Incantatore Rituale · Mago");
+  // A spell the character's own book holds stays its own: a wizard prepares it and casts it with a slot.
+  const wizard = ritualCaster({ classId: "chierico", ritualIds: ["detect-magic", "alarm"] },
+    { characterBuild: [{ classId: "mago", level: 5 }], spellbook: { spellIds: ["detect-magic"] } });
+  assert.deepEqual(spellbookGroupsForProfile(wizard).flatMap((group) => group.spells).map((spell) => [spell.id, !!spell.granted, !!spell.ritualOnly]),
+    [["alarm", true, true], ["detect-magic", false, false]]);
+  assert.equal(featSpellcastingAbility(wizard, "detect-magic"), "", "the card's numbers");
+  assert.deepEqual(spellbookTrackerQuickActions(wizard).map((action) => [action.label, action.cost ?? "slot"]),
+    [["Allarme (rituale)", "free"], ["Individuazione del magico", "slot"]]);
+});
+
+test("Ritual Caster on the sheet and in the import: a ritual above half the level is warned about, a spell that is none reported", () => {
+  const fighter = ritualCaster({ ritualIds: ["detect-magic", "contact-other-plane", "fireball"] });
+  assert.deepEqual(featWarnings(fighter.feats, null, [], fighter.characterBuild), [[
+    "Contattare altri piani è di 5° livello: oltre metà del livello del personaggio, al massimo 3°.",
+    "Il rituale scelto (fireball) non è un rituale del catalogo.",
+  ]]);
+  // At 10th level the 5th is within reach; without the classes, no level to check.
+  assert.deepEqual(featWarnings(fighter.feats, null, [], [{ classId: "guerriero", level: 10 }]),
+    [["Il rituale scelto (fireball) non è un rituale del catalogo."]]);
+  assert.deepEqual(featWarnings(fighter.feats), [["Il rituale scelto (fireball) non è un rituale del catalogo."]]);
+  // Kept, the GM decides (D8): the 5th-level ritual is in the book, Fireball, no ritual, is not.
+  assert.deepEqual(featGrantedSpells(fighter).map((entry) => entry.spellId), ["detect-magic", "contact-other-plane"]);
+  const result = parseCharacterSheetImport(JSON.stringify({ feats: [{ name: "Ritual Caster", class: "wizard",
+    rituals: ["Find Familiar", "Individuazione del magico", "Palla di fuoco", "Trova famiglio"] }] }));
+  assert.deepEqual(result.sections.feats, [{ id: "incantatore-rituale", choice: { classId: "mago", ritualIds: ["find-familiar", "detect-magic"] } }]);
+  assert.deepEqual(result.unresolved, ["rituale \"Palla di fuoco\" per Incantatore Rituale (non è un rituale)"]);
 });

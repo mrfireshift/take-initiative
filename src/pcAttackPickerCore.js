@@ -75,9 +75,11 @@ export function pcAttackPickerEntries(card, { activeSpellIds = [], grantedAction
     add("attacks", action.id, "", action.label || action.id);
   }
   entries.features = pcAttackFeatureEntries(profile);
+  // Not the rituals of Ritual Caster's book (lot F3b-4 of docs/STUDIO_TALENTI.md): ten minutes longer, never a turn's cast
+  // nor a readied one; the sheet and the 🪄 menu cast them.
   const book = spellbookGroupsForProfile(profile)
     .filter((group) => group.level !== null)
-    .flatMap((group) => group.spells.filter((spell) => spell.prepared).sort((left, right) => Number(right.pinned) - Number(left.pinned)));
+    .flatMap((group) => group.spells.filter((spell) => spell.prepared && !spell.ritualOnly).sort((left, right) => Number(right.pinned) - Number(left.pinned)));
   if (!book.length) {
     for (const action of attackActions) if (["cantrip", "spell"].includes(action.source?.kind)) addOffered(action, false);
     return PC_ATTACK_PICKER_TABS.flatMap((tab) => entries[tab.id]);

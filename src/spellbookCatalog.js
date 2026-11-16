@@ -125,10 +125,11 @@ export function spellbookSpellDetails(spellId) {
 }
 
 // Ritual casting (PHB 2014): a wizard casts any ritual of the spellbook, even unprepared; a cleric or a druid the
-// rituals it has prepared; a bard the rituals it knows. The other classes cannot (a feat such as Ritual Caster
-// goes through a free quick action). spell: an entry of spellbookGroups.
+// rituals it has prepared; a bard the rituals it knows. The other classes cannot, except the rituals of Ritual Caster's
+// book (ritualOnly, lot F3b-4), whatever the class. spell: an entry of spellbookGroups.
 export function spellbookRitualCastable(profile, spell) {
   if (!spell?.ritual || !spell.launchable || !spell.level) return false;
+  if (spell.ritualOnly) return true;
   const classes = new Set((Array.isArray(profile?.characterBuild) ? profile.characterBuild : [])
     .filter((entry) => Number(entry?.level) > 0)
     .map((entry) => String(entry?.classId || "").trim()));
@@ -162,13 +163,20 @@ export function spellbookSpellAttackAction(quickActions, spellId) {
 // The book grouped by level, cantrips first; spells outside the catalog last. preparing: the character prepares
 // its spells (spellPreparationCore.js); then a spell of the book is prepared unless listed in unpreparedIds, and a
 // cantrip always is. For the other casters every spell they know is ready. granted: the spells its subclasses give
-// ([{ spellId, source }], subclassSpellsCatalog.js), listed with their source and always prepared.
+// ([{ spellId, source }], subclassSpellsCatalog.js), listed with their source and always prepared. A grant with ritualOnly
+// (Ritual Caster's ritual book, lot F3b-4 of docs/STUDIO_TALENTI.md) is cast only as a ritual: it never touches a spell
+// the book holds or another source grants.
 export function spellbookGroups(value, { preparing = false, granted = [] } = {}) {
   const { spellIds, pinnedIds, unpreparedIds = [], manualIds = [] } = sanitizeSpellbook(value);
   const pinned = new Set(pinnedIds);
   const manual = new Set(manualIds);
   const unprepared = new Set(preparing ? unpreparedIds : []);
-  const grantedBy = new Map((Array.isArray(granted) ? granted : []).map((entry) => [entry.spellId, entry.source || "Sottoclasse"]));
+  const grants = Array.isArray(granted) ? granted : [];
+  const fullyGranted = new Set(grants.filter((entry) => !entry.ritualOnly).map((entry) => entry.spellId));
+  const ritualOnly = new Set(grants.filter((entry) => entry.ritualOnly && !fullyGranted.has(entry.spellId) && !spellIds.includes(entry.spellId))
+    .map((entry) => entry.spellId));
+  const grantedBy = new Map(grants.filter((entry) => !entry.ritualOnly || ritualOnly.has(entry.spellId))
+    .map((entry) => [entry.spellId, entry.source || "Sottoclasse"]));
   const groups = new Map();
   for (const spellId of [...spellIds, ...[...grantedBy.keys()].filter((id) => !spellIds.includes(id))]) {
     const entry = spellbookSpell(spellId);
@@ -178,6 +186,7 @@ export function spellbookGroups(value, { preparing = false, granted = [] } = {})
       ...(manual.has(spellId) ? { manual: true } : {}),
       prepared: entry.level === 0 || grantedBy.has(spellId) || !unprepared.has(spellId),
       ...(grantedBy.has(spellId) ? { granted: grantedBy.get(spellId) } : {}),
+      ...(ritualOnly.has(spellId) ? { ritualOnly: true } : {}),
     };
     const key = spell.level ?? 99;
     if (!groups.has(key)) groups.set(key, []);
@@ -300,8 +309,13 @@ function launchableBookGroups(profile) {
 // lists (trackerQuickActions.js tells them apart by their id).
 export function spellbookTrackerQuickActions(profile) {
   const quickActions = Array.isArray(profile?.quickActions) ? profile.quickActions : [];
+  // A ritual of Ritual Caster's book (lot F3b-4) is cast as a ritual, with no slot, and says so.
   const bookActions = launchableBookGroups(profile)
-    .flatMap((group) => group.spells.map((spell) => spellbookQuickAction(spell.id)))
+    .flatMap((group) => group.spells.map((spell) => {
+      if (!spell.ritualOnly) return spellbookQuickAction(spell.id);
+      const action = spellbookQuickAction(spell.id, { cost: "free" });
+      return action ? { ...action, label: `${action.label} (rituale)` } : null;
+    }))
     .filter(Boolean);
   return bookActions.length ? [...quickActions, ...bookActions] : quickActions;
 }

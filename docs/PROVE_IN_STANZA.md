@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **207** |
+| **B. Console attacchi, mostri e capacità** | **212** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -64,6 +64,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B27. L'incantesimo scelto delle Contaminazioni | 4 |
 | B28. Le scelte di Iniziato alla Magia, Rudimenti da Artefice ed Elfi dei Boschi | 6 |
 | B29. Cecchino Magico | 4 |
+| B31. Incantatore Rituale | 5 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -89,7 +90,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **570** |
+| **Totale** | **575** |
 
 ## A. Incantesimi
 
@@ -825,6 +826,16 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3b-3 (decisioni S2, S3, S8
 - [ ] **Il promemoria:** nel turno del PG, la console su Deflagrazione occulta dice «+6 al tiro» e, scelto il nemico, «Cecchino Magico: gittata 72 m invece di 36 m; l'attacco ignora mezza copertura e tre quarti di copertura.». Da provare in vista compatta ed estesa.
 - [ ] **Dove non compare:** niente promemoria su un incantesimo a contatto (Stretta folgorante), su un TS (Fiamma sacra), su Dardo incantato e sugli attacchi con le armi.
 - [ ] **L'import:** `{ "feats": [{ "name": "Spell Sniper", "class": "warlock", "cantrips": ["Eldritch Blast"] }] }` sceglie Warlock e Deflagrazione occulta; con «Luce» al suo posto l'import la segnala fuori dalla lista.
+
+### B31. Incantatore Rituale
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3b-4 (decisioni S3, S6, S7). Le voci sono nuove: nessuna lista le aveva. Serve un guerriero di 5° livello con i modificatori nella scheda (Int +3) e gli slot vuoti o nessuno slot.
+
+- [ ] **Il menu:** in Modifica → Capacità → Talenti, Incantatore Rituale mostra «Classe», «Rituale 1» e «Rituale 2» con 33 rituali e il loro livello, e **+ Rituale**. Scelti Mago, Individuazione del magico e Trova famiglio, dopo **Salva** il badge dice «Incantatore Rituale · Mago».
+- [ ] **Il libro:** i due rituali sono nel libro come «🔒 Talento: Incantatore Rituale · solo come rituale». Il pulsante li lancia senza spendere slot e ⚙ apre il pannello con «Senza slot». Il 🪄 della card li offre come «Individuazione del magico (rituale)», senza slot. Da provare in vista compatta ed estesa.
+- [ ] **Non nella console:** nel turno del PG la console non li elenca fra gli incantesimi, e Azioni → **Preparare** → **Un incantesimo** non li offre.
+- [ ] **Oltre metà del livello:** con **+ Rituale** e Contattare altri piani, la riga del talento avvisa «… oltre metà del livello del personaggio, al massimo 3°.». **Salva** non è bloccato.
+- [ ] **L'import:** `{ "feats": [{ "name": "Ritual Caster", "class": "wizard", "rituals": ["Find Familiar", "Detect Magic"] }] }` sceglie Mago e i due rituali; con «Palla di fuoco» l'import la segnala come «non è un rituale».
 
 ## C. Tracker e UX
 
