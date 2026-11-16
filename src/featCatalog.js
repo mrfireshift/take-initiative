@@ -11,6 +11,8 @@
 // The sheet stores initiativeCard.feats: [{ id, ability?, choice? }], written only when used. Its cleaning checks the
 // shape, not the catalog: an id this version does not know stays, so an older client never drops a newer one's feats.
 // A half feat's +1 is not applied: the sheet stores the modifiers, which already hold it (decision D4).
+// Lot F3b-5: the DC of a part with a save (Telekinetic's shove) comes from abilityModifiersCore.js, a module with no imports.
+import { abilitySaveDC } from "./abilityModifiersCore.js";
 
 export const FEATS_FIELD = "feats";
 export const MAX_FEATS = 20;
@@ -453,8 +455,11 @@ const DEFINITIONS = [
   feat("tce", 81, "Stile Penetrante", "Piercer", { abilities: ["str", "dex"],
     plugin: "Nella console attacchi: al critico con danni perforanti, un dado di danno in più; sui colpi perforanti il promemoria di ritirare un dado, una volta per turno." }),
   feat("tce", 81, "Telecinesi", "Telekinetic", { abilities: ["int", "wis", "cha"],
-    plugin: "Mano magica a volontà, invisibile, con la caratteristica del talento: si lancia dalla sua card. La spinta telecinetica (azione bonus, TS su Forza), per ora, si gestisce al tavolo.",
-    spellAbility: "feat", spells: [{ key: "mano-magica", spellId: "mage-hand", name: "Mano magica", uses: "" }] }),
+    plugin: "Mano magica a volontà, invisibile, con la caratteristica del talento: si lancia dalla sua card. La spinta telecinetica ha la sua card, con la CD; il token si sposta a mano.",
+    spellAbility: "feat", spells: [{ key: "mano-magica", spellId: "mage-hand", name: "Mano magica", uses: "" }],
+    // Lot F3b-5 (decision S8): the shove, a card with its DC.
+    parts: [{ key: "spinta", name: "Telecinesi: spinta telecinetica", activation: "azione_bonus", save: { ability: "str" },
+      description: "Una creatura che vedi entro 9 m fa un TS su Forza: se lo fallisce la sposti di 1,5 m, verso di te o lontano da te. Può fallirlo di sua volontà." }] }),
   feat("tce", 81, "Telepatia", "Telepathic", { abilities: ["int", "wis", "cha"],
     plugin: "Individuazione dei pensieri una volta per riposo lungo senza slot, o con i tuoi slot, con la caratteristica del talento: si lancia dalla sua card. La telepatia si gestisce al tavolo.",
     spellAbility: "feat", spells: [{ key: "individuazione-dei-pensieri", spellId: "detect-thoughts", name: "Individuazione dei pensieri", uses: "lungo",
@@ -607,7 +612,8 @@ function featRecord(entry) {
 }
 
 // A second effect of a feat (Slasher's critical): a record of its own, with its pill and the line it shows as text; no
-// rules entry, the feat's card has it.
+// rules entry, the feat's card has it. Lot F3b-5: activation, its own (Telekinetic's shove is a bonus action); save, the
+// save it forces ({ ability }), whose DC its card shows (featPartSave): the move stays the table's (decision S8).
 function featPartRecord(entry, part) {
   return Object.freeze({
     id: `${featFeatureId(entry.id)}-${part.key}`,
@@ -626,6 +632,8 @@ function featPartRecord(entry, part) {
     runtimeRequirements: Object.freeze([]),
     missingForExecution: Object.freeze([]),
     ...recordBehaviour({ effect: part.effect, poolId: "" }),
+    ...(part.activation ? { activation: Object.freeze({ primary: part.activation }) } : {}),
+    ...(part.save ? { featSave: Object.freeze({ ...part.save }) } : {}),
     trackedResourcePoolIds: Object.freeze([]),
     theme: FEAT_THEME,
     breaksConcentration: false,
@@ -769,6 +777,18 @@ export function featSpellAbility(feature, card = {}) {
   return featEntryAbility(definition, sanitizeFeats(card?.[FEATS_FIELD]).find((entry) => entry.id === definition.id), card);
 }
 
+// The save a feat's part forces (lot F3b-5, decision S8: Telekinetic's shove): { ability, dcAbility, dc, label }, the DC
+// 8 + proficiency + the feat's ability (the half feat's, as its spells'), null without the level or the modifier; null
+// for a part with no save.
+export function featPartSave(feature, card = {}) {
+  const save = feature?.featSave;
+  if (!save) return null;
+  const dcAbility = featSpellAbility(feature, card || {});
+  const dc = dcAbility ? abilitySaveDC(card || {}, dcAbility) : null;
+  const label = `TS su ${FEAT_ABILITY_LABELS[save.ability] || save.ability}${dc !== null ? ` CD ${dc} (${FEAT_ABILITY_LABELS[dcAbility]})` : ""}`;
+  return { ability: save.ability, dcAbility, dc, label };
+}
+
 // The ability of a feat's spells for one entry of the sheet: its own ("cha" for Drow High Magic), the half feat's ("feat"),
 // or the chosen class's ("class": Magic Initiate, lot F3b-2). Without a choice, the highest of those it offers.
 function featEntryAbility(definition, entry, card = {}) {
@@ -864,6 +884,10 @@ function totalCharacterLevel(profile) {
 // The "Nel plugin" line of a feat's card, with the half feat's ability: Robusto's counted on the character's level.
 export function featPluginLine(feature, profile = null) {
   const definition = getFeat(feature?.featId);
+  // A part with a save (Telekinetic's shove, lot F3b-5): its DC, the token moved by hand.
+  const save = definition && feature?.featSave ? featPartSave(feature, profile) : null;
+  if (save) return save.dc !== null ? `${save.label}: chi lo fallisce si sposta di 1,5 m; il token si sposta a mano.`
+    : `${save.label}: per la CD servono il livello e i modificatori nella scheda; il token si sposta a mano.`;
   // A second effect's card (Slasher's critical) shows its own line as its text: the feat's card has the plugin's.
   if (!definition || feature?.featPart) return "";
   const level = totalCharacterLevel(profile);

@@ -3,8 +3,8 @@
 Data: 15 novembre 2026. Stato: **studio, decisioni D1–D15 approvate
 dall'utente il 15/11** (§9); **F0 fatto il 15/11** (§7.1), **F1 il 16/11**
 (§7.2), **la prima parte di F3 il 16/11** (§7.3); **il piano di F3b il 16/11,
-con S1–S9 approvate** (§7.4), **F3b-1, F3b-2, F3b-3 e F3b-4 il 16/11** (§7.5,
-§7.6, §7.7, §7.8).
+con S1–S9 approvate** (§7.4), **F3b-1, F3b-2, F3b-3, F3b-4 e F3b-5 il 16/11**
+(§7.5–§7.9): F3 è chiuso.
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -1271,6 +1271,30 @@ di F3b-2. Il libro invece non è cambiato: i trucchetti scelti passano da
   la scheda e l'import.
 - **Documenti:** `docs/IMPORT_SCHEDA.md`; le prove in stanza sono in B31 (la
   B30 è di un'altra lista, in lavorazione).
+
+### 7.9 F3b-5, fatto il 16/11
+
+**La spinta di Telecinesi.** Come la §7.4 con S8: una card con la CD, il token
+spostato a mano.
+
+- **La card** è una seconda voce del talento, `talento-telecinesi-spinta`, come
+  il critico di Bisturi da Battaglia:
+  - «Telecinesi: spinta telecinetica», azione bonus, solo da leggere;
+  - il testo è una riga del plugin, non quella del manuale.
+- **La CD** è nella riga «Nel plugin»: «TS su Forza CD 14 (Intelligenza): chi
+  lo fallisce si sposta di 1,5 m; il token si sposta a mano.».
+  - Vale 8 + competenza + la caratteristica del mezzo talento: quella scelta
+    come +1, altrimenti la più alta fra Int, Sag e Car, come per Mano magica.
+  - Senza livello o modificatori la riga li chiede.
+- **Il catalogo:**
+  - una voce di secondo effetto può avere ora la sua azione e il suo TS
+    (`featSave`);
+  - `featPartSave` calcola la CD, con `abilitySaveDC` di
+    `abilityModifiersCore.js`, un modulo senza import.
+- **La console** la elenca fra le altre capacità, come azione bonus da leggere.
+  La scheda Capacità della console resta com'è: `pcAttackFeatureFormCore.js` è
+  in lavorazione in un'altra sessione.
+- **Documenti:** le prove in stanza sono in B33.
 
 ---
 

@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **217** |
+| **B. Console attacchi, mostri e capacità** | **220** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -66,6 +66,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B29. Cecchino Magico | 4 |
 | B31. Incantatore Rituale | 5 |
 | B32. Statblock dai PDF e da GM Binder | 5 |
+| B33. La spinta di Telecinesi | 3 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -91,7 +92,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **580** |
+| **Totale** | **583** |
 
 ## A. Incantesimi
 
@@ -847,6 +848,14 @@ Fonte: [STUDIO_IMPORT_STATBLOCK_TESTO.md](STUDIO_IMPORT_STATBLOCK_TESTO.md), lot
 - [ ] **GM Binder, Markdown:** incolla il Markdown del modello 2014 di GM Binder (con «**Armor Class** 12»): il pannello lo riconosce come statblock, non dice che il JSON non è leggibile.
 - [ ] **GM Binder, modello «2024»:** incolla il Carrion Crawler del modello con «AC 15 Initiative +1 (11)» e la tabella MOD e SAVE: CA 15, i sei punteggi, Scimitar e Shortbow come attacchi. Lo stesso copiato dalla pagina disegnata.
 - [ ] **Un 2024 vero:** uno statblock con «Melee Attack Roll: +4» resta rifiutato e rimanda al JSON di 5eTools.
+
+### B33. La spinta di Telecinesi
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3b-5 (decisione S8). Le voci sono nuove: nessuna lista le aveva. Serve un PG di 5° livello con il talento Telecinesi e i modificatori nella scheda (Int +3, Car +2), e un nemico.
+
+- [ ] **La card:** in Capacità, «Telecinesi: spinta telecinetica» è un'azione bonus e dice «Nel plugin: TS su Forza CD 14 (Intelligenza): chi lo fallisce si sposta di 1,5 m; il token si sposta a mano.». Con Carisma scelto come +1 del talento, la CD diventa 13 (Carisma). Da provare in vista compatta ed estesa.
+- [ ] **Senza livello:** tolto il livello dalla scheda, la riga chiede livello e modificatori invece di dare una CD.
+- [ ] **Nella console:** nella scheda Capacità della console, fra le altre capacità, c'è «Telecinesi: spinta telecinetica · azione bonus», solo da leggere; il token del nemico si sposta a mano sulla mappa.
 
 ## C. Tracker e UX
 

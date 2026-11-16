@@ -51,10 +51,11 @@ test("the catalog holds the 72 feats of the three manuals, 34 of them half feats
 test("feats resolve by id like the species traits, but stay out of the class catalog", () => {
   // One record per feat, one for each second effect (the criticals of Slasher and Crusher, lot F1), one for each spell
   // a feat grants (lot F3a, test/featSpells.test.js) and one for each spell a feat lets choose: the Touched feats' (lot
-  // F3b-1), Magic Initiate's and Artificer Initiate's (lot F3b-2), in test/featChosenSpells.test.js.
-  assert.equal(FEAT_FEATURES.length, 72 + 2 + 10 + 19 + 8 + 73 + 73);
+  // F3b-1), Magic Initiate's and Artificer Initiate's (lot F3b-2), in test/featChosenSpells.test.js; Telekinetic's shove
+  // (lot F3b-5, test/featTelekineticShove.test.js).
+  assert.equal(FEAT_FEATURES.length, 72 + 2 + 10 + 19 + 8 + 73 + 73 + 1);
   assert.deepEqual(FEAT_FEATURES.filter((record) => record.featPart && !record.innateSpell).map((record) => record.id),
-    ["talento-bisturi-da-battaglia-critico", "talento-martello-vivente-critico"]);
+    ["talento-bisturi-da-battaglia-critico", "talento-martello-vivente-critico", "talento-telecinesi-spinta"]);
   for (const record of FEAT_FEATURES) {
     assert.ok(record.featPart ? record.id.startsWith(`talento-${record.featId}-`) : record.id === `talento-${record.featId}`, record.id);
     assert.equal(record.collection, "talenti");
