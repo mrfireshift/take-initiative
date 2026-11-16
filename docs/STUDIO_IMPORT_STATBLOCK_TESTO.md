@@ -598,3 +598,77 @@ The Nightmare Three, tre megere in un solo statblock, arrivano a 9 azioni regist
 Provato nel banco con il finto SDK, da una copia pulita: Anastrasya incollata come testo, Horrific Screech dalla console su Dars con il TS fallito. Su Dars c'è la pill «Horrific Screech (I)», che scade all'inizio del prossimo turno del mostro. La CI completa è verde su HEAD con i soli file di D11 e D12: 6226 test.
 
 Le prove in stanza sono in [PROVE_IN_STANZA.md](PROVE_IN_STANZA.md), sezione B26.
+
+---
+
+## 16. Lotto ST3, seconda parte: il testo dei PDF (16/11)
+
+### 16.1 I campioni
+
+I PDF inglesi dell'utente con statblock delle regole 2014, fuori dal repository (D9), letti con `pdftotext` come un copia-incolla da un lettore PDF: **The Book of Fiends** (175 statblock), **Flee, Mortals!** di MCDM (340) ed **Encounters in Avernus** (19). Ogni blocco è tagliato come lo copierebbe un GM: dal nome alla fine delle azioni. Monsters of Drakkenheim usa le regole 2024 (ST4); in Emirikol's Guide to Devils gli statblock sono immagini, senza testo.
+
+### 16.2 Che cosa c'era di diverso
+
+- le etichette di seguito sulla stessa riga: «Armor Class 15 (natural armor) Hit Points 97 (15d8 + 30) Speed 30 ft.», «Saving Throws … Skills … Damage Resistances …», e la riga dopo che continua l'etichetta e ne apre altre;
+- i punteggi spezzati e in ordine diverso: «Str 16 (+3)», «Dex 13 (+1)», «Con Int Wis 14 (+2) 19 (+4) 8 (−1)», «Cha 16 (+3)», a volte con il tipo in mezzo;
+- il tipo dopo l'armatura o dopo la velocità, o sulla stessa riga del primo tratto («Medium fiend (devil), lawful evil Devil's Sight. …»);
+- i titoli spaziati dal PDF («Ac t ions»), anche in fondo a un'altra riga;
+- con le colonne mescolate, il titolo delle azioni sopra l'armatura;
+- la legatura «fl» di «fly» persa, o tenuta come carattere del font (U+E002);
+- in Flee, Mortals!: «CR 1 Brute 200 XP», che il parser prendeva per l'intestazione 2024 e rifiutava; «Companion», «Retainer» e «450 XP» fra il tipo e l'armatura; «Melee Power Attack».
+
+### 16.3 Le correzioni del parser
+
+- **P1, le etichette:** una riga dell'intestazione si divide prima di ogni etichetta scritta come tale («Hit Points», «Speed», «Senses»…), della sfida di MCDM («CR 4 Artillery») e del tipo («Large fiend»). Il primo pezzo, se non è un'etichetta, continua quella di prima.
+- **P2, i punteggi:** le righe di punteggi più avanti nell'intestazione si uniscono alle prime. Si leggono i valori in ordine, con il controllo che ogni modificatore corrisponda al punteggio: se non torna (alcuni PDF hanno refusi, come «Str 8 (−2)»), i punteggi restano non letti e il rapporto lo dice.
+- **P3, il tipo fuori posto:** dopo la velocità, dopo i punteggi, o attaccato al primo tratto, se la seconda riga non era il tipo. Un allineamento rimasto solo («lawful evil») non va nelle etichette.
+- **P4, i titoli spaziati:** «Ac t ions» in fondo a una riga va su una riga sua. Un titolo sopra l'armatura (le colonne mescolate) si mette da parte: le azioni cominciano al primo Multiattack o al primo attacco.
+- **P5, MCDM:** «CR 1 (XP 200; PB +2)» resta il segno del 2024, «CR 1 Brute 200 XP» no; la sfida si legge dal ruolo. «Companion», «Retainer» e «N XP» si saltano. «Melee Power Attack» e «Ranged Power Attack» si leggono come attacchi con incantesimo.
+- **P6, «fly»:** nella velocità, una «y» davanti al numero, con o senza un carattere del font davanti, è «fly».
+
+### 16.4 La misura
+
+| PDF | Blocchi | Rifiutati | Registrabili | Al tavolo | Righe non lette |
+|---|---|---|---|---|---|
+| The Book of Fiends, prima | 175 | 6 | 264 | 68 | 220 |
+| The Book of Fiends, dopo | 175 | 0 | 277 | 104 | 35 |
+| Flee, Mortals!, prima | 340 | 330 | 0 | 4 | 1 |
+| Flee, Mortals!, dopo | 340 | 0 | 592 | 213 | 117 |
+| Encounters in Avernus, prima | 19 | 0 | 30 | 10 | 23 |
+| Encounters in Avernus, dopo | 19 | 0 | 30 | 10 | 1 |
+
+Le azioni al tavolo di The Book of Fiends crescono perché ora si leggono blocchi che prima si fermavano all'intestazione. Un campione delle azioni registrate, riletto contro il testo, ha bonus, portata, gittata, dadi e tipi giusti.
+
+Restano non lette, e il rapporto le nomina:
+- in The Book of Fiends, le righe dell'altra colonna mescolate nell'intestazione: il PDF le mette lì e il parser non può sapere a chi appartengono;
+- in Flee, Mortals!, le abilità dei Retainer e dei Companion, «Athletics +3 plus PB»: crescono con il livello del PG, non sono numeri;
+- i punteggi con un refuso del libro.
+
+I nomi spaziati dal PDF («Vl og a r», «Mast e r o f t he») restano come sono: il GM li corregge in **Rinomina** prima di **Salva**.
+
+L'oracolo non cambia: 814 identici, 1 mancante, 0 diversi, con i punteggi su una riga e su due. Le schede di Strahd Reloaded non cambiano. I tre test nuovi, con mostri inventati scritti come i tre libri, falliscono senza la patch. La CI completa è verde su `50b96ef6` con il solo lotto: 6241 test.
+
+### 16.5 GM Binder (16/11)
+
+I campioni dell'utente: il Markdown del modello 2014 dell'editor di GM Binder e una pagina condivisa (gli statblock degli NPC del Manuale del Giocatore, 17 statblock), presa come la copia il browser dalla pagina già disegnata. Il parser li legge già tutti, senza correzioni nuove: 0 rifiutati, 22 azioni registrabili, 3 al tavolo (Commander's Strike, Cloak of Shadows, Divine Sense, senza tiri), 0 righe non lette. La sfida e il bonus di competenza sulla stessa riga («**Challenge** 1 (200 XP) **Proficiency Bonus** +2») si dividono con P1. Altre 5 «Armor Class» della pagina sono elenchi di modifiche alle varianti, non statblock. Un test con un mostro inventato prova le due forme, il Markdown e il testo copiato.
+
+**Il modello «2024» di GM Binder.** Il post di Reddit l'ha incollato l'utente, perché reddit.com non risponde agli strumenti. Ha l'aspetto del 2024 con le regole del 2014:
+- **l'aspetto del 2024:** «AC 15 Initiative +1 (11)», la tabella dei punteggi con le colonne MOD e SAVE, «CR 1 (200 XP)» o «CR 1 (XP 200; PB +2)», il titolo «Traits»;
+- **le regole del 2014:** le azioni dicono «Melee Weapon Attack: +4 to hit»;
+- **HTML nel Markdown:** `<div class="statblock">`, `<span>`, `<br/>`, `&nbsp;` e un blocco `<style>`.
+
+Prima il parser lo rifiutava come statblock 2024, guardando l'intestazione. Ora le regole del 2024 si riconoscono solo dalle azioni («Melee Attack Roll:», «Dexterity Saving Throw: DC 13»), che restano rifiutate fino a ST4. L'intestazione del 2024 si legge:
+- «AC», «HP» e «CR» come etichette;
+- «Initiative» staccata dall'armatura;
+- i punteggi «STR 14 +2 +2» con il controllo del modificatore; i TS diversi dal modificatore diventano i TS della scheda;
+- la riga «MOD SAVE» saltata, «Traits» come titolo dei tratti, l'HTML tolto, una riga per ogni `<br/>`.
+
+Due difetti trovati in questo passo e corretti:
+- **Il riconoscimento nel pannello Importa** (`looksLikeStatblockText`) voleva un numero subito dopo l'etichetta, quindi non riconosceva «**Armor Class** 12» né «**AC** 15»: il Markdown di GM Binder e di Homebrewery sarebbe finito nell'errore del JSON, anche se il parser lo leggeva. Ora accetta il grassetto fra l'etichetta e il numero.
+- **La riga di allineamento di una tabella** con due trattini («|:--:|») restava come riga non letta.
+
+### 16.6 Che cosa resta di ST3
+
+D&D Beyond: chiede l'accesso, quindi niente download; serve il testo copiato dall'utente da 2–3 pagine di mostri. Homebrewery usa lo stesso Markdown di GM Binder, con i suoi blocchi `{{monster,frame}}`: già coperto dai test di ST1, da confermare con un link vero se l'utente ne ha uno.
+
+Le prove in stanza della seconda parte sono in [PROVE_IN_STANZA.md](PROVE_IN_STANZA.md), sezione B32.

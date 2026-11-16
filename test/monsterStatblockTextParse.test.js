@@ -310,7 +310,8 @@ test("una sezione che il parser non legge finisce nel tratto «Testo non letto»
 
 test("testo italiano, statblock 2024, testo qualsiasi e testo troppo lungo", () => {
   assert.match(parseStatblockText("Capo goblin\nClasse Armatura 17\nPunti Ferita 21 (6d6)").error, /italiano/);
-  assert.match(parseStatblockText("Goblin Warrior\nSmall Fey (Goblinoid), Chaotic Neutral\nAC 15 Initiative +2 (12)\nHP 10 (3d6)").error, /2024/);
+  // The 2024 rules are in the actions ("Melee Attack Roll:"); the 2024 layout of a header alone is GM Binder's template.
+  assert.match(parseStatblockText("Goblin Warrior\nSmall Fey (Goblinoid), Chaotic Neutral\nAC 15 Initiative +2 (12)\nHP 10 (3d6)\n\nActions\nScimitar. Melee Attack Roll: +4, reach 5 ft. Hit: 5 (1d6 + 2) Slashing damage.").error, /2024/);
   assert.match(parseStatblockText("Ciao a tutti").error, /Non sembra uno statblock/);
   assert.match(parseStatblockText("Armor Class 12\nHit Points 9 (2d8)").error, /Manca il nome/);
   assert.match(parseStatblockText("  ").error, /vuoto/);
@@ -440,4 +441,141 @@ test("un TS con un effetto inventato arriva nella scheda con la sua pill (D12)",
   const quick = sheet.sections.attacks.find((entry) => entry.label === "Witch Shriek (bonus action)");
   assert.deepEqual([quick.save, quick.saveDC, quick.onFail.condition, quick.onFail.until, quick.onFail.anchor], ["con", 14, "Witch Shriek", "turn-start", "source"]);
   assert.match(quick.onFail.effect, /or be dazed/);
+});
+
+// Lotto ST3, il testo di un PDF (The Book of Fiends, Flee, Mortals!, Encounters in Avernus, copiati con pdftotext): mostri
+// inventati scritti come escono da quei libri.
+test("da un PDF: le etichette su una riga, i punteggi spezzati, il «fly» senza la legatura", () => {
+  const text = [
+    "Ashen Stoker",
+    "Medium fiend (daemon), neutral evil",
+    `Armor Class 15 (natural armor) Hit Points 97 (15d8 + 30) Speed 30 ft., ${String.fromCharCode(0xe002)}y 40 ft.`,
+    `${tab}Str 16 (+3)`, "Dex 13 (+1)", `Con${tab}Int${tab}Wis 14 (+2) 19 (+4) 8 (−1)`, "Cha 16 (+3)",
+    "Saving Throws Con +6, Int +8 Skills Perception +3 Damage Resistances cold; bludgeoning, piercing, and",
+    "slashing from nonmagical attacks Damage Immunities fire Senses darkvision 120 ft., passive Perception 13 Languages Abyssal Challenge 11 (7,200 XP)",
+    "",
+    "Fire Aura. At the start of each of the stoker's turns, each creature within 5 feet of it takes 10 (3d6) fire damage.",
+    "Ac t ions",
+    "Fiery Claws. Melee Weapon Attack: +7 to hit, reach 5 ft., one target. Hit: 10 (2d6 + 3) slashing damage plus 18 (4d8) fire damage.",
+  ].join("\n");
+  const { monster, block, report } = read(text);
+  assert.deepEqual(report.filter((line) => /non lett/.test(line)), []);
+  assert.deepEqual(monster.speed, { walk: 30, fly: 40 });
+  assert.deepEqual(block.abilities, { str: 16, dex: 13, con: 14, int: 19, wis: 8, cha: 16 });
+  assert.deepEqual([monster.save, monster.skill, monster.immune, monster.cr], [{ con: "+6", int: "+8" }, { perception: "+3" }, ["fire"], "11"]);
+  assert.ok(monster.resist.includes("cold"));
+  assert.deepEqual(block.actions.map((action) => action.name), ["Fiery Claws"]);
+  assert.deepEqual(block.actions[0].damage, [{ type: "slashing", formula: "2d6+3" }, { type: "fire", formula: "4d8" }]);
+});
+
+test("da un PDF: le colonne mescolate, con il titolo delle azioni sopra l'armatura e il tipo dopo i punteggi", () => {
+  const text = [
+    "Grim Mother",
+    "Ac t ions",
+    "Armor Class 18 (natural armor) Hit Points 120 (16d10 + 32) Speed 40 ft.",
+    "STR DEX CON INT WIS CHA 18 (+4) 12 (+1) 14 (+2) 10 (+0) 12 (+1) 16 (+3)",
+    "Large fiend (daemon), neutral evil Magic Resistance. The mother has advantage on saving throws against spells.",
+    "Multiattack. The mother makes two claw attacks.",
+    "Claw. Melee Weapon Attack: +7 to hit, reach 10 ft., one target. Hit: 11 (2d6 + 4) slashing damage.",
+  ].join("\n");
+  const { monster, block } = read(text);
+  assert.deepEqual([monster.size, monster.type], [["L"], "fiend (daemon)"]);
+  assert.deepEqual(monster.trait.map((trait) => trait.name), ["Magic Resistance"]);
+  assert.equal(block.multiattack, "The mother makes two claw attacks.");
+  assert.deepEqual(block.actions.map((action) => [action.name, action.attack.bonus]), [["Claw", 7]]);
+});
+
+test("da un PDF di MCDM: «Companion», la sfida con il ruolo e gli attacchi di potere", () => {
+  const text = [
+    "Spark Lancer",
+    "Small Humanoid (Goblin), Any Alignment",
+    "Companion",
+    "Armor Class 13 (leather armor) Hit Points 27 (6d6 + 6) Speed 30 ft.",
+    "CR 1 Artillery 200 XP",
+    "STR DEX CON INT WIS CHA 8 (−1) 16 (+3) 12 (+1) 10 (+0) 10 (+0) 8 (−1)",
+    "Senses darkvision 60 ft., passive Perception 10 Languages Common, Goblin Proficiency Bonus +2",
+    "",
+    "ACTIONS",
+    "Spark. Ranged Power Attack: +5 to hit, range 60 ft., one target. Hit: 7 (2d6) lightning damage.",
+  ].join("\n");
+  assert.equal(parseStatblockText(text).error, "", "not a 2024 stat block: «CR 1 (XP 200; PB +2)» is");
+  const { monster, block, report } = read(text);
+  assert.deepEqual(report.filter((line) => /non lett/.test(line)), []);
+  assert.equal(monster.cr, "1");
+  assert.deepEqual([block.actions[0].attack, block.actions[0].damage], [{ bonus: 5, type: "ranged", range: { normal: 60 } }, [{ type: "lightning", formula: "2d6" }]]);
+});
+
+// GM Binder (lotto ST3): il modello 2014 del suo editor, con la sfida e il bonus di competenza sulla stessa riga, e il
+// testo della pagina condivisa come lo copia il browser.
+test("GM Binder: il Markdown del modello e il testo della pagina condivisa", () => {
+  const markdown = [
+    "> ## Bramble Hag",
+    "> *Medium fey, neutral evil*",
+    "> ___",
+    "> **Armor Class** 15 (natural armor)",
+    "> **Hit Points** 52 (8d8 + 16)",
+    "> **Speed** 30 ft.",
+    "> ___",
+    "> | STR | DEX | CON | INT | WIS | CHA |",
+    "> |:---:|:---:|:---:|:---:|:---:|:---:|",
+    "> | 16 (+3)| 12 (+1)| 14 (+2)| 11 (+0)| 13 (+1)| 14 (+2)|",
+    "> ___",
+    "> **Senses** darkvision 60 ft., passive Perception 11",
+    "> **Languages** Common, Sylvan",
+    "> **Challenge** 2 (450 XP) **Proficiency Bonus** +2",
+    "> ___",
+    "> ### Actions",
+    "> ***Thorned Claws.*** *Melee Weapon Attack:* +5 to hit, reach 5 ft., one target. *Hit:* 8 (2d4 + 3) slashing damage.",
+  ].join("\n");
+  const shared = markdown.split("\n").map((line) => line.replace(/^> ?/, "").replace(/^#+ /, "").replace(/\*/g, ""))
+    .filter((line) => !/^(?:_{3,}|\|:?-)/.test(line)).map((line) => (line.startsWith("|") ? line.split("|").map((cell) => cell.trim()).filter(Boolean).join(tab) : line)).join("\n");
+  for (const text of [markdown, shared]) {
+    const { monster, block, report } = read(text);
+    assert.deepEqual(report.filter((line) => /non lett/.test(line)), [], text.slice(0, 20));
+    assert.deepEqual([monster.name, monster.cr, block.armorClass, block.abilities.str], ["Bramble Hag", "2", 15, 16]);
+    assert.deepEqual(block.actions.map((action) => [action.name, action.attack.bonus, action.damage[0].formula]), [["Thorned Claws", 5, "2d4+3"]]);
+  }
+});
+
+// Il modello 2024 di GM Binder (lotto ST3): l'aspetto del 2024 («AC 15 Initiative +1 (11)», le colonne MOD e SAVE, «CR …
+// (XP …; PB …)») con le azioni del 2014, in HTML e Markdown, e copiato dalla pagina disegnata.
+test("GM Binder: il modello con l'aspetto del 2024 e le azioni del 2014", () => {
+  const source = [
+    "<style>", "  .statblock { color: #5B1903; }", "</style>",
+    "<div class=\"statblock\">", "",
+    "## Mire Stalker",
+    "<span class=\"type-alignment\">Large Beast, Unaligned</span><br/>",
+    "**AC** 14 &nbsp; **Initiative** +2 (12)<br/>",
+    "**Hit Points** 45 (6d10 + 12)<br/>",
+    "**Speed** 30 ft., swim 30 ft.", "",
+    "|     |    | MOD | SAVE |   |     |    | MOD | SAVE |",
+    "|:---:|:--:|:---:|:----:|---|:---:|:--:|:---:|:----:|",
+    "| STR | 16 |  +3 |   +3 |   | INT |  2 |  -4 |   -4 |",
+    "| DEX | 14 |  +2 |   +4 |   | WIS | 12 |  +1 |   +1 |",
+    "| CON | 15 |  +2 |   +2 |   | CHA |  6 |  -2 |   -2 |", "",
+    "**Senses** darkvision 60 ft., passive Perception 11<br/>",
+    "**CR** 2 (XP 450; PB +2)", "",
+    "<div class=\"traits\">", "",
+    "### Traits",
+    "***Hold Breath.*** The stalker can hold its breath for 30 minutes.", "",
+    "### Actions",
+    "***Bite.*** *Melee Weapon Attack:* +5 to hit, reach 5 ft., one target. *Hit:* 10 (2d6 + 3) piercing damage.",
+    "</div>", "</div>",
+  ].join("\n");
+  const copied = ["Mire Stalker", "Large Beast, Unaligned", "AC 14   Initiative +2 (12)", "Hit Points 45 (6d10 + 12)", "Speed 30 ft., swim 30 ft.",
+    ["", "", "MOD", "SAVE", "", "", "", "MOD", "SAVE"].join(tab), ["STR", "16", "+3", "+3", "", "INT", "2", "-4", "-4"].join(tab),
+    ["DEX", "14", "+2", "+4", "", "WIS", "12", "+1", "+1"].join(tab), ["CON", "15", "+2", "+2", "", "CHA", "6", "-2", "-2"].join(tab),
+    "Senses darkvision 60 ft., passive Perception 11", "CR 2 (XP 450; PB +2)", "Traits", "Hold Breath. The stalker can hold its breath for 30 minutes.",
+    "Actions", "Bite. Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 10 (2d6 + 3) piercing damage."].join("\n");
+  for (const text of [source, copied]) {
+    assert.equal(looksLikeStatblockText(text), true);
+    const { monster, block, report } = read(text);
+    assert.deepEqual(report.filter((line) => /non lett/.test(line)), [], text.slice(0, 12));
+    assert.deepEqual([monster.size, block.armorClass, block.abilities, monster.save, monster.cr],
+      [["L"], 14, { str: 16, dex: 14, con: 15, int: 2, wis: 12, cha: 6 }, { dex: "+4" }, "2"]);
+    assert.deepEqual(monster.trait.map((trait) => trait.name), ["Hold Breath"]);
+    assert.deepEqual(block.actions.map((action) => [action.name, action.attack.bonus]), [["Bite", 5]]);
+  }
+  // The Markdown of GM Binder's 2014 template: the panel recognizes it with its bold labels.
+  assert.equal(looksLikeStatblockText("> ## Hag\n> **Armor Class** 15 (natural armor)\n> **Hit Points** 52 (8d8 + 16)"), true);
 });

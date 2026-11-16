@@ -68,7 +68,7 @@ test("un testo che il parser rifiuta porta il suo motivo; un testo qualsiasi non
   const italian = statblockTextImport("Capo goblin\nClasse Armatura 17\nPunti Ferita 21 (6d6)");
   assert.equal(italian.block, null);
   assert.match(italian.error, /italiano.*prompt per un assistente/);
-  assert.match(statblockTextImport("Goblin Warrior\nSmall Fey (Goblinoid), Chaotic Neutral\nAC 15 Initiative +2 (12)\nHP 10 (3d6)").error,
+  assert.match(statblockTextImport("Goblin Warrior\nSmall Fey (Goblinoid), Chaotic Neutral\nAC 15 Initiative +2 (12)\nHP 10 (3d6)\n\nActions\nScimitar. Melee Attack Roll: +4, reach 5 ft. Hit: 5 (1d6 + 2) Slashing damage.").error,
     /2024.*JSON di 5eTools/);
   assert.equal(looksLikeStatblockText("Ciao a tutti"), false);
   assert.equal(statblockTextImportSummary({ name: "Ogre" }, { full: 1 }), "Da testo: Ogre, 1 azione registrabile.");

@@ -36,13 +36,17 @@ const HEADER_LABELS = Object.freeze([
   ["damage vulnerabilities", "vulnerable"], ["damage resistances", "resist"], ["damage immunities", "immune"],
   ["condition immunities", "conditionImmune"], ["senses", "senses"], ["languages", "languages"], ["challenge", "cr"],
   ["proficiency bonus", "pb"],
+  // The 2024 layout's short labels ("AC 15 Initiative +1 (11)", "HP 26 (5d8 + 5)", "CR 1 (200 XP)"), in the header only.
+  ["ac", "ac"], ["hp", "hp"], ["cr", "cr"],
   // The labels of the 2024 layout that homebrew 2014 stat blocks borrow: "Immunities" holds damage types and conditions.
   ["resistances", "resist"], ["vulnerabilities", "vulnerable"], ["immunities", "immunities"], ["gear", "gear"], ["initiative", "initiative"],
 ]);
 // The headings in the singular too ("Bonus Action", "Reaction"): a bonus action under one is never an action (lotto ST3).
 const HEADINGS = Object.freeze({ ACTIONS: "action", BONUSACTIONS: "bonus", REACTIONS: "reaction", LEGENDARYACTIONS: "legendary",
   MYTHICACTIONS: "mythic", LAIRACTIONS: "lair", REGIONALEFFECTS: "regional", ACTION: "action", BONUSACTION: "bonus",
-  REACTION: "reaction", LEGENDARYACTION: "legendary", MYTHICACTION: "mythic", LAIRACTION: "lair" });
+  REACTION: "reaction", LEGENDARYACTION: "legendary", MYTHICACTION: "mythic", LAIRACTION: "lair",
+  // "### Traits" (GM Binder's 2024 template).
+  TRAITS: "trait" });
 const UNREAD_SECTIONS = Object.freeze({ lair: "Lair Actions", regional: "Regional Effects" });
 const ABILITY_KEYS = Object.freeze(["str", "dex", "con", "int", "wis", "cha"]);
 const ABILITY_BY_NAME = Object.freeze({ str: "str", strength: "str", dex: "dex", dexterity: "dex", con: "con", constitution: "con",
@@ -52,10 +56,12 @@ const DAMAGE_TYPES = "acid|bludgeoning|cold|fire|force|lightning|necrotic|pierci
 const DAMAGE_RUN = new RegExp(String.raw`^(.*?)\b((?:${DAMAGE_TYPES})(?:(?:,\s*(?:and\s+|or\s+)?|\s+and\s+|\s+or\s+)(?:${DAMAGE_TYPES}))*)\b(.*)$`, "i");
 const PHYSICAL_TYPES = new Set(["bludgeoning", "piercing", "slashing"]);
 const CONDITION_WORDS = /\b(blinded|charmed|deafened|exhaustion|frightened|grappled|incapacitated|invisible|paralyzed|petrified|poisoned|prone|restrained|stunned|unconscious)\b/g;
+// MCDM's power attacks (Flee, Mortals!, lotto ST3) are read as the spell attacks they play as.
 const ATTACK_CODES = Object.freeze({ "melee or ranged weapon attack": "mw,rw", "melee or ranged spell attack": "ms,rs", "melee weapon attack": "mw",
-  "ranged weapon attack": "rw", "melee spell attack": "ms", "ranged spell attack": "rs" });
+  "ranged weapon attack": "rw", "melee spell attack": "ms", "ranged spell attack": "rs", "melee or ranged power attack": "ms,rs",
+  "melee power attack": "ms", "ranged power attack": "rs" });
 // The colon after "Attack" is sometimes forgotten, or a comma ("Melee Weapon Attack +7 to hit", "Melee Weapon Attack, +9").
-const ATTACK_LEAD = /^(Melee or Ranged Weapon Attack|Melee or Ranged Spell Attack|Melee Weapon Attack|Ranged Weapon Attack|Melee Spell Attack|Ranged Spell Attack)[:,]?\s*([+\-−–]?\d+) to hit\b/i;
+const ATTACK_LEAD = /^(Melee or Ranged Weapon Attack|Melee or Ranged Spell Attack|Melee or Ranged Power Attack|Melee Weapon Attack|Ranged Weapon Attack|Melee Spell Attack|Ranged Spell Attack|Melee Power Attack|Ranged Power Attack)[:,]?\s*([+\-−–]?\d+) to hit\b/i;
 // A spell list: "Cantrips (at will):", "1st level (4 slots):", "1st–5th level (3 5th-level slots):", "At will:", "3/day each:".
 const SPELL_LEVEL_LINE = /^(?:(Cantrips)|(\d)(?:st|nd|rd|th)(?:\s*[-–]\s*(\d)(?:st|nd|rd|th))?[- ]level)\s*\(([^)]*)\)\s*:\s*(.*)$/i;
 const SPELL_USES_LINE = /^(At will|(\d+)\/(day|week|rest)( each)?)\s*:\s*(.*)$/i;
@@ -63,7 +69,10 @@ const SPELL_LIST_START = /\s+(?=(?:Cantrips \(at will\)|\d(?:st|nd|rd|th)(?:\s*[
 const MINOR_WORDS = new Set(["a", "an", "and", "as", "at", "by", "for", "from", "in", "into", "of", "on", "or", "the", "to", "with", "vs"]);
 // The 2024 stat block ("AC 15 Initiative +2 (12)", "Melee Attack Roll: +4", "Dexterity Saving Throw: DC 13") and the Italian
 // one ("Classe Armatura", "Punti Ferita"): not read yet.
-const RULES_2024 = /^(?:AC \d+|HP \d+|CR [\d/]+)\b|\b(?:Melee|Ranged|Melee or Ranged) Attack Roll:|\b(?:Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma) Saving Throw: DC \d+/m;
+// The rules, read in the actions: "Melee Attack Roll: +4", "Dexterity Saving Throw: DC 13". A header in the 2024 layout
+// ("AC 15 Initiative +1 (11)", the MOD and SAVE columns, "CR 1 (XP 200; PB +2)") with the actions of 2014 is a 2014 stat
+// block: GM Binder's 2024 template (lotto ST3).
+const RULES_2024 = /\b(?:Melee|Ranged|Melee or Ranged) Attack Roll:|\b(?:Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma) Saving Throw: DC \d+/m;
 const ITALIAN = /^\W*(?:Classe Armatura|Punti Ferita)\b/im;
 
 const textOf = (lines) => lines.join(" ").replace(/\s+/g, " ").trim();
@@ -97,7 +106,8 @@ export function isStatblockEntryName(name) {
 // The text looks like a stat block: an armor class and hit points, in English or Italian, 2014 or 2024.
 export function looksLikeStatblockText(text) {
   const value = String(text ?? "");
-  return /^\W*(?:Armor Class|AC|Classe Armatura|CA)\s+\d/im.test(value) && /^\W*(?:Hit Points|HP|Punti Ferita|PF)\s+\d/im.test(value);
+  // "**Armor Class** 12", "**AC** 15" (GM Binder, Homebrewery): the markup between the label and its number too.
+  return /^\W*(?:Armor Class|AC|Classe Armatura|CA)[*_:.]*\s+\d/im.test(value) && /^\W*(?:Hit Points|HP|Punti Ferita|PF)[*_:.]*\s+\d/im.test(value);
 }
 
 function normalizedLines(text, report) {
@@ -106,7 +116,14 @@ function normalizedLines(text, report) {
     value = value.slice(0, MAX_STATBLOCK_TEXT);
     report.push("testo tagliato a 20.000 caratteri");
   }
-  value = value.replace(/\r\n?/g, "\n").replace(INVISIBLE, "").replace(WIDE_SPACES, " ").replace(SINGLE_QUOTES, "'").replace(DOUBLE_QUOTES, '"');
+  value = value.replace(/\r\n?/g, "\n");
+  // The HTML of a GM Binder or Homebrewery template ("<div class=\"statblock\">", "<span …>Large Beast</span><br/>", "&nbsp;",
+  // a <style> block): the text only, a line for each <br>.
+  if (/<(?:div|span|br|p|style|head|link|section|strong|em)\b[^>]*>|<\/(?:div|span|head|p|section)>/i.test(value)) {
+    value = value.replace(/<style\b[\s\S]*?<\/style>/gi, "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/?[a-z][^>]*>/gi, "")
+      .replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;/g, "'");
+  }
+  value = value.replace(INVISIBLE, "").replace(WIDE_SPACES, " ").replace(SINGLE_QUOTES, "'").replace(DOUBLE_QUOTES, '"');
   for (const [from, to] of LIGATURES) value = value.split(from).join(to);
   return value.split("\n").map((line) => ({ text: line.replace(/ {2,}/g, " ").trim() }));
 }
@@ -122,7 +139,8 @@ function fromMarkdown(lines) {
   for (const { text: raw } of lines) {
     let text = raw.replace(/^(?:>\s*)+/, "").replace(/^[-*]\s+(?=\*\*)/, "").replace(/^#{1,6}\s+/, "").trim();
     if (/^\{\{|^\}\}$|^\\(?:pagebreak|column)\b|^_{3,}$|^-{3,}$|^:+$/.test(text)) continue;
-    if (/^\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)*\|?$/.test(text)) continue;
+    // "|:---:|:--:|---|": a table's alignment row, with two dashes too.
+    if (/^\|?\s*:?-{2,}:?\s*(?:\|\s*:?-{2,}:?\s*)*\|?$/.test(text)) continue;
     if (/^\|.*\|$/.test(text)) text = text.split("|").map((cell) => cell.trim()).filter(Boolean).join(" ");
     let name = "";
     const marked = text.match(/^(?:\*{3}|_\*\*|\*\*_)\s*([^*_]+?)\s*(?:\*{3}|\*\*_|_\*\*)\s*(\.?)\s*/);
@@ -149,6 +167,39 @@ function joinHyphenated(lines) {
     else out.push({ ...line });
   }
   return out;
+}
+
+// A PDF's header runs its labels together ("Armor Class 15 (natural armor) Hit Points 97 (15d8 + 30) Speed 30 ft.",
+// "slashing from nonmagical attacks Damage Immunities acid, fire Senses darkvision 120 ft. Languages Abyssal"): split
+// before each label in the middle of a line, written as a label is (lotto ST3, The Book of Fiends and Flee, Mortals!).
+// The type line too, when the PDF puts it after the speed ("Speed 50 ft. Medium fiend (devil)").
+const INNER_LABEL = /\s(?=(?:Armor Class|Hit Points|Speed|Saving Throws|Skills|Damage Vulnerabilities|Damage Resistances|Damage Immunities|Condition Immunities|Senses|Languages|Challenge|Proficiency Bonus|Initiative)\s|CR [\d/]+ [A-Z]|(?:Tiny|Small|Medium|Large|Huge|Gargantuan) (?:aberration|beast|celestial|construct|dragon|elemental|fey|fiend|giant|humanoid|monstrosity|ooze|plant|undead|swarm)\b)/g;
+// An alignment alone, the rest of a type line the PDF broke ("lawful evil"): no header field of its own.
+const ALIGNMENT_ONLY = /^(?:(?:lawful|neutral|chaotic)(?: (?:good|neutral|evil))?|unaligned|any(?: non-\w+| \w+)? alignment)$/i;
+// MCDM's challenge line, "CR 4 Artillery 1,100 XP" (the role and the XP; a PDF may break the thousands on the next line).
+const ROLE_CR = /^CR ([\d/]+) [A-Z][a-z]+(?: [\d,]+(?: XP)?)?$/;
+function splitHeaderLabels(text) {
+  return text.split(INNER_LABEL).map((piece) => piece.trim()).filter(Boolean);
+}
+const ABILITY_START = /^(?:STR|DEX|CON|INT|WIS|CHA)(?:\s|$)/i;
+// One score of the 2024 layout: "STR 14 +2 +2", the ability, its score, its modifier and its save.
+const SCORE_SAVE = /(STR|DEX|CON|INT|WIS|CHA)\s+(\d+)\s+([+\-−–]?\d+)\s+([+\-−–]?\d+)/gi;
+// Lines of a book's layout between the type and the armor class (Flee, Mortals!'s "Companion", "Retainer", "450 XP").
+const HEADER_NOISE = /^(?:\d[\d,]* XP|Companion|Retainer)$/i;
+// "Large fiend (demon), chaotic evil Ac t ions": a heading spaced out by the PDF at the end of a line goes on its own.
+const TRAILING_HEADING = /^(.*\S)\s+((?:A\s*c\s*t\s*i\s*o\s*n\s*s|R\s*e\s*a\s*c\s*t\s*i\s*o\s*n\s*s|B\s*o\s*n\s*u\s*s\s+A\s*c\s*t\s*i\s*o\s*n\s*s|L\s*e\s*g\s*e\s*n\s*d\s*a\s*r\s*y\s+A\s*c\s*t\s*i\s*o\s*n\s*s))$/;
+// "lawful evil Devil's Sight. Magical darkness …", "Medium fiend (devil), lawful evil Devil's Sight. …": a type line, or
+// the end of a broken one, then the first trait.
+const ALIGNMENT_THEN_ENTRY = /^((?:(?:tiny|small|medium|large|huge|gargantuan) [^,]{2,60}, )?(?:(?:lawful|neutral|chaotic)(?: (?:good|neutral|evil))?|unaligned|any(?: non-\w+| \w+)? alignment))\s+([A-Z][^.]{0,60}\.\s.*)$/i;
+const PRIVATE_FLY = new RegExp(`^[${char(0xe000)}-${char(0xf8ff)}]*y(?=\\s+\\d)`);
+function splitTrailingHeadings(lines) {
+  return lines.flatMap((line) => {
+    const aligned = !line.name && line.text.match(ALIGNMENT_THEN_ENTRY);
+    if (aligned && isStatblockEntryName(aligned[2].slice(0, aligned[2].indexOf(".")))) return [{ text: aligned[1] }, { text: aligned[2] }];
+    const match = !line.name && line.text.match(TRAILING_HEADING);
+    // Only a heading the PDF spaced out ("Ac t ions"): "… the Actions" written whole stays the sentence's.
+    return match && /\S\s\S/.test(match[2].replace(/^Bonus\s+|^Legendary\s+/, "")) ? [{ text: match[1] }, { text: match[2] }] : [line];
+  });
 }
 
 function headerLabel(text) {
@@ -236,7 +287,9 @@ function hitPoints(text) {
 function speed(text, report) {
   const out = {};
   for (const part of splitTop(text.replace(/\.$/, ""), ",")) {
-    const match = part.match(/^(?:(walk|fly|swim|climb|burrow)\s+)?(\(hover\)\s*)?(\d+)\s*(?:ft\.?|feet)?(?:\s*(\(.*\)))?$/i);
+    // "y 50 ft.": a PDF's text that lost the "fl" ligature of "fly", or kept it as a glyph of the font's own (U+E002,
+    // Encounters in Avernus; lotto ST3).
+    const match = part.replace(PRIVATE_FLY, "fly").match(/^(?:(walk|fly|swim|climb|burrow)\s+)?(\(hover\)\s*)?(\d+)\s*(?:ft\.?|feet)?(?:\s*(\(.*\)))?$/i);
     if (!match) {
       report.push(`velocità non letta: «${part}»`);
       continue;
@@ -548,7 +601,7 @@ export function parseStatblockText(text) {
   }
   let lines = normalizedLines(text, report);
   if (isMarkdown(lines)) lines = fromMarkdown(lines);
-  lines = joinHyphenated(lines);
+  lines = splitTrailingHeadings(joinHyphenated(lines));
   if (RULES_2024.test(lines.map((line) => line.text).join("\n"))) {
     return { monster: null, report, error: "Statblock delle regole 2024: dal testo per ora si leggono solo quelli del 2014. Usa il JSON di 5eTools o il prompt per un assistente (IMPORT_SCHEDA.md)." };
   }
@@ -572,27 +625,70 @@ export function parseStatblockText(text) {
   // The header: its labels, the scores, a value that runs on the next line; it ends at the first heading or entry.
   const header = [];
   const unread = [];
+  let earlyHeading = "";
+  const scoresAndSaves = {};
   for (; index < lines.length; index += 1) {
     const line = lines[index];
     if (!line.text) continue;
-    if (line.name || headingOf(line.text)) break;
-    const label = headerLabel(line.text);
-    if (label) {
-      header.push(label);
+    // A heading before the armor class is the other column's, a PDF mixed them ("Ac t ions" over "Armor Class 22"): set
+    // aside, the actions start at their first Multiattack or attack (lotto ST3, The Book of Fiends).
+    if (!line.name && headingOf(line.text) && !header.some(({ field }) => field === "ac")) {
+      earlyHeading = headingOf(line.text);
       continue;
     }
-    if (/^STR(?:\s|$)/i.test(line.text)) {
+    if (line.name || headingOf(line.text)) break;
+    if (HEADER_NOISE.test(line.text)) continue;
+    // The type line a PDF puts after the scores (lotto ST3): the type, when the second line was not.
+    if (!monster.size && !monster.type && TYPE_LINE.test(line.text)) {
+      Object.assign(monster, typeLine(line.text));
+      continue;
+    }
+    // The 2024 layout's scores: "STR 14 +2 +2 INT 1 -5 -5", a score, its modifier and its save, under "MOD SAVE MOD SAVE".
+    if (/^(?:MOD\s+SAVE\s*)+$/i.test(line.text)) continue;
+    const row = line.text.trim();
+    const groups = [...row.matchAll(SCORE_SAVE)];
+    if (groups.length && groups.map((match) => match[0]).join(" ").replace(/\s+/g, " ") === row.replace(/\s+/g, " ")) {
+      for (const match of groups) scoresAndSaves[match[1].toLowerCase()] = { score: Number(match[2]), modifier: Number(hyphenMinus(match[3])), save: Number(hyphenMinus(match[4])) };
+      continue;
+    }
+    const scoresAt = header.findIndex(({ field }) => field === "abilities");
+    if (ABILITY_START.test(line.text) || (scoresAt >= 0 && ABILITY_LINE.test(line.text))) {
       let scores = line.text;
       while (index + 1 < lines.length && (!lines[index + 1].text || ABILITY_LINE.test(lines[index + 1].text))) {
         index += 1;
         if (lines[index].text) scores = `${scores} ${lines[index].text}`;
       }
-      header.push({ field: "abilities", value: scores });
+      // "Str 16 (+3)", "Dex 13 (+1)", "Con Int Wis 14 (+2) 19 (+4) 8 (−1)", then the type, then "Cha 16 (+3)": one row.
+      if (scoresAt >= 0) header[scoresAt].value = `${header[scoresAt].value} ${scores}`;
+      else header.push({ field: "abilities", value: scores });
       continue;
     }
-    if (entryStart(line.text, { kind: "header" })) break;
-    if (header.length && header.at(-1).field !== "abilities") header.at(-1).value = `${header.at(-1).value} ${line.text}`;
-    else unread.push(line.text);
+    const pieces = splitHeaderLabels(line.text);
+    const first = headerLabel(pieces[0]);
+    if (!first && entryStart(line.text, { kind: "header" })) break;
+    pieces.forEach((piece, position) => {
+      if (!monster.size && !monster.type && TYPE_LINE.test(piece)) {
+        Object.assign(monster, typeLine(piece));
+        return;
+      }
+      if ((monster.size || monster.type) && ALIGNMENT_ONLY.test(piece)) return;
+      const role = piece.match(ROLE_CR);
+      const label = role ? { field: "cr", value: role[1] } : headerLabel(piece);
+      if (label) header.push(label);
+      else if (position === 0 && header.length && header.at(-1).field !== "abilities") header.at(-1).value = `${header.at(-1).value} ${piece}`;
+      else unread.push(piece);
+    });
+  }
+  // The scores of the 2024 layout, all six with their modifiers right: the scores, and the saves that are not the modifier
+  // (a proficient save, as the 2014 "Saving Throws" line lists them).
+  const rows = Object.entries(scoresAndSaves);
+  if (rows.length) {
+    if (rows.length === 6 && rows.every(([, row]) => Math.floor((row.score - 10) / 2) === row.modifier)) {
+      for (const key of ABILITY_KEYS) monster[key] = scoresAndSaves[key].score;
+      const saves = Object.fromEntries(ABILITY_KEYS.filter((key) => scoresAndSaves[key].save !== scoresAndSaves[key].modifier)
+        .map((key) => [key, `${scoresAndSaves[key].save >= 0 ? "+" : "-"}${Math.abs(scoresAndSaves[key].save)}`]));
+      if (Object.keys(saves).length) monster.save = saves;
+    } else report.push(`caratteristiche non lette: «${rows.map(([key, row]) => `${key.toUpperCase()} ${row.score} ${row.modifier} ${row.save}`).join(" ")}»`);
   }
   if (!header.some(({ field }) => field === "ac") && !header.some(({ field }) => field === "hp")) {
     return { monster: null, report, error: "Non sembra uno statblock: mancano «Armor Class» e «Hit Points»." };
@@ -660,6 +756,12 @@ export function parseStatblockText(text) {
       const form = start.rest.match(/^\(([^()]{1,60})\)\s*(\S.*)$/);
       const name = form ? `${start.name} (${form[1]})` : start.name;
       const rest = form ? form[2] : start.rest;
+      // The heading set aside in the header (a PDF's mixed columns): it starts at the first Multiattack or attack.
+      if (earlyHeading && section === "trait" && (/^Multiattack\b/i.test(name) || ATTACK_LEAD.test(rest))) {
+        section = earlyHeading;
+        earlyHeading = "";
+        sectionOf(section);
+      }
       current = { name, lines: rest ? [rest] : [] };
       sectionOf(section).entries.push(current);
     } else if (current) current.lines.push(line.text);
