@@ -2192,11 +2192,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!area) return [];
     const card=attackerCard(),save=pcAttackSaveLabel(attack,card);
     if(attack.monster) return pcAttackMonsterAreaNote(attack,card).split(" · ");
-    // A breath weapon: its cone or line. Acid Spit: its one creature, nothing on a success. The metallic breath: its
-    // condition on a failure, no damage.
+    // A breath weapon: its cone or line; Dragon Fear's roar, the creatures it chooses within 9 m. Acid Spit: its one
+    // creature, nothing on a success. The metallic breath: its condition on a failure, no damage.
     if(attack.breath) {
       const onFail=attack.breath.onFail;
-      return [area.shape==="target"?"Un bersaglio entro 9 m":area.shape==="line"?"Linea di 9 m":"Cono di 4,5 m",save,
+      return [area.shape==="target"?"Un bersaglio entro 9 m":area.shape==="line"?"Linea di 9 m":area.shape==="sphere"?`Entro 9 m da ${presentation.item?.name || "l'attaccante"}, solo quelle che scegli`:"Cono di 4,5 m",save,
         onFail?`chi fallisce è ${onFail.condition.toLowerCase()}${onFail.when?` ${onFail.when}`:""}`:attack.breath.half===false?"niente se superato":"metà se superato",
         ...(onFail?.note?[onFail.note]:[])];
     }

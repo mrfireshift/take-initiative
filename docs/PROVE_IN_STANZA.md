@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **289** |
+| **B. Console attacchi, mostri e capacità** | **293** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -80,9 +80,10 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B50. Rudimenti da Guerriero e Adepto Occulto | 4 |
 | B51. Adepto di Metamagia | 4 |
 | B52. Azioni bonus dalle capacità | 5 |
-| B53. Adepto Marziale | 4 |
 | B53. Movimento senza attacchi di opportunità | 5 |
 | B54. Invisibilità delle classi che finisce attaccando | 3 |
+| B55. Adepto Marziale | 4 |
+| B56. Paura Draconica | 4 |
 | B57. Dati corretti dall'audit delle azioni | 3 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
@@ -109,7 +110,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **652** |
+| **Totale** | **656** |
 
 ## A. Incantesimi
 
@@ -993,15 +994,6 @@ Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T4a (decisi
 - [ ] **L'Aquila e il turno:** senza Ira la card dello Spirito Totemico: Aquila dice «Solo in Ira» e **Usa** è spento; in Ira fa lo Scatto. Fuori dal turno della creatura, ogni card di queste capacità ha **Usa** spento con «Solo nel turno della creatura.».
 - [ ] **Maestro di Tattiche e Tecnica dell'Ubriaco:** selezionato un nemico sulla mappa, «Aiuta in» **Un attacco** e **Usa** mettono «Bersaglio dell'aiuto» sul nemico. Un monaco del Maestro Ubriaco con la pill «Tecnica dell'Ubriaco» esce dalla portata di un nemico senza avviso di attacco di opportunità; un nemico con Sentinella lo riceve lo stesso.
 
-### B53. Adepto Marziale
-
-Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F9-3 (decisione D14). Le voci sono nuove: nessuna lista le aveva. Serve un ladro di 4° livello con Adepto Marziale e Forza +3, e un mostro nemico.
-
-- [ ] **Le manovre:** nei Talenti della scheda ci sono due menu «Manovra»; scelte **Attacco Minaccioso** e **Parata** e salvato, ci sono le due card e il contatore del dado (1).
-- [ ] **Sul colpo:** nella console, colpito il mostro in mischia, fra gli extra c'è «Adepto Marziale: Attacco Minaccioso» con 1d6 e TS Saggezza CD 13; **Registra** aggiunge il d6 scritto, spende il dado e, con il TS fallito, mette Spaventato. Il dado torna con un riposo breve.
-- [ ] **Parata:** il mostro colpisce il ladro in mischia: l'avviso offre Parata; la riduzione si scrive sotto il danno e **Registra** spende dado e reazione.
-- [ ] **Il Maestro di Battaglia:** un guerriero Maestro di Battaglia con lo stesso talento vede le sue manovre con il d8 della classe e quelle del talento con il d6, ciascuna sul suo pool.
-
 ### B53. Movimento senza attacchi di opportunità
 
 Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T4b (decisione A2). Le voci sono nuove: nessuna lista le aveva. Servono un ladro Esploratore, un chierico della Pace, un bardo dell'Incanto con Carisma +2 e un nemico, in combattimento; per l'ultima voce un nemico con il talento Sentinella.
@@ -1019,6 +1011,24 @@ Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T4c (decisi
 - [ ] **Manto di Ombre:** il chierico usa Incanalare Divinità: Manto di Ombre e ha la pill «Invisibile · Manto di Ombre»; un attacco registrato dalla console, anche mancato, la toglie nello stesso comando, e il suo Annulla la rimette. Da provare in vista compatta ed estesa.
 - [ ] **Velo Psichico:** con «Invisibile · Velo Psichico», un attacco **mancato** lascia la pill; un attacco **a segno** con danni la toglie.
 - [ ] **Corpo Vuoto:** il monaco con «Invisibile · Corpo Vuoto» attacca e colpisce: la pill resta.
+
+### B55. Adepto Marziale
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F9-3 (decisione D14). Le voci sono nuove: nessuna lista le aveva. Serve un ladro di 4° livello con Adepto Marziale e Forza +3, e un mostro nemico.
+
+- [ ] **Le manovre:** nei Talenti della scheda ci sono due menu «Manovra»; scelte **Attacco Minaccioso** e **Parata** e salvato, ci sono le due card e il contatore del dado (1).
+- [ ] **Sul colpo:** nella console, colpito il mostro in mischia, fra gli extra c'è «Adepto Marziale: Attacco Minaccioso» con 1d6 e TS Saggezza CD 13; **Registra** aggiunge il d6 scritto, spende il dado e, con il TS fallito, mette Spaventato. Il dado torna con un riposo breve.
+- [ ] **Parata:** il mostro colpisce il ladro in mischia: l'avviso offre Parata; la riduzione si scrive sotto il danno e **Registra** spende dado e reazione.
+- [ ] **Il Maestro di Battaglia:** un guerriero Maestro di Battaglia con lo stesso talento vede le sue manovre con il d8 della classe e quelle del talento con il d6, ciascuna sul suo pool.
+
+### B56. Paura Draconica
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F9-4. Le voci sono nuove: nessuna lista le aveva. Serve un dragonide blu di 5° livello con Paura Draconica e Carisma +3, e due goblin entro 9 m.
+
+- [ ] **L'opzione:** nella console attacchi, fra i soffi, c'è «Arma a soffio (fulmine): Paura Draconica (ruggito)», con TS Saggezza CD 14, nessun danno e la riga «Entro 9 m da <nome>, solo quelle che scegli»; senza il talento non c'è.
+- [ ] **Il ruggito:** i goblin entro 9 m sono proposti, con gli alleati vicini che il GM toglie; uno fallisce e uno supera: **Registra** mette Spaventato (1 minuto) solo sul primo e spende l'uso del soffio.
+- [ ] **Il TS ripetuto:** il goblin spaventato subisce danni: il promemoria chiede il TS Saggezza CD 14; superato, Spaventato finisce.
+- [ ] **Il soffio:** dopo il ruggito, il soffio con danni non ha più l'uso fino al riposo.
 
 ### B57. Dati corretti dall'audit delle azioni
 

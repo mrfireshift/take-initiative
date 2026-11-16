@@ -8,7 +8,7 @@ con S1–S9 approvate** (§7.4), **F3b-1, F3b-2, F3b-3, F3b-4 e F3b-5 il 16/11**
 con H1–H7 approvate** (§7.11), **F5-1, F5-2 e F5-3 il 16/11** (§7.12–§7.14):
 F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 approvate** (§7.15), **F6-1…F6-5
 il 16/11** (§7.16–§7.20): F6 è chiuso. **Il piano di F9 il 16/11** (§7.21),
-**F9-1, F9-2 e F9-3 il 16/11** (§7.22–§7.24).
+**F9-1…F9-4 il 16/11** (§7.22–§7.25): F9 è chiuso.
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -1983,7 +1983,28 @@ classe).
   con Finta…) si usano dalla card, che spende il d6.
 - **`classFeatureCatalog.js`** ha righe non committate delle trasformazioni: il
   commit prende HEAD + le righe di F9-3.
-- **Documenti:** le prove in stanza sono in B53 (B52 è delle azioni di turno).
+- **Documenti:** le prove in stanza sono in B55: nata B53, rinumerata con F9-4
+  perché B52–B54 sono delle azioni di turno.
+
+### 7.25 F9-4, fatto il 16/11
+
+**Paura Draconica.** Come la §7.21. Con F9-4 il lotto F9 è chiuso.
+
+- **Il ruggito:** nella console attacchi, accanto al soffio con danni di un
+  dragonide con il talento, l'opzione «Paura Draconica (ruggito)»
+  (`DRAGON_FEAR_VARIANT`). Senza il talento non c'è; il soffio metallico, che
+  non fa danni, non la ha.
+- **Il tiro:** TS Saggezza con la CD 8 + competenza + Carisma; nessun danno;
+  le creature entro 9 m sono proposte e il GM toglie quelle che risparmia,
+  alleati compresi. La riga sotto la scelta dice «Entro 9 m da <nome>, solo
+  quelle che scegli» (`pc-attack.js`), non il cono del soffio.
+- **Chi fallisce** è Spaventato per 1 minuto (10 round), con il promemoria del TS
+  quando subisce danni (`saveReminder`, `timing: "damage"`): se lo supera, la
+  pill finisce.
+- **L'uso:** il ruggito spende l'uso del soffio, come il soffio stesso.
+- **`pcAttackCore.js` e `pc-attack.js`** hanno righe non committate di altre
+  sessioni: il commit prende HEAD + le righe di F9-4.
+- **Documenti:** le prove in stanza sono in B56.
 
 ---
 

@@ -465,7 +465,9 @@ const DEFINITIONS = [
       { key: "passo-veloce", spellId: "longstrider", name: "Passo veloce", uses: "lungo" },
       { key: "passare-senza-tracce", spellId: "pass-without-trace", name: "Passare senza tracce", uses: "lungo" },
     ] }),
-  feat("xge", 74, "Paura Draconica", "Dragon Fear", { prerequisite: "Dragonide", species: DRAGONBORN, abilities: ["str", "con", "cha"] }),
+  // Lot F9-4: the roar, an option of the breath with damage in the attack console (pcAttackCore.js), spending its use.
+  feat("xge", 74, "Paura Draconica", "Dragon Fear", { prerequisite: "Dragonide", species: DRAGONBORN, abilities: ["str", "con", "cha"],
+    plugin: "Nella console, accanto al soffio, il ruggito: le creature scelte entro 9 m, TS Saggezza (8 + competenza + Carisma) o Spaventato per 1 minuto, con il TS di nuovo quando subiscono danni. Spende l'uso del soffio." }),
   feat("xge", 75, "Pelle di Drago", "Dragon Hide", { prerequisite: "Dragonide", species: DRAGONBORN, abilities: ["str", "con", "cha"],
     plugin: "Gli artigli si aggiungono agli Attacchi da questa card (1d4 + Forza, taglienti); la CA va scritta nella scheda.",
     naturalWeapon: { label: "Artigli", dice: "1d4", type: "slashing", ability: "str" } }),

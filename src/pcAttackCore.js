@@ -39,7 +39,7 @@ import { areaHitsBounds, buildFootprintEmanationArea, gridFootprintCells } from 
 import { PC_ATTACK_CANTRIPS, PC_ATTACK_SAVE_LABELS, getPcAttackCantrip, pcAttackCantripDice, pcAttackWeaponCantripDice } from "./pcAttackCantripCatalog.js";
 import { PC_ATTACK_SPELLS, getPcAttackSpell, pcAttackSpellCount, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
 import { abilityModifier, abilitySaveDC, proficiencyBonusForLevel, totalCharacterLevel } from "./abilityModifiersCore.js";
-import { featSpellcastingAbility } from "./featCatalog.js";
+import { featFeaturesForProfile, featSpellcastingAbility } from "./featCatalog.js";
 import { speciesNaturalWeaponActionId } from "./speciesNaturalWeaponCore.js";
 import { spellTargetRangeMeters } from "./spellAreaCatalog.js";
 import { consumedAdvantagePills, hiddenPills } from "./attackAdvantagePillsCore.js";
@@ -258,15 +258,24 @@ function breathActionShape(action) {
   const variant = pcAttackBreathVariant(action?.id);
   const breath = featureId === action?.source?.featureId ? getClassFeatureDefinition(featureId)?.breath : null;
   const component = Array.isArray(action?.components) ? action.components[0] : null;
-  if (!breath || (breath.damageType && component?.type !== breath.damageType)) return null;
-  if (breath.variants ? !breath.variants[variant] : !!variant) return null;
+  // Dragon Fear (lot F9-4 of docs/STUDIO_TALENTI.md): the roar instead of a breath with damage, no component.
+  const roar = variant === DRAGON_FEAR_VARIANT;
+  if (!breath || (breath.damageType && !roar && component?.type !== breath.damageType)) return null;
+  if (roar ? !breath.damageType : breath.variants ? !breath.variants[variant] : !!variant) return null;
   return {
     version: QUICK_ACTION_VERSION, id: pcAttackBreathActionId(featureId, variant), label: String(action.label || ""), kind: "attack",
     targetMode: "selection", range: "ranged", source: { kind: "breath", featureId, ...(variant ? { variant } : {}) },
-    components: breath.damageType
+    components: breath.damageType && !roar
       ? [{ id: "c1", type: breath.damageType, ...(component.formula ? { formula: String(component.formula) } : {}) }] : [],
   };
 }
+
+// Dragon Fear (lot F9-4): the option of a dragonborn's breath with damage that roars instead, for a card with the feat.
+// Each creature chosen within 9 m saves on Wisdom (8 + proficiency + Charisma) or is Frightened for 1 minute, saving
+// again when it takes damage; it spends the breath's use.
+export const DRAGON_FEAR_VARIANT = "paura-draconica";
+const DRAGON_FEAR_FEATURE_ID = "talento-paura-draconica";
+const hasDragonFear = (card) => featFeaturesForProfile(card).some((feature) => feature.id === DRAGON_FEAR_FEATURE_ID);
 
 // The breath's dice at the character's total level ("3d6" at 6th level for the PHB breath).
 export function pcAttackBreathDice(breath, card = {}) {
@@ -283,16 +292,23 @@ export function pcAttackBreathAction(card = {}, actionId = "") {
   const feature = featureId ? getEnabledClassFeatures(card).find((entry) => entry.id === featureId && entry.breath) : null;
   if (!feature) return null;
   const variant = pcAttackBreathVariant(actionId) || Object.keys(feature.breath.variants || {})[0] || "";
+  if (variant === DRAGON_FEAR_VARIANT) {
+    if (!feature.breath.damageType || !hasDragonFear(card)) return null;
+    return breathActionShape({ id: pcAttackBreathActionId(featureId, variant), label: `${feature.name}: Paura Draconica (ruggito)`,
+      source: { kind: "breath", featureId }, components: [] });
+  }
   const option = variant ? feature.breath.variants?.[variant] : null;
   return breathActionShape({ id: pcAttackBreathActionId(featureId, variant), label: option ? `${feature.name}: ${option.label}` : feature.name,
     source: { kind: "breath", featureId },
     components: feature.breath.damageType ? [{ type: feature.breath.damageType, formula: pcAttackBreathDice(feature.breath, card) }] : [] });
 }
 
-// The breath weapons a card offers: one per enabled breath trait, one per option of the metallic breath.
+// The breath weapons a card offers: one per enabled breath trait, one per option of the metallic breath, and Dragon
+// Fear's roar beside a breath with damage (lot F9-4).
 export function pcAttackBreathActionsForCard(card = {}) {
   return getEnabledClassFeatures(card).filter((feature) => feature.breath)
-    .flatMap((feature) => (feature.breath.variants ? Object.keys(feature.breath.variants) : [""])
+    .flatMap((feature) => [...(feature.breath.variants ? Object.keys(feature.breath.variants) : [""]),
+      ...(feature.breath.damageType && hasDragonFear(card) ? [DRAGON_FEAR_VARIANT] : [])]
       .map((variant) => pcAttackBreathAction(card, pcAttackBreathActionId(feature.id, variant))))
     .filter(Boolean);
 }
@@ -369,6 +385,15 @@ export function pcAttackResolvedAction(action, spellId = "", attackMode = "") {
     const feature = getClassFeatureDefinition(attack.source.featureId);
     const breath = feature?.breath;
     if (!breath) return null;
+    // Dragon Fear's roar (lot F9-4): the creatures chosen within 9 m proposed, no damage, Frightened for 1 minute with
+    // the save again when damaged.
+    if (attack.source.variant === DRAGON_FEAR_VARIANT) {
+      return { ...attack, save: "wis", saveHalf: false,
+        area: { manual: true, shape: "sphere", sizeFeet: 30, origin: "self", proposeFeet: 30, chosen: true },
+        breath: { featureId: feature.id, name: attack.label || feature.name, damageType: "", half: false, variant: DRAGON_FEAR_VARIANT,
+          dragonFear: true, onFail: { condition: "Spaventato", expiry: { mode: "rounds", remaining: 10 }, when: "per 1 minuto",
+            repeat: "damage" } } };
+    }
     // Acid Spit: one creature ticked (shape "target"); the metallic breath: its option's save and condition.
     const option = attack.source.variant ? breath.variants?.[attack.source.variant] : null;
     const onFail = option?.condition
@@ -577,7 +602,8 @@ function pcAttackSaveDC(attack, card = {}) {
   // A monster's action prints its own DC: never the card's spell save DC.
   if (Number.isInteger(attack?.saveDC)) return attack.saveDC;
   if (attack?.mode) return pcAttackActivationSaveDC(getPcAttackActivation(attack.mode.id), card) || null;
-  if (attack?.breath) return abilitySaveDC(card, "con");
+  // Dragon Fear's roar (lot F9-4): 8 + proficiency + Charisma.
+  if (attack?.breath) return abilitySaveDC(card, attack.breath.dragonFear ? "cha" : "con");
   // Decision S3 of docs/STUDIO_TALENTI.md: a spell the character knows only from a feat takes the feat's ability.
   const featAbility = featSpellcastingAbility(card, attack?.cantrip?.spellId || attack?.spell?.spellId);
   const featDC = featAbility ? abilitySaveDC(card, featAbility) : null;
@@ -2358,6 +2384,9 @@ export function buildPcAttackAreaMutation({
       instanceIds: { [row.item.id]: bossGroupConditionInstanceId(`${attackInstanceId}:breath`, onFail.condition, row.item.id) },
       options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", manualRemoval: !onFail.expiry,
         expiry: onFail.expiry ? { ...onFail.expiry, ...(onFail.expiry.actor === "source" ? { actorId: sourceItem.id } : {}) } : { mode: "manual" },
+        // Dragon Fear (lot F9-4): the save again when the creature takes damage, with the roar's DC.
+        ...(onFail.repeat ? { saveReminder: { ability: pcAttackSave(attack), timing: onFail.repeat, dc: pcAttackSaveDC(attack, card),
+          label: `Se supera il TS, termina ${onFail.condition}.` } } : {}),
         ...(appliedAt ? { appliedAt } : {}) } }));
   if (conditionOperations.length) {
     causality.conditionsApplied = conditionOperations.map((operation) => ({ targetId: operation.targetIds[0], condition: operation.conditionName,
