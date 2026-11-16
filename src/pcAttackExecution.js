@@ -14,7 +14,7 @@ import { pcAttackPickerDefault, pcAttackPickerEntries } from "./pcAttackPickerCo
 import { spellbookActiveSpellIds, spellbookAttackAction } from "./spellbookCatalog.js";
 import { isSpellbookAttackActionId } from "./spellbookCore.js";
 import { isSpellGrantActionId, spellGrantedActionForItem, spellGrantedActionsForItem } from "./spellGrantedActionsCore.js";
-import { buildPcGrappleEndMutation, buildPcManeuverMutation } from "./pcAttackManeuverCore.js";
+import { buildPcGrappleEndMutation, buildPcGrapplePinMutation, buildPcManeuverMutation } from "./pcAttackManeuverCore.js";
 import { buildPcReadiedSpellMutation, buildPcTurnActionMutation } from "./pcAttackTurnActionCore.js";
 import { buildPcNoOpportunityMutation } from "./pcAttackTurnActionViaCore.js";
 import { bossFeetPerCell } from "./bossActionsViewCore.js";
@@ -677,6 +677,16 @@ export function createPcAttackRuntime({
           attackInstanceId,turnState:scope.turnState});
       });
   }
+  // Grappler's pin (lot F8-2 of docs/STUDIO_TALENTI.md): the creature it holds and itself Restrained, one command.
+  async function pinPcGrapple(request={}) {
+    const {sourceId,grappledId,instanceId}=request;
+    return runManeuver(request,{kind:"grapple-pin",sourceId,grappledId,instanceId},
+      async(scope,attackInstanceId)=>{
+        const [grappledItem]=await api.scene.items.getItems([grappledId]);
+        if(!grappledItem) throw new Error("La creatura afferrata non è più presente nella scena.");
+        return buildPcGrapplePinMutation({sourceItem:scope.item,grappledItem,instanceId,attackInstanceId,turnState:scope.turnState});
+      });
+  }
   // ✦ Magica (lotto M5): a weapon attack's flag, written on the card as the sheet writes its natural weapons, a partial
   // save that keeps every other field as stored. A setting of the card, not an event: no History, nothing to undo there.
   async function setPcAttackActionMagical({sourceId,actionId,magical}={}) {
@@ -697,7 +707,7 @@ export function createPcAttackRuntime({
       return {magical:magical===true};
     } finally {busy.delete(sourceId);}
   }
-  return {getPcAttackPresentation,executePcAttack,endQuiveringPalm,executePcAttackArea,getPcAttackNearby,executePcManeuver,executePcTurnAction,endPcGrapple,
+  return {getPcAttackPresentation,executePcAttack,endQuiveringPalm,executePcAttackArea,getPcAttackNearby,executePcManeuver,executePcTurnAction,endPcGrapple,pinPcGrapple,
     executePcAttackSpellTeleport,setPcAttackActionMagical,executePcReadiedSpell,executePcNoOpportunity};
 }
 const runtime=createPcAttackRuntime();
@@ -708,6 +718,7 @@ export const executePcAttackArea=(...args)=>runtime.executePcAttackArea(...args)
 export const getPcAttackNearby=(...args)=>runtime.getPcAttackNearby(...args);
 export const executePcManeuver=(...args)=>runtime.executePcManeuver(...args);
 export const endPcGrapple=(...args)=>runtime.endPcGrapple(...args);
+export const pinPcGrapple=(...args)=>runtime.pinPcGrapple(...args);
 export const executePcTurnAction=(...args)=>runtime.executePcTurnAction(...args);
 export const executePcReadiedSpell=(...args)=>runtime.executePcReadiedSpell(...args);
 export const executePcNoOpportunity=(...args)=>runtime.executePcNoOpportunity(...args);

@@ -732,6 +732,11 @@ function maneuverLogLines(maneuver) {
     return [`${name}${contest ? ` (${contest})` : ""}: ${result}${effect}`,
       ...(stringValue(maneuver.manual) ? [`Da fare: ${stringValue(maneuver.manual)}`] : [])];
   }
+  // Grappler's pin (lot F8-2 of docs/STUDIO_TALENTI.md): both Restrained until the grapple ends.
+  if (maneuver.kind === "grapple-pin") {
+    return [`Presa: ${stringValue(maneuver.grapplerName) || "una creatura"} immobilizza ${stringValue(maneuver.grappledName) || "la creatura"}`
+      + `${contest ? ` (${contest})` : ""}: riuscita · Trattenuti tutti e due`];
+  }
   if (maneuver.kind !== "grapple-end") return [];
   const grappler = stringValue(maneuver.grapplerName) || "una creatura";
   const grappled = stringValue(maneuver.grappledName) || "la creatura";

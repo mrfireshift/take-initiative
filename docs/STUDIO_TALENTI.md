@@ -10,7 +10,7 @@ F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 approvate** (§7.15), **F6-
 il 16/11** (§7.16–§7.20): F6 è chiuso. **Il piano di F9 il 16/11** (§7.21),
 **F9-1…F9-4 il 16/11** (§7.22–§7.25): F9 è chiuso. **Il piano di F2 il 16/11,
 con M1–M6 approvate** (§7.26), **F2-1, F2-2 e F2-3 il 16/11** (§7.27–§7.29): F2 è
-chiuso. **Il piano dei PF di F7 il 16/11, con N1–N6 approvate** (§7.30), **F7-1, F7-2 e F7-3 il 16/11** (§7.31–§7.33): F7 è chiuso. **Il piano di F8 il 16/11, con P1–P7 approvate** (§7.34), **F8-1 il 16/11** (§7.35).
+chiuso. **Il piano dei PF di F7 il 16/11, con N1–N6 approvate** (§7.30), **F7-1, F7-2 e F7-3 il 16/11** (§7.31–§7.33): F7 è chiuso. **Il piano di F8 il 16/11, con P1–P7 approvate** (§7.34), **F8-1 e F8-2 il 16/11** (§7.35, §7.36).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -2505,6 +2505,24 @@ con F8-1»).
   Nascosto (`pcAttackLinkEnds`, `keepHidden`); la nota sul bersaglio lo dice.
 - **Le righe «Nel plugin»** dei quattro talenti lo dicono.
 - **Documenti:** le prove in stanza sono in B65.
+
+### 7.36 F8-2, fatto il 16/11
+
+**Lottatore (P3).**
+
+- **Il vantaggio:** fra le note sul bersaglio (`pcAttackTargetNotes`),
+  «Lottatore: vantaggio all'attacco, lo afferri» quando il personaggio con il
+  talento afferra il bersaglio.
+- **Immobilizza:** nella riga «Tiene …» della presa della console, per chi ha il
+  talento, il pulsante della prova riuscita (`buildPcGrapplePinMutation`, nel
+  runtime `pinPcGrapple`). Mette Trattenuto sulla creatura e su chi afferra,
+  in un comando e un Annulla; le due pill dicono la loro presa
+  (`mechanics.pin.grappleInstanceId`). Una prova fallita non si registra.
+- **La fine della presa** (Lascia andare, Sfugge) toglie anche il Trattenuto di
+  chi afferra; «Non sfugge» lascia tutto. Il registro del combattimento dice le
+  due cose.
+- **La riga «Nel plugin»** del talento lo dice.
+- **Documenti:** le prove in stanza sono in B66.
 
 ---
 

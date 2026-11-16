@@ -477,6 +477,28 @@ test("Sweeping Attack: the target, the second creature and the die in one Histor
   assert.equal(meta("aria").classFeatureState?.resources?.["guerriero-dadi-superiorita"]?.current ?? 5, 5);
 });
 
+// Lot F8-2 of docs/STUDIO_TALENTI.md: Grappler's pin through the runtime: Restrained on both in one entry, its Undo, and
+// the grapple's end that takes both away.
+test("Grappler: Immobilizza puts Restrained on both, one Undo takes them away; letting go ends both", async () => {
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "guerriero", level: 4 }], feats: [{ id: "lottatore" }] });
+  Object.assign(meta("ghoul"), { conditions: { instances: [{ id: "grab-1", condition: "Afferrato", active: true, sourceId: "aria", sourceName: "Aria" }] } });
+  const pills = (id) => (meta(id).conditions?.instances || meta(id).conditions || []).filter((instance) => instance.active !== false)
+    .map((instance) => instance.condition);
+  const presentation = await runtime.getPcAttackPresentation("aria", "holy-sword");
+  await runtime.pinPcGrapple({ sourceId: "aria", grappledId: "ghoul", instanceId: "grab-1", attackInstanceId: "pin-1", sceneIdentity: presentation.sceneIdentity });
+  assert.deepEqual([pills("aria"), pills("ghoul")], [["Trattenuto"], ["Afferrato", "Trattenuto"]]);
+  const entries = (await history.getHistoryEntries()).filter((entry) => entry.kind === "pc-attack");
+  assert.equal(entries.length, 1);
+  await history.undoHistoryThrough(entries[0].id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual([pills("aria"), pills("ghoul")], [[], ["Afferrato"]]);
+  const again = await runtime.getPcAttackPresentation("aria", "holy-sword");
+  await runtime.pinPcGrapple({ sourceId: "aria", grappledId: "ghoul", instanceId: "grab-1", attackInstanceId: "pin-2", sceneIdentity: again.sceneIdentity });
+  const third = await runtime.getPcAttackPresentation("aria", "holy-sword");
+  await runtime.endPcGrapple({ sourceId: "aria", grappledId: "ghoul", instanceId: "grab-1", outcome: "release", attackInstanceId: "end-1",
+    sceneIdentity: third.sceneIdentity });
+  assert.deepEqual([pills("aria"), pills("ghoul")], [[], []]);
+});
+
 // Lot F2-3 of docs/STUDIO_TALENTI.md: Maneuvering Attack's ally is read from the scene like the target, its pill «No AdO»
 // and its reaction in the attack's entry; one Undo takes them away.
 test("Maneuvering Attack: the ally chosen gets «No AdO: <target>» and its reaction spent in the attack's entry; one Undo takes them away", async () => {

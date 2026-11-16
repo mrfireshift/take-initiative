@@ -62,6 +62,65 @@ export function pcGrappleHolds(items = [], sourceId = "") {
     .map((instance) => ({ targetId: item.id, name: item.name || item.id, instanceId: String(instance.id || "") })));
 }
 
+// Grappler (lot F8-2 of docs/STUDIO_TALENTI.md, decision P3): with its action, a new grapple check against the creature it
+// holds; on a success both are Restrained until the grapple ends. The console's button is the success: a failure records
+// nothing. The two pills name their grapple (mechanics.pin.grappleInstanceId), so its end takes both away.
+export const PC_GRAPPLE_PIN_NOTE = "Con l'azione, una nuova prova di Lotta: se riesce, tutti e due Trattenuti finché la presa non finisce.";
+const GRAPPLER_FEATURE_ID = "talento-lottatore";
+const hasGrappler = (item) => featFeaturesForProfile(item?.metadata?.[META_KEY]?.initiativeCard || {})
+  .some((feature) => feature.id === GRAPPLER_FEATURE_ID);
+const pinOf = (instance) => String(instance?.mechanics?.pin?.grappleInstanceId || "");
+export function pcGrapplePinned(item, instanceId = "") {
+  return !!instanceId && conditionInstancesOf(item).some((entry) => active(entry) && entry.condition === RESTRAINED && pinOf(entry) === instanceId);
+}
+// Whether the console offers «Immobilizza» on this hold: the actor has Grappler and has not pinned it yet.
+export function pcGrapplePinOffered(sourceItem, grappledItem, instanceId = "") {
+  return hasGrappler(sourceItem) && !!grappledItem && !pcGrapplePinned(grappledItem, instanceId);
+}
+export function buildPcGrapplePinMutation({ sourceItem, grappledItem, instanceId = "", attackInstanceId, turnState = null } = {}) {
+  if (!attackInstanceId || typeof attackInstanceId !== "string") throw new Error("Identità dell'azione mancante.");
+  if (!isBossActionCreature(sourceItem) || !isBossActionCreature(grappledItem)) throw new Error("Le creature della presa devono essere token reali.");
+  if (!hasGrappler(sourceItem)) throw new Error("Immobilizzare richiede il talento Lottatore.");
+  const instance = conditionInstancesOf(grappledItem).find((entry) => active(entry) && entry.condition === GRAPPLED && String(entry.id || "") === instanceId);
+  if (!instance || sourceOf(instance) !== sourceItem.id)
+    throw new Error(`${sourceItem.name || "L'attore"} non afferra più ${grappledItem.name || "la creatura"}: riapri la console.`);
+  if (pcGrapplePinned(grappledItem, instanceId)) throw new Error(`${grappledItem.name || "La creatura"} è già immobilizzata.`);
+  if (incapacitated(sourceItem)) throw new Error(`${sourceItem.name || "L'attore"} è incapacitato: non può immobilizzare.`);
+  const sourceName = sourceItem.name || sourceItem.id;
+  const grappledName = grappledItem.name || grappledItem.id;
+  const turn = turnOf(turnState);
+  const appliedAt = bossConditionAppliedAt(turnState);
+  const pin = (item) => ({ item, instanceId: bossGroupConditionInstanceId(attackInstanceId, RESTRAINED, item.id) });
+  const pins = [pin(grappledItem), pin(sourceItem)];
+  const label = `${sourceName}: immobilizza ${grappledName} (Lottatore)`;
+  const causality = {
+    actor: { id: sourceItem.id, tokenId: sourceItem.id, name: sourceName, role: "attacker" },
+    cause: { kind: PC_ATTACK_HISTORY_KIND, actionName: "Immobilizza", attackInstanceId, maneuver: "grapple-pin" },
+    action: { id: "maneuver:grapple-pin", label: "Immobilizza" },
+    maneuver: { kind: "grapple-pin", outcome: "success", contest: PC_MANEUVER_CONTEST, grappleInstanceId: instanceId,
+      grapplerId: sourceItem.id, grapplerName: sourceName, grappledId: grappledItem.id, grappledName },
+    ...(turn ? { turn } : {}),
+    targets: pins.map(({ item, instanceId: id }) => ({ id: item.id, name: item.name || item.id, conditions: [{ condition: RESTRAINED, instanceId: id }] })),
+  };
+  const lastManeuver = { attackInstanceId, kind: "grapple-pin", outcome: "success", targetId: grappledItem.id,
+    ...(turn ? { round: turn.round, turnKey: turn.turnKey } : {}) };
+  return {
+    causality, labelTargetIds: pins.map(({ item }) => item.id),
+    operations: [...pins.map(({ item, instanceId: id }) => ({ type: "condition:add", targetIds: [item.id], conditionName: RESTRAINED,
+      instanceIds: { [item.id]: id },
+      options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", manualRemoval: true, expiry: { mode: "manual" },
+        mechanics: { pin: { grappleInstanceId: instanceId } },
+        effectDetail: `Lottatore: Trattenuti tutti e due finché ${sourceName} afferra ${grappledName}.`, ...(appliedAt ? { appliedAt } : {}) } })),
+    { type: "condition:automate", subjectIds: pins.map(({ item }) => item.id) }],
+    options: {
+      commandId: attackInstanceId, correlationId: attackInstanceId, sourceId: sourceItem.id,
+      targetIds: pins.map(({ item }) => item.id), kind: PC_ATTACK_HISTORY_KIND, label,
+      metadataPatches: [maneuverStatePatch(sourceItem, lastManeuver)],
+      history: { kind: PC_ATTACK_HISTORY_KIND, label, payload: { causality, damageComponents: [] } },
+    },
+  };
+}
+
 // Who holds this creature: [{ grapplerId, name, instanceId, escapeDC? }], one row per active Afferrato on it ("" for one
 // put by hand, without a source; escapeDC for a boss's grab). items: the scene's creatures, for the grappler's name.
 export function pcGrapplesOn(item, items = []) {
@@ -188,6 +247,10 @@ export function buildPcGrappleEndMutation({ sourceItem, grappledItem, instanceId
   const removals = ends ? conditionInstancesOf(grappledItem).filter((entry) => active(entry) && (String(entry.id || "") === instanceId
     || (grapplerId && entry.condition === RESTRAINED && sourceOf(entry) === grapplerId && !entry.parentEffectId)))
     .map((entry) => ({ id: String(entry.id || ""), condition: entry.condition })) : [];
+  // Grappler's pin (lot F8-2): the grappler's own Restrained of this grapple goes with it.
+  const grapplerPins = ends && grappler && grappler.id !== grappledItem.id ? conditionInstancesOf(grappler)
+    .filter((entry) => active(entry) && entry.condition === RESTRAINED && pinOf(entry) === instanceId)
+    .map((entry) => ({ id: String(entry.id || ""), condition: entry.condition })) : [];
   // The release is the grappler's doing; an escape, the grappled creature's.
   const actor = outcome === "release" ? { id: grapplerId, name: grapplerName } : { id: grappledItem.id, name: grappledName };
   const name = outcome === "release" ? "Lascia andare" : "Sfuggire alla presa";
@@ -200,19 +263,21 @@ export function buildPcGrappleEndMutation({ sourceItem, grappledItem, instanceId
     action: { id: `maneuver:grapple-end:${outcome}`, label: name },
     maneuver: { kind: "grapple-end", outcome, grapplerId, grapplerName, grappledId: grappledItem.id, grappledName,
       ...(outcome !== "release" ? { contest: instance.escapeDC ? `CD ${instance.escapeDC}` : "Atletica o Acrobazia contro Atletica di chi afferra" } : {}),
-      releasedConditions: removals },
+      releasedConditions: removals, ...(grapplerPins.length ? { releasedPins: grapplerPins } : {}) },
     ...(turn ? { turn } : {}),
     targets: [{ id: grappledItem.id, name: grappledName }],
   };
   const lastManeuver = { attackInstanceId, kind: "grapple-end", outcome, targetId: grappledItem.id, ...(grapplerId ? { grapplerId } : {}),
     ...(turn ? { round: turn.round, turnKey: turn.turnKey } : {}) };
   return {
-    causality, released: removals, labelTargetIds: removals.length ? [grappledItem.id] : [],
-    operations: removals.length ? [{ type: "condition:remove-instances", targetIds: [grappledItem.id],
-      removals: removals.map((entry) => ({ itemId: grappledItem.id, instanceId: entry.id })) }] : [],
+    causality, released: removals, labelTargetIds: [...(removals.length ? [grappledItem.id] : []), ...(grapplerPins.length ? [grappler.id] : [])],
+    operations: removals.length || grapplerPins.length ? [{ type: "condition:remove-instances",
+      targetIds: [...(removals.length ? [grappledItem.id] : []), ...(grapplerPins.length ? [grappler.id] : [])],
+      removals: [...removals.map((entry) => ({ itemId: grappledItem.id, instanceId: entry.id })),
+        ...grapplerPins.map((entry) => ({ itemId: grappler.id, instanceId: entry.id }))] }] : [],
     options: {
       commandId: attackInstanceId, correlationId: attackInstanceId, sourceId: sourceItem.id,
-      targetIds: [...new Set([grappledItem.id, sourceItem.id])], kind: PC_ATTACK_HISTORY_KIND, label,
+      targetIds: [...new Set([grappledItem.id, sourceItem.id, ...(grapplerPins.length ? [grappler.id] : [])])], kind: PC_ATTACK_HISTORY_KIND, label,
       metadataPatches: [maneuverStatePatch(sourceItem, lastManeuver)],
       history: { kind: PC_ATTACK_HISTORY_KIND, label, payload: { causality, damageComponents: [] } },
     },

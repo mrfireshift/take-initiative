@@ -274,6 +274,11 @@ export function pcAttackTargetNotes({ attack = null, targetItem = null, sourceIt
   if (hasActiveCondition(targetItem, DODGE_CONDITION)) notes.push("Schivata: svantaggio all'attacco, se il bersaglio vede chi attacca.");
   if (hiddenPills(targetItem).length) notes.push("Bersaglio nascosto: svantaggio all'attacco, se chi attacca non lo vede.");
   // Skulker (lot F8-1 of docs/STUDIO_TALENTI.md): a ranged weapon's miss does not reveal it.
+  // Grappler (lot F8-2 of docs/STUDIO_TALENTI.md): advantage against the creature it holds.
+  if (sourceItem && sanitizeFeats(sourceItem.metadata?.[META_KEY]?.initiativeCard?.[FEATS_FIELD]).some((entry) => entry.id === "lottatore")
+    && (Array.isArray(targetItem.metadata?.[META_KEY]?.conditions?.instances) ? targetItem.metadata[META_KEY].conditions.instances : [])
+      .some((entry) => entry?.active !== false && entry.condition === "Afferrato" && String(entry.sourceId || "") === sourceItem.id))
+    notes.push("Lottatore: vantaggio all'attacco, lo afferri.");
   if (sourceItem && hiddenPills(sourceItem).length) notes.push(attack.range === "ranged" && !attack.cantrip && !attack.spell
     && sanitizeFeats(sourceItem.metadata?.[META_KEY]?.initiativeCard?.[FEATS_FIELD]).some((entry) => entry.id === "appostato")
     ? "Nascosto: vantaggio all'attacco; se manca, resta nascosto (Appostato)." : "Nascosto: vantaggio all'attacco; attaccando si rivela.");

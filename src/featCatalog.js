@@ -394,7 +394,10 @@ const DEFINITIONS = [
     chosenSpells: [{ key: "incantesimo", label: "Incantesimo di 1° livello", candidates: FIRST_LEVEL_SPELLS, uses: "lungo", slots: true }] }),
   feat("phb", 168, "Linguista", "Linguist", { abilities: ["int"],
     plugin: "Le lingue vanno riportate nella scheda del personaggio." }),
-  feat("phb", 168, "Lottatore", "Grappler", { prerequisite: "Forza 13", srdEntryId: "lottatore", srdText: GRAPPLER_SRD_TEXT }),
+  // Lot F8-2 (decision P3): the advantage among the notes on the target (pcAttackTargetNotes) and «Immobilizza» on the console's
+  // row of the grapple (pcAttackManeuverCore.js, buildPcGrapplePinMutation).
+  feat("phb", 168, "Lottatore", "Grappler", { prerequisite: "Forza 13", srdEntryId: "lottatore", srdText: GRAPPLER_SRD_TEXT,
+    plugin: "Nella console, la nota del vantaggio contro chi afferri e, nella riga «Tiene …», «Immobilizza»: tutti e due Trattenuti finché la presa non finisce." }),
   // Lot F8-1 (decision P6): the reminder of the bonus grapple after an unarmed or improvised hit (pcAttackFollowUps).
   feat("phb", 168, "Lottatore da Taverna", "Tavern Brawler", { abilities: ["str", "con"],
     plugin: "Dopo un colpo senz'armi o con un'arma improvvisata, la console ricorda la Lotta come azione bonus. Il d4 e la competenza vanno nella scheda." }),

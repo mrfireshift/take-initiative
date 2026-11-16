@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **322** |
+| **B. Console attacchi, mostri e capacità** | **326** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -92,6 +92,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B63. Adepto Elementale e Maestria dei Veleni: la resistenza superata | 4 |
 | B64. Maestro delle Armature Pesanti | 4 |
 | B65. Carica, Maestro degli Scudi, Lottatore da Taverna, Appostato | 4 |
+| B66. Lottatore: vantaggio e Immobilizza | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -117,7 +118,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **685** |
+| **Totale** | **689** |
 
 ## A. Incantesimi
 
@@ -1221,6 +1222,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F8-1 (decisioni P1, P2, P5,
 - [ ] **I seguiti:** dopo un attacco con l'arma, quello con Maestro degli Scudi legge «puoi spingere con lo scudo»; dopo un colpo senz'armi (o con un'arma improvvisata), quello con Lottatore da Taverna legge «puoi tentare di afferrare». Con un mancato, il secondo no.
 - [ ] **Il TS di Destrezza:** quando Auril fa tirare un TS di Destrezza che dimezza, accanto a chi ha Maestro degli Scudi c'è «0 se supera (Maestro degli Scudi)»: nella console Boss, nelle righe dell'area della console attacchi, nel pannello incantesimi e nel ⚡.
 - [ ] **Appostato:** nascosto, il personaggio con Appostato manca l'ogre con l'arco: Nascosto resta. Se lo colpisce, o manca in mischia, Nascosto finisce.
+
+### B66. Lottatore: vantaggio e Immobilizza
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F8-2 (decisione P3). Le voci sono nuove: nessuna lista le aveva. Servono un personaggio con Lottatore e un ogre. Ogni voce in vista compatta ed estesa.
+
+- [ ] **Il vantaggio:** il personaggio afferra l'ogre con Azioni → Lotta; poi, attaccandolo, fra le note sul bersaglio c'è «Lottatore: vantaggio all'attacco, lo afferri». Su un'altra creatura no.
+- [ ] **Immobilizza:** nella riga «Tiene Ogre» c'è **Immobilizza**; premuto, l'ogre e il personaggio sono Trattenuti, e il registro dice «immobilizza … Trattenuti tutti e due». Il pulsante sparisce finché dura.
+- [ ] **La fine della presa:** **Lascia andare** (o, dalla console dell'ogre, **Sfugge**) toglie Afferrato e i due Trattenuto; **Non sfugge** lascia tutto.
+- [ ] **Annulla:** l'Annulla di Immobilizza toglie i due Trattenuto e lascia la presa. Senza il talento, Immobilizza non c'è.
 
 ## C. Tracker e UX
 

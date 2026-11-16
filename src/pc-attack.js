@@ -43,7 +43,7 @@ import { classFeatureDescription, classFeatureDescriptionsLoaded, classFeatureMi
 import { pcAttackPickerDefault, pcAttackPickerEntries, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
 import { spellGrantedActionsForItem } from "./spellGrantedActionsCore.js";
 import { PC_MANEUVER_CONTEST, PC_MANEUVER_NOTES, PC_MANEUVER_OUTCOMES, PC_MANEUVER_OUTCOME_LABELS, PC_SHOVE_EFFECTS, PC_SHOVE_EFFECT_LABELS,
-  pcAttackManeuverEntries, pcGrappleHolds, pcGrapplesOn, pcManeuverBlocker, pcManeuverLabel } from "./pcAttackManeuverCore.js";
+  pcAttackManeuverEntries, pcGrappleHolds, pcGrapplePinOffered, PC_GRAPPLE_PIN_NOTE, pcGrapplesOn, pcManeuverBlocker, pcManeuverLabel } from "./pcAttackManeuverCore.js";
 import { PC_HELP_MODES, PC_HELP_MODE_LABELS, PC_READY_SPELL_NOTE, PC_TURN_ACTION_NOTES, pcAttackTargetNotes, pcAttackTurnActionEntries,
   pcTurnActionBlocker, pcTurnActionLabel, pcTurnActionTurnBlocker } from "./pcAttackTurnActionCore.js";
 import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
@@ -194,6 +194,8 @@ export function quiveringPalmSummary(result) {
 export function maneuverSummary(result) {
   const maneuver=result?.maneuver || {};
   const target=result?.target?.name || "il bersaglio";
+  // Grappler's pin (lot F8-2).
+  if(maneuver.kind==="grapple-pin") return `Registrato: ${maneuver.grapplerName || "chi afferra"} immobilizza ${maneuver.grappledName || target}: Trattenuti tutti e due finché la presa non finisce.`;
   if(maneuver.kind==="grapple-end") return maneuver.outcome==="release"?`Registrato: ${maneuver.grapplerName || "chi afferra"} lascia andare ${maneuver.grappledName || target}.`
     :`Registrato: ${maneuver.grappledName || target} ${maneuver.outcome==="escaped"?"sfugge alla":"non sfugge alla"} presa di ${maneuver.grapplerName || "una creatura"}.`;
   const name=pcManeuverLabel(maneuver.kind) || "Manovra";
@@ -1789,7 +1791,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       element.disabled=busy || invalidated;element.addEventListener("click",onClick);return element;};
     const escapeTitle=(who,dc)=>dc?`${who} supera il TS per sfuggire (CD ${dc})`:`${who} vince la prova contrapposta (Atletica o Acrobazia contro Atletica)`;
     grappleBox.replaceChildren(node("span","Presa","caption"),
+      // Grappler (lot F8-2): «Immobilizza», the new grapple check's success, until the creature is pinned.
       ...holds.map(hold=>row(`Tiene ${hold.name}`,`${hold.name}: Afferrato da ${actor}`,[
+        ...(pcGrapplePinOffered(presentation.item,presentation.targets.find(item=>item.id===hold.targetId),hold.instanceId)
+          ?[button("Immobilizza",`${actor} immobilizza ${hold.name} (Lottatore). ${PC_GRAPPLE_PIN_NOTE}`,()=>void pinGrapple(hold.targetId,hold.instanceId))]:[]),
         button("Lascia andare",`${actor} lascia andare ${hold.name} (nessuna azione)`,()=>void endGrapple(hold.targetId,hold.instanceId,"release")),
         button("Sfugge",escapeTitle(hold.name),()=>void endGrapple(hold.targetId,hold.instanceId,"escaped")),
         button("Non sfugge",`${hold.name} tenta di sfuggire e resta Afferrato`,()=>void endGrapple(hold.targetId,hold.instanceId,"escape-failed"))])),
@@ -1797,6 +1802,16 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         `${actor}: Afferrato${grab.name?` da ${grab.name}`:""}${grab.escapeDC?` (CD ${grab.escapeDC} per sfuggire)`:""}${squat?`, con vantaggio (${squat})`:""}`,[
         button("Sfugge",`${escapeTitle(actor,grab.escapeDC)}${squat?` con vantaggio (${squat})`:""}`,()=>void endGrapple(sourceId,grab.instanceId,"escaped")),
         button("Non sfugge",`${actor} tenta di sfuggire e resta Afferrato`,()=>void endGrapple(sourceId,grab.instanceId,"escape-failed"))])));
+  }
+  function pinGrapple(grappledId,instanceId) {
+    return perform(async operation=>{
+      const result=await runtime.pinPcGrapple({sourceId,grappledId,instanceId,attackInstanceId:newAttackId(),sceneIdentity:presentation.sceneIdentity});
+      if(!lifecycle.isCurrent(operation)) return;
+      showUndo(result);
+      setStatus([maneuverSummary(result),...(result.warnings || [])].join("\n"),"ok");
+      markPendingReady();
+      await refresh(operation);
+    });
   }
   function endGrapple(grappledId,instanceId,outcome) {
     return perform(async operation=>{
