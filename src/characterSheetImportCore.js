@@ -328,10 +328,12 @@ function importedFeats(data, unresolved) {
     const cantripIds = [];
     for (const cantripName of cantripNames) {
       const spell = feat.cantrips ? getSpellDefinition(cantripName) : null;
-      const known = spell && FEAT_CANTRIPS.some((cantrip) => cantrip.spellId === spell.id);
+      const known = spell && feat.cantripCandidates.some((cantrip) => cantrip.spellId === spell.id);
+      // A cantrip of the catalog outside the feat's own list (lot F3b-3: Spell Sniper's, with an attack roll).
+      const outside = spell && !known && FEAT_CANTRIPS.some((cantrip) => cantrip.spellId === spell.id);
       if (known && cantripIds.length < feat.cantrips) cantripIds.push(spell.id);
       else unresolved.push(`trucchetto "${cantripName}" per ${feat.name}${!feat.cantrips ? ": il talento non ne fa scegliere"
-        : known ? ` (ne fa scegliere ${feat.cantrips})` : ""}`);
+        : known ? ` (ne fa scegliere ${feat.cantrips})` : outside ? ` (fuori dalla lista: ${(feat.cantripLabel || "trucchetto").toLowerCase()})` : ""}`);
     }
     if (cantripIds.length) entry.choice = { ...(entry.choice || {}), cantripIds };
     // The same feat written twice counts once; Elemental Adept twice only with two types.

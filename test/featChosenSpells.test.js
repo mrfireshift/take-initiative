@@ -12,6 +12,8 @@ import { parseCharacterSheetImport, sheetImportSectionSummary } from "../src/cha
 import { CLASS_FEATURE_BY_ID, CLASS_FEATURE_RESOURCE_POOL_BY_ID } from "../src/classFeatureCatalog.js";
 import { FEAT_CANTRIPS, featGrantedSpells, featSpellcastingAbility } from "../src/featCatalog.js";
 import { pcAttackResolvedAction, pcAttackSaveLabel, pcAttackSpellBonusTags } from "../src/pcAttackCore.js";
+import { pcAttackTargetNotes } from "../src/pcAttackTurnActionCore.js";
+import { PC_ATTACK_CANTRIPS } from "../src/pcAttackCantripCatalog.js";
 import reference from "../src/spell-reference-it.json" with { type: "json" };
 import runtimeReference from "../src/spell-reference-it-runtime.json" with { type: "json" };
 
@@ -122,10 +124,12 @@ test("Magic Initiate and Artificer Initiate choose among every 1st-level spell o
     }
   }
   assert.deepEqual(FEAT_CANTRIPS.map((cantrip) => cantrip.spellId).sort(), catalog.filter((spell) => spell.level === 0).map((spell) => spell.id).sort());
+  // Spell Sniper's cantrip and class came with lot F3b-3.
   assert.deepEqual(FEATS.filter((entry) => entry.cantrips).map((entry) => [entry.id, entry.cantrips]),
-    [["iniziato-alla-magia", 2], ["magia-degli-elfi-dei-boschi", 1], ["rudimenti-da-artefice", 1]]);
+    [["cecchino-magico", 1], ["iniziato-alla-magia", 2], ["magia-degli-elfi-dei-boschi", 1], ["rudimenti-da-artefice", 1]]);
+  const casters = ["bardo", "chierico", "druido", "stregone", "warlock", "mago"];
   assert.deepEqual(FEATS.filter((entry) => entry.classChoices.length).map((entry) => [entry.id, entry.classChoices]),
-    [["iniziato-alla-magia", ["bardo", "chierico", "druido", "stregone", "warlock", "mago"]]]);
+    [["cecchino-magico", casters], ["iniziato-alla-magia", casters]]);
 });
 
 test("Magic Initiate's spells take the chosen class's ability; the cantrips go in the book as «Talento»", () => {
@@ -177,4 +181,61 @@ test("the sheet and the import: the class, the cantrips, the spell; what is outs
     "trucchetto \"Palla di fuoco\" per Rudimenti da Artefice",
     "classe \"Guerriero\" per Iniziato alla Magia",
   ]);
+});
+
+// Lot F3b-3 (decisions S2, S3, S8): Spell Sniper's class and attack cantrip, and the attack console's reminder.
+const sniperCard = (choice, extra = {}) => ({ characterBuild: [{ classId: "ladro", level: 5 }], abilityModifiers: { int: 3, wis: 1, cha: 0 },
+  feats: [{ id: "cecchino-magico", choice }], ...extra });
+const resolved = (kind, spellId) => pcAttackResolvedAction({ id: `${kind}-${spellId}`, label: spellId, kind: "attack",
+  source: { kind, spellIds: [spellId] } }, spellId);
+
+test("Spell Sniper chooses its cantrip among the catalog's with an attack roll: the console's, the blades, Magic Stone", () => {
+  const sniper = FEATS.find((entry) => entry.id === "cecchino-magico");
+  assert.deepEqual([sniper.cantrips, sniper.spellAbility, sniper.cantripLabel], [1, "class", "Trucchetto con tiro per colpire"]);
+  // Every cantrip the attack console casts with an attack roll: a spell attack (no delivery), a blade's weapon attack.
+  const consoleAttacks = PC_ATTACK_CANTRIPS.filter((cantrip) => !cantrip.delivery || cantrip.delivery === "weapon").map((cantrip) => cantrip.spellId);
+  // Magic Stone (Xanathar) is a ranged spell attack the console does not cast.
+  assert.deepEqual(sniper.cantripCandidates.map((cantrip) => cantrip.spellId).sort(), [...consoleAttacks, "xanathar-pietra-magica"].sort());
+  for (const cantrip of sniper.cantripCandidates) {
+    assert.equal(getSpellDefinition(cantrip.spellId)?.level, 0, cantrip.spellId);
+    assert.equal(cantrip.name, FEAT_CANTRIPS.find((entry) => entry.spellId === cantrip.spellId).name);
+  }
+  // The other feats offer every cantrip.
+  for (const id of ["iniziato-alla-magia", "rudimenti-da-artefice", "magia-degli-elfi-dei-boschi"]) {
+    assert.equal(FEATS.find((entry) => entry.id === id).cantripCandidates.length, FEAT_CANTRIPS.length, id);
+  }
+});
+
+test("Spell Sniper's cantrip is cast with the class's ability; the console reminds the doubled range and the cover", () => {
+  const sniper = sniperCard({ classId: "mago", cantripIds: ["fire-bolt"] }, { spellAttackBonus: 2 });
+  assert.equal(featSpellcastingAbility(sniper, "fire-bolt"), "int");
+  assert.deepEqual(featGrantedSpells(sniper), [{ spellId: "fire-bolt", source: "Talento: Cecchino Magico" }]);
+  assert.deepEqual(pcAttackSpellBonusTags(resolved("cantrip", "fire-bolt"), sniper), ["+6 al tiro"], "3 of proficiency + 3 of Intelligence");
+  const notes = (attack, profile = sniper) => pcAttackTargetNotes({ attack, targetItem: { id: "goblin", metadata: {} },
+    sourceItem: { id: "pc", metadata: { [META]: { initiativeCard: profile } } } });
+  const cover = "l'attacco ignora mezza copertura e tre quarti di copertura";
+  assert.deepEqual(notes(resolved("cantrip", "fire-bolt")), [`Cecchino Magico: gittata 72 m invece di 36 m; ${cover}.`]);
+  assert.deepEqual(notes(resolved("spell", "phb2014-globo-cromatico")), [`Cecchino Magico: gittata 54 m invece di 27 m; ${cover}.`],
+    "a leveled spell, any spell with an attack roll");
+  assert.deepEqual(notes(resolved("cantrip", "phb2014-frusta-di-spine")), ["Cecchino Magico: gittata 18 m invece di 9 m."],
+    "a melee spell attack with a range: no cover");
+  assert.deepEqual(notes(resolved("cantrip", "produce-flame")), [`Cecchino Magico: ${cover}.`], "range Self: no range to double");
+  for (const attack of [resolved("cantrip", "shocking-grasp"), resolved("spell", "inflict-wounds"), resolved("cantrip", "sacred-flame"),
+    resolved("spell", "magic-missile")]) {
+    assert.deepEqual(notes(attack), [], "touch, a save, an automatic hit");
+  }
+  const bow = pcAttackResolvedAction({ id: "bow", label: "Arco lungo", kind: "attack", range: "ranged", components: [{ id: "c1", type: "piercing" }] });
+  assert.deepEqual(notes(bow), [], "a weapon");
+  assert.deepEqual(notes(resolved("cantrip", "fire-bolt"), { ...sniper, feats: [] }), [], "without the feat");
+});
+
+test("Spell Sniper on the sheet and in the import: a cantrip without an attack roll is kept with a warning, or reported", () => {
+  assert.equal(featDisplayName({ id: "cecchino-magico", choice: { classId: "warlock", cantripIds: ["eldritch-blast"] } }), "Cecchino Magico · Warlock");
+  assert.deepEqual(featWarnings([{ id: "cecchino-magico", choice: { cantripIds: ["light"] } }]),
+    [["Il trucchetto scelto (Luce) non è fra quelli del talento: Trucchetto con tiro per colpire."]]);
+  // Kept, it reaches the book: the GM decides (decision D8).
+  assert.deepEqual(featGrantedSpells(sniperCard({ cantripIds: ["light"] })), [{ spellId: "light", source: "Talento: Cecchino Magico" }]);
+  const result = parseCharacterSheetImport(JSON.stringify({ feats: [{ name: "Spell Sniper", class: "Warlock", cantrips: ["Luce", "Eldritch Blast"] }] }));
+  assert.deepEqual(result.sections.feats, [{ id: "cecchino-magico", choice: { classId: "warlock", cantripIds: ["eldritch-blast"] } }]);
+  assert.deepEqual(result.unresolved, ["trucchetto \"Luce\" per Cecchino Magico (fuori dalla lista: trucchetto con tiro per colpire)"]);
 });

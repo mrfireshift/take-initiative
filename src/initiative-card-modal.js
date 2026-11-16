@@ -5204,15 +5204,18 @@ function buildFeatEditorRow(entry = {}) {
     classSelect.replaceChildren(new Option("Da scegliere", ""), ...classes.map((id) => new Option(FEAT_CLASS_LABELS[id] || id, id)));
     classSelect.value = classes.includes(classId) ? classId : "";
     classLabel.hidden = !classes.length;
+    // The feat's own cantrips (lot F3b-3: Spell Sniper's, with an attack roll); one outside them stays, by name.
     const cantripMenus = Array.from({ length: feat?.cantrips || 0 }, (_, index) => {
       const cantrip = document.createElement("select");
       cantrip.dataset.featField = "cantrip";
       const current = String((Array.isArray(cantripIds) ? cantripIds : [])[index] || "");
-      cantrip.replaceChildren(new Option("Da scegliere", ""), ...FEAT_CANTRIPS.map((entry) => new Option(entry.name, entry.spellId)),
-        ...(current && !FEAT_CANTRIPS.some((entry) => entry.spellId === current) ? [new Option(`Fuori lista: ${current}`, current)] : []));
+      const outside = current && !feat.cantripCandidates.some((entry) => entry.spellId === current)
+        ? FEAT_CANTRIPS.find((entry) => entry.spellId === current)?.name || current : "";
+      cantrip.replaceChildren(new Option("Da scegliere", ""), ...feat.cantripCandidates.map((entry) => new Option(entry.name, entry.spellId)),
+        ...(outside ? [new Option(`Fuori lista: ${outside}`, current)] : []));
       cantrip.value = current;
       cantrip.addEventListener("change", syncFeatWarnings);
-      return makeLabel(feat.cantrips > 1 ? `Trucchetto ${index + 1}` : "Trucchetto", cantrip);
+      return makeLabel(feat.cantripLabel || (feat.cantrips > 1 ? `Trucchetto ${index + 1}` : "Trucchetto"), cantrip);
     });
     spellLabels.replaceChildren(...cantripMenus, ...featChoiceSlots(feat?.id).map((slot, index) => {
       const spell = document.createElement("select");

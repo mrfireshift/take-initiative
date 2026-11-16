@@ -40,6 +40,7 @@ import { PC_ATTACK_CANTRIPS, PC_ATTACK_SAVE_LABELS, getPcAttackCantrip, pcAttack
 import { PC_ATTACK_SPELLS, getPcAttackSpell, pcAttackSpellCount, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
 import { abilityModifier, abilitySaveDC, proficiencyBonusForLevel, totalCharacterLevel } from "./abilityModifiersCore.js";
 import { featSpellcastingAbility } from "./featCatalog.js";
+import { spellTargetRangeMeters } from "./spellAreaCatalog.js";
 import { consumedAdvantagePills, hiddenPills } from "./attackAdvantagePillsCore.js";
 import { isOffTurn, readiedSpellHold } from "./reactionTrackerCore.js";
 import { PC_ATTACK_RIDERS, PC_ATTACK_SPELL_RIDERS, getPcAttackRider, pcAttackHasPotentCantrip, pcAttackRiderDice, pcAttackRiderFeatureActive, pcAttackRidersForCard, pcAttackRiderSlotLevels } from "./pcAttackRiderCatalog.js";
@@ -592,6 +593,23 @@ function pcAttackFeatSpellAttackBonus(attack, card = {}) {
   const proficiency = proficiencyBonusForLevel(totalCharacterLevel(card?.characterBuild));
   const modifier = abilityModifier(card?.abilityModifiers, ability);
   return proficiency === null || modifier === null ? null : proficiency + modifier;
+}
+
+// Spell Sniper (lot F3b-3 of docs/STUDIO_TALENTI.md, decision S8): a spell that needs an attack roll has its range doubled
+// (not a touch's, nor the caster's own), a ranged spell attack ignores half and three-quarters cover. A reminder for the
+// table, whose feat the caller checks: the console measures no spell's range. "" for a save, an automatic hit, a weapon.
+export function pcAttackSpellSniperNote(attack) {
+  const spellId = attack?.cantrip?.spellId || attack?.spell?.spellId;
+  if (!spellId || pcAttackSave(attack) || attack.mode || attack.spell?.delivery === "auto") return "";
+  const spell = getSpellDefinition(spellId);
+  const touch = /^(?:touch|contatto)\b/iu.test(String(spell?.range || "").trim());
+  const meters = touch ? null : spellTargetRangeMeters(spell);
+  const label = (value) => `${String(Math.round(value * 10) / 10).replace(".", ",")} m`;
+  const parts = [
+    meters ? `gittata ${label(meters * 2)} invece di ${label(meters)}` : "",
+    attack.range === "ranged" ? "l'attacco ignora mezza copertura e tre quarti di copertura" : "",
+  ].filter(Boolean);
+  return parts.length ? `Cecchino Magico: ${parts.join("; ")}.` : "";
 }
 
 export const PC_ATTACK_OUTCOME_LABELS = Object.freeze({ hit: "Colpito", critical: "Critico", miss: "Mancato", failed: "TS fallito", passed: "TS superato",

@@ -3,7 +3,8 @@
 Data: 15 novembre 2026. Stato: **studio, decisioni D1–D15 approvate
 dall'utente il 15/11** (§9); **F0 fatto il 15/11** (§7.1), **F1 il 16/11**
 (§7.2), **la prima parte di F3 il 16/11** (§7.3); **il piano di F3b il 16/11,
-con S1–S9 approvate** (§7.4), **F3b-1 e F3b-2 il 16/11** (§7.5, §7.6).
+con S1–S9 approvate** (§7.4), **F3b-1, F3b-2 e F3b-3 il 16/11** (§7.5, §7.6,
+§7.7).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -1202,6 +1203,38 @@ Boschi.** Come la §7.4 con S1–S5.
 **Una correzione al piano.** La §7.4.8 metteva `spellbookCatalog.js` fra i file
 di F3b-2. Il libro invece non è cambiato: i trucchetti scelti passano da
 `featGrantedSpells`, che il libro legge già da F3a.
+
+### 7.7 F3b-3, fatto il 16/11
+
+**Cecchino Magico.** Come la §7.4 con S2, S3, S4 e S8.
+
+- **La classe e il trucchetto.** Come Iniziato alla Magia: la classe dà la
+  caratteristica, il trucchetto va nel libro come «Talento: Cecchino Magico» e
+  la console lo lancia con il bonus del talento (S3).
+- **Il menu «Trucchetto con tiro per colpire»** offre gli 11 trucchetti del
+  catalogo con un tiro per colpire:
+  - gli 8 che la console lancia con un attacco con incantesimo;
+  - Pietra Magica, che la console non lancia;
+  - le due lame, Lama Roboante e Lama Verdefiamma. **Una scelta fatta nel
+    lotto:** il loro lancio è un tiro per colpire con l'arma, e il talento
+    chiede solo un trucchetto «che richiede un tiro per colpire».
+- **Fuori lista:** un trucchetto senza tiro per colpire (da un client più nuovo)
+  resta, con l'avviso, e arriva nel libro: decide il GM (D8). L'import invece lo
+  segnala fra i non riconosciuti.
+- **Il promemoria** (S8) compare nella console sugli attacchi con incantesimo
+  di chi ha il talento, trucchetti e incantesimi di livello:
+  - la gittata doppia, in metri: «gittata 72 m invece di 36 m». Non per quelli
+    a contatto o personali;
+  - per quelli a distanza, «l'attacco ignora mezza copertura e tre quarti di
+    copertura»;
+  - niente sui TS, sul colpo automatico di Dardo incantato e sulle armi.
+- **La gittata resta un promemoria**, come deciso con S8. Il pannello, dove
+  misura la gittata dal caster, la tiene semplice; la §5.1 e la §5.5 la davano
+  automatica.
+- **I file:**
+  - il promemoria è `pcAttackSpellSniperNote` in `pcAttackCore.js`;
+  - `pcAttackTurnActionCore.js` lo aggiunge alle note dei talenti (F1).
+- **Documenti:** `docs/IMPORT_SCHEDA.md`; le prove in stanza sono in B29.
 
 ---
 

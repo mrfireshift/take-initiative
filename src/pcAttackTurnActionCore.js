@@ -19,7 +19,7 @@
 // Pure: no SDK, DOM or runtime state.
 import { ID } from "./constants.js";
 import { bossConditionAppliedAt, bossGroupConditionInstanceId, bossMetadataSnapshot } from "./bossActionExecutionCore.js";
-import { PC_ATTACK_HISTORY_KIND, PC_ATTACK_STATE_FIELD, PC_ATTACK_STATE_VERSION, pcAttackSave } from "./pcAttackCore.js";
+import { PC_ATTACK_HISTORY_KIND, PC_ATTACK_STATE_FIELD, PC_ATTACK_STATE_VERSION, pcAttackSave, pcAttackSpellSniperNote } from "./pcAttackCore.js";
 import { NEXT_OWN_TURN_START_EXPIRY, READIED_ACTION_CONDITION, conditionInstancesNamed, initiativeTurnCreatureId } from "./reactionTrackerCore.js";
 import { resolveSpeedCheckTurn } from "./speedCheckCore.js";
 import { MAX_TURN_DASHES, TURN_ACTIONS_STATE_KEY, consoleDashCount } from "./pcAttackTurnDashCore.js";
@@ -234,5 +234,8 @@ function featAttackNotes({ attack, targetItem, sourceItem }) {
   if (weapon && (attack.components || []).some((component) => component?.type === "piercing") && feats.has("stile-penetrante")) {
     notes.push("Stile Penetrante: una volta per turno puoi ritirare un dado di danno perforante.");
   }
+  // Lot F3b-3: Spell Sniper's range and cover, on a spell's attack roll.
+  const sniper = !weapon && feats.has("cecchino-magico") ? pcAttackSpellSniperNote(attack) : "";
+  if (sniper) notes.push(sniper);
   return notes;
 }

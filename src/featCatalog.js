@@ -72,11 +72,13 @@ const ON_SHEET = "Le competenze vanno riportate nella scheda del personaggio.";
 // "talento-<feat>-<key>-<spellId>" for each candidate, sharing the slot's use; the sheet's choice.spellIds says which.
 // Lot F3b-2: classChoices: the classes whose list it draws from (choice.classId), spellAbility "class" then reads the
 // class's ability; cantrips: how many cantrips it lets choose (choice.cantripIds), in the book as "Talento" (decision S2).
+// Lot F3b-3: cantripIds: the cantrips it lets choose among when not every one of the catalog (Spell Sniper's, with an attack
+// roll), cantripLabel the label of their menu.
 const feat = (book, page, name, english, { prerequisite = "", abilities = [], choices = [], species = [], speciesOptions = [],
   repeatable = false, plugin = LATER, pool = null, srdEntryId = "", srdText = "", effect = null, parts = [], naturalWeapon = null,
-  spells = [], spellAbility = "", chosenSpells = [], classChoices = [], cantrips = 0 } = {}) => ({
+  spells = [], spellAbility = "", chosenSpells = [], classChoices = [], cantrips = 0, cantripIds = null, cantripLabel = "" } = {}) => ({
   book, page, name, english, prerequisite, abilities, choices, species, speciesOptions, repeatable, plugin, pool, srdEntryId, srdText,
-  effect, parts, naturalWeapon, spells, spellAbility, chosenSpells, classChoices, cantrips,
+  effect, parts, naturalWeapon, spells, spellAbility, chosenSpells, classChoices, cantrips, cantripIds, cantripLabel,
 });
 // The six classes Magic Initiate, Spell Sniper and Ritual Caster draw from, with their casting ability (PHB 2014).
 const CASTER_CLASSES = ["bardo", "chierico", "druido", "stregone", "warlock", "mago"];
@@ -241,6 +243,11 @@ const CANTRIPS = [
   ["chill-touch", "Tocco gelido"],
   ["tasha-turbine-di-spade", "Turbine di Spade"],
 ];
+// Lot F3b-3: the cantrips of the catalog that need an attack roll, Spell Sniper's (PHB 2014): the spell attacks, and the
+// two blades, whose casting is a weapon's attack roll. test/featChosenSpells.test.js checks them against the
+// attack console's cantrips.
+const ATTACK_CANTRIP_IDS = ["fire-bolt", "eldritch-blast", "xanathar-ferocia-primordiale", "phb2014-frusta-di-spine", "tasha-lama-roboante",
+  "tasha-lama-verdefiamma", "xanathar-pietra-magica", "produce-flame", "ray-of-frost", "shocking-grasp", "chill-touch"];
 // Until the start of the attacker's next turn: Slasher's and Crusher's pills.
 const UNTIL_NEXT_TURN = "next-turn";
 // The pills of the critical parts, which the attack console reminds about (pcAttackTargetNotes).
@@ -270,7 +277,9 @@ const DEFINITIONS = [
   feat("phb", 165, "Atleta", "Athlete", { abilities: ["str", "dex"], plugin: AT_TABLE }),
   feat("phb", 165, "Attore", "Actor", { abilities: ["cha"], plugin: AT_TABLE }),
   feat("phb", 166, "Carica", "Charger"),
-  feat("phb", 166, "Cecchino Magico", "Spell Sniper", { prerequisite: "Saper lanciare almeno un incantesimo" }),
+  feat("phb", 166, "Cecchino Magico", "Spell Sniper", { prerequisite: "Saper lanciare almeno un incantesimo",
+    plugin: "Il trucchetto scelto nel libro come «Talento», con la caratteristica della classe scelta. Sugli incantesimi con tiro per colpire la console ricorda la gittata doppia e, a distanza, la copertura ignorata.",
+    spellAbility: "class", classChoices: CASTER_CLASSES, cantrips: 1, cantripIds: ATTACK_CANTRIP_IDS, cantripLabel: "Trucchetto con tiro per colpire" }),
   feat("phb", 167, "Combattente a Due Armi", "Dual Wielder", {
     plugin: "Il +1 alla CA va compreso nella CA della scheda; il resto si gestisce al tavolo." }),
   feat("phb", 167, "Combattente in Sella", "Mounted Combatant", { plugin: AT_TABLE }),
@@ -451,6 +460,11 @@ export const FEATS = Object.freeze(DEFINITIONS.map((definition) => {
         ...(activation ? { activation } : {}) }))) }))),
     classChoices: Object.freeze([...definition.classChoices]),
     cantrips: definition.cantrips,
+    // The cantrips its menus offer (lot F3b-3): every one of the catalog, or its own list (Spell Sniper's).
+    cantripCandidates: Object.freeze((definition.cantrips ? CANTRIPS : [])
+      .filter(([spellId]) => !definition.cantripIds || definition.cantripIds.includes(spellId))
+      .map(([spellId, spellName]) => Object.freeze({ spellId, name: spellName }))),
+    cantripLabel: definition.cantripLabel,
   });
 }));
 // The cantrips a feat lets choose, by id: the same list for every feat that asks one (decision S4).
@@ -826,9 +840,14 @@ export function featWarnings(entries, species = null, quickActions = []) {
     for (const { slot, spellId, candidate } of chosen) {
       if (!candidate) warnings.push(`L'incantesimo scelto (${spellId}) non è fra quelli del talento: ${slot.label}.`);
     }
-    // A chosen cantrip that is not one (lot F3b-2): kept, but it never reaches the book.
+    // A chosen cantrip that is not one (lot F3b-2): kept, but it never reaches the book. One outside the feat's own list
+    // (lot F3b-3: Spell Sniper's Light) is kept and reaches the book, as the GM decides (decision D8).
     for (const cantripId of (Array.isArray(entry.choice?.cantripIds) ? entry.choice.cantripIds : []).slice(0, definition.cantrips)) {
-      if (cantripId && !FEAT_CANTRIPS.some((cantrip) => cantrip.spellId === cantripId)) warnings.push(`Il trucchetto scelto (${cantripId}) non è un trucchetto del catalogo.`);
+      const cantrip = FEAT_CANTRIPS.find((candidate) => candidate.spellId === cantripId);
+      if (cantripId && !cantrip) warnings.push(`Il trucchetto scelto (${cantripId}) non è un trucchetto del catalogo.`);
+      else if (cantrip && !definition.cantripCandidates.some((candidate) => candidate.spellId === cantripId)) {
+        warnings.push(`Il trucchetto scelto (${cantrip.name}) non è fra quelli del talento: ${definition.cantripLabel || "Trucchetto"}.`);
+      }
     }
     const granted = [...definition.spells, ...chosen.map((entryChosen) => entryChosen.candidate).filter(Boolean)];
     for (const spell of twin ? [] : granted.filter((candidate) => quickSpellIds.has(candidate.spellId))) {

@@ -64,7 +64,7 @@ testo (`"+7"`, `"15"`).
 | `classes` | Fino a quattro classi con livello della singola classe e sottoclasse. Classi in italiano o in inglese (`Wizard`, `Fighter`…); sottoclassi con il nome italiano del catalogo, anche parziale (`Divinazione`). Per una sola classe valgono anche `class`, `level` e `subclass` al primo livello. |
 | `species` | Testo o `{ "name", "ancestry" }`: `ancestry` è l'ascendenza draconica, la sottorazza o la variante (accettati anche `subrace` e `variant`). Il nome può essere già la sottorazza ("Elfo oscuro (drow)", "Hill Dwarf"). Per una specie presente in più manuali, `source` sceglie la versione ("Volo", "Mostri del Multiverso", "Tomo dei Nemici", "Costa della Spada", "Elemental Evil", "Eberron", "Ravnica", "Theros", "Witchlight", "Strixhaven", "Tortle Package", "Wildemount", "Van Richten", "Spelljammer", "Dragonlance", "Tasha"); senza, vale la prima e l'import lo segnala. Le specie fuori dal [catalogo](SPECIE.md) vengono segnalate. |
 | `supernaturalGift` | Testo o `{ "name" }` (accettati anche `gift` e `dono`): il dono soprannaturale che si aggiunge alla specie, per ora "Hollow One". Un dono sconosciuto viene segnalato. |
-| `feats` | I talenti del Manuale del Giocatore, di Xanathar e di Tasha: nomi in italiano o in inglese (`"Robusto"`, `"Great Weapon Master"`), oppure `{ "name", "ability", "damageType" }` (accettata anche la chiave `talenti`). `ability` è la caratteristica del +1 di un mezzo talento che ne offre più d'una (`str`… o il nome, anche in italiano): il +1 non si somma, perché è già nei modificatori. `damageType` è il tipo scelto per Adepto Elementale: acido, freddo, fuoco, fulmine o tuono. `spells` è l'incantesimo di 1° livello scelto con Contaminazione Fatata (divinazione o ammaliamento) o Contaminazione Ombrosa (illusione o necromanzia): un incantesimo fuori da quella lista viene segnalato. Per Iniziato alla Magia, Rudimenti da Artefice e Magia degli Elfi dei Boschi: `class` è la classe di Iniziato alla Magia (bardo, chierico, druido, stregone, warlock o mago, anche in inglese), che dà la caratteristica dei suoi incantesimi; `cantrips` sono i trucchetti scelti, due per Iniziato alla Magia e uno per gli altri; `spell` (o `spells`) è l'incantesimo di 1° livello di Iniziato alla Magia e di Rudimenti da Artefice. Le liste di classe non sono controllate: basta un trucchetto, o un incantesimo di 1° livello, del catalogo. Una classe fuori lista, un nome che non è un trucchetto e un trucchetto di troppo vengono segnalati. L'elenco importato sostituisce quello della scheda; un talento sconosciuto viene segnalato. |
+| `feats` | I talenti del Manuale del Giocatore, di Xanathar e di Tasha: nomi in italiano o in inglese (`"Robusto"`, `"Great Weapon Master"`), oppure `{ "name", "ability", "damageType" }` (accettata anche la chiave `talenti`). `ability` è la caratteristica del +1 di un mezzo talento che ne offre più d'una (`str`… o il nome, anche in italiano): il +1 non si somma, perché è già nei modificatori. `damageType` è il tipo scelto per Adepto Elementale: acido, freddo, fuoco, fulmine o tuono. `spells` è l'incantesimo di 1° livello scelto con Contaminazione Fatata (divinazione o ammaliamento) o Contaminazione Ombrosa (illusione o necromanzia): un incantesimo fuori da quella lista viene segnalato. Per Iniziato alla Magia, Rudimenti da Artefice e Magia degli Elfi dei Boschi: `class` è la classe di Iniziato alla Magia (bardo, chierico, druido, stregone, warlock o mago, anche in inglese), che dà la caratteristica dei suoi incantesimi; `cantrips` sono i trucchetti scelti, due per Iniziato alla Magia e uno per gli altri; `spell` (o `spells`) è l'incantesimo di 1° livello di Iniziato alla Magia e di Rudimenti da Artefice. Cecchino Magico ha `class` come Iniziato alla Magia e in `cantrips` un trucchetto con tiro per colpire (Dardo di fuoco, Deflagrazione occulta, le due lame, Pietra Magica…). Le liste di classe non sono controllate: basta un trucchetto, o un incantesimo di 1° livello, del catalogo. Una classe fuori lista, un nome che non è un trucchetto, un trucchetto senza tiro per colpire per Cecchino Magico e un trucchetto di troppo vengono segnalati. L'elenco importato sostituisce quello della scheda; un talento sconosciuto viene segnalato. |
 | `armorClass`, `passivePerception`, `spellSaveDC`, `spellAttackBonus` | Numeri. |
 | `speed` | Metri (`9`, `"9 m"`) oppure piedi con l'unità (`"30 ft"`, `"30 piedi"`: 1,5 m ogni 5 piedi). |
 | `abilities` | Punteggi (`"int": 18`) oppure `{ "score": 18, "modifier": 4 }`. In alternativa `abilityScores` (punteggi) o `abilityModifiers` (modificatori). Chiavi `str dex con int wis cha` oppure `for des cos int sag car`, anche per esteso. |
@@ -82,12 +82,12 @@ Teletrasporto Fatato, Telecinesi e Telepatia, e i due delle Contaminazioni: il
 Passo velato o l'Invisibilità, e l'incantesimo di 1° livello scelto, scritto in
 `spells` dentro il talento. Lo stesso vale per i trucchetti e l'incantesimo di
 1° livello di Iniziato alla Magia e di Rudimenti da Artefice, e per il
-trucchetto degli Elfi dei Boschi, scritti in `cantrips` e `spell` dentro il
-talento: i trucchetti vanno nel libro come «Talento», l'incantesimo di 1°
-livello fra le capacità. Tutti
-questi incantesimi hanno la CD e il bonus d'attacco della caratteristica del
-talento, non `spellSaveDC` e `spellAttackBonus`. Quelli a scelta di Cecchino
-Magico e di Incantatore Rituale, per ora, restano nelle Azioni rapide.
+trucchetto degli Elfi dei Boschi e di Cecchino Magico, scritti in `cantrips` e
+`spell` dentro il talento: i trucchetti vanno nel libro come «Talento»,
+l'incantesimo di 1° livello fra le capacità. Tutti questi incantesimi hanno la
+CD e il bonus d'attacco della caratteristica del talento, non `spellSaveDC` e
+`spellAttackBonus`. Quelli a scelta di Incantatore Rituale, per ora, restano
+nelle Azioni rapide.
 
 ## Prompt per un assistente
 
@@ -106,8 +106,9 @@ i nomi dei talenti, con { name, ability } per la caratteristica del +1 di un
 mezzo talento, { name, damageType } per Adepto Elementale, { name, spells }
 per l'incantesimo di 1° livello scelto con Contaminazione Fatata o Ombrosa,
 { name, class, cantrips, spell } per Iniziato alla Magia con la classe scelta,
-{ name, cantrips, spell } per Rudimenti da Artefice e { name, cantrips } per
-Magia degli Elfi dei Boschi; armorClass; speed in metri ("9 m") o in
+{ name, class, cantrips } per Cecchino Magico, { name, cantrips, spell } per
+Rudimenti da Artefice e { name, cantrips } per Magia degli Elfi dei Boschi;
+armorClass; speed in metri ("9 m") o in
 piedi con l'unità ("30 ft"); passivePerception; spellSaveDC;
 spellAttackBonus; abilities: punteggi di caratteristica con chiavi
 str dex con int wis cha; savingThrows: bonus totali con le stesse chiavi;

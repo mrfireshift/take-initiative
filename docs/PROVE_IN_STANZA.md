@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **203** |
+| **B. Console attacchi, mostri e capacità** | **207** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -63,6 +63,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B26. Statblock: pill dei TS e incantesimi delle azioni | 5 |
 | B27. L'incantesimo scelto delle Contaminazioni | 4 |
 | B28. Le scelte di Iniziato alla Magia, Rudimenti da Artefice ed Elfi dei Boschi | 6 |
+| B29. Cecchino Magico | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -88,7 +89,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **566** |
+| **Totale** | **570** |
 
 ## A. Incantesimi
 
@@ -815,6 +816,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3b-2 (decisioni S1–S5). 
 - [ ] **La classe:** con Chierico al posto di Mago, Fiamma sacra dice «TS Destrezza (CD 12)», con la Saggezza.
 - [ ] **Gli slot e il pannello:** con Rudimenti da Artefice e Onda tonante, Onda tonante è nel libro come «Talento: Rudimenti da Artefice». Lanciata dal libro chiede uno slot e il pannello usa la CD 13, dell'Intelligenza. Comando, del paladino, tiene la CD delle Statistiche.
 - [ ] **L'import:** `{ "feats": [{ "name": "Magic Initiate", "class": "wizard", "cantrips": ["Fire Bolt", "Sacred Flame"], "spell": "Shield" }] }` sceglie Mago, i due trucchetti e Scudo. Con `"class": "fighter"` l'import segnala la classe fra i non riconosciuti; con un terzo trucchetto segnala che il talento ne fa scegliere 2.
+
+### B29. Cecchino Magico
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3b-3 (decisioni S2, S3, S8). Le voci sono nuove: nessuna lista le aveva. Serve un PG di 5° livello con i modificatori nella scheda (Car +3) e un nemico.
+
+- [ ] **Il menu:** in Modifica → Capacità → Talenti, Cecchino Magico mostra «Classe» e «Trucchetto con tiro per colpire» con 11 trucchetti, fra cui le due lame e Pietra Magica. Scelti Warlock e Deflagrazione occulta, dopo **Salva** il badge dice «Cecchino Magico · Warlock» e il libro ha Deflagrazione occulta come «Talento: Cecchino Magico».
+- [ ] **Il promemoria:** nel turno del PG, la console su Deflagrazione occulta dice «+6 al tiro» e, scelto il nemico, «Cecchino Magico: gittata 72 m invece di 36 m; l'attacco ignora mezza copertura e tre quarti di copertura.». Da provare in vista compatta ed estesa.
+- [ ] **Dove non compare:** niente promemoria su un incantesimo a contatto (Stretta folgorante), su un TS (Fiamma sacra), su Dardo incantato e sugli attacchi con le armi.
+- [ ] **L'import:** `{ "feats": [{ "name": "Spell Sniper", "class": "warlock", "cantrips": ["Eldritch Blast"] }] }` sceglie Warlock e Deflagrazione occulta; con «Luce» al suo posto l'import la segnala fuori dalla lista.
 
 ## C. Tracker e UX
 
