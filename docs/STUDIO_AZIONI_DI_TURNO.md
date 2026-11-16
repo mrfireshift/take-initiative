@@ -292,12 +292,12 @@ opportunità (A2).
 - Restano a parte la cura del Balsamo della Pace e i PF temporanei del Manto.
 - Il registro scrive anche il nome della capacità nelle righe di T4a, per
   esempio «Azione: Scatto (Passo del Vento · Punti Ki 1/2)».
-- **Attacco con Manovra resta fuori, in attesa dell'utente.** Il testo toglie
-  solo gli attacchi di opportunità del bersaglio, come Gioco di Gambe. La console
-  lo usa già come opzione dell'attacco, con il suo dado. Una pill
-  sull'alleato spegnerebbe gli avvisi di tutte le creature. Due strade: con
-  Mobilità (F2 dei talenti), che esclude una sola creatura, oppure con la pill
-  generica.
+- **Attacco con Manovra va con Mobilità (decisione dell'utente del 16/11).**
+  Il testo toglie solo gli attacchi di opportunità del bersaglio, come Gioco di
+  Gambe; una pill sull'alleato spegnerebbe gli avvisi di tutte le creature. Tutti
+  e due arrivano con Mobilità, il lotto F2 di `STUDIO_TALENTI.md`, che esclude
+  gli attacchi di opportunità di una sola creatura. Fino ad allora la console
+  usa Attacco con Manovra come opzione dell'attacco, con il suo dado e la nota.
 
 Prove in `PROVE_IN_STANZA.md`, sezione B53.
 
@@ -976,8 +976,8 @@ AdO». Le capacità che fanno muovere senza provocarli sono tutte testo:
 | Vendicatore Implacabile (paladino della Vendetta) | dopo un AdO a segno, mezza velocità senza AdO | T4b |
 | Schermagliatore (ladro Esploratore) | con la reazione, mezza velocità senza AdO | T4b |
 | Manto di Ispirazione (bardo dell'Incanto) | gli alleati si muovono con la reazione senza AdO | T4b, sugli alleati scelti |
-| Attacco con Manovra (Maestro di Battaglia) | un alleato si muove di mezza velocità senza AdO dal bersaglio | T4b, sull'alleato |
-| Gioco di Gambe (ladro Spadaccino) | niente AdO dalla creatura attaccata in mischia | resta testo: vale per una sola creatura |
+| Attacco con Manovra (Maestro di Battaglia) | un alleato si muove di mezza velocità senza AdO dal bersaglio | con Mobilità, F2 dei talenti: vale per una sola creatura (16/11) |
+| Gioco di Gambe (ladro Spadaccino) | niente AdO dalla creatura attaccata in mischia | con Mobilità, F2 dei talenti: vale per una sola creatura |
 | Sfuggire all'Orda (ranger Cacciatore), Spirito Totemico: Aquila | svantaggio agli AdO contro | resta testo: gli avvisi non tirano dadi |
 | Mantenere la Posizione, Difensore Vigile (Cavaliere Errante) | AdO in più, o anche per 1,5 m | restano testo e note |
 
