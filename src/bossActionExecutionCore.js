@@ -6,7 +6,8 @@ import { bossActionUsageAvailability, consumeBossActionUsage, bossActionUsageSum
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem, mergeDamageDefenses, profileDamageDefensesForItem,
-  EVASION_DEFENSE, evasionAppliesTo, evasionFactor, evasionForItem, withResistanceBypass, withSpellDamageResistance } from "./damageDefensesCore.js";
+  EVASION_DEFENSE, evasionAppliesTo, evasionFactor, evasionForItem, withResistanceBypass, withSpellDamageResistance,
+  HEAVY_ARMOR_MASTER_NAME, heavyArmorInputs } from "./damageDefensesCore.js";
 import { adjustForDamageReactions, damageReactionAppliesTo, defenseWithReactionResistance } from "./damageReactionCore.js";
 
 export const BOSS_ACTION_STATE_FIELD = "bossActionState";
@@ -389,11 +390,18 @@ export function buildBossActionMutation({
   const marked = bossMarkApplies({profile,sourceItem,targetItem,round,components,amounts:inputs,factor:miss?"zero":factor});
   markExpectation(expectedMarkedIds,[targetItem],marked?[targetItem.id]:[]);
   const reactionsOnTarget = miss ? [] : (Array.isArray(damageReactions) ? damageReactions : []);
-  const damageComponents = defendedComponents(components,inputs,miss?"zero":factor,targetItem,ignoredDefenses,expectedDefenses,marked,
+  // Heavy Armor Master on the target (lot F7-3 of docs/STUDIO_TALENTI.md): −3 on a weapon attack's bludgeoning, piercing and
+  // slashing, before the reactions and the defenses; the GM takes it off with its chip (ignoredDefenses).
+  const heavy = !miss ? heavyArmorInputs(components,inputs,{item:targetItem,metaKey:META_KEY,weapon:attack && execution.attack?.type==="weapon",
+    ignoredTypes:ignoredDefenses}) : null;
+  const defendedInputs = heavy?.inputs || inputs;
+  const damageComponents = defendedComponents(components,defendedInputs,miss?"zero":factor,targetItem,ignoredDefenses,expectedDefenses,marked,
     {reactions:reactionsOnTarget});
   // Why the damage is what it is (lot R3b): one line per reaction, for the History and the combat log.
   const damageReactionRecords = reactionsOnTarget.length
-    ? adjustForDamageReactions({components,inputs,factor,reactions:reactionsOnTarget}).records.map(record=>({id:targetItem.id,...record})) : [];
+    ? adjustForDamageReactions({components,inputs:defendedInputs,factor,reactions:reactionsOnTarget}).records.map(record=>({id:targetItem.id,...record})) : [];
+  const heavyArmorRecord = heavy?.reduction?.amount > 0 ? {name:HEAVY_ARMOR_MASTER_NAME,...heavy.reduction}
+    : heavy?.off ? {name:HEAVY_ARMOR_MASTER_NAME,off:true} : null;
   const requestedDamage = damageComponents.reduce((sum,c)=>sum+c.amount,0);
   const sourceMeta = sourceItem.metadata?.[META_KEY] || {};
   const targetMeta = targetItem.metadata?.[META_KEY] || {};
@@ -438,7 +446,7 @@ export function buildBossActionMutation({
     ...use.context,resources:use.resources,
     ...(attack ? {action:{id:action.id,label:action.name,attackOutcome:recordedOutcome}} : {}),
     targets:[{id:targetItem.id,name:targetItem.name,outcome:recordedOutcome,requestedDamage,
-      ...(change?{appliedHpDelta:change.delta}:{}),damageComponents:clone(damageComponents),
+      ...(change?{appliedHpDelta:change.delta}:{}),damageComponents:clone(damageComponents),...(heavyArmorRecord?{heavyArmor:heavyArmorRecord}:{}),
       ...(conditions.length?{conditions:clone(conditions)}:{}),...(evasion?{evasion:evasionUsed?"applied":"ignored"}:{})}],
     ...(attack ? {attack:{...clone(execution.attack),mode,outcome:recordedOutcome}}
       : {save:{...clone(execution.save),outcome,damageFactor:miss?"zero":factor,success:execution.success}}),
@@ -900,9 +908,14 @@ export function buildBossActionGroupAttackMutation({
   const hpUpdates = [], changes = [], causalTargets = [];
   for (const target of targets) {
     const outcome = outcomes[target.id];
-    const damageComponents = defendedComponents(components,inputsFor[target.id],outcome === "miss" ? "zero" : "full",target,
+    // Heavy Armor Master (lot F7-3): each target's own −3, on a weapon attack.
+    const heavy = outcome === "miss" ? null : heavyArmorInputs(components,inputsFor[target.id],{item:target,metaKey:META_KEY,
+      weapon:execution.attack?.type==="weapon",ignoredTypes:ignoredDefenses?.[target.id] || []});
+    const damageComponents = defendedComponents(components,heavy?.inputs || inputsFor[target.id],outcome === "miss" ? "zero" : "full",target,
       ignoredDefenses?.[target.id] || [],expectedDefenses === undefined ? undefined : expectedDefenses?.[target.id] || {},markedIds.includes(target.id));
     const requestedDamage = damageComponents.reduce((sum,component)=>sum+component.amount,0);
+    const heavyArmorRecord = heavy?.reduction?.amount > 0 ? {name:HEAVY_ARMOR_MASTER_NAME,...heavy.reduction}
+      : heavy?.off ? {name:HEAVY_ARMOR_MASTER_NAME,off:true} : null;
     const meta = target.metadata?.[META_KEY] || {};
     const change = calculateQuickHPChange({value:requestedDamage,hp:meta.hp,hpMax:meta.hpMax,tempHp:meta.tempHp,deathSaveDamage:takesDeathSaveDamage(meta)});
     changes.push({targetId:target.id,targetName:target.name || target.id,outcome,change});
@@ -910,7 +923,7 @@ export function buildBossActionGroupAttackMutation({
       hpIntent:{mode:"damage",amount:change.requested,eventId:`${actionInstanceId}:${target.id}`},
       expectedHP:bossMetadataSnapshot(meta,"hp"),expectedHPMax:bossMetadataSnapshot(meta,"hpMax")});
     causalTargets.push({id:target.id,name:target.name,outcome,requestedDamage,appliedHpDelta:change.delta,hpBefore:change.hp,hpAfter:change.afterHP,
-      damageComponents,conditions:[],...(markedIds.includes(target.id)?{markRule:true}:{})});
+      damageComponents,conditions:[],...(markedIds.includes(target.id)?{markRule:true}:{}),...(heavyArmorRecord?{heavyArmor:heavyArmorRecord}:{})});
   }
   const chosenIds = causalTargets.map((target) => target.id);
   const addedManually = chosenIds.filter((id) => !placement.areaTargetIds.includes(id));

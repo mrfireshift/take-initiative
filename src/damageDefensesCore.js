@@ -249,6 +249,42 @@ export function withResistanceBypass(defenses, bypass = [], kept = []) {
   };
 }
 
+// Lot F7-3 of docs/STUDIO_TALENTI.md (rule R3 of §7.30, decisions D11, N4, N5): Heavy Armor Master. The bludgeoning,
+// piercing and slashing damage a creature with the feat takes from a nonmagical weapon is 3 less, on their sum, never below
+// 0, cut from the first of them: before the reactions and the defenses (PHB 2014: resistance after every other modifier).
+// The heavy armor is taken as worn; the GM takes the row off for one attack with its chip: HEAVY_ARMOR_DEFENSE among the
+// ignored defenses, as Evasion. weapon: the attack is a nonmagical weapon's (the caller knows). inputs as written (numbers or
+// strings, null for a miss); returns them reduced, whether the feat applies, and { before, after, amount } when there was
+// something to reduce.
+export const HEAVY_ARMOR_DEFENSE = "heavy-armor-master";
+export const HEAVY_ARMOR_MASTER_NAME = "Maestro delle Armature Pesanti";
+export const HEAVY_ARMOR_REDUCTION = 3;
+const HEAVY_ARMOR_TYPES = new Set(["bludgeoning", "piercing", "slashing"]);
+export function heavyArmorMasterForItem(item, metaKey) {
+  return sanitizeFeats(item?.metadata?.[metaKey]?.initiativeCard?.feats).some((entry) => entry.id === "maestro-delle-armature-pesanti");
+}
+export function heavyArmorInputs(components = [], inputs = {}, { item = null, metaKey = "", weapon = false, ignoredTypes = [] } = {}) {
+  const applies = weapon === true && heavyArmorMasterForItem(item, metaKey);
+  const off = (Array.isArray(ignoredTypes) ? ignoredTypes : []).includes(HEAVY_ARMOR_DEFENSE);
+  if (!applies || off) return { inputs, applies, off: applies && off, reduction: null };
+  const written = (value) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+  const ids = (Array.isArray(components) ? components : [])
+    .filter((component) => HEAVY_ARMOR_TYPES.has(component?.type) && written(inputs?.[component.id])).map((component) => component.id);
+  if (!ids.length) return { inputs, applies, off: false, reduction: null };
+  const next = { ...inputs };
+  let left = HEAVY_ARMOR_REDUCTION;
+  let before = 0;
+  for (const id of ids) {
+    const value = Math.max(0, Math.floor(Number(inputs[id])));
+    const cut = Math.min(left, value);
+    before += value;
+    left -= cut;
+    next[id] = typeof inputs[id] === "string" ? String(value - cut) : value - cut;
+  }
+  const amount = HEAVY_ARMOR_REDUCTION - left;
+  return { inputs: next, applies, off: false, reduction: { before, after: before - amount, amount } };
+}
+
 // Effective defenses: the Actor Profile plus every active effect. The profile itself is never rewritten.
 export function damageDefensesForItem(item, metaKey) {
   return mergeDamageDefenses(profileDamageDefensesForItem(item, metaKey), effectDamageDefensesForItem(item, metaKey));

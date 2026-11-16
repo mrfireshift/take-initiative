@@ -17,7 +17,8 @@ import { bossActionTargets,bossActionGroups,bossActionExecutionKind,bossActionDa
   bossFeetPerCell,bossInnerTargetIds,bossPointTooClose,bossGroupConfirmationText,bossGroupOutcomes,bossGroupMissingDamageIds,bossAreaTheme,bossPointDistanceFeet,
   validateBossThrowSelection,validateBossEffectEndSelection,bossReachFeet,
   BOSS_ACTIONS_HEIGHT,bossMetricText } from "./bossActionsViewCore.js";
-import { damageDefensesForItem, markNonmagicalDefenses, relevantDamageDefenses, damageDefenseCount, damageDefenseTag, EVASION_DEFENSE, evasionAppliesTo, evasionForItem, evasionFactor } from "./damageDefensesCore.js";
+import { damageDefensesForItem, markNonmagicalDefenses, relevantDamageDefenses, damageDefenseCount, damageDefenseTag, EVASION_DEFENSE, evasionAppliesTo, evasionForItem, evasionFactor,
+  HEAVY_ARMOR_DEFENSE, heavyArmorInputs, heavyArmorMasterForItem } from "./damageDefensesCore.js";
 import { bossActionAreaRuleId,bossAreaShapeLabel,bossGroupRequiresConfirmation,bossTargetImmune,bossGrappledIds,bossGrappleBlocker,bossEffectSummaryParts,
   bossMarkApplies,bossMarkReady,bossTargetMarked,bossMarkBlocker,bossMarkedDefenses,bossTriggerMet,bossActiveEffects,bossThrowDistances,
   bossSeamRuleId,BOSS_SEAM_ITEM_KEY,bossSeamSegments,bossSeamSegmentLabel } from "./bossActionExecutionCore.js";
@@ -364,8 +365,14 @@ export function bootBossActions(documentRef=document, overrides={}) {
     round:presentation?.round,components:bossActionDamageComponents(draft.action),amounts:amountsFor(id),factor:outcomeFactor(outcome,id)});
   // Meteor Swarm: an inner-scoped component reaches only the creatures kept "within" a drawn point.
   const componentsFor=id=>bossActionDamageComponents(draft.action).filter(component=>!component.scope || (draft.innerIds || []).includes(id));
+  // Heavy Armor Master on the target (lot F7-3 of docs/STUDIO_TALENTI.md): −3 on a weapon attack's bludgeoning, piercing and
+  // slashing, before the defenses, as the commit counts it (bossActionExecutionCore.js); its chip takes it off.
+  const heavyWeapon=()=>draft?.action?.execution?.kind==="attack-damage" && draft.action.execution.attack?.type==="weapon";
+  const heavyFor=(id,outcome)=>outcome && outcome!=="miss"
+    ?heavyArmorInputs(componentsFor(id),amountsFor(id),{item:targetById(id),metaKey:META_KEY,weapon:heavyWeapon(),ignoredTypes:ignoredFor(id)}):null;
+  const defendedAmountsFor=(id,outcome)=>heavyFor(id,outcome)?.inputs || amountsFor(id);
   function defendedDamage(id,outcome) {
-    return bossDefendedDamage(componentsFor(id),amountsFor(id),outcome,defensesOf(id),ignoredFor(id),markReadyFor(id),evasionUsedFor(id),
+    return bossDefendedDamage(componentsFor(id),defendedAmountsFor(id,outcome),outcome,defensesOf(id),ignoredFor(id),markReadyFor(id),evasionUsedFor(id),
       id?activeBossDamageReactions().filter(row=>damageReactionAppliesTo(row,id)).map(bossDamageReactionRequest):[]);
   }
   // Lot R3b-4: a group save with damage (not an attack group): the creatures with a save outcome.
@@ -442,7 +449,9 @@ export function bootBossActions(documentRef=document, overrides={}) {
   // What this target's defenses did to the damage, beside the same total (defendedDamage).
   function defenseCountsFor(id,outcome) {
     if(outcomeFactor(outcome,id)==="zero") return [];
-    return markNonmagicalDefenses(bossDefenseCounts(componentsFor(id),amountsFor(id),outcome,defensesOf(id),ignoredFor(id),markReadyFor(id),evasionUsedFor(id)),targetById(id)?.metadata?.[META_KEY]?.initiativeCard);
+    const heavy=heavyFor(id,outcome);
+    return [...(heavy?.reduction?[{type:HEAVY_ARMOR_DEFENSE,reduction:heavy.reduction}]:[]),
+      ...markNonmagicalDefenses(bossDefenseCounts(componentsFor(id),defendedAmountsFor(id,outcome),outcome,defensesOf(id),ignoredFor(id),markReadyFor(id),evasionUsedFor(id)),targetById(id)?.metadata?.[META_KEY]?.initiativeCard)];
   }
   function markBadge(id) {
     if(!draft || !bossTargetMarked(targetById(id),presentation?.profile)) return null;
@@ -458,14 +467,20 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const effective=markReadyFor(id)?bossMarkedDefenses(defensesOf(id)):defensesOf(id);
     const rows=markNonmagicalDefenses(relevantDamageDefenses(effective,bossActionDamageComponents(draft.action),ignoredFor(id)),targetById(id)?.metadata?.[META_KEY]?.initiativeCard);
     if(evasionFor(id))rows.push({type:EVASION_DEFENSE,defense:"evasion",ignored:ignoredFor(id).includes(EVASION_DEFENSE)});
+    if(heavyWeapon() && heavyArmorMasterForItem(targetById(id),META_KEY))rows.unshift({type:HEAVY_ARMOR_DEFENSE,defense:"heavy-armor",ignored:ignoredFor(id).includes(HEAVY_ARMOR_DEFENSE)});
     if(!rows.length) return null;
     const wrap=node("span","","defense-chips");wrap.dataset.defensesFor=id;
     for(const row of rows) {
-      const tag=row.type===EVASION_DEFENSE?"Elusione":damageDefenseTag(row);
+      const heavyRow=row.type===HEAVY_ARMOR_DEFENSE;
+      const tag=row.type===EVASION_DEFENSE?"Elusione":heavyRow?(row.ignored?"Arm. Pesanti · tolto":"Arm. Pesanti −3"):damageDefenseTag(row);
       const count=counts.find(entry=>entry.type===row.type);
-      const chip=button(count?damageDefenseCount({...row,...count}):tag,"defense-chip");chip.dataset.defenseType=row.type;chip.dataset.defenseTag=tag;
+      const text=heavyRow?(count?.reduction && !row.ignored?`Arm. Pesanti: ${count.reduction.before} → ${count.reduction.after}`:tag)
+        :count?damageDefenseCount({...row,...count}):tag;
+      const chip=button(text,"defense-chip");chip.dataset.defenseType=row.type;chip.dataset.defenseTag=tag;
       chip.setAttribute("aria-pressed",String(!row.ignored));chip.disabled=busy;
-      chip.title=row.ignored?"Ignorata in questa risoluzione: clic per riapplicarla":row.nonmagical?`Vale solo contro danni ${row.nonmagical}: clic per ignorarla in questa risoluzione`:"Dal profilo attore: clic per ignorarla in questa risoluzione";
+      chip.title=heavyRow?(row.ignored?"Maestro delle Armature Pesanti tolto da questa risoluzione: clic per rimetterlo"
+        :"Maestro delle Armature Pesanti: −3 ai danni contundenti, perforanti e taglienti di un'arma non magica. Clic per toglierlo (armatura non indossata, arma magica)")
+        :row.ignored?"Ignorata in questa risoluzione: clic per riapplicarla":row.nonmagical?`Vale solo contro danni ${row.nonmagical}: clic per ignorarla in questa risoluzione`:"Dal profilo attore: clic per ignorarla in questa risoluzione";
       chip.addEventListener("click",event=>{
         event.stopPropagation?.();
         if(!draft || busy) return;
@@ -1715,7 +1730,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
         const counts=defenseCountsFor(id,outcome);
         for(const chip of chips?.querySelectorAll?.("[data-defense-type]") || []) {
           const count=counts.find(entry=>entry.type===chip.dataset.defenseType);
-          chip.textContent=count?damageDefenseCount(count):chip.dataset.defenseTag;
+          chip.textContent=count?.type===HEAVY_ARMOR_DEFENSE?`Arm. Pesanti: ${count.reduction.before} → ${count.reduction.after}`
+            :count?damageDefenseCount(count):chip.dataset.defenseTag;
         }
       };
       if(attackGroup() && outcome==="hit") {

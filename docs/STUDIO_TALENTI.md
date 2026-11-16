@@ -10,7 +10,7 @@ F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 approvate** (§7.15), **F6-
 il 16/11** (§7.16–§7.20): F6 è chiuso. **Il piano di F9 il 16/11** (§7.21),
 **F9-1…F9-4 il 16/11** (§7.22–§7.25): F9 è chiuso. **Il piano di F2 il 16/11,
 con M1–M6 approvate** (§7.26), **F2-1, F2-2 e F2-3 il 16/11** (§7.27–§7.29): F2 è
-chiuso. **Il piano dei PF di F7 il 16/11, con N1–N6 approvate** (§7.30), **F7-1 e F7-2 il 16/11** (§7.31, §7.32).
+chiuso. **Il piano dei PF di F7 il 16/11, con N1–N6 approvate** (§7.30), **F7-1, F7-2 e F7-3 il 16/11** (§7.31–§7.33): F7 è chiuso.
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -2350,6 +2350,34 @@ con F7-1»).
   veleno, 12.
 - **Le righe «Nel plugin»** dei due talenti lo dicono.
 - **Documenti:** le prove in stanza sono in B63.
+
+### 7.33 F7-3, fatto il 16/11
+
+**Maestro delle Armature Pesanti (R3).** Con F7-3 il lotto F7 è chiuso.
+
+- **La funzione comune** (`damageDefensesCore.js`, `heavyArmorInputs`): se
+  il bersaglio ha il talento e l'attacco è con un'arma non magica, toglie 3
+  dalla somma dei danni contundenti, perforanti e taglienti scritti, mai sotto
+  0, a partire dal primo. Gli altri tipi restano.
+- **L'ordine:** prima del −3, poi le reazioni e le difese: 10 taglienti su un
+  bersaglio in ira con il talento fanno 3.
+- **Console attacchi:** vale per gli attacchi con arma dei personaggi e dei
+  mostri, non per trucchetti, incantesimi, frecce speciali, aree e soffi; ✦
+  Magica la esclude (l'attacco con incantesimo di un mostro è magico). La riga
+  «Arm. Pesanti: 6 → 3» è fra le difese; il suo chip la toglie per
+  quell'attacco (`HEAVY_ARMOR_DEFENSE` fra le difese ignorate, come
+  l'Elusione).
+- **Console Boss:** gli attacchi con `attack.type` «weapon», singoli e di
+  gruppo, con la stessa riga e lo stesso chip. Un attacco senza tipo resta
+  com'è: Icekiss di Auril è un'arma +2.
+- **La Cronologia** dice il perché: `heavyArmor` con prima, dopo e quanto, o
+  `off` se il GM l'ha tolto.
+- **Diverso dal piano:** il commit rilegge il talento dal bersaglio vivo, senza
+  un controllo dedicato come quello delle difese. Il talento cambia solo dalla
+  scheda, non nel giro di un attacco, e un controllo in più passerebbe per la
+  console Boss e il suo runtime.
+- **La riga «Nel plugin»** del talento lo dice.
+- **Documenti:** le prove in stanza sono in B64.
 
 ---
 

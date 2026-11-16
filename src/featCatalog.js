@@ -398,8 +398,11 @@ const DEFINITIONS = [
   feat("phb", 169, "Maestro degli Scudi", "Shield Master"),
   feat("phb", 169, "Maestro delle Armature Medie", "Medium Armor Master", { prerequisite: "Competenza nelle armature medie",
     plugin: "La CA va scritta nella scheda; il resto si gestisce al tavolo." }),
+  // Lot F7-3 of docs/STUDIO_TALENTI.md (rule R3, decisions D11, N4, N5): −3 on a nonmagical weapon's bludgeoning, piercing
+  // and slashing in the attack console and the boss console (damageDefensesCore.js, heavyArmorInputs); the armor taken as worn.
   feat("phb", 169, "Maestro delle Armature Pesanti", "Heavy Armor Master", { prerequisite: "Competenza nelle armature pesanti",
-    abilities: ["str"] }),
+    abilities: ["str"],
+    plugin: "−3 ai danni contundenti, perforanti e taglienti delle armi non magiche, nelle due console, prima delle resistenze. Senza l'armatura pesante, un clic toglie la riga." }),
   // Lot F6-3 (decision K3): the reach chosen on the sheet (choice.reachMeters, 3 m with a glaive, a halberd or a pike),
   // read by the opportunity attacks (opportunityAttackCore.js) when a creature leaves or enters it; the other end of the
   // weapon, an attack of the card as Dragon Hide's claws, and its reminder after a melee attack (pcAttackFollowUps).

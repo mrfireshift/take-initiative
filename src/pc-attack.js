@@ -25,7 +25,7 @@ import { getPcAttackCantrip, pcAttackCantripBeams, PC_ATTACK_SAVE_LABELS } from 
 import { totalCharacterLevel } from "./abilityModifiersCore.js";
 import { pcAttackCriticalDice } from "./pcAttackRiderCatalog.js";
 import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossTargetLabel, bossTargetParts } from "./bossActionsViewCore.js";
-import { DAMAGE_TYPES, damageDefenseCount, damageTypeLabel, damageDefensesForItem } from "./damageDefensesCore.js";
+import { DAMAGE_TYPES, damageDefenseCount, damageTypeLabel, damageDefensesForItem, HEAVY_ARMOR_DEFENSE } from "./damageDefensesCore.js";
 import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_HEIGHT, PC_ATTACK_POPOVER_ID, PC_ATTACK_SPELL_LAUNCH_CHANNEL, PC_ATTACK_WIDTH } from "./pcAttackLauncher.js";
 import { loadSpellbookSpellReference, spellbookSpellDetails, spellbookSpellReferenceLoaded } from "./spellbookCatalog.js";
 import { rulesTextBlock } from "./rulesTextView.js";
@@ -2744,7 +2744,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const chip=node("button",pcAttackDefenseText({...row,...(view.defenseCounts || []).find(entry=>entry.type===row.type),short:true}),"defense-chip");chip.type="button";
       chip.setAttribute("aria-pressed",String(!row.ignored));
       // A feat's (lot F7-2: Elemental Adept, Poisoner): struck through with its name, a click applies it again to this hit.
-      chip.title=row.bypass?(row.ignored?`Superata da ${row.bypass}: clic per applicarla a questo colpo`:`Applicata a questo colpo nonostante ${row.bypass}: clic per toglierla`)
+      // Heavy Armor Master on the target (lot F7-3): its −3 on this nonmagical weapon; a click takes it off for this attack.
+      chip.title=row.type===HEAVY_ARMOR_DEFENSE?(row.ignored?"Maestro delle Armature Pesanti tolto da questo attacco: clic per rimetterlo"
+        :"Maestro delle Armature Pesanti: −3 ai danni contundenti, perforanti e taglienti di un'arma non magica. Clic per toglierlo da questo attacco (armatura non indossata, arma magica)")
+        :row.bypass?(row.ignored?`Superata da ${row.bypass}: clic per applicarla a questo colpo`:`Applicata a questo colpo nonostante ${row.bypass}: clic per toglierla`)
         :row.magic?(row.ignored?"Superata dall'arma magica: clic per applicarla a questo colpo":"Applicata a questo colpo nonostante l'arma magica: clic per toglierla")
         :row.ignored?"Difesa ignorata: clic per applicarla"
         :row.nonmagical?`Vale solo contro danni ${row.nonmagical}: ${magicOffered?"per un'arma magica accendi ✦ Magica; ":""}con un'arma che la supera, clic per ignorarla in questo attacco`

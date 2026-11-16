@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **314** |
+| **B. Console attacchi, mostri e capacità** | **318** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -90,6 +90,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B61. Attacco con Manovra: l'alleato senza AdO | 4 |
 | B62. Costituzione Infernale e Veleno potente | 4 |
 | B63. Adepto Elementale e Maestria dei Veleni: la resistenza superata | 4 |
+| B64. Maestro delle Armature Pesanti | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -115,7 +116,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **677** |
+| **Totale** | **681** |
 
 ## A. Incantesimi
 
@@ -1201,6 +1202,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F7-2 (decisioni D12, N1, N2
 - [ ] **Il clic:** un clic sul chip rimette la resistenza: «Res. fuoco: 28 → 14»; un altro la toglie di nuovo. Il commit segue il chip.
 - [ ] **La console:** Dardo di fuoco dalla console sull'ogre, 10: 10 danni, con il chip barrato e il clic per rimetterla. Il pugnale del ladro con Veleno potente, 5 + 7: 12, «Res. veleno · superata (Maestria dei Veleni)».
 - [ ] **Le zone e i promemoria:** una zona di fuoco del mago (o un ⚡ di un suo incantesimo) sull'ogre: la resistenza è barrata anche lì. Senza il talento, tutto come prima.
+
+### B64. Maestro delle Armature Pesanti
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F7-3 (decisioni D11, N4, N5). Le voci sono nuove: nessuna lista le aveva. Servono un guerriero con Maestro delle Armature Pesanti (60 PF), un goblin con la scimitarra e Auril con la console Boss. Ogni voce in vista compatta ed estesa, guardando anche la barra PF sulla mappa.
+
+- [ ] **La console attacchi:** il goblin colpisce il guerriero con la scimitarra, 6: la riga dice «Arm. Pesanti: 6 → 3» e **Registra** toglie 3 PF. Un critico da 11 ne toglie 8; un colpo da 2, nessuno.
+- [ ] **La ✕:** un clic sulla riga la toglie («Arm. Pesanti · tolto»): 6 pieni. Con ✦ Magica accesa sull'arma la riga non c'è. Il registro e la Cronologia dicono il −3, o che è stato tolto.
+- [ ] **Prima della resistenza:** il guerriero in ira (resistente ai taglienti), 10 taglienti: 3 danni, non 5.
+- [ ] **La console Boss:** Rock di Auril sul guerriero, 12: «Arm. Pesanti: 12 → 9», 9 danni; tolta la riga, 12. Icekiss (arma magica) e i raggi (incantesimi) non hanno la riga.
 
 ## C. Tracker e UX
 

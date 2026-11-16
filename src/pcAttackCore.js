@@ -24,7 +24,8 @@ import { catalogSpellApplicationOperations } from "./spellLifecycleOperationsCor
 import { spellEffectThemeFor } from "./spellColorCore.js";
 import { DAMAGE_TYPES, actorHasEvasion, creatureConditionImmunities, damageDefenseCount, damageDefenseFor, damageDefenseTag, damageDefensesForItem, damageTypeLabel, evasionFactor,
   markNonmagicalDefenses, nonmagicalDefenseMarkerForItem, relevantDamageDefenses, withSpellDamageResistance,
-  featResistanceBypassForItem, withResistanceBypass } from "./damageDefensesCore.js";
+  featResistanceBypassForItem, withResistanceBypass, HEAVY_ARMOR_DEFENSE, HEAVY_ARMOR_MASTER_NAME, heavyArmorInputs,
+  heavyArmorMasterForItem } from "./damageDefensesCore.js";
 import { MONSTER_PROFILE_FIELD } from "./monsterProfileCore.js";
 import { CLASS_FEATURE_RESOURCE_POOL_BY_ID, getClassFeatureDefinition, getClassFeatureResourcePool, getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import {
@@ -1295,7 +1296,15 @@ export function pcAttackMagicToggleable(action) {
 function pcAttackAreaMagicIgnored(attack, item) {
   return attack?.magical === true ? pcAttackMagicIgnoredDefenses(attack, item) : [];
 }
+// Heavy Armor Master (lot F7-3): a nonmagical weapon's attack, not a cantrip, a spell, an arrow's mode, an area or a breath;
+// ✦ Magica (a monster's spell attack is magical too) keeps it out.
+function pcAttackHeavyArmorWeapon(attack) {
+  return !!attack && !attack.cantrip && !attack.spell && !attack.mode && !attack.area && !attack.breath && attack.magical !== true;
+}
 export function pcAttackDefenseText(row) {
+  if (row?.type === HEAVY_ARMOR_DEFENSE) {
+    return row.ignored ? "Arm. Pesanti · tolto" : row.reduction ? `Arm. Pesanti: ${row.reduction.before} → ${row.reduction.after}` : "Arm. Pesanti −3";
+  }
   if (row?.bypass && row.ignored) return `${damageDefenseTag(row)} · superata (${row.bypass})`;
   return row?.magic && row.ignored ? `${damageDefenseTag(row)} · superata (arma magica)` : damageDefenseCount(row);
 }
@@ -1409,7 +1418,15 @@ export function pcAttackPreview({
   const typedForDefenses = typedComponents.filter((component) => damageTypeSet.has(component.type));
   const bypassRows = pcAttackBypassRows(attackDefenses, rawAttackDefenses, attackBypass, reappliedDefenses,
     typedForDefenses.map((component) => component.type));
-  const defenses = [...markNonmagicalDefenses(relevantDamageDefenses(attackDefenses, typedForDefenses, ignoredDefenses),
+  // Heavy Armor Master on the target (lot F7-3): its −3 on the weapon's bludgeoning, piercing and slashing, before the
+  // defenses; its row in view as soon as it applies, its chip takes it off for this attack.
+  const heavyArmorRow = targetItem && pcAttackHeavyArmorWeapon(attack) && heavyArmorMasterForItem(targetItem, META_KEY);
+  const heavy = targetItem && outcome && !miss ? heavyArmorInputs(components, allAmounts, { item: targetItem, metaKey: META_KEY,
+    weapon: pcAttackHeavyArmorWeapon(attack), ignoredTypes: ignoredDefenses }) : null;
+  const defendedAmounts = heavy?.inputs || allAmounts;
+  const defenses = [...(heavyArmorRow ? [{ type: HEAVY_ARMOR_DEFENSE, defense: "heavy-armor", ignored: ignoredDefenses.includes(HEAVY_ARMOR_DEFENSE),
+    ...(heavy?.reduction ? { reduction: heavy.reduction } : {}) }] : []),
+  ...markNonmagicalDefenses(relevantDamageDefenses(attackDefenses, typedForDefenses, ignoredDefenses),
     targetItem?.metadata?.[META_KEY]?.initiativeCard).filter(heldDefense).map(magicRow)
     .map((row) => { const again = bypassRows.find((entry) => entry.type === row.type && !entry.ignored); return again ? { ...row, bypass: again.bypass } : row; }),
   ...bypassRows.filter((row) => row.ignored)];
@@ -1417,12 +1434,12 @@ export function pcAttackPreview({
   // A monster's hit effect (fase 5, lotto 4): its save's damage on top, with the target's defenses.
   const hitPlan = targetItem ? pcAttackHitEffectPlan({ attack, outcome, hitEffect, targetItem, sourceItem }) : null;
   const total = (targetItem && outcome && !miss
-    ? bossDefendedDamage(components, allAmounts, factor === "half" ? "passed" : "hit", attackDefenses, appliedIgnored, false, false, damageReactions) : 0)
+    ? bossDefendedDamage(components, defendedAmounts, factor === "half" ? "passed" : "hit", attackDefenses, appliedIgnored, false, false, damageReactions) : 0)
     + (hitPlan?.components || []).reduce((sum, component) => sum + component.amount, 0);
   // The count the console shows: what each defense did to the damage typed, and to a monster's save on the hit.
   const targetCard = targetItem?.metadata?.[META_KEY]?.initiativeCard;
   const defenseCounts = targetItem && outcome && !miss
-    ? markNonmagicalDefenses(bossDefenseCounts(typedComponents, allAmounts, factor === "half" ? "passed" : "hit", attackDefenses, appliedIgnored), targetCard).filter(heldDefense) : [];
+    ? markNonmagicalDefenses(bossDefenseCounts(typedComponents, defendedAmounts, factor === "half" ? "passed" : "hit", attackDefenses, appliedIgnored), targetCard).filter(heldDefense) : [];
   const hitEffectCounts = markNonmagicalDefenses((hitPlan?.components || []).filter((component) => component.defense)
     .map((component) => ({ type: component.type, defense: component.defense, before: Number(component.inputAmount), after: component.amount })), targetCard);
   const meta = targetItem?.metadata?.[META_KEY] || {};
@@ -1634,15 +1651,21 @@ export function buildPcAttackMutation({
   if (hitPlan.blocker) throw new Error(hitPlan.blocker);
   // A critical hit keeps the full factor: the totals the GM enters already include the doubled dice.
   const reactionsOnTarget = miss ? [] : (Array.isArray(damageReactions) ? damageReactions : []);
-  const damageComponents = [...defendedComponents(components, inputs, factor, targetItem,
+  // Heavy Armor Master on the target (lot F7-3): the −3 before the reactions and the defenses, as the preview counts it.
+  const heavy = !miss ? heavyArmorInputs(components, inputs, { item: targetItem, metaKey: META_KEY, weapon: pcAttackHeavyArmorWeapon(attack),
+    ignoredTypes: ignoredDefenses }) : null;
+  const defendedInputs = heavy?.inputs || inputs;
+  const damageComponents = [...defendedComponents(components, defendedInputs, factor, targetItem,
     [...ignoredDefenses, ...pcAttackMagicIgnoredDefenses(attack, targetItem, reappliedDefenses)],
     expectedDefenses, false, { spell: pcAttackSpellDamage(attack), reactions: reactionsOnTarget,
       bypass: pcAttackResistanceBypass(sourceItem, pcAttackSpellDamage(attack)), kept: reappliedDefenses }), ...hitPlan.components];
   // Why the damage is what it is (lot R3b): one line per reaction, for the History and the combat log.
   const damageReactionRecords = reactionsOnTarget.length
-    ? adjustForDamageReactions({ components, inputs, factor, reactions: reactionsOnTarget }).records
+    ? adjustForDamageReactions({ components, inputs: defendedInputs, factor, reactions: reactionsOnTarget }).records
       .map((record) => ({ id: targetItem.id, ...record })) : [];
   const requestedDamage = damageComponents.reduce((sum, component) => sum + component.amount, 0);
+  const heavyArmorRecord = heavy?.reduction?.amount > 0 ? { name: HEAVY_ARMOR_MASTER_NAME, ...heavy.reduction }
+    : heavy?.off ? { name: HEAVY_ARMOR_MASTER_NAME, off: true } : null;
   const targetMeta = targetItem.metadata?.[META_KEY] || {};
   let change = null;
   if (!miss) {
@@ -1879,6 +1902,8 @@ export function buildPcAttackMutation({
   if (activationPlan.notes.length) causality.notes = [...activationPlan.notes];
   if (hitPlan.causality) causality.onHit = hitPlan.causality;
   if (damageReactionRecords.length) causality.damageReactions = structuredClone(damageReactionRecords);
+  // Why the damage is 3 less, or that the GM took the feat off (lot F7-3).
+  if (heavyArmorRecord) causality.heavyArmor = heavyArmorRecord;
   return {
     change, damageComponents, causality,
     followUps: [...pcAttackFollowUps(sourceMeta.initiativeCard, chosenRiders, activationPlan.chosen.map((activation) => activation.id),
