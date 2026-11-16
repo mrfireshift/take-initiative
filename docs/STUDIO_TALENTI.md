@@ -2138,10 +2138,11 @@ Gambe.**
   opportunità. Fuori dal combattimento non c'è; con una pill che nomina già lo
   stesso bersaglio non se ne aggiunge un'altra. L'Annulla dell'attacco la
   toglie.
-- **Diverso dal piano:** l'override di Gioco di Gambe resta com'è. La capacità
-  è passiva, quindi la card resta di riferimento comunque, come Movimento
-  Veloce, che lo Speed Tracker applica restando «not-automated». Il catalogo
-  delle capacità, con righe di altre sessioni, non si rigenera.
+- **Diverso dal piano:** l'override di Gioco di Gambe resta com'è: la card
+  resta di riferimento («riferimento», «not-automated»), come quella di
+  Movimento Veloce, che lo Speed Tracker applica lo stesso. L'effetto lo mette il
+  comando dell'attacco. Il catalogo delle capacità, con righe di altre
+  sessioni, non si rigenera.
 - **Documenti:** le prove in stanza sono in B60.
 
 ---
