@@ -8,6 +8,7 @@
 // - "miss": the GM picks Miss;
 // - "spell-cast": a creature casts a spell (the spell panel, the 🪄 menu, the attack console);
 // - "move-leave" / "move-enter": a creature leaves or enters another's reach (the Speed Tracker, lot R5);
+// - "move-enter-reach": a creature enters the reach of one with Polearm Master (lot F6-3, opportunityAttackCore.js);
 // - "turn-end-near": a creature ends its turn near another.
 // timing: "before" changes the outcome or the damage of the trigger, so it is decided before the write (the console
 // stops); "after" answers without changing it, so it is a notice.
@@ -31,7 +32,8 @@
 // §7.15), records of featCatalog.js with the ids "talento-…"; an "ac-bonus" with proficiency adds the reactor's
 // proficiency bonus (Defensive Duelist).
 
-export const REACTION_TRIGGERS = Object.freeze(["hit", "damage", "miss", "spell-cast", "move-leave", "move-enter", "turn-end-near"]);
+export const REACTION_TRIGGERS = Object.freeze(["hit", "damage", "miss", "spell-cast", "move-leave", "move-enter", "move-enter-reach",
+  "turn-end-near"]);
 export const REACTION_TIMINGS = Object.freeze(["before", "after"]);
 export const REACTION_FLOWS = Object.freeze(["cast-spell", "spell-panel", "use-feature", "off-turn-attack", "counterspell", "note",
   "modifier", "activate-feature"]);
@@ -39,7 +41,7 @@ export const REACTION_FLOWS = Object.freeze(["cast-spell", "spell-panel", "use-f
 // The option switch of each trigger (reactionPromptOptions in reactionCandidatesCore.js).
 export const REACTION_TRIGGER_OPTION = Object.freeze({
   hit: "hit", damage: "damage", miss: "miss", "spell-cast": "spellCast",
-  "move-leave": "move", "move-enter": "move", "turn-end-near": "move",
+  "move-leave": "move", "move-enter": "move", "move-enter-reach": "move", "turn-end-near": "move",
 });
 
 export const ELEMENTAL_DAMAGE_TYPES = Object.freeze(["acid", "cold", "fire", "lightning", "thunder"]);
@@ -250,6 +252,11 @@ export const REACTION_TRIGGER_CATALOG = Object.freeze([
   entry({ id: "opportunity-attack", label: "Attacco di opportunità", source: "universal", triggers: ["move-leave"], timing: "after",
     flow: "off-turn-attack", targetsMover: true, lot: "R5", effect: { kind: "attack" }, short: "Attacco in mischia",
     rule: "Una creatura ostile esce dalla sua portata, se non si è disimpegnata: un attacco in mischia contro di lei." }),
+  // Lot F6-3: Polearm Master, a hostile creature enters the reach (3 m when chosen on the sheet); the console off turn.
+  feature({ id: "polearm-master-reach", label: "Maestro delle Armi su Asta", featureIds: ["talento-maestro-delle-armi-su-asta"],
+    triggers: ["move-enter-reach"], timing: "after", flow: "off-turn-attack", targetsMover: true, lot: "F6",
+    effect: { kind: "attack" }, short: "Attacco di opportunità",
+    rule: "Una creatura ostile entra nella sua portata, con falcione, alabarda, picca, bastone ferrato o lancia: un attacco di opportunità contro di lei." }),
   feature({ id: "halo-of-spores", label: "Alone di Spore", featureIds: ["druido-circolo-delle-spore-alone-di-spore"],
     triggers: ["move-enter"], timing: "after", targetsMover: true, lot: "R5",
     effect: { kind: "retaliation", dice: "1d4", type: "necrotic", save: "con" }, short: "1d4 necrotici",

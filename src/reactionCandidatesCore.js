@@ -228,6 +228,7 @@ function why(event, { attacker, caster, mover, target }) {
     }
     case "move-leave": return `${nameOf(mover)} esce dalla portata.`;
     case "move-enter": return `${nameOf(mover)} si avvicina.`;
+    case "move-enter-reach": return `${nameOf(mover)} entra nella portata.`;
     case "turn-end-near": return `${nameOf(mover)} finisce il turno vicino.`;
     default: return "";
   }

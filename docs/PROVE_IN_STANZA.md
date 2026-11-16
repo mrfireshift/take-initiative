@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **244** |
+| **B. Console attacchi, mostri e capacità** | **248** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -73,6 +73,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B42. Riposo del gruppo: Tenace e il cibo del Cuoco | 3 |
 | B44. Reazioni dei talenti: Duellante Difensivo, Seconda Possibilità, Scomparire | 4 |
 | B46. Sentinella | 4 |
+| B47. Maestro delle Armi su Asta | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -98,7 +99,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **607** |
+| **Totale** | **611** |
 
 ## A. Incantesimi
 
@@ -916,6 +917,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F6-2 (decisioni K1 e K2). L
 - [ ] **La velocità 0:** **Usa** sull'attacco di opportunità apre la console del PG fuori turno; su un colpo in mischia c'è «Sentinella: velocità 0», con «Solo con un attacco di opportunità». Spuntata, **Registra** mette «Velocità 0 · Sentinella» sul goblin: lo Speed Tracker gli dà 0 m, e la pill sparisce alla fine del suo turno. Nel turno del PG la stessa voce è spenta.
 - [ ] **L'attacco per un altro:** un goblin entro 1,5 m dal PG con Sentinella attacca l'altro PG: dopo **Registra**, colpito o mancato, l'avviso offre «Sentinella · Attacco in mischia»; **Usa** apre la console del PG fuori turno, con il goblin selezionato.
 - [ ] **Quando non c'è:** niente avviso se il goblin attacca il PG con Sentinella, se il PG attaccato ha anche lui Sentinella o se il goblin è a più di 1,5 m.
+
+### B47. Maestro delle Armi su Asta
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F6-3 (decisione K3). Le voci sono nuove: nessuna lista le aveva. In combattimento, con l'interruttore **Movimento** acceso nelle Opzioni: un PG di 5° livello con Maestro delle Armi su Asta e un goblin nemico.
+
+- [ ] **La portata:** nel riquadro Talenti della scheda c'è «Portata dell'arma»; scelti i 3 m, salvata e riaperta la scheda, restano 3 m.
+- [ ] **L'entrata:** con 3 m, il goblin arriva a 3 m dal PG nel suo turno: l'avviso del movimento dice «Goblin entra nella portata», con «Attacco di opportunità»; **Usa** apre la console del PG fuori turno, con il goblin selezionato. Con 1,5 m l'avviso arriva solo quando il goblin è accanto; dopo un Disimpegno non arriva.
+- [ ] **L'uscita:** con 3 m, il goblin che si allontana da 3 m a 4,5 m provoca l'attacco di opportunità.
+- [ ] **L'altra estremità:** dalla card del talento, «Altra estremità dell'arma» (1d4 contundenti + Forza) si aggiunge agli Attacchi; dopo un attacco in mischia la console ricorda l'azione bonus, ma non dopo l'altra estremità stessa.
 
 ## C. Tracker e UX
 

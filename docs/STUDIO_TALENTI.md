@@ -6,8 +6,8 @@ dall'utente il 15/11** (§9); **F0 fatto il 15/11** (§7.1), **F1 il 16/11**
 con S1–S9 approvate** (§7.4), **F3b-1, F3b-2, F3b-3, F3b-4 e F3b-5 il 16/11**
 (§7.5–§7.9): F3 è chiuso. **F4 il 16/11** (§7.10). **Il piano di F5 il 16/11,
 con H1–H7 approvate** (§7.11), **F5-1, F5-2 e F5-3 il 16/11** (§7.12–§7.14):
-F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 approvate** (§7.15), **F6-1 e
-F6-2 il 16/11** (§7.16, §7.17).
+F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 approvate** (§7.15), **F6-1,
+F6-2 e F6-3 il 16/11** (§7.16–§7.18).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -1777,6 +1777,38 @@ vai con F6-2»). F6-1 non ne dipende.
 - **`reactionPromptView.js`** ha righe non committate delle trasformazioni: il
   commit prende HEAD + le righe di F6-2.
 - **Documenti:** le prove in stanza sono in B46 (B45 è delle trasformazioni).
+
+### 7.18 F6-3, fatto il 16/11
+
+**Maestro delle Armi su Asta.** Come la §7.15, con K3.
+
+- **La portata:**
+  - nel riquadro Talenti della scheda, il menu «Portata dell'arma»: 1,5 m
+    (bastone ferrato, lancia) o 3 m (falcione, alabarda, picca);
+  - si salva solo i 3 m (`choice.reachMeters`);
+  - `reactorReachMeters` la legge, quindi vale anche per chi esce dalla
+    portata.
+- **L'entrata nella portata:**
+  - un innesco nuovo, `move-enter-reach`, con l'interruttore Movimento:
+    `movementReactionEvents` lo calcola come l'uscita, casella per casella, ma
+    solo per chi ha il talento;
+  - il Disimpegno e il Colpo dello Zefiro lo tolgono. L'eccezione di Sentinella
+    parla dell'uscita dalla portata, quindi qui non vale;
+  - voce `polearm-master-reach`: «Orco entra nella portata», Usa apre la console
+    fuori turno con chi è entrato selezionato. La velocità 0 di Sentinella vale
+    anche qui, perché è un attacco di opportunità.
+- **L'altra estremità:**
+  - un'arma del talento, «Altra estremità dell'arma» (1d4 contundenti +
+    Forza), che la card aggiunge agli Attacchi come gli artigli di Pelle di
+    Drago;
+  - dopo un attacco in mischia la console ricorda l'azione bonus
+    (`pcAttackFollowUps`), non dopo l'altra estremità stessa.
+- **L'import della scheda:** `reach` (o `portata`), in metri o in piedi: 3 m o
+  10 ft salvano la scelta; 1,5 m è il valore di base; un altro valore, o una
+  portata per un altro talento, viene segnalato. `IMPORT_SCHEDA.md` lo dice.
+- **`pcAttackCore.js`** ha righe non committate di un'altra sessione: il commit
+  prende HEAD + le righe di F6-3.
+- **Documenti:** le prove in stanza sono in B47.
 
 ---
 

@@ -299,6 +299,8 @@ const RITUAL_SPELLS = [
 const UNTIL_NEXT_TURN = "next-turn";
 // Until the end of the character's next turn: Fade Away's (lot F6-1).
 const UNTIL_NEXT_TURN_END = "next-turn-end";
+// Polearm Master's longer reach (lot F6-3): the only value its choice saves; 1.5 m is the default and saves nothing.
+export const FEAT_LONG_REACH_METERS = 3;
 // Until the end of the target's turn, the one in progress: Sentinel's speed 0 (lot F6-2, classFeatureDurationTiming).
 const UNTIL_TARGET_TURN_END = "target-turn-end";
 // The pill Sentinel's opportunity attack puts on the creature it hits (lot F6-2): its speed is 0 (setMeters).
@@ -382,7 +384,12 @@ const DEFINITIONS = [
     plugin: "La CA va scritta nella scheda; il resto si gestisce al tavolo." }),
   feat("phb", 169, "Maestro delle Armature Pesanti", "Heavy Armor Master", { prerequisite: "Competenza nelle armature pesanti",
     abilities: ["str"] }),
-  feat("phb", 170, "Maestro delle Armi su Asta", "Polearm Master"),
+  // Lot F6-3 (decision K3): the reach chosen on the sheet (choice.reachMeters, 3 m with a glaive, a halberd or a pike),
+  // read by the opportunity attacks (opportunityAttackCore.js) when a creature leaves or enters it; the other end of the
+  // weapon, an attack of the card as Dragon Hide's claws, and its reminder after a melee attack (pcAttackFollowUps).
+  feat("phb", 170, "Maestro delle Armi su Asta", "Polearm Master", { activation: "reazione", choices: ["reachMeters"],
+    plugin: "La portata 3 m (falcione, alabarda, picca) si sceglie nei Talenti della scheda. Avviso di reazione quando un nemico entra nella portata; l'altra estremità (1d4 contundenti) si aggiunge agli Attacchi da questa card.",
+    naturalWeapon: { label: "Altra estremità dell'arma", dice: "1d4", type: "bludgeoning", ability: "str" } }),
   feat("phb", 170, "Mente Acuta", "Keen Mind", { abilities: ["int"], plugin: AT_TABLE }),
   feat("phb", 170, "Mobilità", "Mobile"),
   feat("phb", 170, "Osservatore", "Observant", { abilities: ["int", "wis"],

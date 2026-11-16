@@ -7,7 +7,8 @@ import { getSpellDefinition } from "./spells-srd.js";
 import { CLASS_FEATURE_CLASSES, getClassFeatureSubclasses } from "./classFeatureCatalog.js";
 import { MAX_CHARACTER_CLASSES, sanitizeCharacterBuild } from "./classFeatureCore.js";
 import { SPECIES, SUPERNATURAL_GIFTS, speciesDisplayName, supernaturalGiftDisplayName } from "./speciesTraitCore.js";
-import { FEATS, FEAT_CANTRIPS, FEAT_DAMAGE_TYPES, MAX_FEATS, MAX_FEAT_RITUALS, featChoiceSlots, featDisplayName, sanitizeFeats } from "./featCatalog.js";
+import { FEATS, FEAT_CANTRIPS, FEAT_DAMAGE_TYPES, FEAT_LONG_REACH_METERS, MAX_FEATS, MAX_FEAT_RITUALS, featChoiceSlots, featDisplayName,
+  sanitizeFeats } from "./featCatalog.js";
 import { DAMAGE_TYPES, sanitizeDamageDefenses, hasDamageDefenses } from "./damageDefensesCore.js";
 import { ABILITY_KEYS, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
 import { MAX_QUICK_ACTIONS, MAX_QUICK_ACTION_ATTACKS, MAX_QUICK_ACTION_USES, sanitizeQuickAction } from "./quickActionsCore.js";
@@ -283,6 +284,17 @@ function importedSupernaturalGift(data, unresolved) {
 // recognised is reported, never guessed.
 const FEAT_BY_KEY = new Map(FEATS.flatMap((feat) => [feat.id, feat.name, ...feat.aliases].map((name) => [lookupKey(name), feat])));
 
+// A reach written in meters or feet: "3", "3 m", "10 ft", "10 piedi", 10 (a number from 5 up without its unit is in feet,
+// as the stat blocks write it); 10 ft are 3 m. null when it cannot be read.
+function importedReachMeters(value) {
+  const match = /^(\d+(?:[.,]\d+)?)\s*(m|metri|ft|feet|piedi)?\.?$/iu.exec(String(value ?? "").trim());
+  if (!match) return null;
+  const number = Number(match[1].replace(",", "."));
+  const unit = String(match[2] || "").toLowerCase();
+  const feet = unit ? ["ft", "feet", "piedi"].includes(unit) : number >= 5;
+  return Math.round((feet ? number * 0.3 : number) * 10) / 10;
+}
+
 function importedFeats(data, unresolved) {
   const raw = data.feats ?? data.talenti;
   if (raw === undefined || raw === null || raw === "") return null;
@@ -305,6 +317,14 @@ function importedFeats(data, unresolved) {
     const damageType = resolveDamageType(typeName);
     if (feat.choices.includes("damageType") && FEAT_DAMAGE_TYPES.some((type) => type.id === damageType)) entry.choice = { damageType };
     else if (typeName) unresolved.push(`tipo di danno "${typeName}" per ${feat.name}`);
+    // Polearm Master's reach (lot F6-3, decision K3): 3 m (10 ft) with a glaive, a halberd or a pike; 1.5 m (5 ft) is the
+    // default and saves nothing. Another value, or a reach for another feat, is reported.
+    const reachText = text(source.reach ?? source.portata);
+    if (reachText) {
+      const reach = importedReachMeters(reachText);
+      if (feat.choices.includes("reachMeters") && reach === FEAT_LONG_REACH_METERS) entry.choice = { ...(entry.choice || {}), reachMeters: reach };
+      else if (!(feat.choices.includes("reachMeters") && reach === 1.5)) unresolved.push(`portata "${reachText}" per ${feat.name}`);
+    }
     // The spells it lets choose (lot F3b), in their slots' order: a name outside a slot's list is reported, never moved.
     const slots = featChoiceSlots(feat.id);
     const spellNames = [source.spells ?? source.incantesimi ?? source.spell ?? source.incantesimo].flat().map(text).filter(Boolean);

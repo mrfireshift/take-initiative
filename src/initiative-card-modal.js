@@ -167,7 +167,7 @@ import { privateTextMissingNote } from "./privatePackCore.js";
 import {
   FEATS, FEATS_FIELD, FEAT_ABILITY_LABELS, FEAT_BOOK_SOURCES, FEAT_DAMAGE_TYPES, MAX_FEATS,
   FEAT_CANTRIPS, FEAT_CLASS_LABELS, featChoiceSlots, featDisplayName, featPluginLine, featWarnings, getFeat, sanitizeFeats,
-  MAX_FEAT_RITUALS,
+  MAX_FEAT_RITUALS, FEAT_LONG_REACH_METERS,
 } from "./featCatalog.js";
 
 perfBootPage(OBR);
@@ -5188,6 +5188,12 @@ function buildFeatEditorRow(entry = {}) {
   damage.dataset.featField = "damageType";
   const abilityLabel = makeLabel("Caratteristica del +1", ability);
   const damageLabel = makeLabel("Tipo di danno", damage);
+  // Lot F6-3 (decision K3): Polearm Master's reach, 3 m with a glaive, a halberd or a pike (choice.reachMeters).
+  const reach = document.createElement("select");
+  reach.dataset.featField = "reach";
+  reach.replaceChildren(new Option("1,5 m (bastone ferrato, lancia)", ""),
+    new Option(`${FEAT_LONG_REACH_METERS} m (falcione, alabarda, picca)`, String(FEAT_LONG_REACH_METERS)));
+  const reachLabel = makeLabel("Portata dell'arma", reach);
   // Lot F3b-2: Magic Initiate's class, whose ability its spells take.
   const classSelect = document.createElement("select");
   classSelect.dataset.featField = "class";
@@ -5198,7 +5204,7 @@ function buildFeatEditorRow(entry = {}) {
   spellLabels.className = "feat-editor-spells";
   const choices = document.createElement("div");
   choices.className = "feat-editor-choices";
-  choices.append(abilityLabel, damageLabel, classLabel, spellLabels);
+  choices.append(abilityLabel, damageLabel, reachLabel, classLabel, spellLabels);
   const remove = document.createElement("button");
   remove.type = "button";
   remove.className = "class-build-remove";
@@ -5222,7 +5228,8 @@ function buildFeatEditorRow(entry = {}) {
     select.addEventListener("change", syncFeatWarnings);
     return makeLabel(`Rituale ${index + 1}`, select);
   };
-  const syncChoices = ({ ability: chosenAbility = "", damageType = "", spellIds = [], classId = "", cantripIds = [], ritualIds = [] } = {}) => {
+  const syncChoices = ({ ability: chosenAbility = "", damageType = "", spellIds = [], classId = "", cantripIds = [], ritualIds = [],
+    reachMeters = null } = {}) => {
     const feat = getFeat(select.value);
     const abilities = feat?.abilityChoices.length > 1 ? feat.abilityChoices : [];
     ability.replaceChildren(new Option("Da scegliere", ""), ...abilities.map((key) => new Option(FEAT_ABILITY_LABELS[key], key)));
@@ -5232,6 +5239,9 @@ function buildFeatEditorRow(entry = {}) {
     damage.replaceChildren(new Option("Da scegliere", ""), ...FEAT_DAMAGE_TYPES.map((type) => new Option(type.label, type.id)));
     damage.value = asksDamage && FEAT_DAMAGE_TYPES.some((type) => type.id === damageType) ? damageType : "";
     damageLabel.hidden = !asksDamage;
+    const asksReach = !!feat?.choices.includes("reachMeters");
+    reach.value = asksReach && Number(reachMeters) === FEAT_LONG_REACH_METERS ? String(FEAT_LONG_REACH_METERS) : "";
+    reachLabel.hidden = !asksReach;
     const classes = feat?.classChoices || [];
     classSelect.replaceChildren(new Option("Da scegliere", ""), ...classes.map((id) => new Option(FEAT_CLASS_LABELS[id] || id, id)));
     classSelect.value = classes.includes(classId) ? classId : "";
@@ -5278,11 +5288,12 @@ function buildFeatEditorRow(entry = {}) {
       });
       spellLabels.append(...menus, addRitual);
     }
-    choices.hidden = abilityLabel.hidden && damageLabel.hidden && classLabel.hidden && !spellLabels.children.length;
+    choices.hidden = abilityLabel.hidden && damageLabel.hidden && reachLabel.hidden && classLabel.hidden && !spellLabels.children.length;
     row.classList.toggle("unknown", !!select.value && !feat);
   };
   syncChoices({ ability: entry?.ability, damageType: entry?.choice?.damageType, spellIds: entry?.choice?.spellIds,
-    classId: entry?.choice?.classId, cantripIds: entry?.choice?.cantripIds, ritualIds: entry?.choice?.ritualIds });
+    classId: entry?.choice?.classId, cantripIds: entry?.choice?.cantripIds, ritualIds: entry?.choice?.ritualIds,
+    reachMeters: entry?.choice?.reachMeters });
   select.addEventListener("change", () => {
     syncChoices();
     syncFeatWarnings();
@@ -5355,9 +5366,12 @@ function collectFeats() {
     const feat = getFeat(id);
     if (!id) return null;
     if (!feat) return id === original.id ? original : null;
-    const { damageType: _previousType, ...kept } = id === original.id && original.choice ? original.choice : {};
+    const { damageType: _previousType, reachMeters: _previousReach, ...kept } = id === original.id && original.choice ? original.choice : {};
     const ability = feat.abilityChoices.length > 1 ? row.querySelector("[data-feat-field='ability']").value : "";
     const damageType = feat.choices.includes("damageType") ? row.querySelector("[data-feat-field='damageType']").value : "";
+    // Polearm Master's reach (lot F6-3): saved only when longer than the default 1.5 m.
+    const reachMeters = feat.choices.includes("reachMeters")
+      && Number(row.querySelector("[data-feat-field='reach']").value) === FEAT_LONG_REACH_METERS ? FEAT_LONG_REACH_METERS : null;
     // The spells it lets choose: the menus' values replace the ones it came with (lot F3b); so do the class and the
     // cantrips (lot F3b-2).
     const spellIds = featChoiceSlots(id).length ? featRowSpellIds(row) : null;
@@ -5369,7 +5383,7 @@ function collectFeats() {
     // The rituals of Ritual Caster's book (lot F3b-4): the chosen ones, each once.
     const ritualIds = feat.ritualCandidates.length ? [...new Set(featRowRitualIds(row).filter(Boolean))] : null;
     if (ritualIds) delete kept.ritualIds;
-    const choice = { ...kept, ...(damageType ? { damageType } : {}), ...(classId ? { classId } : {}),
+    const choice = { ...kept, ...(damageType ? { damageType } : {}), ...(reachMeters ? { reachMeters } : {}), ...(classId ? { classId } : {}),
       ...(cantripIds?.some(Boolean) ? { cantripIds } : {}), ...(spellIds?.some(Boolean) ? { spellIds } : {}),
       ...(ritualIds?.length ? { ritualIds } : {}) };
     return { id, ...(ability ? { ability } : {}), ...(Object.keys(choice).length ? { choice } : {}) };

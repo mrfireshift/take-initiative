@@ -40,6 +40,7 @@ import { PC_ATTACK_CANTRIPS, PC_ATTACK_SAVE_LABELS, getPcAttackCantrip, pcAttack
 import { PC_ATTACK_SPELLS, getPcAttackSpell, pcAttackSpellCount, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
 import { abilityModifier, abilitySaveDC, proficiencyBonusForLevel, totalCharacterLevel } from "./abilityModifiersCore.js";
 import { featSpellcastingAbility } from "./featCatalog.js";
+import { speciesNaturalWeaponActionId } from "./speciesNaturalWeaponCore.js";
 import { spellTargetRangeMeters } from "./spellAreaCatalog.js";
 import { consumedAdvantagePills, hiddenPills } from "./attackAdvantagePillsCore.js";
 import { isOffTurn, readiedSpellHold } from "./reactionTrackerCore.js";
@@ -921,10 +922,14 @@ function activationOptionsFor(attack, { sourceItem, targetItem = null, turnState
   });
 }
 
+// Polearm Master's record (featCatalog.js), whose other end is an attack of the card (speciesNaturalWeaponCore.js).
+const POLEARM_MASTER_FEATURE_ID = "talento-maestro-delle-armi-su-asta";
+
 // What the GM may do next because of this attack (shown after the commit, never applied by it).
 // Inspiring Smite (Oath of Glory) follows a Divine Smite: a Channel Divinity the GM activates separately.
 // Lot F1 of docs/STUDIO_TALENTI.md, the feats' bonus attacks: Great Weapon Master after a critical or a creature dropped to
-// 0 HP with a melee weapon; Crossbow Expert after an attack with a weapon (one-handed: the table knows).
+// 0 HP with a melee weapon; Crossbow Expert after an attack with a weapon (one-handed: the table knows). Lot F6-3: Polearm
+// Master's other end after a melee attack.
 export function pcAttackFollowUps(card = {}, riders = [], activationIds = [], { attack = null, outcome = "", targetDown = false } = {}) {
   const notes = riders.filter((rider) => rider.slotLevel)
     .map((rider) => `${rider.option?.label || rider.id}: slot di ${rider.slotLevel}° livello speso.`);
@@ -938,6 +943,11 @@ export function pcAttackFollowUps(card = {}, riders = [], activationIds = [], { 
     notes.push("Maestro d'Armi Possenti: nel tuo turno puoi fare un attacco in mischia con un'arma come azione bonus.");
   if (weapon && enabled.has("talento-esperto-di-balestre"))
     notes.push("Esperto di Balestre: se hai attaccato con un'arma a una mano, puoi attaccare con la balestra a mano come azione bonus.");
+  // Polearm Master (lot F6-3 of docs/STUDIO_TALENTI.md): the other end, an attack of the card, after a melee attack that
+  // is not that one.
+  if (weapon && attack.range === "melee" && enabled.has(POLEARM_MASTER_FEATURE_ID)
+      && attack.id !== speciesNaturalWeaponActionId({ id: POLEARM_MASTER_FEATURE_ID }))
+    notes.push("Maestro delle Armi su Asta: nel tuo turno, dopo l'azione di Attacco con falcione, alabarda, bastone ferrato o lancia, l'altra estremità come azione bonus (1d4 contundenti).");
   return notes;
 }
 
