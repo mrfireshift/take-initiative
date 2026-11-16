@@ -1713,7 +1713,7 @@ export function buildPcAttackMutation({
     ? [{ type: "condition:add-instances", instancesByTarget: activationPlan.instancesByTarget }] : [];
   // CAP-LINK: Invisibility and Compelled Duel ended by this attack, in its own command (one Undo brings them back).
   const linkEnds = pcAttackLinkEnds({ sourceItem, targetItem, linkItems, damaged: !!change?.changed && change.requested > 0,
-    attackRoll: !pcAttackSave(attack) && !attack.mode && attack.spell?.delivery !== "auto" });
+    attackRoll: !pcAttackSave(attack) && !attack.mode && attack.spell?.delivery !== "auto", saveForced: !!pcAttackSave(attack) });
   // A spell's pill spent by the hit (Absorb Elements' first melee hit) goes with it, its spell too, in the same command.
   for (const rider of chosenRiders) {
     const consumed = rider.option.consumes;
@@ -1828,16 +1828,20 @@ function attitudeSide(item) {
 // its caster attacks another creature, or when a creature friendly to the caster damages the duel's target.
 // attackRoll (lot T2 of docs/STUDIO_AZIONI_DI_TURNO.md): an attack roll also ends its attacker's Hidden, and spends the
 // target's pill that gives it advantage (Help, Distracting Strike, Guiding Bolt: attackAdvantagePillsCore.js).
-export function pcAttackLinkEnds({ sourceItem, targetItem, linkItems = [], damaged = false, attackRoll = false } = {}) {
+// saveForced (lot T4c): the attack asks a saving throw (Psychic Veil ends on damage or on a save forced, not on a miss).
+export function pcAttackLinkEnds({ sourceItem, targetItem, linkItems = [], damaged = false, attackRoll = false, saveForced = false } = {}) {
   const ends = linkedSpellPills(sourceItem, "invisibility").map((instance) => ({ itemId: sourceItem.id, instanceId: instance.id,
     spellId: "invisibility", reason: "Ha attaccato o lanciato un incantesimo." }));
   // Sanctuary (CAP-REACTION) ends when the warded creature attacks or casts a spell on an enemy.
   ends.push(...linkedSpellPills(sourceItem, "sanctuary").map((instance) => ({ itemId: sourceItem.id, instanceId: instance.id,
     spellId: "sanctuary", reason: "Ha attaccato." })));
-  // A species trait's pill that ends when its bearer attacks (Hidden Step, speciesTraitCore.js).
+  // A species trait's pill that ends when its bearer attacks (Hidden Step, speciesTraitCore.js); a class's «Invisibile»
+  // (lot T4c, classFeatureCatalog.js), Psychic Veil's only when the attack deals damage or forces a save.
   for (const instance of conditionInstancesOf(sourceItem)) {
-    if (instance?.active === false || !instance?.id || !getClassFeatureDefinition(instance.effectId)?.endsOnAttack) continue;
-    ends.push({ itemId: sourceItem.id, instanceId: instance.id, featureId: instance.effectId, reason: "Ha attaccato." });
+    const endsOnAttack = instance?.active !== false && instance?.id ? getClassFeatureDefinition(instance.effectId)?.endsOnAttack : null;
+    if (!endsOnAttack || (endsOnAttack === "damage-or-save" && !damaged && !saveForced)) continue;
+    ends.push({ itemId: sourceItem.id, instanceId: instance.id, featureId: instance.effectId,
+      reason: endsOnAttack === "damage-or-save" ? (damaged ? "Ha inflitto danni." : "Ha imposto un tiro salvezza.") : "Ha attaccato." });
   }
   const byId = new Map([...(Array.isArray(linkItems) ? linkItems : []), targetItem, sourceItem].filter((item) => item?.id).map((item) => [item.id, item]));
   if (attackRoll) {

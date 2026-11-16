@@ -301,6 +301,23 @@ opportunità (A2).
 
 Prove in `PROVE_IN_STANZA.md`, sezione B53.
 
+**T4c fatto il 16/11:** le pill «Invisibile» delle classi finiscono attaccando
+(A3).
+
+- Manto di Ombre del chierico dell'Inganno e del monaco dell'Ombra e Fuga Velata
+  del warlock del Signore Fatato finiscono quando la creatura registra un attacco
+  dalla console, colpito o mancato, come Passo nascosto e Scomparire.
+- Il segno è in `classFeatureCatalog.js` (`CLASS_FEATURE_ENDS_ON_ATTACK`), sopra
+  il catalogo generato. La fine la fa `pcAttackLinkEnds`, nello stesso comando
+  dell'attacco.
+- Velo Psichico finisce solo se l'attacco infligge danni o impone un tiro
+  salvezza, come dice il suo testo: un attacco mancato lo lascia.
+- Corpo Vuoto dura il suo minuto.
+- Restano a mano gli incantesimi lanciati dal pannello e la luce intensa del
+  monaco.
+
+Prove in `PROVE_IN_STANZA.md`, sezione B54.
+
 Scritti lo stesso giorno, con decisioni nuove in attesa:
 
 - §9, l'incantesimo preparato: decisioni **P1–P12** (§9.8), approvate dall'utente

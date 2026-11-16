@@ -21,8 +21,18 @@ import { SPELL_SLOT_RESOURCE_POOLS } from "./spellSlotCore.js";
 export { classFeatureIsReferenceOnly, classFeatureRuntimeSupport };
 
 export const CLASS_FEATURE_CATALOG = catalog;
+// Lot T4c of docs/STUDIO_AZIONI_DI_TURNO.md (decision A3): the class pills «Invisibile» that end when their bearer
+// attacks from the console, as Hidden Step's (pcAttackCore.js, pcAttackLinkEnds). Psychic Veil only when the attack
+// deals damage or forces a save, as its text says; Empty Body lasts its minute.
+const CLASS_FEATURE_ENDS_ON_ATTACK = Object.freeze({
+  "chierico-dominio-dell-inganno-incanalare-divinita-manto-di-ombre": true,
+  "monaco-via-dell-ombra-manto-di-ombre": true,
+  "warlock-il-signore-fatato-fuga-velata": true,
+  "ladro-lama-spirituale-velo-psichico": "damage-or-save",
+});
 export const CLASS_FEATURES = Object.freeze(
-  (Array.isArray(catalog.features) ? catalog.features : []).map(Object.freeze)
+  (Array.isArray(catalog.features) ? catalog.features : []).map((feature) => Object.freeze(
+    Object.hasOwn(CLASS_FEATURE_ENDS_ON_ATTACK, feature?.id) ? { ...feature, endsOnAttack: CLASS_FEATURE_ENDS_ON_ATTACK[feature.id] } : feature))
 );
 export const CLASS_FEATURE_CLASSES = Object.freeze(
   (Array.isArray(catalog.classes) ? catalog.classes : []).map(Object.freeze)

@@ -269,7 +269,11 @@ quel personaggio.
 - Dalla console attacchi alcune fini sono automatiche, nello stesso comando
   dell'attacco (un Annulla le rende): una creatura invisibile per Invisibilità
   che attacca perde l'etichetta; Duello obbligato finisce quando il caster attacca
-  un'altra creatura o un suo alleato ferisce il bersaglio del duello. Dopo un
+  un'altra creatura o un suo alleato ferisce il bersaglio del duello. Lo stesso
+  vale per la pill «Invisibile» di Manto di Ombre (chierico dell'Inganno e monaco
+  dell'Ombra) e di Fuga Velata (warlock del Signore Fatato), colpito o mancato. Velo
+  Psichico (Lama Spirituale) finisce solo se l'attacco infligge danni o impone un
+  tiro salvezza; Corpo Vuoto dura il suo minuto. Dopo un
   colpo con Lama roboante, se il bersaglio si muove nel suo turno compare
   l'avviso con i danni da tuono: conferma per applicarli, o chiudi l'avviso se
   lo spostamento era forzato.

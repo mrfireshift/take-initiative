@@ -896,3 +896,21 @@ test("Schermagliatore in the ghoul's turn: «Movimento: no AdO» until that turn
   await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
   assert.deepEqual((meta("aria").conditions?.instances || []).filter((instance) => instance.active !== false).map((instance) => instance.condition), []);
 });
+
+// Lot T4c (decision A3): a class pill «Invisibile» that ends on an attack goes in the attack's own command.
+test("Cloak of Shadows ends with the attack, hit or miss, in its command; Psychic Veil stays on a miss", async () => {
+  const pill = (featureId) => ({ version: 2, instances: [{ id: `invisible-${featureId}`, condition: "Invisibile", effectId: featureId,
+    sourceId: "aria", targetId: "aria", active: true, expiry: { mode: "manual" }, createdAt: 1 }] });
+  const pillsOf = () => (meta("aria").conditions?.instances || []).filter((instance) => instance.active !== false).map((instance) => instance.effectId);
+  meta("aria").conditions = pill("chierico-dominio-dell-inganno-incanalare-divinita-manto-di-ombre");
+  await attack({ outcome: "miss", componentAmounts: {} });
+  assert.deepEqual(pillsOf(), [], "a miss ends it too");
+  const entry = await attackEntry();
+  await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual(pillsOf(), ["chierico-dominio-dell-inganno-incanalare-divinita-manto-di-ombre"], "Undo brings it back");
+  meta("aria").conditions = pill("ladro-lama-spirituale-velo-psichico");
+  await attack({ outcome: "miss", componentAmounts: {}, attackInstanceId: "veil-miss" });
+  assert.deepEqual(pillsOf(), ["ladro-lama-spirituale-velo-psichico"], "no damage: the veil stays");
+  await attack({ attackInstanceId: "veil-hit" });
+  assert.deepEqual(pillsOf(), [], "damage dealt: the veil ends");
+});
