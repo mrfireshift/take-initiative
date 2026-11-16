@@ -306,6 +306,13 @@ function castSpellAction(action, entry) {
 function withCastSpells(spellcasting, casts, report) {
   if (!casts.length) return spellcasting;
   const out = { ...spellcasting };
+  // A spell the card prepares already ("Cast Spell. Ezmerelda casts zephyr strike."): cast with its slots, no innate copy.
+  const prepared = new Set(asList(out.spells).map((spell) => String(spell?.name || "").toLowerCase()));
+  for (const cast of casts) {
+    if (prepared.has(cast.spell.name.toLowerCase())) report[cast.reportAt] = `${cast.entry}: ${cast.spell.name}, tra gli incantesimi preparati (con gli slot)`;
+  }
+  casts = casts.filter((cast) => !prepared.has(cast.spell.name.toLowerCase()));
+  if (!casts.length) return out;
   const known = new Set(asList(out.innateSpells).map((spell) => String(spell?.name || "").toLowerCase()));
   out.innateSpells = [...asList(out.innateSpells), ...casts.map((cast) => cast.spell).filter((spell) => !known.has(spell.name.toLowerCase()) && known.add(spell.name.toLowerCase()))];
   for (const cast of casts) {
@@ -872,7 +879,7 @@ export function fiveToolsMonsterToStatblock(input, { pool = [], allow2024 = fals
         // An action that only casts a spell (decision D11): an innate spell of the card, never the table's.
         const cast = entry.status === "manual" ? castSpellAction(action, entry) : null;
         if (cast) {
-          casts.push(cast);
+          casts.push({ ...cast, reportAt: report.length });
           report.push(`${entry.name}: incantesimo innato ${cast.spell.name}${cast.spell.perDay ? ` (${cast.spell.perDay}/giorno)` : ""}${cast.extra.length ? `; ${cast.extra.join("; ")}` : ""}`);
           continue;
         }

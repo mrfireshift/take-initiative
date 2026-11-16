@@ -100,7 +100,8 @@ function splitTop(text, separator = ",") {
 export function isStatblockEntryName(name) {
   const core = String(name || "").replace(/\s*\([^()]*\)/g, "").trim();
   if (!core || core.length > 60 || /[:;]$/.test(core)) return false;
-  return core.split(/\s+/).every((word, index) => /^[A-Z0-9"'(]/.test(word) || (index > 0 && MINOR_WORDS.has(word.toLowerCase())));
+  // "Rapier +1": a magic weapon's bonus after its name.
+  return core.split(/\s+/).every((word, index) => /^[A-Z0-9"'(]/.test(word) || (index > 0 && (MINOR_WORDS.has(word.toLowerCase()) || /^\+\d$/.test(word))));
 }
 
 // The text looks like a stat block: an armor class and hit points, in English or Italian, 2014 or 2024.
@@ -227,7 +228,10 @@ const PARAGRAPH_LINE = 100;
 // of a paragraph, and only with the uses in parentheses ("(1/day)", "(Recharge 5–6)", "(Costs 2 Actions)").
 const USES_NAME = /^([A-Z][^.()]{0,60}? \((?:\d+\/(?:[Dd]ay|[Rr]est|[Ww]eek)(?: [Ee]ach)?|Recharge [^)]{1,20}|Recharges after a [^)]{1,40}|Costs \d+ Actions?)\))\s+([A-Z].*)$/;
 function entryStart(text, previous) {
-  const match = text.match(/^([A-Z][^.]{0,120}?)\.(?:\s+(.*))?$/);
+  // "Rapier +1.Melee Weapon Attack: +7 to hit": a site that dropped the space after the name, read only before an attack.
+  const glued = text.match(/^([A-Z][^.]{0,60}?)\.(\S.*)$/);
+  const match = text.match(/^([A-Z][^.]{0,120}?)\.(?:\s+(.*))?$/)
+    || (glued && ATTACK_LEAD.test(glued[2]) ? [glued[0], glued[1], glued[2]] : null);
   if (!match || !isStatblockEntryName(match[1])) {
     const uses = previous.kind === "blank" ? text.match(USES_NAME) : null;
     return uses && isStatblockEntryName(uses[1]) ? { name: uses[1].trim(), rest: uses[2].trim() } : null;

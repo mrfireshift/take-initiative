@@ -667,7 +667,16 @@ Due difetti trovati in questo passo e corretti:
 - **Il riconoscimento nel pannello Importa** (`looksLikeStatblockText`) voleva un numero subito dopo l'etichetta, quindi non riconosceva «**Armor Class** 12» né «**AC** 15»: il Markdown di GM Binder e di Homebrewery sarebbe finito nell'errore del JSON, anche se il parser lo leggeva. Ora accetta il grassetto fra l'etichetta e il numero.
 - **La riga di allineamento di una tabella** con due trattini («|:--:|») restava come riga non letta.
 
-### 16.6 Che cosa resta di ST3
+### 16.6 Ezmerelda e le armi magiche di Strahd Reloaded (16/11)
+
+Nella scheda di Ezmerelda d'Avenir (pagina Non-Player Characters) non si registrava nessun attacco. Il sito scrive le armi senza spazio dopo il punto del nome, «Rapier +1.Melee Weapon Attack: +7 to hit», e mette il bonus dell'arma nel nome. Il parser non riconosceva l'inizio della voce, quindi le quattro armi finivano nel testo del Multiattack. Le correzioni:
+- **Il nome attaccato all'attacco:** «Nome.Melee Weapon Attack» apre una voce, ma solo se dopo il punto comincia un attacco (`entryStart`).
+- **Il bonus nel nome:** «+1», «+2» sono parole valide del nome di una voce (`isStatblockEntryName`).
+- **Un incantesimo preparato lanciato da un'azione:** «Cast Spell. Ezmerelda casts zephyr strike.» (azione bonus) non aggiunge più una copia innata dell'incantesimo, che si lancerebbe senza slot. Resta fra i preparati, e il rapporto dice «tra gli incantesimi preparati (con gli slot)» (`withCastSpells`, decisione D11).
+
+La misura sulle pagine di Strahd Reloaded: nei personaggi le azioni registrabili passano da 125 a 131. Ezmerelda ne ha 4 invece di 0, e i due Vladimir Horngaard guadagnano la Greatsword +2. Il Bestiario, i tre PDF e la pagina di GM Binder non cambiano, e l'oracolo resta 814 / 1 / 0. Il test nuovo usa un mostro inventato (Mirela Vask).
+
+### 16.7 Che cosa resta di ST3
 
 D&D Beyond: chiede l'accesso, quindi niente download; serve il testo copiato dall'utente da 2–3 pagine di mostri. Homebrewery usa lo stesso Markdown di GM Binder, con i suoi blocchi `{{monster,frame}}`: già coperto dai test di ST1, da confermare con un link vero se l'utente ne ha uno.
 

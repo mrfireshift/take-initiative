@@ -295,6 +295,8 @@ una propria:
   più incantesimi, un lancio con una condizione e un'azione con dadi propri
   («dealing 10 (3d6) piercing damage») restano al tavolo; un danno in più
   («an additional 5 (2d4) necrotic damage») e la ricarica li dice il rapporto.
+  Un incantesimo che la scheda ha già fra quelli preparati non diventa un
+  innato: si lancia con gli slot, e il rapporto lo dice.
   Le azioni rapide sono al massimo 12: quelle in più vanno in rosso.
 
 Uno statblock di un mostro importato sopra un altro sostituisce anche classe,

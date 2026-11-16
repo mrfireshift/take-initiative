@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **301** |
+| **B. Console attacchi, mostri e capacità** | **302** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -60,7 +60,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B22. Incantesimo preparato: la preparazione nella console | 5 |
 | B23. Talenti nella console attacchi | 6 |
 | B24. Incantesimi dei talenti | 5 |
-| B25. Statblock da testo: le schede di Strahd Reloaded | 6 |
+| B25. Statblock da testo: le schede di Strahd Reloaded | 7 |
 | B26. Statblock: pill dei TS e incantesimi delle azioni | 5 |
 | B27. L'incantesimo scelto delle Contaminazioni | 4 |
 | B28. Le scelte di Iniziato alla Magia, Rudimenti da Artefice ed Elfi dei Boschi | 6 |
@@ -112,7 +112,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **664** |
+| **Totale** | **665** |
 
 ## A. Incantesimi
 
@@ -818,6 +818,7 @@ Fonte: [STUDIO_IMPORT_STATBLOCK_TESTO.md](STUDIO_IMPORT_STATBLOCK_TESTO.md), lot
 - [ ] **Le sezioni:** in Statistiche → **Statblock originale**, il paragrafo che apre le reazioni sta prima delle reazioni, senza nome. In Capacità non è una voce. La Spellcasting resta nella sezione dove la scheda la mette.
 - [ ] **Metà danni al successo:** in una scheda con un'azione bonus che dice «A creature that succeeds on the saving throw takes half damage», chi supera il TS nella console prende metà danni, non zero.
 - [ ] **Werewolf Brawler:** dalla pagina Bestiary, importa il Werewolf Brawler. Nella scheda Attacchi della console c'è «Crushing Grip (bonus action)» con l'etichetta arancione **Azione bonus**, mentre le altre righe dicono Azione: TS di Costituzione CD 14, 3d6 contundenti, metà a chi lo supera. Da provare in vista compatta ed estesa.
+- [ ] **Ezmerelda d'Avenir:** dalla pagina Non-Player Characters, importa Ezmerelda. Negli Attacchi ci sono Rapier +1 (+7, 1d8+5), Handaxe +1 (+5, anche a 20/60 ft.), Silvered Shortsword (+6) e Hand Crossbow (+5, 30/120 ft.). Zephyr strike sta fra gli incantesimi da ranger con gli slot, non fra gli innati. Lo stesso per la Greatsword +2 dei due Vladimir Horngaard.
 - [ ] **Da 5eTools:** importa **Mind Flayer** (MM): Extract Brain si registra con 10d10 perforanti. Importa **Fomorian** (MM): Evil Eye si registra con 6d8 psichici e senza area.
 
 ### B26. Statblock: pill dei TS e incantesimi delle azioni

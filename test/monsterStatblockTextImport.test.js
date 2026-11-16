@@ -64,6 +64,41 @@ test("il mostro letto resta per lo Statblock originale, la scheda Capacità e gl
   assert.deepEqual(monsterReactionsFromView(view).map((reaction) => [reaction.kind, reaction.amount]), [["ac-bonus", 2]]);
 });
 
+test("armi magiche col nome attaccato all'attacco e un incantesimo preparato lanciato da un'azione", () => {
+  // A site that dropped the space after the name ("Sabre +1.Melee Weapon Attack"), with the weapon's bonus in the name;
+  // an action that casts a spell the card prepares: the slots', no innate copy.
+  const hunter = [
+    "Mirela Vask",
+    "Medium humanoid (human), neutral good",
+    "Armor Class 16 (studded leather)",
+    "Hit Points 60 (8d8 + 24)",
+    "Speed 30 ft.",
+    "STR DEX CON INT WIS CHA",
+    "12 (+1) 18 (+4) 16 (+3) 10 (+0) 14 (+2) 11 (+0)",
+    "Challenge 3 (700 XP)",
+    "",
+    "Spellcasting. Mirela is a 5th-level spellcaster. Her spellcasting ability is Wisdom (spell save DC 12, +4 to hit with spell attacks). Mirela has the following ranger spells prepared:",
+    "",
+    "1st level (4 slots): hunter's mark, longstrider",
+    "",
+    "Actions",
+    "Multiattack. Mirela makes two attacks with her +1 sabre.",
+    "",
+    "Sabre +1.Melee Weapon Attack: +7 to hit, reach 5 ft., one target. Hit: 8 (1d6 + 5) slashing damage.",
+    "",
+    "Light Crossbow.Ranged Weapon Attack: +6 to hit, range 80/320 ft., one target. Hit: 8 (1d8 + 4) piercing damage.",
+    "",
+    "Bonus Actions",
+    "Cast Spell. Mirela casts hunter's mark.",
+  ].join("\n");
+  const read = statblockTextImport(hunter);
+  assert.equal(read.error, "");
+  assert.deepEqual(read.block.actions.map((action) => [action.name, action.attack.bonus]), [["Sabre +1", 7], ["Light Crossbow", 6]]);
+  assert.equal(read.block.innateSpells, undefined);
+  assert.deepEqual(read.block.spells.map((spell) => spell.name), ["hunter's mark", "longstrider"]);
+  assert.ok(read.report.includes("Cast Spell (bonus action): hunter's mark, tra gli incantesimi preparati (con gli slot)"));
+});
+
 test("un testo che il parser rifiuta porta il suo motivo; un testo qualsiasi non è uno statblock", () => {
   const italian = statblockTextImport("Capo goblin\nClasse Armatura 17\nPunti Ferita 21 (6d6)");
   assert.equal(italian.block, null);
