@@ -17,7 +17,7 @@ import { monsterStatblockTextRef } from "./monsterStatblockTextCore.js";
 import { createMonsterStatblockTextLoader } from "./monsterStatblockTextLoader.js";
 import { getPcAttackSpell, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
 import { spellTeleportDestinationPosition } from "./spellTeleportCore.js";
-import { spellSlotChoices } from "./spellSlotSpendCore.js";
+import { planSpellCastCost, spellSlotChoices } from "./spellSlotSpendCore.js";
 import { pcAttackHasPotentCantrip } from "./pcAttackRiderCatalog.js";
 import { getPcAttackCantrip, pcAttackCantripBeams, PC_ATTACK_SAVE_LABELS } from "./pcAttackCantripCatalog.js";
 import { totalCharacterLevel } from "./abilityModifiersCore.js";
@@ -32,7 +32,6 @@ import { getClassFeatureDefinition } from "./classFeatureCatalog.js";
 import { classFeatureTargeting } from "./classFeatureCore.js";
 import { pcAttackFeatureForm, pcAttackFeatureRequest } from "./pcAttackFeatureFormCore.js";
 import { getSpellCatalog, getSpellDefinition } from "./spells-srd.js";
-import { spellbookQuickActionId } from "./spellbookCore.js";
 import { spellCanBeReadied } from "./spellCastPhaseCore.js";
 import { hasReactionUsed, hasReadiedAction, isOffTurn, isReactionClassFeature, readiedHoldName } from "./reactionTrackerCore.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
@@ -42,13 +41,13 @@ import { pcAttackPickerDefault, pcAttackPickerEntries, pcAttackPickerEntryFor, p
 import { spellGrantedActionsForItem } from "./spellGrantedActionsCore.js";
 import { PC_MANEUVER_CONTEST, PC_MANEUVER_NOTES, PC_MANEUVER_OUTCOMES, PC_MANEUVER_OUTCOME_LABELS, PC_SHOVE_EFFECTS, PC_SHOVE_EFFECT_LABELS,
   pcAttackManeuverEntries, pcGrappleHolds, pcGrapplesOn, pcManeuverBlocker, pcManeuverLabel } from "./pcAttackManeuverCore.js";
-import { PC_HELP_MODES, PC_HELP_MODE_LABELS, PC_TURN_ACTION_NOTES, pcAttackTargetNotes, pcAttackTurnActionEntries, pcTurnActionBlocker,
-  pcTurnActionLabel } from "./pcAttackTurnActionCore.js";
+import { PC_HELP_MODES, PC_HELP_MODE_LABELS, PC_READY_SPELL_NOTE, PC_TURN_ACTION_NOTES, pcAttackTargetNotes, pcAttackTurnActionEntries,
+  pcTurnActionBlocker, pcTurnActionLabel } from "./pcAttackTurnActionCore.js";
 import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
 import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageShortNotice, mirrorImageState } from "./mirrorImageCore.js";
 import { renderAttackReactions } from "./attackReactionsView.js";
-import { createReactionPrompt, reactionPromptEffectText } from "./reactionPromptView.js";
+import { REACTION_PROMPT_CONSOLE_HINT, createReactionPrompt, reactionPromptEffectText } from "./reactionPromptView.js";
 import { reactionTriggerEntry } from "./reactionTriggerCatalog.js";
 import { isDamageRollReaction } from "./damageReactionCore.js";
 import { loadMonsterReactions, loadReactionSceneGrid } from "./reactionSceneContext.js";
@@ -279,6 +278,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const helpTargetRow=$("pc-attack-help-target-row"),helpCaption=$("pc-attack-help-caption"),hideRow=$("pc-attack-hide-row"),hideStealth=$("pc-attack-hide-stealth");
   // Ready (Preparare, lots T3 and T6b): an action (the pill), or a spell of the book, prepared in the spell panel.
   const readyModeRow=$("pc-attack-ready-mode-row"),readyModes=$("pc-attack-ready-modes"),readySpellRow=$("pc-attack-ready-spell-row"),readySpell=$("pc-attack-ready-spell");
+  const readySlotRow=$("pc-attack-ready-slot-row"),readySlot=$("pc-attack-ready-slot");
   const applyRow=$("pc-attack-apply-row");
   const reactionRow=$("pc-attack-reaction");
   // ownTurnSeen: the console showed this actor on its own turn. An attack chosen there and registered after the turn
@@ -397,7 +397,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   let mirrorBusy=false;
   const reactionsBox=$("pc-attack-reactions");
   // Avvisi di reazione (lot R1): the prompt above Registra; its Usa is the reactions' own flow (castTargetReaction).
-  const reactionPrompt=createReactionPrompt($("pc-attack-reaction-prompt"),{documentRef,onUse:candidate=>useReactionPrompt(candidate)});
+  // Counterspell at a readied spell's hold answers Prepara, not Registra (after lot T6e).
+  const reactionPrompt=createReactionPrompt($("pc-attack-reaction-prompt"),{documentRef,onUse:candidate=>useReactionPrompt(candidate),
+    ignoreHint:()=>readyHoldPromptEvent()?"Prepara senza usarla vale come Ignora.":REACTION_PROMPT_CONSOLE_HINT});
   // Lot R3a: the distance between two creatures, read once from the grid, for a reaction on an ally within a few meters.
   let reactionDistance=null;
   if($("pc-attack-reaction-prompt")) void loadReactionSceneGrid(api).then(distance=>{reactionDistance=distance;reactionPrompt.update(reactionPromptContext());}).catch(()=>{});
@@ -1871,7 +1873,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // creature's side until the GM presses one; Hide takes the Stealth total, if given. Their controls are the page's own
   // (pc-attack.html), never rebuilt: a live update keeps the caret in the field and the open menu.
   let turnActionId=newAttackId();
-  const emptyTurnActionDraft=(kind="")=>({kind,mode:"",modePicked:false,targetId:"",picked:false,stealth:"",readyMode:"action",readySpellId:""});
+  const emptyTurnActionDraft=(kind="")=>({kind,mode:"",modePicked:false,targetId:"",picked:false,stealth:"",readyMode:"action",readySpellId:"",readySlot:""});
   let turnActionDraft=emptyTurnActionDraft();
   const sideOfItem=item=>{const attitude=String(item?.metadata?.[META_KEY]?.attitude || "").toLocaleLowerCase("it");
     return attitude==="enemy"?"enemy":attitude==="pc" || attitude==="ally"?"friendly":"neutral";};
@@ -1879,11 +1881,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   helpModes?.replaceChildren(...PC_HELP_MODES.map(mode=>choiceButton(PC_HELP_MODE_LABELS[mode],false,
     ()=>{turnActionDraft={...turnActionDraft,mode,modePicked:true};rerenderTurnAction();},{helpMode:mode})));
   hideStealth?.addEventListener("input",()=>{turnActionDraft.stealth=String(hideStealth.value ?? "").trim();rerenderTurnAction();});
-  // Ready (lot T6b, decision P1): an action, the pill of T3; or a spell of the book, prepared in the spell panel (its slot,
-  // its concentration and Counterspell there), opened by the tracker as Lancia does.
+  // Ready (lot T6b, decision P1): an action, the pill of T3; or a spell of the book, held here in one click (after lot T6e):
+  // its slot in the row below, its concentration confirmed, Counterspell asked in the reaction box (decisions P2–P4, P9).
   readyModes?.replaceChildren(...[["action","Un'azione"],["spell","Un incantesimo"]].map(([mode,label])=>choiceButton(label,false,
     ()=>{turnActionDraft={...turnActionDraft,readyMode:mode};rerenderTurnAction();},{readyMode:mode})));
-  readySpell?.addEventListener("change",()=>{turnActionDraft.readySpellId=String(readySpell.value || "");rerenderTurnAction();});
+  readySpell?.addEventListener("change",()=>{turnActionDraft.readySpellId=String(readySpell.value || "");turnActionDraft.readySlot="";rerenderTurnAction();});
+  readySlot?.addEventListener("change",()=>{turnActionDraft.readySlot=String(readySlot.value || "");rerenderTurnAction();});
   // The spells of the actor's book the Ready action can hold (cast with 1 action), cantrips first, by level and name.
   function readiableSpells() {
     const seen=new Set();
@@ -1896,6 +1899,21 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     }).sort((a,b)=>a.level-b.level || a.label.localeCompare(b.label,"it"));
   }
   const readySpellLabel=row=>`${row.label} · ${row.level?`${row.level}°`:"trucchetto"}`;
+  // The slots a readied spell can be held with (P2: its level, nothing else): the actor's, else the levels from the spell's.
+  function readySlotChoices(row) {
+    if(!row?.level) return [];
+    const meta=presentation?.item?.metadata?.[META_KEY] || {};
+    const choices=spellSlotChoices({characterBuild:meta.initiativeCard?.characterBuild,resources:meta.classFeatureState?.resources || {},spellLevel:row.level});
+    return choices.length
+      ?choices.map(choice=>({value:choice.pact?"pact":String(choice.level),label:`Slot ${choice.label}`,level:choice.level,pact:!!choice.pact,current:choice.current}))
+      :[row.level,...[1,2,3,4,5,6,7,8,9].filter(level=>level>row.level)].map(level=>({value:String(level),label:`Slot di ${level}°`,level,pact:false,current:1}));
+  }
+  // The slot chosen, else the first with a slot left, else the first.
+  function readySlotChoice(row) {
+    const choices=readySlotChoices(row);
+    const chosen=choices.find(choice=>choice.value===turnActionDraft.readySlot) || choices.find(choice=>choice.current>0) || choices[0];
+    return chosen?{value:chosen.value,slotLevel:chosen.level,...(chosen.pact?{pact:true}:{})}:{};
+  }
   function turnActionRequest(entry) {
     const kind=entry.turnAction;
     return {kind,...(kind==="help"?{targetId:turnActionDraft.targetId,mode:turnActionDraft.mode}:{}),
@@ -1933,10 +1951,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     apply.hidden=true;
     if(launchButton) {
       launchButton.hidden=false;
-      // A spell is prepared in the panel: Prepara opens it there.
-      launchButton.textContent=readySpellMode?(launchBusy?"Apro…":"Prepara"):committing?"Registro…":"Registra";
+      // A spell is held here, in one click (after lot T6e).
+      launchButton.textContent=readySpellMode?(committing?"Preparo…":"Prepara"):committing?"Registro…":"Registra";
       launchButton.disabled=busy || invalidated || launchBusy || !!blocker;
     }
+    const readyCost=readyChosen?(readyChosen.level?`slot di ${readySlotChoice(readyChosen).slotLevel ?? readyChosen.level}°${readySlotChoice(readyChosen).pact?" del Patto":""}`:"nessuno slot"):"";
     total.replaceChildren();
     total.dataset.kind=blocker?"warning":"";
     const targetName=target?.name || "La creatura";
@@ -1945,7 +1964,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       dodge:"Schivata fino all'inizio del suo prossimo turno.",
       help:turnActionDraft.mode==="attack"?`${targetName}: il primo attacco di un alleato contro di lui ha vantaggio.`:`${targetName}: vantaggio alla prossima prova del compito.`,
       hide:request.stealth!==undefined?`Nascosto, Furtività ${request.stealth}.`:"Nascosto, senza il totale di Furtività.",
-      ready:readyChosen?`${readyChosen.label}: si apre il pannello incantesimi, che spende lo slot e lo trattiene con la concentrazione.`
+      ready:readyChosen?`${readyChosen.label} (${readyCost}): si tiene con la concentrazione fino all'inizio del suo prossimo turno e si rilascia con la reazione.`
         :"Azione preparata fino all'inizio del suo prossimo turno."}[kind] || "";
     total.title=total.textContent;
     // Help's creature and mode, Hide's Stealth, Ready's mode and spell: above the card, their state from the draft.
@@ -1969,6 +1988,18 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         }
         readySpell.value=turnActionDraft.readySpellId || "";readySpell.disabled=busy || invalidated || launchBusy;
       }
+      // The slot of a leveled spell (P2), rebuilt only when its choices change.
+      if(readySlotRow) readySlotRow.hidden=!readySpellMode || !readyChosen?.level;
+      if(readySlot && readySpellMode && readyChosen?.level) {
+        const choices=readySlotChoices(readyChosen),signature=JSON.stringify(choices.map(choice=>[choice.value,choice.label]));
+        if(readySlot.dataset.signature!==signature) {
+          readySlot.dataset.signature=signature;
+          readySlot.replaceChildren(...choices.map(choice=>{const option=node("option",choice.label);option.value=choice.value;return option;}));
+        }
+        readySlot.value=readySlotChoice(readyChosen).value || "";readySlot.disabled=busy || invalidated;
+      }
+      // Counterspell may answer the spell readied (P9): the reaction box, before Prepara.
+      reactionPrompt.update(reactionPromptContext());
     }
     if(kind==="help") {
       for(const button of helpModes?.querySelectorAll("button") || []) {
@@ -1979,25 +2010,52 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         id=>{turnActionDraft={...turnActionDraft,targetId:id,picked:!!id};rerenderTurnAction();});
     }
     if(kind==="hide" && hideStealth) hideStealth.disabled=busy || invalidated;
-    const signature=JSON.stringify(["turn-action",entry.key]);
+    // A readied spell is released, not triggered: its own note (after lot T6e).
+    const readySpellNote=kind==="ready" && turnActionDraft.readyMode==="spell";
+    const signature=JSON.stringify(["turn-action",entry.key,readySpellNote]);
     if(signature===launchSignature) return;
     launchSignature=signature;
-    launchBox.replaceChildren(launchHead(entry,pickerNamesEntry?[]:["Azione"]),node("p",PC_TURN_ACTION_NOTES[kind] || "","launch-details"));
+    launchBox.replaceChildren(launchHead(entry,pickerNamesEntry?[]:["Azione"]),
+      node("p",readySpellNote?PC_READY_SPELL_NOTE:PC_TURN_ACTION_NOTES[kind] || "","launch-details"));
   }
   // A spell readied from the Azioni tab (lot T6b): the tracker opens the spell panel on its hold, as Lancia opens a cast.
+  // A spell readied from the Azioni tab (lot T6b, held here since lot T6e): one command, one Undo, without the spell panel.
+  // Another concentration ends with the hold, so the GM confirms first (P4), as the panel asks; with no slot left, the GM
+  // decides whether to prepare it anyway (the console's question for an attack spell).
   async function prepareReadiedSpell(entry) {
     const row=readiableSpells().find(spell=>spell.spellId===turnActionDraft.readySpellId);
     if(!row || launchBusy || busy || invalidated || turnActionBlocker(entry)) return;
-    if(typeof api.broadcast?.onMessage!=="function"){setStatus("Lancio non disponibile.","error");return;}
-    const request={actionId:spellbookQuickActionId(row.spellId),label:row.label,phase:"prepare"};
-    launchBusy=true;renderLaunch();
-    try {
-      const result=await launchThroughTracker(request);
-      setStatus(launchSummary(request,result),!result?"warn":result.ok && result.mode==="review"?"ok":"error");
-    } finally {
-      launchBusy=false;
-      if(launching()) renderLaunch();else render();
+    const names=concentrationNames();
+    if(names.length && !confirmSwitch(`${actorName()} sta già mantenendo la concentrazione su ${names.join(", ")}.\n\nPreparare ${row.label} la sostituirà. Continuare?`)) {
+      setStatus(`Preparazione annullata: la concentrazione resta su ${names.join(", ")}.`,"warn");
+      return;
     }
+    const slot=readySlotChoice(row);
+    const meta=presentation?.item?.metadata?.[META_KEY] || {};
+    const cost=planSpellCastCost({sourceId,characterBuild:meta.initiativeCard?.characterBuild,abilityModifiers:meta.initiativeCard?.abilityModifiers || null,
+      resources:meta.classFeatureState?.resources || {},spellLevel:row.level,slotLevel:slot.slotLevel ?? null,source:slot.pact?"pact":"",phase:"prepare"});
+    if(cost.exhausted && !confirmSwitch(`${cost.message}\n\nPreparare comunque ${row.label} senza scalare lo slot?`)) {
+      setStatus("Preparazione annullata: nessuno slot disponibile.","warn");
+      return;
+    }
+    return perform(async operation=>{
+      try {
+        const result=await runtime.executePcReadiedSpell({sourceId,spellId:row.spellId,slotLevel:slot.slotLevel ?? null,pact:slot.pact===true,
+          castWithoutSlot:cost.exhausted===true,attackInstanceId:turnActionId,sceneIdentity:presentation.sceneIdentity});
+        if(!lifecycle.isCurrent(operation)) return;
+        showUndo(result);
+        setStatus([`Incantesimo preparato: ${result.hold?.name || row.label}${result.hold?.slotLevel?` (${result.hold.slotLevel}°)`:""}. Si rilascia con la reazione${result.spent?` · speso: ${result.spent}`:""}.`,
+          ...(result.warnings || [])].join("\n"),"ok");
+        markPendingReady();
+        turnActionId=newAttackId();
+        turnActionDraft=emptyTurnActionDraft("ready");
+        await refresh(operation);
+      } catch(error) {
+        // A definitive rejection needs a new identity; an uncertain acknowledgement keeps it for the retry.
+        if(["conflict","rejected"].includes(error?.status) && error.result?.committed!==true) turnActionId=newAttackId();
+        throw error;
+      }
+    },{commit:true});
   }
   async function registerTurnAction(entry) {
     if(entry.turnAction==="ready" && turnActionDraft.readyMode==="spell") return prepareReadiedSpell(entry);
@@ -2039,7 +2097,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       }) || (()=>{});
       wait();
       Promise.resolve().then(()=>api.broadcast.sendMessage(PC_ATTACK_SPELL_LAUNCH_CHANNEL,
-        {type:"launch",requestId,sourceId,actionId:entry.actionId,...(entry.phase?{phase:entry.phase}:{})},{destination:"LOCAL"})).catch(()=>finish(null));
+        {type:"launch",requestId,sourceId,actionId:entry.actionId},{destination:"LOCAL"})).catch(()=>finish(null));
     });
   }
   // The tracker hosts the 🪄 routing: no answer, it is closed. Open it and ask again while it loads; a request it never
@@ -2178,7 +2236,19 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   // Avvisi di reazione (lot R1): the draft's events as the reactions under the target read them (one target, an outcome that
   // allows a reaction); a hit is also a damage. The prompt shows the reactions of the lots wired, and writes nothing.
+  // The spell readied from the Azioni tab is cast now (decision P9 of docs/STUDIO_AZIONI_DI_TURNO.md): Counterspell may
+  // answer it, in the reaction box, before Prepara.
+  function readyHoldPromptEvent() {
+    const entry=currentEntry();
+    if(!presentation || entry?.mode!=="turn-action" || entry.turnAction!=="ready" || turnActionDraft.readyMode!=="spell") return null;
+    const row=readiableSpells().find(spell=>spell.spellId===turnActionDraft.readySpellId);
+    if(!row) return null;
+    return [{trigger:"spell-cast",casterId:presentation.item?.id || sourceId,spellId:row.spellId,spellName:row.label,
+      spellLevel:readySlotChoice(row).slotLevel ?? row.level,spellTargetIds:[]}];
+  }
   function reactionPromptEvent() {
+    const hold=readyHoldPromptEvent();
+    if(hold) return hold;
     // Lot R3b-4: an area attack, the creatures with a save outcome (a save, no attack roll).
     if(presentation && draft && !launching() && isArea()) {
       const targetIds=areaMembers().filter(member=>["failed","passed"].includes(member.outcome)).map(member=>member.item.id);
@@ -2203,12 +2273,24 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       skip:(draft?.damageReactions || []).map(row=>row.key),monsterReactions:reactionMonsters};
   }
   async function useReactionPrompt(candidate) {
+    if(candidate.flow==="counterspell") return useHoldCounterspell(candidate);
     if(candidate.flow==="modifier") return addDamageReaction(candidate);
     if(candidate.flow==="activate-feature") return activateReactionFeature(candidate);
     if(candidate.flow==="off-turn-attack") return useReactionPromptAttack(candidate);
     if(candidate.flow==="use-feature" || (candidate.flow==="note" && candidate.featureId)) return useReactionPromptFeature(candidate);
     await castTargetReaction({spellId:candidate.spellId,direct:candidate.flow==="cast-spell",variant:candidate.variant || "",
       targetIds:candidate.targetIds || [],casterId:candidate.reactorId});
+  }
+  // Counterspell against the spell readied here (P9): its popup, as the spell panel opens it, which casts it with the
+  // reactor's slot and reaction. The hold waits for the GM: countered, nothing is prepared; otherwise Prepara.
+  async function useHoldCounterspell(candidate) {
+    const row=readiableSpells().find(spell=>spell.spellId===turnActionDraft.readySpellId);
+    if(!row) return;
+    const {openCounterspellPopover}=await import("./counterspellLauncher.js");
+    await openCounterspellPopover({sourceId:candidate.reactorId,targetId:presentation?.item?.id || sourceId,spellId:row.spellId,
+      spellLevel:readySlotChoice(row).slotLevel ?? row.level,requestId:`counterspell:${newAttackId()}`});
+    reactionPrompt.dismiss();
+    setStatus(`Controincantesimo di ${candidate.reactorName}: se annulla ${row.label}, non preparare niente; altrimenti premi Prepara.`,"warn");
   }
   // Lot R3b: a damage reaction becomes a line on the draft; nothing is written until Registra.
   function addDamageReaction(candidate) {

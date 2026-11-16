@@ -369,7 +369,8 @@ function readiedSpellEffect(spell, castContext = {}) {
     id: "readied-spell",
     label: READIED_SPELL_CONDITION,
     displayLabel: readiedSpellLabel(spell, castContext),
-    detail: `${name} preparato: si rilascia con la reazione, quando avviene ciò che si è scelto al tavolo, prima dell'inizio del prossimo turno del caster. La concentrazione lo trattiene: se si rompe, l'incantesimo svanisce e lo slot resta speso.`,
+    // «Incantesimo preparato» agrees whatever the spell's name (Palla di fuoco, Dardo di fuoco).
+    detail: `Incantesimo preparato (${name}): si rilascia con la reazione, quando avviene ciò che si è scelto al tavolo, prima dell'inizio del prossimo turno del caster. La concentrazione lo trattiene: se si rompe, l'incantesimo svanisce e lo slot resta speso.`,
     summaryParts: Object.freeze([Object.freeze({ id: "readied-spell", label: `Preparato: ${name}` })]),
     // A creature not on the players' side keeps its readied spell to the GM (decision P10, as Hidden).
     ...(castContext?.readiedGmOnly === true ? { mechanics: Object.freeze({ gmOnly: true }) } : {}),

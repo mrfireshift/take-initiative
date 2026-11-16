@@ -577,8 +577,18 @@ al pulsante principale, compare **Prepara**:
 L'avviso di Controincantesimo parte alla preparazione, che è il momento del
 lancio. La pill di una creatura che non è un PG o un alleato la vede solo il
 GM. Dalla console attacchi, **Azioni → Preparare → Un incantesimo** elenca gli
-incantesimi del grimorio che si possono preparare e apre il pannello già in
-preparazione.
+incantesimi del grimorio che si possono preparare e li prepara senza aprire il
+pannello:
+
+- per un incantesimo di livello sotto compare il menu **Slot**, sul primo
+  livello con uno slot libero;
+- **Prepara** mette la presa e spende lo slot in un solo comando, con un solo
+  Annulla; un trucchetto non spende niente;
+- se il caster mantiene un'altra concentrazione, la console chiede prima la
+  conferma, come il pannello;
+- se un PG può rispondere con Controincantesimo, l'avviso compare nella console
+  appena scegli l'incantesimo: **Usa** apre il popup di Controincantesimo; se
+  l'annulla, non preparare niente.
 
 **Il rilascio.** Quando arriva il momento, il rilascio si apre da tre posti:
 

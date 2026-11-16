@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **256** |
+| **B. Console attacchi, mostri e capacità** | **261** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -57,6 +57,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B19. Statblock da testo nel pannello Importa | 4 |
 | B20. Incantesimo preparato: le perdite | 5 |
 | B21. Talenti: le fondamenta | 7 |
+| B22. Incantesimo preparato: la preparazione nella console | 5 |
 | B23. Talenti nella console attacchi | 6 |
 | B24. Incantesimi dei talenti | 5 |
 | B25. Statblock da testo: le schede di Strahd Reloaded | 6 |
@@ -101,7 +102,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **619** |
+| **Totale** | **624** |
 
 ## A. Incantesimi
 
@@ -699,7 +700,7 @@ Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotti T6a e T6b (
 - [ ] **La presa:** **Prepara incantesimo** con lo slot di 3° spende lo slot e mette sul PG «Azione preparata · Palla di fuoco (3°)» e la C della concentrazione. Il menu della card offre **Annulla azione preparata**. Nella Cronologia c'è «Preparazione: Palla di fuoco» e il suo Annulla restituisce lo slot.
 - [ ] **Concentrazione:** con Benedizione attiva, preparare Palla di fuoco chiede la conferma; confermato, Benedizione finisce. All'inizio del prossimo turno del PG pill, concentrazione e incantesimo spariscono, e lo slot resta speso.
 - [ ] **Controincantesimo e nemici:** preparando, parte l'avviso di Controincantesimo per il nemico che lo conosce. La preparazione di un nemico mette la pill che il GM vede e lo schermo del tavolo no.
-- [ ] **Dalla console:** nel turno del PG, Azioni → **Preparare** → **Un incantesimo** elenca i suoi incantesimi da 1 azione, trucchetti prima (niente azioni bonus). Scelto Benedizione, **Prepara** apre il pannello già in preparazione.
+- [ ] **Dalla console:** nel turno del PG, Azioni → **Preparare** → **Un incantesimo** elenca i suoi incantesimi da 1 azione, trucchetti prima (niente azioni bonus). Scelto Benedizione, **Prepara** lo prepara nella console, senza pannello (le prove in B22). *Esito cambiato il 15/11: prima apriva il pannello già in preparazione.*
 
 ### B15. Incantesimo preparato: il rilascio
 
@@ -766,6 +767,16 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F0 (decisioni D2–D5, D8, 
 - [ ] **L'import:** in **Importa**, `{ "feats": ["Great Weapon Master", { "name": "Fey Touched", "ability": "cha" }, "Volo radente"] }` dà la sezione «Talenti» con «2 talenti: …» e «Volo radente» fra i non riconosciuti; **Applica al modulo** sostituisce i talenti della scheda.
 - [ ] **Cuoco e la stanza:** reimporta il pacchetto di Tasha dall'Enciclopedia (Pacchetti): Cuoco ha la sua voce e Contaminazione Ombrosa non contiene più il suo testo. Il PG con i talenti, portato in un'altra scena della stessa stanza, li ha ancora.
 - [ ] **Lottatore dall'SRD:** nell'Enciclopedia DM, Personaggio → **Talenti** ha l'introduzione e Lottatore, con il prerequisito in una riga sua. In un browser senza il pacchetto del PHB, la card di Lottatore nella scheda mostra lo stesso testo invece della nota del pacchetto mancante.
+
+### B22. Incantesimo preparato: la preparazione nella console
+
+Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), preparazione diretta dopo T6e (decisioni P2–P4, P9–P11). Le voci sono nuove: nessuna lista le aveva. Serve un mago con un grimorio di più di 12 incantesimi, Palla di fuoco compresa, in combattimento e nel suo turno; per l'ultima voce un PG con Controincantesimo e un nemico incantatore.
+
+- [ ] **Palla di fuoco trovata:** Azioni → **Preparare** → **Un incantesimo** → Palla di fuoco: compare il menu **Slot** sul primo livello libero e la nota dice «Palla di fuoco (slot di 3°): si tiene con la concentrazione…». Il riquadro sopra spiega che si rilascia con «Rilascia» (menu della card o ⚡), non con «Innesca»; tornando a «Un'azione» torna la spiegazione di Innesca. Nessun pannello si apre. Da provare in vista compatta ed estesa.
+- [ ] **Un solo comando:** **Prepara** mette «Azione preparata · Palla di fuoco (3°)» e la C, spende lo slot e scrive «Incantesimo preparato: Palla di fuoco (3°)… speso: slot di 3° livello»; il chip dell'incantesimo sulla card dice «Incantesimo preparato (Palla di fuoco): si rilascia con la reazione…». Nella Cronologia c'è «Preparazione: Palla di fuoco» e il suo Annulla restituisce lo slot.
+- [ ] **Concentrazione e slot finiti:** con Benedizione attiva la console chiede la conferma prima di preparare; senza slot di quel livello chiede se preparare comunque senza scalarlo. Un trucchetto non mostra il menu Slot e non spende niente.
+- [ ] **Un nemico:** un nemico incantatore che prepara dalla sua console mette la pill che vede solo il GM.
+- [ ] **Controincantesimo:** quando il nemico sceglie l'incantesimo da preparare, il riquadro degli avvisi propone Controincantesimo al PG che lo conosce, entro 18 m, e sotto dice «Prepara senza usarla vale come Ignora.»; **Usa** apre il popup di Controincantesimo.
 
 ### B23. Talenti nella console attacchi
 

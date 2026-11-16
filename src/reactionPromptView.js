@@ -196,8 +196,10 @@ export function createReactionPrompt(box, {
     if (destroyed) return;
     shown = compute();
     if (answersFor !== shown.signature) { answers.clear(); answersFor = shown.signature; }
+    // The hint may follow the console's button (Registra, or Prepara for a readied spell): a function is read at each draw.
+    const hint = typeof ignoreHint === "function" ? String(ignoreHint() || "") : String(ignoreHint || "");
     const signature = JSON.stringify([shown.phase, shown.signature, shown.list.map((candidate) => [candidate.key, reactionPromptEffectText(candidate, shown.items)]), busy,
-      [...answers.values()].map((answer) => [answer.key, answer.choice])]);
+      [...answers.values()].map((answer) => [answer.key, answer.choice]), hint]);
     if (signature === domSignature) return;
     domSignature = signature;
     sendNotice();
@@ -245,7 +247,7 @@ export function createReactionPrompt(box, {
       return row;
     });
     const foot = element("div", "", "reaction-prompt-foot");
-    if (shown.phase === "before" && ignoreHint) foot.append(element("span", ignoreHint, "reaction-prompt-hint"));
+    if (shown.phase === "before" && hint) foot.append(element("span", hint, "reaction-prompt-hint"));
     const ignore = element("button", "Ignora", `${buttonClass} reaction-prompt-ignore`);
     ignore.type = "button";
     ignore.disabled = busy;

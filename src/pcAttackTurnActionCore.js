@@ -25,6 +25,12 @@ import { resolveSpeedCheckTurn } from "./speedCheckCore.js";
 import { MAX_TURN_DASHES, TURN_ACTIONS_STATE_KEY, consoleDashCount } from "./pcAttackTurnDashCore.js";
 import { DODGE_CONDITION, HELPED_CONDITION, HELP_TARGET_CONDITION, HIDDEN_CONDITION, consumedAdvantagePills, hiddenPills } from "./attackAdvantagePillsCore.js";
 import { CRUSHER_CRITICAL_CONDITION, FEATS_FIELD, SLASHER_CRITICAL_CONDITION, sanitizeFeats } from "./featCatalog.js";
+import { getSpellDefinition } from "./spells-srd.js";
+import { spellCanBeReadied } from "./spellCastPhaseCore.js";
+import { buildSpellApplicationIntent, buildSpellApplicationPlan } from "./spellApplicationPlanCore.js";
+import { planSpellCastCost } from "./spellSlotSpendCore.js";
+import { buildSpellCausality } from "./combatLogCausalityCore.js";
+import { withSpellCastCost } from "./spellCastRecordCore.js";
 
 const META_KEY = `${ID}/meta`;
 
@@ -53,6 +59,8 @@ export const PC_TURN_ACTION_NOTES = Object.freeze({
   hide: "Una prova di Destrezza (Furtività): il totale fa da CD per chi lo cerca. Nascosto, ha vantaggio al primo attacco e si rivela attaccando; se viene trovato, togli la pill a mano.",
   ready: "Che cosa e quando si dice al tavolo. Fino all'inizio del suo prossimo turno si innesca con la reazione, dal menu della card: «Innesca con un attacco» apre questa console fuori turno, «Innesca senza attacco» segna solo la reazione.",
 });
+// Preparare → Un incantesimo (lots T6b–T6e): the hold is no pill to trigger but a spell to release (lot T6c, T6d).
+export const PC_READY_SPELL_NOTE = "Si lancia ora e si tiene con la concentrazione fino all'inizio del suo prossimo turno. Si rilascia con la reazione: «Rilascia» nel menu della card o nel ⚡, oppure da questa console fuori turno se è d'attacco. Se la concentrazione si rompe, svanisce e lo slot resta speso.";
 
 export function pcTurnActionLabel(kind) {
   return LABELS[kind] || "";
@@ -192,6 +200,47 @@ export function buildPcTurnActionMutation({ kind = "", sourceItem, attackInstanc
       kind: PC_ATTACK_HISTORY_KIND, label,
       ...(kind === "dash" ? { metadataPatches: [dashStatePatch(sourceItem, speedTurnKey, dashes)] } : {}),
       history: { kind: PC_ATTACK_HISTORY_KIND, label, payload: { causality, damageComponents: [] } },
+    },
+  };
+}
+
+// A spell readied straight from the Azioni tab (Preparare → Un incantesimo, after lot T6e of docs/STUDIO_AZIONI_DI_TURNO.md):
+// the hold of the spell panel's «Prepara» (lot T6b), without the panel, which had nothing to ask but the slot. One command,
+// one Undo: the pill «Azione preparata · Palla di fuoco (3°)», the spell record and its concentration, the other
+// concentrations ended (the console asks first), the slot spent (P3: none for a cantrip; castWithoutSlot when the GM
+// prepares it anyway); a creature not on the players' side keeps its hold to the GM (P10). instanceId: the hold's.
+export function buildPcReadiedSpellMutation({ sourceItem, spellId = "", slotLevel = null, pact = false, castWithoutSlot = false,
+  turnState = null, instanceId = "", attackInstanceId = "" } = {}) {
+  if (!attackInstanceId || !instanceId) throw new Error("Identità della preparazione mancante.");
+  const blocker = pcTurnActionBlocker({ kind: "ready", sourceItem, turnState });
+  if (blocker) throw new Error(blocker);
+  const spell = getSpellDefinition(spellId);
+  if (!spell || !spellCanBeReadied(spell)) throw new Error("Si prepara solo un incantesimo da 1 azione.");
+  const meta = sourceItem.metadata?.[`${ID}/meta`] || {};
+  const card = meta.initiativeCard || {};
+  const cost = planSpellCastCost({ sourceId: sourceItem.id, characterBuild: card.characterBuild, abilityModifiers: card.abilityModifiers || null,
+    resources: meta.classFeatureState?.resources || {}, spellLevel: spell.level, slotLevel, source: pact ? "pact" : "", phase: "prepare" });
+  if (cost.exhausted && !castWithoutSlot) throw new Error(`${cost.message} Conferma la preparazione senza slot.`);
+  const level = Math.max(0, Math.floor(Number(spell.level) || 0));
+  const requested = Math.floor(Number(slotLevel));
+  const heldLevel = level > 0 ? (cost.slotLevel || (Number.isInteger(requested) ? Math.max(level, Math.min(9, requested)) : level)) : null;
+  const gmOnly = !["pc", "ally"].includes(String(meta.attitude || "").trim().toLowerCase());
+  const castContext = { readied: true, phase: "prepare", ...(heldLevel ? { slotLevel: heldLevel } : {}), ...(gmOnly ? { readiedGmOnly: true } : {}) };
+  const sourceName = sourceItem.name || sourceItem.id;
+  const intent = buildSpellApplicationIntent({ spell, enteredName: spell.displayName || spell.name, turns: 1, casterId: sourceItem.id,
+    targetIds: [sourceItem.id], castContext });
+  const plan = buildSpellApplicationPlan({ intent, instanceId, appliedAt: bossConditionAppliedAt(turnState), casterName: sourceName });
+  const label = plan.historyLabel;
+  const causality = withSpellCastCost(buildSpellCausality({ eventType: "prepare", spellId: spell.id, spellName: spell.displayName || spell.name,
+    instanceId, slotLevel: heldLevel || undefined, phase: "prepare", casterId: sourceItem.id, casterName: sourceName, targetIds: [sourceItem.id],
+    actionLabel: label, concentrationAction: plan.concentrationAction, concentrationInstanceId: instanceId, targets: [sourceItem.id] }), cost.spent);
+  return {
+    hold: { instanceId, spellId: spell.id, name: spell.displayName || spell.name, ...(heldLevel ? { slotLevel: heldLevel } : {}) },
+    spent: cost.spent, labelTargetIds: [sourceItem.id],
+    operations: [...plan.operations, ...(cost.operation ? [cost.operation] : [])],
+    options: {
+      commandId: attackInstanceId, correlationId: attackInstanceId, sourceId: sourceItem.id, targetIds: [sourceItem.id],
+      kind: "spell", label, history: { kind: "spell", label, payload: { causality } },
     },
   };
 }

@@ -797,3 +797,47 @@ test("a readied Fire Bolt released off turn ends its hold even on a miss; on the
   assert.deepEqual(pillsOf("aria"), ["Reazione usata"]);
   assert.deepEqual(meta("aria")[CONCENTRATION], {});
 });
+
+// Preparare → Un incantesimo held straight from the console (after lot T6e): the hold, the slot and the other
+// concentrations in one command; one Undo gives everything back.
+test("Preparare → Un incantesimo from the console: Fireball held at the 3rd level, its slot spent, one Undo", async () => {
+  meta("aria").initiativeCard = { characterBuild: [{ classId: "mago", level: 5 }], spellbook: { spellIds: ["fireball", "misty-step"] } };
+  meta("aria").attitude = "pc";
+  const presentation = await runtime.getPcAttackPresentation("aria", "");
+  const prepare = (extra = {}) => runtime.executePcReadiedSpell({ sourceId: "aria", spellId: "fireball", slotLevel: 3,
+    attackInstanceId: "ready-fireball", sceneIdentity: presentation.sceneIdentity, ...extra });
+  const result = await prepare();
+  assert.deepEqual([result.hold.name, result.hold.slotLevel, result.spent], ["Palla di fuoco", 3, "slot di 3° livello"]);
+  assert.equal(meta("aria").classFeatureState.resources["spell-slot-3"].current, 1, "a 3rd-level slot spent");
+  const pill = (meta("aria").conditions?.instances || []).find((instance) => instance.condition === "Azione preparata");
+  assert.equal(pill.displayLabel, "Azione preparata · Palla di fuoco (3°)");
+  assert.equal(pill.mechanics?.gmOnly, undefined, "a PC's hold is seen by all (P10)");
+  const record = (meta("aria")[SPELLS] || []).find((entry) => entry.castContext?.readied === true);
+  assert.deepEqual([record.spellId, record.castContext.phase, record.castContext.slotLevel], ["fireball", "prepare", 3]);
+  assert.deepEqual(Object.values(meta("aria")[CONCENTRATION]).map((entry) => entry.instanceId), [record.instanceId]);
+  const entry = (await history.getHistoryEntries()).at(-1);
+  assert.equal(entry.label, "Preparazione: Palla di fuoco");
+  assert.deepEqual((await prepare()).duplicate, true, "a retry with the same identity returns the stored result");
+  await assert.rejects(runtime.executePcReadiedSpell({ sourceId: "aria", spellId: "fireball", slotLevel: 3, attackInstanceId: "again",
+    sceneIdentity: presentation.sceneIdentity }), /Ha già un'azione preparata/u);
+  await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(meta("aria").classFeatureState?.resources?.["spell-slot-3"]?.current ?? 2, 2, "Undo gives the slot back");
+  assert.equal((meta("aria").conditions?.instances || []).some((instance) => instance.condition === "Azione preparata"), false);
+  assert.deepEqual(meta("aria")[CONCENTRATION] || {}, {});
+});
+
+test("Preparare → Un incantesimo: only on the caster's turn, only a spell cast with 1 action; an enemy's hold stays the GM's", async () => {
+  meta("aria").initiativeCard = { characterBuild: [{ classId: "mago", level: 5 }], spellbook: { spellIds: ["fireball", "misty-step", "fire-bolt"] } };
+  const presentation = await runtime.getPcAttackPresentation("aria", "");
+  const prepare = (spellId, extra = {}) => runtime.executePcReadiedSpell({ sourceId: "aria", spellId, attackInstanceId: `ready-${spellId}-${Math.random()}`,
+    sceneIdentity: presentation.sceneIdentity, ...extra });
+  await assert.rejects(prepare("misty-step"), /Si prepara solo un incantesimo da 1 azione/u, "a bonus action");
+  sceneMetadata["com.thebigpicture.initiative/state"] = { round: 2, order: ["aria", "ghoul"], current: 1 };
+  await assert.rejects(prepare("fire-bolt"), /Solo nel turno della creatura/u);
+  sceneMetadata["com.thebigpicture.initiative/state"] = { round: 2, order: ["aria", "ghoul"], current: 0 };
+  meta("aria").attitude = "enemy";
+  const cantrip = await prepare("fire-bolt");
+  assert.deepEqual([cantrip.hold.name, cantrip.hold.slotLevel, cantrip.spent], ["Dardo di fuoco", undefined, ""], "a cantrip: no slot (P11)");
+  const pill = (meta("aria").conditions?.instances || []).find((instance) => instance.condition === "Azione preparata");
+  assert.deepEqual([pill.displayLabel, pill.mechanics?.gmOnly], ["Azione preparata · Dardo di fuoco", true], "an enemy's hold: the GM's (P10)");
+});

@@ -197,6 +197,42 @@ Prove in `PROVE_IN_STANZA.md`, sezione B18.
 
 Prove in `PROVE_IN_STANZA.md`, sezione B20.
 
+**Preparazione diretta dalla console, fatta il 15/11** (scelta dell'utente dopo
+T6e). Preparando Palla di fuoco da Azioni → Preparare → Un incantesimo, il
+pannello si apriva vuoto. Il tracker trovava l'azione del grimorio con un limite
+di 64 azioni, ma `openCardSpellsPopup` la cercava di nuovo con il limite di 12
+di `findQuickAction`: con un grimorio lungo, Palla di fuoco restava fuori.
+L'utente ha scelto di saltare il pannello per la preparazione, perché lì non
+chiedeva altro che lo slot.
+
+- La console prepara da sola (`buildPcReadiedSpellMutation` nel nucleo delle
+  azioni di turno, `executePcReadiedSpell` nel runtime): la presa di T6a, lo
+  slot speso con il menu **Slot** della riga, le altre concentrazioni chiuse
+  dopo la conferma, la pill del GM per un nemico (P10). Un solo comando e un
+  solo Annulla, con «Preparazione: Palla di fuoco» nella Cronologia.
+- L'avviso di Controincantesimo (P9) è nella console: l'evento «lancio»
+  dell'incantesimo scelto passa al riquadro degli avvisi, e **Usa** apre il popup
+  di Controincantesimo. Se annulla, il GM non prepara.
+- Il giro dal tracker (`__openTrackerReadiedSpell`) è tolto, e con lui il
+  guasto. Il pulsante **Prepara** del pannello resta per chi parte da lì.
+- Trovati al banco il 16/11 e corretti nello stesso lotto:
+  - con «Un incantesimo» la spiegazione sopra la riga diceva ancora «Innesca»:
+    ora dice che si rilascia con «Rilascia» (menu della card o ⚡) o dalla
+    console fuori turno (`PC_READY_SPELL_NOTE`);
+  - il chip della presa diceva «Palla di fuoco preparato»: ora
+    «Incantesimo preparato (Palla di fuoco)», giusto per ogni nome;
+  - sotto l'avviso di Controincantesimo c'era «Registra senza usarla…»
+    accanto al pulsante Prepara: la frase segue il pulsante (`ignoreHint`
+    può essere una funzione).
+
+**T6f escluso il 15/11:** la Console Boss lancia incantesimi solo da un'azione
+«Spellcasting» scritta come quella di Auril (Lentezza, Tempesta di ghiaccio,
+Sfera congelante, Passo velato). Auril è chiusa e non si costruiscono funzioni
+per un solo mostro. Gli altri mostri preparano dalla console attacchi e
+rilasciano dal menu della card o dal ⚡, come i PG.
+
+Prove in `PROVE_IN_STANZA.md`, sezione B22.
+
 Scritti lo stesso giorno, con decisioni nuove in attesa:
 
 - §9, l'incantesimo preparato: decisioni **P1–P12** (§9.8), approvate dall'utente

@@ -9037,13 +9037,6 @@ async function __resetClassFeatureResourcesFromContext(entry) {
   return result;
 }
 
-// A spell readied from the attack console (lot T6b of docs/STUDIO_AZIONI_DI_TURNO.md, decision P1): its panel, open on its
-// hold, never a direct cast or the console's attack. The slot or the use is spent there, as with any cast.
-async function __openTrackerReadiedSpell(sourceEntry, action) {
-  await openCardSpellsPopup(sourceEntry, { quickActionId: String(action.id || ""), routeRequest: { phase: "prepare" } });
-  return { mode: "review", route: "spell-unified-panel", message: `${action.label || "Incantesimo"}: preparalo nel pannello.` };
-}
-
 async function __runTrackerQuickAction(sourceEntry, action, { fromConsole = false } = {}) {
   const sourceId = splitParagonId(sourceEntry?.id).baseId;
   if (!sourceId) throw new Error("quick-action-source-missing");
@@ -9429,9 +9422,7 @@ function mountPcAttackSpellLaunchListener() {
       const action = sanitizeQuickActions(sourceEntry?.quickActions, { limit: 64, attackLimit: 64 })
         .find((entry) => entry.id === String(data.actionId || "") && isSpellbookQuickAction(entry));
       if (!sourceEntry || !action) return { ok: false, message: "Incantesimo non più nel grimorio." };
-      const result = data.phase === "prepare" && action.kind === "spell"
-        ? await __openTrackerReadiedSpell(sourceEntry, action)
-        : await __runTrackerQuickAction(sourceEntry, action, { fromConsole: true });
+      const result = await __runTrackerQuickAction(sourceEntry, action, { fromConsole: true });
       return { ok: true, mode: result?.mode || "", ...(result?.message ? { message: String(result.message) } : {}) };
     })()
       .catch((error) => ({ ok: false, message: String(error?.message || error) }))

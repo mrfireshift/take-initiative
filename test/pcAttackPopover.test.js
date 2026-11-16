@@ -30,7 +30,7 @@ const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-picker-search", 
   "pc-attack-maneuver-outcomes", "pc-attack-maneuver-note", "pc-attack-multiattack", "pc-attack-monster-note", "pc-attack-auto-open-monsters", "pc-attack-mode-caption", "pc-attack-picker-caption", "pc-attack-target-dropdown", "pc-attack-target-button", "pc-attack-target-menu", "pc-attack-maneuver-button", "pc-attack-maneuver-menu", "pc-attack-spell-controls", "pc-attack-more", "pc-attack-more-menu",
   "pc-attack-turn-action", "pc-attack-help-mode-row", "pc-attack-help-modes", "pc-attack-help-target-row", "pc-attack-help-caption", "pc-attack-help-dropdown",
   "pc-attack-help-button", "pc-attack-help-menu", "pc-attack-hide-row", "pc-attack-hide-stealth",
-  "pc-attack-ready-mode-row", "pc-attack-ready-modes", "pc-attack-ready-spell-row", "pc-attack-ready-spell"];
+  "pc-attack-ready-mode-row", "pc-attack-ready-modes", "pc-attack-ready-spell-row", "pc-attack-ready-spell", "pc-attack-ready-slot-row", "pc-attack-ready-slot"];
 const BUTTONS = new Set(["pc-attack-target-button", "pc-attack-maneuver-button", "pc-attack-help-button", "pc-attack-more", "pc-attack-close", "pc-attack-apply", "pc-attack-launch-button", "pc-attack-use-selected", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"]);
 function createDocument() {
@@ -42,7 +42,7 @@ function createDocument() {
   };
   doc.root = new FakeNode(doc, "body"); doc.body = doc.root;
   for (const id of IDS) {
-    const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip", "pc-attack-mode", "pc-attack-picker-select", "pc-attack-maneuver-target", "pc-attack-ready-spell"].includes(id) ? "select" : BUTTONS.has(id) ? "button"
+    const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip", "pc-attack-mode", "pc-attack-picker-select", "pc-attack-maneuver-target", "pc-attack-ready-spell", "pc-attack-ready-slot"].includes(id) ? "select" : BUTTONS.has(id) ? "button"
       : ["pc-attack-auto-open", "pc-attack-auto-open-monsters", "pc-attack-picker-search", "pc-attack-hide-stealth"].includes(id) ? "input" : id === "pc-attack-spell-details" ? "details" : "div");
     node.id = id; doc.root.appendChild(node);
   }
@@ -93,6 +93,13 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
       return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [], target: { id: request.targetId, name: "Ghoul" },
         maneuver: { kind: request.kind, outcome: request.outcome, ...(request.effect ? { effect: request.effect } : {}) },
         ...(request.effect === "push" && request.outcome === "success" ? { manualText: "Sposta Ghoul di 1,5 m lontano da Aria sulla mappa." } : {}) };
+    },
+    // Preparare → Un incantesimo (after lot T6e): the hold in one command, as the runtime answers it.
+    executePcReadiedSpell: async (request) => {
+      calls.push({ readiedSpell: request });
+      return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [],
+        hold: { instanceId: "hold-1", spellId: request.spellId, name: "Benedizione", ...(request.slotLevel ? { slotLevel: request.slotLevel } : {}) },
+        spent: request.castWithoutSlot ? "" : `slot di ${request.slotLevel}° livello` };
     },
     executePcTurnAction: async (request) => {
       calls.push({ turnAction: request });
@@ -2396,17 +2403,24 @@ test("Nascondersi: the Stealth total, optional; one out of range keeps Registra 
 
 // Ready (lot T3 of docs/STUDIO_AZIONI_DI_TURNO.md): the card menu's pill from the Azioni tab; off turn, the attack
 // registered with the reaction sets it off (the card's «Innesca con un attacco» opens the console there).
-// Lot T6b (decision P1): Preparare → Un incantesimo, the book's spells cast with 1 action, prepared in the spell panel.
-test("Preparare → Un incantesimo: the book's spells the Ready action holds; Prepara asks the tracker to open the panel on the hold", async () => {
-  const launch = launchBroadcast({ result: { ok: true, mode: "review", message: "Benedizione: preparalo nel pannello." } });
-  const f = fixture({ card: clericCard, attacker: clericMeta, turnState: ownTurn, broadcast: launch.broadcast }); await f.controller.ready; await tick();
+// Lot T6b (decision P1): Preparare → Un incantesimo, the book's spells cast with 1 action; held here in one click since
+// lot T6e (the panel had nothing to ask but the slot): the slot below, the concentration confirmed, no tracker.
+test("Preparare → Un incantesimo: the book's spells the Ready action holds; Prepara holds it here, its slot and concentration asked", async () => {
+  const launch = launchBroadcast({ result: { ok: true, mode: "review" } });
+  const asked = [];
+  const f = fixture({ card: clericCard, attacker: clericMeta, turnState: ownTurn, broadcast: launch.broadcast,
+    confirm: (message) => { asked.push(message); return true; } }); await f.controller.ready; await tick();
   await pickAction(f, "turn-action::ready");
   const modes = f.$("pc-attack-ready-modes").querySelectorAll("button");
   assert.deepEqual(modes.map((button) => [button.textContent, button.getAttribute("aria-pressed")]), [["Un'azione", "true"], ["Un incantesimo", "false"]]);
   assert.deepEqual([f.$("pc-attack-turn-action").hidden, f.$("pc-attack-ready-mode-row").hidden, f.$("pc-attack-ready-spell-row").hidden], [false, false, true]);
   assert.equal(f.$("pc-attack-launch-button").textContent, "Registra", "an action: the pill, as before");
+  assert.match(textOf(f.$("pc-attack-launch")), /«Innesca senza attacco» segna solo la reazione/);
   await modes[1].click(); await tick();
   assert.equal(f.$("pc-attack-ready-spell-row").hidden, false);
+  // A held spell is released, not triggered: the note says how (lots T6c, T6d).
+  assert.match(textOf(f.$("pc-attack-launch")), /Si lancia ora e si tiene con la concentrazione .* «Rilascia» nel menu della card o nel ⚡/u);
+  assert.doesNotMatch(textOf(f.$("pc-attack-launch")), /Innesca/);
   const offered = f.$("pc-attack-ready-spell").children.map((option) => option.value);
   assert.equal(offered[0], "", "nothing chosen first");
   assert.ok(["sacred-flame", "light", "bless"].every((id) => offered.includes(id)), "cantrips and spells cast with 1 action");
@@ -2414,13 +2428,26 @@ test("Preparare → Un incantesimo: the book's spells the Ready action holds; Pr
   assert.ok(offered.indexOf("sacred-flame") < offered.indexOf("bless"), "cantrips first");
   assert.deepEqual([f.$("pc-attack-launch-button").textContent, f.$("pc-attack-launch-button").disabled], ["Prepara", true]);
   assert.equal(f.$("pc-attack-total").textContent, "Scegli l'incantesimo da preparare.");
+  assert.equal(f.$("pc-attack-ready-slot-row").hidden, true, "no spell, no slot");
   const select = f.$("pc-attack-ready-spell"); select.value = "bless"; await select.emit("change"); await tick();
-  assert.match(f.$("pc-attack-total").textContent, /^Benedizione: si apre il pannello incantesimi/);
+  assert.equal(f.$("pc-attack-total").textContent,
+    "Benedizione (slot di 1°): si tiene con la concentrazione fino all'inizio del suo prossimo turno e si rilascia con la reazione.");
+  assert.equal(f.$("pc-attack-ready-slot-row").hidden, false);
+  assert.equal(f.$("pc-attack-ready-slot").value, "1", "the first level with a slot left");
   await f.$("pc-attack-launch-button").click(); await tick(); await tick();
-  const request = launch.sent.find((entry) => entry.data.type === "launch")?.data;
-  assert.deepEqual([request.sourceId, request.actionId, request.phase], ["aria", "book:bless", "prepare"]);
-  assert.equal(f.$("pc-attack-status").textContent, "Benedizione: preparalo nel pannello.");
-  assert.equal(f.calls.some((entry) => entry.turnAction), false, "no pill of its own: the panel's hold is the readied action");
+  assert.deepEqual(asked, ["Aria sta già mantenendo la concentrazione su Benedizione.\n\nPreparare Benedizione la sostituirà. Continuare?"]);
+  const request = f.calls.find((entry) => entry.readiedSpell)?.readiedSpell;
+  assert.deepEqual([request.sourceId, request.spellId, request.slotLevel, request.pact, request.castWithoutSlot], ["aria", "bless", 1, false, false]);
+  assert.equal(f.$("pc-attack-status").textContent, "Incantesimo preparato: Benedizione (1°). Si rilascia con la reazione · speso: slot di 1° livello.");
+  assert.equal(launch.sent.some((entry) => entry.data.type === "launch"), false, "no tracker, no spell panel");
+  assert.equal(f.calls.some((entry) => entry.turnAction), false, "no pill of its own: the hold is the readied action");
+  // A cantrip: no slot to choose.
+  await pickAction(f, "turn-action::ready"); await tick();
+  const modesAgain = f.$("pc-attack-ready-modes").querySelectorAll("button");
+  if (modesAgain[1].getAttribute("aria-pressed") !== "true") { await modesAgain[1].click(); await tick(); }
+  const again = f.$("pc-attack-ready-spell"); again.value = "sacred-flame"; await again.emit("change"); await tick();
+  assert.equal(f.$("pc-attack-ready-slot-row").hidden, true);
+  assert.match(f.$("pc-attack-total").textContent, /^Fiamma sacra \(nessuno slot\)/);
 });
 
 test("Preparare in the Azioni tab: Registra on the creature's own turn sends it, the card says how it goes off", async () => {

@@ -88,10 +88,4 @@ test("the panel asks Counterspell at the hold, marks a creature's hold for the G
   assert.ok(panel.includes('const nextContract = buildContract(spellKey, preparing ? { phase: "prepare" } : {});'));
 });
 
-test("the console's Azioni tab: Preparare → Un incantesimo asks the tracker to open the panel on the hold", () => {
-  const tracker = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
-  const opener = tracker.slice(tracker.indexOf("async function __openTrackerReadiedSpell("));
-  assert.ok(opener.slice(0, 400).includes('routeRequest: { phase: "prepare" }'), "the panel on the hold, never a direct cast");
-  assert.match(tracker, /const result = data\.phase === "prepare" && action\.kind === "spell"\s+\? await __openTrackerReadiedSpell\(sourceEntry, action\)/u,
-    "the console's request carries it");
-});
+// The console's Azioni tab no longer opens the panel for a hold: it holds the spell itself (test/pcAttackReadiedSpellPrepare.test.js).

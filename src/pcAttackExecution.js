@@ -15,7 +15,7 @@ import { spellbookActiveSpellIds, spellbookAttackAction } from "./spellbookCatal
 import { isSpellbookAttackActionId } from "./spellbookCore.js";
 import { isSpellGrantActionId, spellGrantedActionForItem, spellGrantedActionsForItem } from "./spellGrantedActionsCore.js";
 import { buildPcGrappleEndMutation, buildPcManeuverMutation } from "./pcAttackManeuverCore.js";
-import { buildPcTurnActionMutation } from "./pcAttackTurnActionCore.js";
+import { buildPcReadiedSpellMutation, buildPcTurnActionMutation } from "./pcAttackTurnActionCore.js";
 import { bossFeetPerCell } from "./bossActionsViewCore.js";
 import { getEffectsMutationSceneContext, runEffectsMutation, requireAppliedEffectsMutation } from "./effectsMutations.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
@@ -605,6 +605,48 @@ export function createPcAttackRuntime({
           targetItem:targetItem || null,mode:request.mode || "",stealth:request.stealth ?? null});
       });
   }
+  // Preparare → Un incantesimo (after lot T6e of docs/STUDIO_AZIONI_DI_TURNO.md): the hold in one command, read on the live
+  // caster (its turn, its readied action, its slots); a retry with the same identity returns the stored result.
+  async function executePcReadiedSpell(request={}) {
+    const {sourceId}=request;
+    if(busy.has(sourceId)) throw new Error("Registrazione già in corso.");
+    busy.add(sourceId);
+    try {
+      const scope=await session(sourceId);
+      const attackInstanceId=request.attackInstanceId || newId();
+      const decisionKey=JSON.stringify({kind:"readied-spell",sourceId,spellId:request.spellId || "",slotLevel:request.slotLevel ?? null,
+        pact:request.pact===true,castWithoutSlot:request.castWithoutSlot===true});
+      let draft=drafts.get(attackInstanceId);
+      if(draft && (draft.decisionKey!==decisionKey || draft.options.sceneIdentity!==scope.scene.sceneIdentity))
+        throw new Error("Le decisioni o la scena sono cambiate: riapri la preparazione.");
+      if(draft?.result) return {...structuredClone(draft.result),duplicate:true};
+      if(!draft) {
+        const plan=buildPcReadiedSpellMutation({sourceItem:scope.item,spellId:request.spellId,slotLevel:request.slotLevel ?? null,
+          pact:request.pact===true,castWithoutSlot:request.castWithoutSlot===true,turnState:scope.turnState,
+          instanceId:`spell:${newId()}`,attackInstanceId});
+        if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri la preparazione.");
+        draft={decisionKey,plan,options:{...plan.options,sceneIdentity:request.sceneIdentity || scope.scene.sceneIdentity,sceneEpoch:scope.epoch}};
+        drafts.set(attackInstanceId,draft);
+      }
+      const plan=draft.plan;
+      const result=await runMutation(structuredClone(plan.operations),structuredClone(draft.options));
+      try {requireApplied(result);}
+      catch(error) {
+        if(["conflict","rejected"].includes(result?.status) && result.committed!==true)
+          error.message="Lo stato è cambiato prima del commit (concentrazione, slot o turno). Riapri la preparazione e verifica.";
+        throw error;
+      }
+      const warnings=[];
+      if(result.duplicate!==true && scope.isCurrent()) {
+        try {await refreshLabels(plan.labelTargetIds);}
+        catch(error) {warnings.push(String(error?.message || error));}
+      }
+      draft.result={...result,attackInstanceId,hold:structuredClone(plan.hold),spent:plan.spent || "",warnings,
+        historyEntryId:result.historyEntry?.id || null,
+        undoAvailable:!result.historyPending && !result.historySkipped && !!result.historyEntry?.id};
+      return structuredClone(draft.result);
+    } finally {busy.delete(sourceId);}
+  }
   async function endPcGrapple(request={}) {
     const {sourceId,grappledId,instanceId}=request;
     return runManeuver(request,{kind:"grapple-end",sourceId,grappledId,instanceId,outcome:request.outcome || ""},
@@ -637,7 +679,7 @@ export function createPcAttackRuntime({
     } finally {busy.delete(sourceId);}
   }
   return {getPcAttackPresentation,executePcAttack,endQuiveringPalm,executePcAttackArea,getPcAttackNearby,executePcManeuver,executePcTurnAction,endPcGrapple,
-    executePcAttackSpellTeleport,setPcAttackActionMagical};
+    executePcAttackSpellTeleport,setPcAttackActionMagical,executePcReadiedSpell};
 }
 const runtime=createPcAttackRuntime();
 export const getPcAttackPresentation=(...args)=>runtime.getPcAttackPresentation(...args);
@@ -648,3 +690,4 @@ export const getPcAttackNearby=(...args)=>runtime.getPcAttackNearby(...args);
 export const executePcManeuver=(...args)=>runtime.executePcManeuver(...args);
 export const endPcGrapple=(...args)=>runtime.endPcGrapple(...args);
 export const executePcTurnAction=(...args)=>runtime.executePcTurnAction(...args);
+export const executePcReadiedSpell=(...args)=>runtime.executePcReadiedSpell(...args);

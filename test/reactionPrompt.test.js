@@ -60,6 +60,18 @@ test("Shield says which rolls it turns into a miss, from the sheet's AC", () => 
   assert.equal(reactionPromptEffectText(absorb, items), "Resistenza ai danni da fuoco, anche ora");
 });
 
+test("the hint under the prompt follows the console's button: a function is read at each draw (Prepara, after lot T6e)", () => {
+  const box = new FakeNode(createDocument(), "div");
+  let label = "Prepara";
+  const prompt = createReactionPrompt(box, { documentRef: box.ownerDocument, option: fakeOption(), onUse: async () => {},
+    ignoreHint: () => `${label} senza usarla vale come Ignora.` });
+  prompt.update({ event: hitEvents("mage"), items, state, draftKey: "h1" });
+  assert.match(textOf(box), /Prepara senza usarla vale come Ignora/u);
+  label = "Registra";
+  prompt.update({ event: hitEvents("mage"), items, state, draftKey: "h1" });
+  assert.match(textOf(box), /Registra senza usarla vale come Ignora/u, "redrawn when only the hint changes");
+});
+
 test("the prompt: shown at the outcome, Ignora closes it, the same event does not come back, a new draft does", async () => {
   const box = new FakeNode(createDocument(), "div");
   const prompt = createReactionPrompt(box, { documentRef: box.ownerDocument, option: fakeOption(), onUse: async () => {} });
