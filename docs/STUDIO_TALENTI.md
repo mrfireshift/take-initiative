@@ -9,7 +9,7 @@ con H1–H7 approvate** (§7.11), **F5-1, F5-2 e F5-3 il 16/11** (§7.12–§7.1
 F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 approvate** (§7.15), **F6-1…F6-5
 il 16/11** (§7.16–§7.20): F6 è chiuso. **Il piano di F9 il 16/11** (§7.21),
 **F9-1…F9-4 il 16/11** (§7.22–§7.25): F9 è chiuso. **Il piano di F2 il 16/11,
-con M1–M6 approvate** (§7.26), **F2-1 il 16/11** (§7.27).
+con M1–M6 approvate** (§7.26), **F2-1 e F2-2 il 16/11** (§7.27, §7.28).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -2117,6 +2117,32 @@ vai con F2-1»).
 - **Righe di altre sessioni:** `pcAttackCore.js`; il commit prende HEAD + le
   righe di F2-1.
 - **Documenti:** le prove in stanza sono in B59 (B58 è delle trasformazioni).
+
+### 7.28 F2-2, fatto il 16/11
+
+**Niente attacchi di opportunità dalla creatura attaccata: Mobilità e Gioco di
+Gambe.**
+
+- **L'esclusione (M1):** `opportunityAttackCore.js` legge sul mover le pill
+  attive con `mechanics.noOpportunityFrom` (`noOpportunityFromIds`) e salta
+  quei reattori, uscendo dalla portata e entrando in quella di Maestro delle
+  Armi su Asta. Sentinella non lo scavalca: non è un Disimpegno.
+- **La pill (M2, M5):** il comando dell'attacco della console
+  (`pcAttackNoOpportunityPlan`) mette sull'attaccante «No AdO: <bersaglio>»
+  dopo un attacco in mischia, colpito o mancato:
+  - con Mobilità sempre;
+  - con Gioco di Gambe solo nel turno del ladro.
+
+  La pill finisce alla fine del turno in corso, sta nel tracker e non sulla
+  mappa (`mapVisible: false`); il dettaglio dice chi non fa attacchi di
+  opportunità. Fuori dal combattimento non c'è; con una pill che nomina già lo
+  stesso bersaglio non se ne aggiunge un'altra. L'Annulla dell'attacco la
+  toglie.
+- **Diverso dal piano:** l'override di Gioco di Gambe resta com'è. La capacità
+  è passiva, quindi la card resta di riferimento comunque, come Movimento
+  Veloce, che lo Speed Tracker applica restando «not-automated». Il catalogo
+  delle capacità, con righe di altre sessioni, non si rigenera.
+- **Documenti:** le prove in stanza sono in B60.
 
 ---
 

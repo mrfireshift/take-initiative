@@ -44,6 +44,7 @@ import { speciesNaturalWeaponActionId } from "./speciesNaturalWeaponCore.js";
 import { spellTargetRangeMeters } from "./spellAreaCatalog.js";
 import { consumedAdvantagePills, hiddenPills } from "./attackAdvantagePillsCore.js";
 import { isOffTurn, readiedSpellHold } from "./reactionTrackerCore.js";
+import { NO_OPPORTUNITY_FROM_PREFIX, noOpportunityFromIds } from "./opportunityAttackCore.js";
 import { activeTransformation, transformedCardView } from "./transformationFormsCore.js";
 import { transformationPreviewReturn, transformationStashForMeta } from "./transformationHpCore.js";
 import { PC_ATTACK_RIDERS, PC_ATTACK_SPELL_RIDERS, getPcAttackRider, pcAttackHasPotentCantrip, pcAttackRiderDice, pcAttackRiderFeatureActive, pcAttackRidersForCard, pcAttackRiderSlotLevels } from "./pcAttackRiderCatalog.js";
@@ -287,6 +288,34 @@ const hasDragonFear = (card) => featFeaturesForProfile(card).some((feature) => f
 const SQUAT_NIMBLENESS_FEATURE_ID = "talento-agilita-tarchiata";
 export function pcAttackGrappleEscapeAdvantage(card = {}) {
   return featFeaturesForProfile(card).find((feature) => feature.id === SQUAT_NIMBLENESS_FEATURE_ID)?.name || "";
+}
+
+// Lot F2-2 of docs/STUDIO_TALENTI.md (decisions M1, M2, M5): Mobile, and Fancy Footwork on the attacker's own turn. A
+// melee attack registered from the console, hit or miss, keeps the target's opportunity attacks off the attacker for the
+// rest of the turn: a pill on the attacker, «No AdO: <target>», with the target's id in mechanics.noOpportunityFrom
+// (opportunityAttackCore.js), ending at the end of the turn, in the tracker and not on the map. Out of combat nothing,
+// and nothing more when a pill already names the target. turn: bossConditionAppliedAt.
+export const PC_ATTACK_MOBILE_FEATURE_ID = "talento-mobilita";
+export const PC_ATTACK_FANCY_FOOTWORK_FEATURE_ID = "ladro-spadaccino-gioco-di-gambe";
+export function pcAttackNoOpportunityPlan({ attack, sourceItem, targetItem, turn = null, attackInstanceId = "" } = {}) {
+  if (attack?.range !== "melee" || !turn?.actorId || !sourceItem?.id || !targetItem?.id || !attackInstanceId) return null;
+  const features = getEnabledClassFeatures(sourceItem.metadata?.[META_KEY]?.initiativeCard || {});
+  const feature = features.find((entry) => entry.id === PC_ATTACK_MOBILE_FEATURE_ID)
+    || (turn.actorId === sourceItem.id ? features.find((entry) => entry.id === PC_ATTACK_FANCY_FOOTWORK_FEATURE_ID) : null);
+  if (!feature || noOpportunityFromIds(sourceItem).has(targetItem.id)) return null;
+  const sourceName = sourceItem.name || sourceItem.id;
+  const targetName = targetItem.name || targetItem.id;
+  const condition = `${NO_OPPORTUNITY_FROM_PREFIX}${targetName}`;
+  const instanceId = bossGroupConditionInstanceId(`${attackInstanceId}:no-opportunity`, condition, sourceItem.id);
+  return {
+    featureId: feature.id, featureName: feature.name, targetId: targetItem.id, condition, instanceId,
+    operation: { type: "condition:add", targetIds: [sourceItem.id], conditionName: condition, instanceIds: { [sourceItem.id]: instanceId },
+      options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", manualRemoval: true, mapVisible: false,
+        expiry: { mode: "turn-end", actor: "source", actorId: turn.actorId, remaining: 1 },
+        mechanics: { noOpportunityFrom: [targetItem.id] },
+        effectDetail: `${feature.name}: ${targetName} non fa attacchi di opportunità a ${sourceName} fino alla fine del turno.`,
+        appliedAt: turn } },
+  };
 }
 
 // The breath's dice at the character's total level ("3d6" at 6th level for the PHB breath).
@@ -1749,6 +1778,10 @@ export function buildPcAttackMutation({
       displayLabel: `Bonus del morso +${biteDamage}`,
       effectDetail: `+${biteDamage} alla prossima prova di caratteristica o al prossimo tiro per colpire (Morso vampirico): togli la pill dopo quel tiro.` },
   }] : [];
+  // Mobile, Fancy Footwork (lot F2-2): the target's opportunity attacks kept off the attacker, hit or miss.
+  const noOpportunity = pcAttackNoOpportunityPlan({ attack, sourceItem, targetItem, turn: appliedAt, attackInstanceId });
+  if (noOpportunity) causality.noOpportunity = { featureId: noOpportunity.featureId, name: noOpportunity.featureName,
+    targetId: noOpportunity.targetId, condition: noOpportunity.condition, instanceId: noOpportunity.instanceId };
   if (bite && biteDamage > 0) causality.vampiricBite = { mode: bite.effect.kind === "caster-heal" ? "heal" : "bonus", amount: biteDamage,
     ...(biteHeal > 0 && casterHealChange ? { before: casterHealChange.hp, after: casterHealChange.afterHP } : {}) };
   const activationPillOperations = Object.keys(activationPlan.instancesByTarget).length
@@ -1775,7 +1808,7 @@ export function buildPcAttackMutation({
     // Temporary hit points (Inspiring Smite): their own projections after the commit (no concentration warnings).
     tempHpChanges: activationPlan.tempHp.filter((row) => row.change.changed).map((row) => ({ item: row.item, change: row.change })),
     labelTargetIds: [...new Set([...pillTargetIds, ...(activationConditions.length ? [targetItem.id] : []),
-      ...(biteBonusOperations.length || readiedHold ? [sourceItem.id] : []), ...hitPlan.labelTargetIds])],
+      ...(biteBonusOperations.length || readiedHold || noOpportunity ? [sourceItem.id] : []), ...hitPlan.labelTargetIds])],
     ...(secondaryItemUsed ? { secondaryChange, secondaryItem: secondaryItemUsed } : {}),
     // The creatures of Bursting Arrow: their own post-damage projections after the commit.
     burstChanges: burstRows.filter((row) => row.change.changed).map((row) => ({ item: row.item, change: row.change })),
@@ -1814,7 +1847,7 @@ export function buildPcAttackMutation({
       }] : []),
     ] }] : []), ...conditionOperations, ...hitPlan.operations,
     ...(conditionOperations.length || hitPlan.operations.length ? [{ type: "condition:automate", subjectIds: [targetItem.id] }] : []), ...cantripOperations,
-    ...activationPillOperations, ...biteBonusOperations,
+    ...activationPillOperations, ...biteBonusOperations, ...(noOpportunity ? [noOpportunity.operation] : []),
     ...(linkEnds.length ? [{ type: "condition:remove-instances", removals: linkEnds.map(({ itemId, instanceId }) => ({ itemId, instanceId })) }] : []),
     // The release ends the hold (lot T6d): its concentration broken by its instance takes its record and its pill, hit
     // or miss, as the spell panel's release does; one Undo brings the hold back.
@@ -1822,7 +1855,8 @@ export function buildPcAttackMutation({
     options: {
       commandId: attackInstanceId, correlationId: attackInstanceId, sourceId: sourceItem.id,
       targetIds: [...new Set([targetItem.id, ...(secondaryItemUsed ? [secondaryItemUsed.id] : []), ...pillTargetIds,
-        ...burstRows.map((row) => row.item.id), ...(casterHealChange?.changed || biteBonusOperations.length || readiedHold ? [sourceItem.id] : [])])],
+        ...burstRows.map((row) => row.item.id), ...(casterHealChange?.changed || biteBonusOperations.length || readiedHold || noOpportunity
+          ? [sourceItem.id] : [])])],
       kind: PC_ATTACK_HISTORY_KIND, label,
       // The quick action read from the attacker's card, and the defenses read from the target's card,
       // must still be the ones at commit.

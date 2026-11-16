@@ -6,7 +6,7 @@
 // The mover with "Movimento: no AdO" (Zephyr Strike) or "Disimpegno" (the Disengage action of the attack console's Azioni
 // tab, docs/STUDIO_AZIONI_DI_TURNO.md, D4) provokes nothing; a Disengage taken at the table the plugin cannot know (J3).
 // A reactor with Sentinel (lot F6-2 of docs/STUDIO_TALENTI.md) still reacts to a Disengage; Zephyr Strike, which is not
-// one, keeps it out too.
+// one, keeps it out too. A pill «No AdO: <name>» (Mobile, Fancy Footwork) keeps out the creatures it names.
 // - Entering a reach (Polearm Master, lot F6-3): the mover is outside the reach of a reactor with the feat at a point of
 //   the movement and inside at a later one; an opportunity attack too, so the Disengage and Zephyr Strike keep it out
 //   (Sentinel's exception speaks of leaving the reach).
@@ -58,6 +58,14 @@ export const DRUNKEN_TECHNIQUE_PILL = "Tecnica dell'Ubriaco";
 // The Disengage action's pill: no opportunity attack, except from a reactor with Sentinel.
 const hasDisengagePill = (item) => activeConditions(item)
   .some((entry) => [DISENGAGE_PILL, DRUNKEN_TECHNIQUE_PILL].includes(text(entry?.condition, 80)));
+// Mobile and Fancy Footwork (lot F2-2 of docs/STUDIO_TALENTI.md, decision M1): a pill on the mover, «No AdO: <name>», put
+// by the attack command after a melee attack, names in mechanics.noOpportunityFrom the creatures whose opportunity attacks
+// it does not provoke for the rest of the turn. Not a Disengage: Sentinel does not undo it.
+export const NO_OPPORTUNITY_FROM_PREFIX = "No AdO: ";
+export function noOpportunityFromIds(item) {
+  return new Set(activeConditions(item).flatMap((entry) => (Array.isArray(entry?.mechanics?.noOpportunityFrom)
+    ? entry.mechanics.noOpportunityFrom.map((id) => text(id)).filter(Boolean) : [])));
+}
 // Sentinel's record (featCatalog.js), on the reactor's sheet.
 export const SENTINEL_FEATURE_ID = "talento-sentinella";
 const hasFeatRecord = (reactor, featureId) => featFeaturesForProfile(metaOf(reactor).initiativeCard || {})
@@ -86,9 +94,12 @@ export function movementReactionEvents({ mover = null, path = [], others = [], d
   const entering = [];
   const noOpportunity = hasNoOpportunityPill(mover);
   const disengaged = hasDisengagePill(mover);
+  const sparedIds = noOpportunityFromIds(mover);
   for (const reactor of Array.isArray(others) ? others : []) {
     if (!reactor?.id || reactor.id === mover.id) continue;
-    if (!noOpportunity && (!disengaged || ignoresDisengage(reactor))) {
+    // Mobile, Fancy Footwork (lot F2-2): the creature it attacked in melee this turn.
+    const spared = sparedIds.has(reactor.id);
+    if (!noOpportunity && !spared && (!disengaged || ignoresDisengage(reactor))) {
       const reach = reactorReachMeters(reactor) + 1e-6;
       let inside = false;
       for (const step of steps) {
@@ -99,7 +110,7 @@ export function movementReactionEvents({ mover = null, path = [], others = [], d
       }
     }
     // Polearm Master (lot F6-3): entering the reach, every square counting as for leaving it.
-    if (!noOpportunity && !disengaged && hasFeatRecord(reactor, POLEARM_MASTER_FEATURE_ID)) {
+    if (!noOpportunity && !disengaged && !spared && hasFeatRecord(reactor, POLEARM_MASTER_FEATURE_ID)) {
       const reach = reactorReachMeters(reactor) + 1e-6;
       let outside = false;
       for (const step of steps) {

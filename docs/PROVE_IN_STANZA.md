@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **297** |
+| **B. Console attacchi, mostri e capacità** | **301** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -86,6 +86,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B56. Paura Draconica | 4 |
 | B57. Dati corretti dall'audit delle azioni | 3 |
 | B59. Mobilità e Agilità Tarchiata | 4 |
+| B60. Mobilità e Gioco di Gambe: niente AdO dal bersaglio | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -111,7 +112,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **660** |
+| **Totale** | **664** |
 
 ## A. Incantesimi
 
@@ -1160,6 +1161,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F2-1 (decisioni M3, M6). Le
 - [ ] **Mobilità e lo Scatto:** il PG nella Ragnatela: 3 caselle costano 9 m. Con **Scatto** nel riquadro Movimento, le 3 caselle dopo costano 4,5 m; tolto lo Scatto, di nuovo il doppio. Lo stesso con Azioni → Scatto della console attacchi. Senza il talento lo Scatto non cambia il costo.
 - [ ] **Il terreno della mappa:** nella Tormenta Primordiale di Auril (o in una Cucitura), dopo uno Scatto, il PG con Mobilità paga le caselle come fuori.
 - [ ] **Sfuggire alla presa:** il nano afferrato dal mostro apre la console: la riga dice «Afferrato da … · vantaggio» e il titolo di **Sfugge** aggiunge «con vantaggio (Agilità Tarchiata)». Il PG con Mobilità, afferrato, non ha il vantaggio.
+
+### B60. Mobilità e Gioco di Gambe: niente AdO dal bersaglio
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F2-2 (decisioni M1, M2, M5). Le voci sono nuove: nessuna lista le aveva. Servono un guerriero con Mobilità, un ladro Spadaccino di 3° livello e due goblin vicini, nell'ordine di iniziativa, con gli avvisi di reazione accesi. Ogni voce in vista compatta ed estesa.
+
+- [ ] **La pill:** nel turno del guerriero, un attacco in mischia dalla console al primo goblin, colpito o mancato: sul guerriero c'è «No AdO: Goblin», nel tracker e non sulla mappa; il dettaglio dice che il goblin non gli fa attacchi di opportunità fino alla fine del turno. Un attacco a distanza non la mette.
+- [ ] **Il movimento:** il guerriero si allontana da tutti e due i goblin: l'avviso dell'attacco di opportunità nomina solo il secondo. Se il primo ha Sentinella, nemmeno lui. Alla fine del turno la pill sparisce; l'**Annulla** dell'attacco la toglie.
+- [ ] **Gioco di Gambe:** il ladro, nel suo turno, attacca in mischia il goblin e si allontana: nessun avviso da quel goblin. Con un attacco in mischia fuori dal suo turno, la pill non c'è.
+- [ ] **A mano:** tolta la pill dal tracker, l'avviso del goblin torna.
 
 ## C. Tracker e UX
 
