@@ -7,7 +7,7 @@ import { getSpellDefinition } from "./spells-srd.js";
 import { CLASS_FEATURE_CLASSES, getClassFeatureSubclasses } from "./classFeatureCatalog.js";
 import { MAX_CHARACTER_CLASSES, sanitizeCharacterBuild } from "./classFeatureCore.js";
 import { SPECIES, SUPERNATURAL_GIFTS, speciesDisplayName, supernaturalGiftDisplayName } from "./speciesTraitCore.js";
-import { FEATS, FEAT_DAMAGE_TYPES, MAX_FEATS, featChoiceSlots, featDisplayName, sanitizeFeats } from "./featCatalog.js";
+import { FEATS, FEAT_CANTRIPS, FEAT_DAMAGE_TYPES, MAX_FEATS, featChoiceSlots, featDisplayName, sanitizeFeats } from "./featCatalog.js";
 import { DAMAGE_TYPES, sanitizeDamageDefenses, hasDamageDefenses } from "./damageDefensesCore.js";
 import { ABILITY_KEYS, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
 import { MAX_QUICK_ACTIONS, MAX_QUICK_ACTION_ATTACKS, MAX_QUICK_ACTION_USES, sanitizeQuickAction } from "./quickActionsCore.js";
@@ -316,6 +316,24 @@ function importedFeats(data, unresolved) {
       else unresolved.push(`incantesimo "${spellName}" per ${feat.name}${slot ? ` (${slot.label})` : ": il talento non ne fa scegliere"}`);
     });
     if (spellIds.length === spellNames.length && spellIds.length) entry.choice = { ...(entry.choice || {}), spellIds };
+    // Magic Initiate's class and the cantrips a feat lets choose (lot F3b-2): a class outside its list, a name that is no
+    // cantrip of the catalog, or one more than it lets choose, is reported.
+    const className = text(source.class ?? source.classe);
+    if (className) {
+      const classId = resolveClassId(className);
+      if (feat.classChoices.includes(classId)) entry.choice = { ...(entry.choice || {}), classId };
+      else unresolved.push(`classe "${className}" per ${feat.name}`);
+    }
+    const cantripNames = [source.cantrips ?? source.trucchetti ?? source.cantrip ?? source.trucchetto].flat().map(text).filter(Boolean);
+    const cantripIds = [];
+    for (const cantripName of cantripNames) {
+      const spell = feat.cantrips ? getSpellDefinition(cantripName) : null;
+      const known = spell && FEAT_CANTRIPS.some((cantrip) => cantrip.spellId === spell.id);
+      if (known && cantripIds.length < feat.cantrips) cantripIds.push(spell.id);
+      else unresolved.push(`trucchetto "${cantripName}" per ${feat.name}${!feat.cantrips ? ": il talento non ne fa scegliere"
+        : known ? ` (ne fa scegliere ${feat.cantrips})` : ""}`);
+    }
+    if (cantripIds.length) entry.choice = { ...(entry.choice || {}), cantripIds };
     // The same feat written twice counts once; Elemental Adept twice only with two types.
     if (feats.some((other) => other.id === entry.id && (!feat.repeatable || other.choice?.damageType === entry.choice?.damageType))) continue;
     feats.push(entry);

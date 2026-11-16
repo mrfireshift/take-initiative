@@ -38,7 +38,8 @@ import {
 import { areaHitsBounds, buildFootprintEmanationArea, gridFootprintCells } from "./aoeGeometryCore.js";
 import { PC_ATTACK_CANTRIPS, PC_ATTACK_SAVE_LABELS, getPcAttackCantrip, pcAttackCantripDice, pcAttackWeaponCantripDice } from "./pcAttackCantripCatalog.js";
 import { PC_ATTACK_SPELLS, getPcAttackSpell, pcAttackSpellCount, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
-import { abilitySaveDC, totalCharacterLevel } from "./abilityModifiersCore.js";
+import { abilityModifier, abilitySaveDC, proficiencyBonusForLevel, totalCharacterLevel } from "./abilityModifiersCore.js";
+import { featSpellcastingAbility } from "./featCatalog.js";
 import { consumedAdvantagePills, hiddenPills } from "./attackAdvantagePillsCore.js";
 import { isOffTurn, readiedSpellHold } from "./reactionTrackerCore.js";
 import { PC_ATTACK_RIDERS, PC_ATTACK_SPELL_RIDERS, getPcAttackRider, pcAttackHasPotentCantrip, pcAttackRiderDice, pcAttackRiderFeatureActive, pcAttackRidersForCard, pcAttackRiderSlotLevels } from "./pcAttackRiderCatalog.js";
@@ -575,8 +576,22 @@ function pcAttackSaveDC(attack, card = {}) {
   if (Number.isInteger(attack?.saveDC)) return attack.saveDC;
   if (attack?.mode) return pcAttackActivationSaveDC(getPcAttackActivation(attack.mode.id), card) || null;
   if (attack?.breath) return abilitySaveDC(card, "con");
+  // Decision S3 of docs/STUDIO_TALENTI.md: a spell the character knows only from a feat takes the feat's ability.
+  const featAbility = featSpellcastingAbility(card, attack?.cantrip?.spellId || attack?.spell?.spellId);
+  const featDC = featAbility ? abilitySaveDC(card, featAbility) : null;
+  if (Number.isFinite(featDC)) return featDC;
   const dc = Number(card?.spellSaveDC);
   return Number.isFinite(dc) && dc > 0 ? dc : null;
+}
+
+// The bonus to a spell attack roll of a spell the character knows only from a feat (decision S3): proficiency plus the
+// feat's ability, or null (another spell, or the level or the modifier missing from the card).
+function pcAttackFeatSpellAttackBonus(attack, card = {}) {
+  const ability = featSpellcastingAbility(card, attack?.cantrip?.spellId || attack?.spell?.spellId);
+  if (!ability) return null;
+  const proficiency = proficiencyBonusForLevel(totalCharacterLevel(card?.characterBuild));
+  const modifier = abilityModifier(card?.abilityModifiers, ability);
+  return proficiency === null || modifier === null ? null : proficiency + modifier;
 }
 
 export const PC_ATTACK_OUTCOME_LABELS = Object.freeze({ hit: "Colpito", critical: "Critico", miss: "Mancato", failed: "TS fallito", passed: "TS superato",
@@ -1055,7 +1070,8 @@ export function pcAttackMonsterTags(attack, resources = {}) {
 // Nothing for a save or a spell without a roll.
 export function pcAttackSpellBonusTags(attack, card = {}) {
   if ((!attack?.cantrip && !attack?.spell) || pcAttackSave(attack) || attack.spell?.delivery === "auto") return [];
-  const bonus = card?.spellAttackBonus;
+  // A feat's spell (Magic Initiate's Fire Bolt): the feat's bonus, not the card's (decision S3).
+  const bonus = pcAttackFeatSpellAttackBonus(attack, card) ?? card?.spellAttackBonus;
   return Number.isInteger(bonus) ? [`${bonus >= 0 ? "+" : "−"}${Math.abs(bonus)} al tiro`] : [];
 }
 

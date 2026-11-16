@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **197** |
+| **B. Console attacchi, mostri e capacità** | **203** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -59,9 +59,10 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B21. Talenti: le fondamenta | 7 |
 | B23. Talenti nella console attacchi | 6 |
 | B24. Incantesimi dei talenti | 5 |
-| B25. L'incantesimo scelto delle Contaminazioni | 4 |
 | B25. Statblock da testo: le schede di Strahd Reloaded | 6 |
 | B26. Statblock: pill dei TS e incantesimi delle azioni | 5 |
+| B27. L'incantesimo scelto delle Contaminazioni | 4 |
+| B28. Le scelte di Iniziato alla Magia, Rudimenti da Artefice ed Elfi dei Boschi | 6 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -87,7 +88,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **560** |
+| **Totale** | **566** |
 
 ## A. Incantesimi
 
@@ -774,15 +775,6 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3a (decisioni D6, D7). Le 
 - [ ] **Il libro:** Passo velato compare nel libro come «Talento: Contaminazione Fatata», preparato; lanciato dal libro chiede uno slot come gli altri.
 - [ ] **Il doppione:** con un'azione rapida di Passo velato, la riga del talento in Modifica → Capacità avvisa che va tolta da lì; **Salva** non è bloccato.
 
-### B25. L'incantesimo scelto delle Contaminazioni
-
-Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3b-1 (decisioni S1, S3). Le voci sono nuove: nessuna lista le aveva. Serve un PG con un livello e i modificatori nella scheda.
-
-- [ ] **Il menu:** in Modifica → Capacità → Talenti, Contaminazione Fatata mostra «Incantesimo di 1° (divinazione o ammaliamento)» con 19 incantesimi, Sortilegio compreso; Contaminazione Ombrosa ne mostra 8. Scelto Sortilegio, dopo **Salva** il badge dice «Contaminazione Fatata · Car · Sortilegio».
-- [ ] **Il lancio:** in Capacità, «Contaminazione Fatata: Sortilegio» è un'azione bonus con la CD del talento. **Lancia** apre il pannello senza slot e l'uso scende a 0/1; **Riposo lungo** lo rimette. Anche dal menu della card, in vista compatta ed estesa.
-- [ ] **Il libro e gli slot:** Sortilegio è nel libro come «Talento: Contaminazione Fatata»; lanciato dal libro chiede uno slot.
-- [ ] **L'import:** `{ "feats": [{ "name": "Fey Touched", "ability": "cha", "spells": ["Sortilegio"] }] }` sceglie Sortilegio; con «Palla di fuoco» al suo posto, l'import lo segnala fra i non riconosciuti.
-
 ### B25. Statblock da testo: le schede di Strahd Reloaded
 
 Fonte: [STUDIO_IMPORT_STATBLOCK_TESTO.md](STUDIO_IMPORT_STATBLOCK_TESTO.md), lotto ST3 (§14.7 e §14.8). Le voci sono nuove: nessuna lista le aveva. Serve un nemico e le schede delle pagine «Non-Player Characters» e «Bestiary» delle appendici di Strahd Reloaded, copiate dal browser.
@@ -803,6 +795,26 @@ Fonte: [STUDIO_IMPORT_STATBLOCK_TESTO.md](STUDIO_IMPORT_STATBLOCK_TESTO.md), dec
 - [ ] **Incantesimi della congrega:** importa **The Bonegrinder Coven**: fra le azioni rapide ⚡ ci sono Blocca persone (3° livello) e Fulmine, con CD incantesimi 17. Il pannello Importa dice che il danno in più della congrega resta al tavolo e nomina fra i non trovati Crown of Madness, Phantasmal Force e Cause Fear.
 - [ ] **Usi e CD dal testo:** importa **Ludmilla, First Form**: Trama ipnotica 2/giorno, Porta dimensionale 1/giorno, Unto e Comando a volontà, CD incantesimi 15.
 - [ ] **Senza CD:** importa **Rahadin, the Corrupted**: Dito della morte 1/giorno, e il rapporto chiede di scrivere CD e bonus degli incantesimi in Statistiche.
+
+### B27. L'incantesimo scelto delle Contaminazioni
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3b-1 (decisioni S1, S3). Le voci sono nuove: nessuna lista le aveva. Serve un PG con un livello e i modificatori nella scheda.
+
+- [ ] **Il menu:** in Modifica → Capacità → Talenti, Contaminazione Fatata mostra «Incantesimo di 1° (divinazione o ammaliamento)» con 19 incantesimi, Sortilegio compreso; Contaminazione Ombrosa ne mostra 8. Scelto Sortilegio, dopo **Salva** il badge dice «Contaminazione Fatata · Car · Sortilegio».
+- [ ] **Il lancio:** in Capacità, «Contaminazione Fatata: Sortilegio» è un'azione bonus con la CD del talento. **Lancia** apre il pannello senza slot e l'uso scende a 0/1; **Riposo lungo** lo rimette. Anche dal menu della card, in vista compatta ed estesa.
+- [ ] **Il libro e gli slot:** Sortilegio è nel libro come «Talento: Contaminazione Fatata»; lanciato dal libro chiede uno slot.
+- [ ] **L'import:** `{ "feats": [{ "name": "Fey Touched", "ability": "cha", "spells": ["Sortilegio"] }] }` sceglie Sortilegio; con «Palla di fuoco» al suo posto, l'import lo segnala fra i non riconosciuti.
+
+### B28. Le scelte di Iniziato alla Magia, Rudimenti da Artefice ed Elfi dei Boschi
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F3b-2 (decisioni S1–S5). Le voci sono nuove: nessuna lista le aveva. Serve un PG di 5° livello con gli slot, per esempio un paladino con Comando nel libro, con i modificatori nella scheda (Int +2, Sag +1) e, in Statistiche, CD e bonus degli incantesimi diversi da 13 e +5; e un nemico.
+
+- [ ] **I menu:** in Modifica → Capacità → Talenti, Iniziato alla Magia mostra «Classe» con sei classi, «Trucchetto 1» e «Trucchetto 2» con 44 trucchetti, e «Incantesimo di 1° livello» con 73 incantesimi. Scelti Mago, Dardo di fuoco, Fiamma sacra e Scudo, dopo **Salva** il badge dice «Iniziato alla Magia · Mago · Scudo». Rudimenti da Artefice ha un solo «Trucchetto» e l'incantesimo, Magia degli Elfi dei Boschi solo il «Trucchetto»; nessuno dei due chiede la classe.
+- [ ] **Lo Scudo:** in Capacità, «Iniziato alla Magia: Scudo» è una reazione e dice «Senza slot · CD 13 (Intelligenza); l'uso si spende al lancio.». **Lancia** apre il pannello senza slot e l'uso scende a 0/1; **Riposo lungo** lo rimette. Anche dal menu della card, in vista compatta ed estesa.
+- [ ] **I trucchetti nella console:** Dardo di fuoco e Fiamma sacra sono nel libro come «Talento: Iniziato alla Magia», pronti. Nel turno del PG la console offre Dardo di fuoco con «+5 al tiro» e Fiamma sacra con «TS Destrezza (CD 13)», non i numeri delle Statistiche. Da provare in vista compatta ed estesa.
+- [ ] **La classe:** con Chierico al posto di Mago, Fiamma sacra dice «TS Destrezza (CD 12)», con la Saggezza.
+- [ ] **Gli slot e il pannello:** con Rudimenti da Artefice e Onda tonante, Onda tonante è nel libro come «Talento: Rudimenti da Artefice». Lanciata dal libro chiede uno slot e il pannello usa la CD 13, dell'Intelligenza. Comando, del paladino, tiene la CD delle Statistiche.
+- [ ] **L'import:** `{ "feats": [{ "name": "Magic Initiate", "class": "wizard", "cantrips": ["Fire Bolt", "Sacred Flame"], "spell": "Shield" }] }` sceglie Mago, i due trucchetti e Scudo. Con `"class": "fighter"` l'import segnala la classe fra i non riconosciuti; con un terzo trucchetto segnala che il talento ne fa scegliere 2.
 
 ## C. Tracker e UX
 

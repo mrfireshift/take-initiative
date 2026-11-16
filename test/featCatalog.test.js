@@ -43,15 +43,16 @@ test("the catalog holds the 72 feats of the three manuals, 34 of them half feats
     assert.ok(entry.english && entry.aliases.includes(entry.english), entry.id);
     assert.ok(entry.plugin.length > 10 && entry.plugin.length < 220, entry.id);
   }
-  // The 23 feats of lot F0, the 9 of lot F1 and the 7 of lot F3a have a line of their own; the others wait for their lot.
-  assert.equal(FEATS.filter((entry) => !entry.plugin.startsWith("Per ora solo riferimento")).length, 23 + 9 + 7);
+  // The 23 feats of lot F0, the 9 of lot F1, the 7 of lot F3a and Magic Initiate and Artificer Initiate (lot F3b-2) have
+  // a line of their own; the others wait for their lot.
+  assert.equal(FEATS.filter((entry) => !entry.plugin.startsWith("Per ora solo riferimento")).length, 23 + 9 + 7 + 2);
 });
 
 test("feats resolve by id like the species traits, but stay out of the class catalog", () => {
   // One record per feat, one for each second effect (the criticals of Slasher and Crusher, lot F1), one for each spell
-  // a feat grants (lot F3a, test/featSpells.test.js) and one for each spell the Touched feats let choose (lot F3b-1,
-  // test/featChosenSpells.test.js).
-  assert.equal(FEAT_FEATURES.length, 72 + 2 + 10 + 19 + 8);
+  // a feat grants (lot F3a, test/featSpells.test.js) and one for each spell a feat lets choose: the Touched feats' (lot
+  // F3b-1), Magic Initiate's and Artificer Initiate's (lot F3b-2), in test/featChosenSpells.test.js.
+  assert.equal(FEAT_FEATURES.length, 72 + 2 + 10 + 19 + 8 + 73 + 73);
   assert.deepEqual(FEAT_FEATURES.filter((record) => record.featPart && !record.innateSpell).map((record) => record.id),
     ["talento-bisturi-da-battaglia-critico", "talento-martello-vivente-critico"]);
   for (const record of FEAT_FEATURES) {

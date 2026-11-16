@@ -70,12 +70,18 @@ const ON_SHEET = "Le competenze vanno riportate nella scheda del personaggio.";
 // casting ability ("feat": the one the half feat raises, featSpellAbility).
 // Lot F3b (decision S1): chosenSpells: the spells the player picks, [{ key, label, candidates, uses, slots }]: a record
 // "talento-<feat>-<key>-<spellId>" for each candidate, sharing the slot's use; the sheet's choice.spellIds says which.
+// Lot F3b-2: classChoices: the classes whose list it draws from (choice.classId), spellAbility "class" then reads the
+// class's ability; cantrips: how many cantrips it lets choose (choice.cantripIds), in the book as "Talento" (decision S2).
 const feat = (book, page, name, english, { prerequisite = "", abilities = [], choices = [], species = [], speciesOptions = [],
   repeatable = false, plugin = LATER, pool = null, srdEntryId = "", srdText = "", effect = null, parts = [], naturalWeapon = null,
-  spells = [], spellAbility = "", chosenSpells = [] } = {}) => ({
+  spells = [], spellAbility = "", chosenSpells = [], classChoices = [], cantrips = 0 } = {}) => ({
   book, page, name, english, prerequisite, abilities, choices, species, speciesOptions, repeatable, plugin, pool, srdEntryId, srdText,
-  effect, parts, naturalWeapon, spells, spellAbility, chosenSpells,
+  effect, parts, naturalWeapon, spells, spellAbility, chosenSpells, classChoices, cantrips,
 });
+// The six classes Magic Initiate, Spell Sniper and Ritual Caster draw from, with their casting ability (PHB 2014).
+const CASTER_CLASSES = ["bardo", "chierico", "druido", "stregone", "warlock", "mago"];
+export const FEAT_CLASS_ABILITIES = Object.freeze({ bardo: "cha", chierico: "wis", druido: "wis", stregone: "cha", warlock: "cha", mago: "int" });
+export const FEAT_CLASS_LABELS = Object.freeze({ bardo: "Bardo", chierico: "Chierico", druido: "Druido", stregone: "Stregone", warlock: "Warlock", mago: "Mago" });
 
 // The 1st-level spells the Touched feats choose from (Tasha, p. 80): divination or enchantment, illusion or necromancy.
 // [spellId, name, casting time when it is not an action]. The spell catalog (spells-srd.js) cannot be imported here: it
@@ -110,6 +116,130 @@ const SHADOW_TOUCHED_SPELLS = [
   ["illusory-script", "Scritto illusorio", "speciale"],
   ["color-spray", "Spruzzo colorato"],
   ["false-life", "Vita falsata"],
+];
+// Lot F3b-2: the 1st-level spells and the cantrips Magic Initiate, Artificer Initiate and Wood Elf Magic choose from, every
+// one of the catalog (decision S4: no class lists, the GM checks them), with the casting time of a 1st-level spell when it
+// is not an action. Checked against the catalog by test/featChosenSpells.test.js, like the tables above.
+const FIRST_LEVEL_SPELLS = [
+  ["alarm", "Allarme", "speciale"],
+  ["animal-friendship", "Amicizia con gli animali"],
+  ["bane", "Anatema"],
+  ["phb2014-armatura-di-agathys", "Armatura di Agathys"],
+  ["mage-armor", "Armatura magica"],
+  ["xanathar-assorbire-elementi", "Assorbire Elementi", "reazione"],
+  ["goodberry", "Bacche benefiche"],
+  ["bless", "Benedizione"],
+  ["phb2014-braccia-di-hadar", "Braccia di Hadar"],
+  ["feather-fall", "Caduta morbida", "reazione"],
+  ["disguise-self", "Camuffare se stesso"],
+  ["xanathar-catapulta", "Catapulta"],
+  ["xanathar-cerimonia", "Cerimonia", "speciale"],
+  ["charm-person", "Charme su persone"],
+  ["xanathar-colpo-dello-zefiro", "Colpo dello Zefiro", "azione_bonus"],
+  ["phb2014-colpo-intrappolante", "Colpo Intrappolante", "azione_bonus"],
+  ["xanathar-coltello-di-ghiaccio", "Coltello di Ghiaccio"],
+  ["command", "Comando"],
+  ["comprehend-languages", "Comprensione dei linguaggi"],
+  ["create-or-destroy-water", "Creare o distruggere acqua"],
+  ["cure-wounds", "Cura ferite"],
+  ["xanathar-dardo-di-caos", "Dardo di Caos"],
+  ["magic-missile", "Dardo incantato"],
+  ["phb2014-dardo-stregato", "Dardo Stregato"],
+  ["guiding-bolt", "Dardo tracciante"],
+  ["floating-disk", "Disco fluttuante"],
+  ["phb2014-duello-obbligato", "Duello Obbligato", "azione_bonus"],
+  ["heroism", "Eroismo"],
+  ["divine-favor", "Favore divino", "azione_bonus"],
+  ["phb2014-globo-cromatico", "Globo Cromatico"],
+  ["identify", "Identificare", "speciale"],
+  ["silent-image", "Immagine silenziosa"],
+  ["xanathar-incuti-paura", "Incuti Paura"],
+  ["detect-evil-and-good", "Individuazione del bene e del male"],
+  ["detect-magic", "Individuazione del magico"],
+  ["detect-poison-and-disease", "Individuazione delle malattie e dei veleni"],
+  ["inflict-wounds", "Infliggi ferite"],
+  ["hellish-rebuke", "Intimorire infernale", "reazione"],
+  ["entangle", "Intralciare"],
+  ["xanathar-legame-con-le-bestie", "Legame con le Bestie"],
+  ["faerie-fire", "Luminescenza"],
+  ["burning-hands", "Mani brucianti"],
+  ["hunters-mark", "Marchio del cacciatore", "azione_bonus"],
+  ["tasha-miscela-caustica-di-tasha", "Miscela Caustica di Tasha"],
+  ["fog-cloud", "Nube di nebbia"],
+  ["thunderwave", "Onda tonante"],
+  ["speak-with-animals", "Parlare con gli animali"],
+  ["healing-word", "Parola guaritrice", "azione_bonus"],
+  ["longstrider", "Passo veloce"],
+  ["protection-from-evil-and-good", "Protezione dal bene e dal male"],
+  ["phb2014-punizione-collerica", "Punizione Collerica", "azione_bonus"],
+  ["phb2014-punizione-incandescente", "Punizione Incandescente", "azione_bonus"],
+  ["phb2014-punizione-tonante", "Punizione Tonante", "azione_bonus"],
+  ["purify-food-and-drink", "Purificare cibo e bevande"],
+  ["phb2014-raffica-di-spine", "Raffica di Spine", "azione_bonus"],
+  ["phb2014-raggio-di-infermita", "Raggio di Infermità"],
+  ["hideous-laughter", "Risata incontenibile"],
+  ["expeditious-retreat", "Ritirata rapida", "azione_bonus"],
+  ["jump", "Saltare"],
+  ["sanctuary", "Santuario", "azione_bonus"],
+  ["xanathar-scossa-tellurica", "Scossa Tellurica"],
+  ["illusory-script", "Scritto illusorio", "speciale"],
+  ["shield", "Scudo", "reazione"],
+  ["shield-of-faith", "Scudo della fede", "azione_bonus"],
+  ["unseen-servant", "Servitore inosservato"],
+  ["sleep", "Sonno"],
+  ["phb2014-sortilegio", "Sortilegio", "azione_bonus"],
+  ["color-spray", "Spruzzo colorato"],
+  ["phb2014-sussurri-dissonanti", "Sussurri Dissonanti"],
+  ["xanathar-trabocchetto", "Trabocchetto", "speciale"],
+  ["find-familiar", "Trova famiglio", "speciale"],
+  ["grease", "Unto"],
+  ["false-life", "Vita falsata"],
+];
+const CANTRIPS = [
+  ["phb2014-amicizia", "Amicizia"],
+  ["druidcraft", "Artificio druidico"],
+  ["vicious-mockery", "Beffa crudele"],
+  ["true-strike", "Colpo accurato"],
+  ["xanathar-controllare-fiamme", "Controllare Fiamme"],
+  ["xanathar-creare-falo", "Creare Falò"],
+  ["fire-bolt", "Dardo di fuoco"],
+  ["eldritch-blast", "Deflagrazione occulta"],
+  ["xanathar-ferocia-primordiale", "Ferocia Primordiale"],
+  ["sacred-flame", "Fiamma sacra"],
+  ["acid-splash", "Fiotto acido"],
+  ["xanathar-folata", "Folata"],
+  ["phb2014-frusta-di-spine", "Frusta di Spine"],
+  ["guidance", "Guida"],
+  ["minor-illusion", "Illusione minore"],
+  ["xanathar-infestazione", "Infestazione"],
+  ["phb2014-interdizione-alle-lame", "Interdizione alle Lame"],
+  ["tasha-lama-roboante", "Lama Roboante"],
+  ["tasha-lama-verdefiamma", "Lama Verdefiamma"],
+  ["tasha-lenza-elettrizzante", "Lenza Elettrizzante"],
+  ["light", "Luce"],
+  ["dancing-lights", "Luci danzanti"],
+  ["mage-hand", "Mano magica"],
+  ["message", "Messaggio"],
+  ["xanathar-modellare-acqua", "Modellare Acqua"],
+  ["xanathar-modellare-terra", "Modellare Terra"],
+  ["xanathar-morsa-del-gelo", "Morsa del Gelo"],
+  ["xanathar-parola-radiosa", "Parola Radiosa"],
+  ["xanathar-pietra-magica", "Pietra Magica"],
+  ["prestidigitation", "Prestidigitazione"],
+  ["produce-flame", "Produrre fiamma"],
+  ["ray-of-frost", "Raggio di gelo"],
+  ["shillelagh", "Randello incantato"],
+  ["resistance", "Resistenza"],
+  ["xanathar-rintocco-dei-morti", "Rintocco dei Morti"],
+  ["mending", "Riparare"],
+  ["xanathar-rombo-di-tuono", "Rombo di Tuono"],
+  ["spare-the-dying", "Salvare i morenti"],
+  ["tasha-scheggia-della-mente", "Scheggia della Mente"],
+  ["poison-spray", "Spruzzo velenoso"],
+  ["shocking-grasp", "Stretta folgorante"],
+  ["thaumaturgy", "Taumaturgia"],
+  ["chill-touch", "Tocco gelido"],
+  ["tasha-turbine-di-spade", "Turbine di Spade"],
 ];
 // Until the start of the attacker's next turn: Slasher's and Crusher's pills.
 const UNTIL_NEXT_TURN = "next-turn";
@@ -160,7 +290,10 @@ const DEFINITIONS = [
   feat("phb", 167, "Guaritore", "Healer"),
   feat("phb", 168, "Incantatore da Guerra", "War Caster", { prerequisite: "Saper lanciare almeno un incantesimo" }),
   feat("phb", 168, "Incantatore Rituale", "Ritual Caster", { prerequisite: "Intelligenza o Saggezza 13" }),
-  feat("phb", 168, "Iniziato alla Magia", "Magic Initiate"),
+  feat("phb", 168, "Iniziato alla Magia", "Magic Initiate", {
+    plugin: "I due trucchetti nel libro come «Talento»; l'incantesimo di 1° livello una volta per riposo lungo senza slot, o con i tuoi slot, dalla sua card. CD e attacco con la caratteristica della classe scelta.",
+    spellAbility: "class", classChoices: CASTER_CLASSES, cantrips: 2,
+    chosenSpells: [{ key: "incantesimo", label: "Incantesimo di 1° livello", candidates: FIRST_LEVEL_SPELLS, uses: "lungo", slots: true }] }),
   feat("phb", 168, "Linguista", "Linguist", { abilities: ["int"],
     plugin: "Le lingue vanno riportate nella scheda del personaggio." }),
   feat("phb", 168, "Lottatore", "Grappler", { prerequisite: "Forza 13", srdEntryId: "lottatore", srdText: GRAPPLER_SRD_TEXT }),
@@ -209,8 +342,8 @@ const DEFINITIONS = [
     pool: { key: "dado", name: "Furia Orchesca", count: 1, rest: "breve" } }),
   feat("xge", 74, "Magia degli Elfi dei Boschi", "Wood Elf Magic", { prerequisite: "Elfo (dei boschi)", species: ["elfo"],
     speciesOptions: ["boschi"],
-    plugin: "Passo veloce e Passare senza tracce una volta per riposo lungo ciascuno, senza slot e con Saggezza: si lanciano dalle loro card. Il trucchetto da druido, per ora, va nel libro.",
-    spellAbility: "wis", spells: [
+    plugin: "Passo veloce e Passare senza tracce una volta per riposo lungo ciascuno, senza slot: si lanciano dalle loro card. Il trucchetto da druido scelto è nel libro come «Talento». Tutti con Saggezza.",
+    spellAbility: "wis", cantrips: 1, spells: [
       { key: "passo-veloce", spellId: "longstrider", name: "Passo veloce", uses: "lungo" },
       { key: "passare-senza-tracce", spellId: "pass-without-trace", name: "Passare senza tracce", uses: "lungo" },
     ] }),
@@ -260,7 +393,10 @@ const DEFINITIONS = [
       effect: { conditionName: CRUSHER_CRITICAL_CONDITION, timing: UNTIL_NEXT_TURN,
         detail: "Gli attacchi contro hanno vantaggio fino all'inizio del prossimo turno di chi l'ha colpito." } }] }),
   feat("tce", 80, "Pistolero", "Gunner", { abilities: ["dex"], plugin: AT_TABLE }),
-  feat("tce", 80, "Rudimenti da Artefice", "Artificer Initiate"),
+  feat("tce", 80, "Rudimenti da Artefice", "Artificer Initiate", {
+    plugin: "Il trucchetto nel libro come «Talento»; l'incantesimo di 1° livello una volta per riposo lungo senza slot, o con i tuoi slot, dalla sua card. Tutti con Intelligenza; gli strumenti vanno nella scheda.",
+    spellAbility: "int", cantrips: 1,
+    chosenSpells: [{ key: "incantesimo", label: "Incantesimo di 1° livello", candidates: FIRST_LEVEL_SPELLS, uses: "lungo", slots: true }] }),
   feat("tce", 81, "Rudimenti da Guerriero", "Fighting Initiate", { prerequisite: "Competenza in un'arma da guerra" }),
   feat("tce", 81, "Stile Penetrante", "Piercer", { abilities: ["str", "dex"],
     plugin: "Nella console attacchi: al critico con danni perforanti, un dado di danno in più; sui colpi perforanti il promemoria di ritirare un dado, una volta per turno." }),
@@ -313,8 +449,12 @@ export const FEATS = Object.freeze(DEFINITIONS.map((definition) => {
     chosenSpells: Object.freeze(definition.chosenSpells.map((slot) => Object.freeze({ ...slot,
       candidates: Object.freeze(slot.candidates.map(([spellId, spellName, activation = ""]) => Object.freeze({ spellId, name: spellName,
         ...(activation ? { activation } : {}) }))) }))),
+    classChoices: Object.freeze([...definition.classChoices]),
+    cantrips: definition.cantrips,
   });
 }));
+// The cantrips a feat lets choose, by id: the same list for every feat that asks one (decision S4).
+export const FEAT_CANTRIPS = Object.freeze(CANTRIPS.map(([spellId, spellName]) => Object.freeze({ spellId, name: spellName })));
 const FEAT_BY_ID = new Map(FEATS.map((entry) => [entry.id, entry]));
 
 export function getFeat(id) {
@@ -564,23 +704,56 @@ export function featChoiceSlots(featId) {
 export function featSpellAbility(feature, card = {}) {
   const definition = getFeat(feature?.featId);
   if (!definition) return "";
-  if (definition.spellAbility !== "feat") return definition.spellAbility;
-  const chosen = sanitizeFeats(card?.[FEATS_FIELD]).find((entry) => entry.id === definition.id)?.ability;
-  if (chosen && definition.abilityChoices.includes(chosen)) return chosen;
+  return featEntryAbility(definition, sanitizeFeats(card?.[FEATS_FIELD]).find((entry) => entry.id === definition.id), card);
+}
+
+// The ability of a feat's spells for one entry of the sheet: its own ("cha" for Drow High Magic), the half feat's ("feat"),
+// or the chosen class's ("class": Magic Initiate, lot F3b-2). Without a choice, the highest of those it offers.
+function featEntryAbility(definition, entry, card = {}) {
+  const offered = definition.spellAbility === "feat" ? definition.abilityChoices
+    : definition.spellAbility === "class" ? ["int", "wis", "cha"] : [];
+  if (!offered.length) return definition.spellAbility;
+  const chosen = definition.spellAbility === "feat" ? entry?.ability : FEAT_CLASS_ABILITIES[entry?.choice?.classId];
+  if (chosen && offered.includes(chosen)) return chosen;
   const modifier = (key) => {
     const value = Number(card?.abilityModifiers?.[key]);
     return Number.isFinite(value) ? value : null;
   };
-  return definition.abilityChoices.reduce((best, key) => (
+  return offered.reduce((best, key) => (
     modifier(key) !== null && (modifier(best) === null || modifier(key) > modifier(best)) ? key : best
-  ), definition.abilityChoices[0] || "");
+  ), offered[0] || "");
 }
 
-// The spells the profile's feats let it cast with its slots too (lot F3a): always prepared in its book, as
-// "Talento: <feat>", like a subclass's (spellbookGroups' granted).
+// The cantrips the sheet's feats let it know (lot F3b-2): [{ spellId, featId }], those of the list only.
+function featChosenCantrips(profile) {
+  return sanitizeFeats(profile?.[FEATS_FIELD]).flatMap((entry) => {
+    const definition = getFeat(entry.id);
+    if (!definition?.cantrips) return [];
+    const ids = (Array.isArray(entry.choice?.cantripIds) ? entry.choice.cantripIds : []).slice(0, definition.cantrips);
+    return ids.filter((spellId) => FEAT_CANTRIPS.some((cantrip) => cantrip.spellId === spellId)).map((spellId) => ({ spellId, featId: entry.id, entry }));
+  });
+}
+
+// The spells the profile's feats put in its book (lots F3a, F3b): those the slots can cast too and the chosen cantrips,
+// always prepared, as "Talento: <feat>", like a subclass's (spellbookGroups' granted).
 export function featGrantedSpells(profile) {
-  return featFeaturesForProfile(profile).filter((feature) => feature.innateSpell?.slots)
-    .map((feature) => ({ spellId: feature.innateSpell.spellId, source: `Talento: ${getFeat(feature.featId)?.name || feature.name}` }));
+  return [
+    ...featFeaturesForProfile(profile).filter((feature) => feature.innateSpell?.slots)
+      .map((feature) => ({ spellId: feature.innateSpell.spellId, source: `Talento: ${getFeat(feature.featId)?.name || feature.name}` })),
+    ...featChosenCantrips(profile).map(({ spellId, featId }) => ({ spellId, source: `Talento: ${getFeat(featId).name}` })),
+  ];
+}
+
+// Decision S3 of lot F3b: the ability a spell is cast with when the character knows it only from a feat (its own spell, a
+// chosen one, a chosen cantrip): the attack console's bonus and DC, and the spell panel's DC, are the feat's. "" when the
+// spell is in the character's own book too, or no feat gives it: the card's numbers stay.
+export function featSpellcastingAbility(profile, spellId) {
+  const id = String(spellId || "").trim();
+  if (!id || (Array.isArray(profile?.spellbook?.spellIds) && profile.spellbook.spellIds.includes(id))) return "";
+  const record = featFeaturesForProfile(profile).find((feature) => feature.innateSpell?.spellId === id);
+  if (record) return featSpellAbility(record, profile);
+  const cantrip = featChosenCantrips(profile).find((entry) => entry.spellId === id);
+  return cantrip ? featEntryAbility(getFeat(cantrip.featId), cantrip.entry, profile) : "";
 }
 
 // "Robusto", "Adepto Elementale · fuoco", "Atleta · Des"; an unknown id says so.
@@ -593,9 +766,11 @@ export function featDisplayName(entry) {
   // The spells chosen (lot F3b), by their names: "Contaminazione Fatata · Car · Sortilegio".
   const spells = definition.chosenSpells.map((slot, index) => slot.candidates
     .find((candidate) => candidate.spellId === clean.choice?.spellIds?.[index])?.name || "");
+  // Magic Initiate's class (lot F3b-2): "Iniziato alla Magia · Mago · Scudo"; the cantrips are in the book.
   return [
     definition.name,
     clean.ability && definition.abilityChoices.length > 1 ? ABILITY_SHORT[clean.ability] : "",
+    definition.classChoices.includes(clean.choice?.classId) ? FEAT_CLASS_LABELS[clean.choice.classId] : "",
     damageType?.label || "",
     ...spells,
   ].filter(Boolean).join(" · ");
@@ -650,6 +825,10 @@ export function featWarnings(entries, species = null, quickActions = []) {
     }).filter(Boolean);
     for (const { slot, spellId, candidate } of chosen) {
       if (!candidate) warnings.push(`L'incantesimo scelto (${spellId}) non è fra quelli del talento: ${slot.label}.`);
+    }
+    // A chosen cantrip that is not one (lot F3b-2): kept, but it never reaches the book.
+    for (const cantripId of (Array.isArray(entry.choice?.cantripIds) ? entry.choice.cantripIds : []).slice(0, definition.cantrips)) {
+      if (cantripId && !FEAT_CANTRIPS.some((cantrip) => cantrip.spellId === cantripId)) warnings.push(`Il trucchetto scelto (${cantripId}) non è un trucchetto del catalogo.`);
     }
     const granted = [...definition.spells, ...chosen.map((entryChosen) => entryChosen.candidate).filter(Boolean)];
     for (const spell of twin ? [] : granted.filter((candidate) => quickSpellIds.has(candidate.spellId))) {

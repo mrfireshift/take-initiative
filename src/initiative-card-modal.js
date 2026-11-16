@@ -166,7 +166,7 @@ import { rulesTextBlock } from "./rulesTextView.js";
 import { privateTextMissingNote } from "./privatePackCore.js";
 import {
   FEATS, FEATS_FIELD, FEAT_ABILITY_LABELS, FEAT_BOOK_SOURCES, FEAT_DAMAGE_TYPES, MAX_FEATS,
-  featChoiceSlots, featDisplayName, featPluginLine, featWarnings, getFeat, sanitizeFeats,
+  FEAT_CANTRIPS, FEAT_CLASS_LABELS, featChoiceSlots, featDisplayName, featPluginLine, featWarnings, getFeat, sanitizeFeats,
 } from "./featCatalog.js";
 
 perfBootPage(OBR);
@@ -5168,12 +5168,17 @@ function buildFeatEditorRow(entry = {}) {
   damage.dataset.featField = "damageType";
   const abilityLabel = makeLabel("Caratteristica del +1", ability);
   const damageLabel = makeLabel("Tipo di danno", damage);
-  // Lot F3b: one menu per spell the feat lets choose (the Touched feats' 1st-level spell), its candidates only.
+  // Lot F3b-2: Magic Initiate's class, whose ability its spells take.
+  const classSelect = document.createElement("select");
+  classSelect.dataset.featField = "class";
+  const classLabel = makeLabel("Classe", classSelect);
+  // Lot F3b: one menu per spell the feat lets choose (the Touched feats' 1st-level spell), its candidates only; before
+  // them, one per cantrip (lot F3b-2).
   const spellLabels = document.createElement("div");
   spellLabels.className = "feat-editor-spells";
   const choices = document.createElement("div");
   choices.className = "feat-editor-choices";
-  choices.append(abilityLabel, damageLabel, spellLabels);
+  choices.append(abilityLabel, damageLabel, classLabel, spellLabels);
   const remove = document.createElement("button");
   remove.type = "button";
   remove.className = "class-build-remove";
@@ -5185,7 +5190,7 @@ function buildFeatEditorRow(entry = {}) {
   warning.hidden = true;
   // Only the choices of the feat chosen: the ability of a half feat with more than one, Elemental Adept's type, the spells
   // it lets choose (a spell outside the list, from an import or a newer client, stays selected and is warned about).
-  const syncChoices = ({ ability: chosenAbility = "", damageType = "", spellIds = [] } = {}) => {
+  const syncChoices = ({ ability: chosenAbility = "", damageType = "", spellIds = [], classId = "", cantripIds = [] } = {}) => {
     const feat = getFeat(select.value);
     const abilities = feat?.abilityChoices.length > 1 ? feat.abilityChoices : [];
     ability.replaceChildren(new Option("Da scegliere", ""), ...abilities.map((key) => new Option(FEAT_ABILITY_LABELS[key], key)));
@@ -5195,7 +5200,21 @@ function buildFeatEditorRow(entry = {}) {
     damage.replaceChildren(new Option("Da scegliere", ""), ...FEAT_DAMAGE_TYPES.map((type) => new Option(type.label, type.id)));
     damage.value = asksDamage && FEAT_DAMAGE_TYPES.some((type) => type.id === damageType) ? damageType : "";
     damageLabel.hidden = !asksDamage;
-    spellLabels.replaceChildren(...featChoiceSlots(feat?.id).map((slot, index) => {
+    const classes = feat?.classChoices || [];
+    classSelect.replaceChildren(new Option("Da scegliere", ""), ...classes.map((id) => new Option(FEAT_CLASS_LABELS[id] || id, id)));
+    classSelect.value = classes.includes(classId) ? classId : "";
+    classLabel.hidden = !classes.length;
+    const cantripMenus = Array.from({ length: feat?.cantrips || 0 }, (_, index) => {
+      const cantrip = document.createElement("select");
+      cantrip.dataset.featField = "cantrip";
+      const current = String((Array.isArray(cantripIds) ? cantripIds : [])[index] || "");
+      cantrip.replaceChildren(new Option("Da scegliere", ""), ...FEAT_CANTRIPS.map((entry) => new Option(entry.name, entry.spellId)),
+        ...(current && !FEAT_CANTRIPS.some((entry) => entry.spellId === current) ? [new Option(`Fuori lista: ${current}`, current)] : []));
+      cantrip.value = current;
+      cantrip.addEventListener("change", syncFeatWarnings);
+      return makeLabel(feat.cantrips > 1 ? `Trucchetto ${index + 1}` : "Trucchetto", cantrip);
+    });
+    spellLabels.replaceChildren(...cantripMenus, ...featChoiceSlots(feat?.id).map((slot, index) => {
       const spell = document.createElement("select");
       spell.dataset.featField = "spell";
       const current = String((Array.isArray(spellIds) ? spellIds : [])[index] || "");
@@ -5205,10 +5224,11 @@ function buildFeatEditorRow(entry = {}) {
       spell.addEventListener("change", syncFeatWarnings);
       return makeLabel(slot.label, spell);
     }));
-    choices.hidden = abilityLabel.hidden && damageLabel.hidden && !spellLabels.children.length;
+    choices.hidden = abilityLabel.hidden && damageLabel.hidden && classLabel.hidden && !spellLabels.children.length;
     row.classList.toggle("unknown", !!select.value && !feat);
   };
-  syncChoices({ ability: entry?.ability, damageType: entry?.choice?.damageType, spellIds: entry?.choice?.spellIds });
+  syncChoices({ ability: entry?.ability, damageType: entry?.choice?.damageType, spellIds: entry?.choice?.spellIds,
+    classId: entry?.choice?.classId, cantripIds: entry?.choice?.cantripIds });
   select.addEventListener("change", () => {
     syncChoices();
     syncFeatWarnings();
@@ -5234,7 +5254,8 @@ function syncFeatWarnings() {
   const rows = featEditorRows();
   const entries = rows.map((row) => ({
     id: row.querySelector("[data-feat-field='id']").value,
-    choice: { damageType: row.querySelector("[data-feat-field='damageType']").value, spellIds: featRowSpellIds(row) },
+    choice: { damageType: row.querySelector("[data-feat-field='damageType']").value, spellIds: featRowSpellIds(row),
+      cantripIds: featRowCantripIds(row) },
   }));
   // A granted spell also among the quick actions (decision D7): the editor's rows, or the saved ones while a row is incomplete.
   let quickActions = [];
@@ -5276,10 +5297,16 @@ function collectFeats() {
     const { damageType: _previousType, ...kept } = id === original.id && original.choice ? original.choice : {};
     const ability = feat.abilityChoices.length > 1 ? row.querySelector("[data-feat-field='ability']").value : "";
     const damageType = feat.choices.includes("damageType") ? row.querySelector("[data-feat-field='damageType']").value : "";
-    // The spells it lets choose: the menus' values replace the ones it came with (lot F3b).
+    // The spells it lets choose: the menus' values replace the ones it came with (lot F3b); so do the class and the
+    // cantrips (lot F3b-2).
     const spellIds = featChoiceSlots(id).length ? featRowSpellIds(row) : null;
     if (spellIds) delete kept.spellIds;
-    const choice = { ...kept, ...(damageType ? { damageType } : {}), ...(spellIds?.some(Boolean) ? { spellIds } : {}) };
+    const classId = feat.classChoices.length ? row.querySelector("[data-feat-field='class']").value : null;
+    if (classId !== null) delete kept.classId;
+    const cantripIds = feat.cantrips ? featRowCantripIds(row) : null;
+    if (cantripIds) delete kept.cantripIds;
+    const choice = { ...kept, ...(damageType ? { damageType } : {}), ...(classId ? { classId } : {}),
+      ...(cantripIds?.some(Boolean) ? { cantripIds } : {}), ...(spellIds?.some(Boolean) ? { spellIds } : {}) };
     return { id, ...(ability ? { ability } : {}), ...(Object.keys(choice).length ? { choice } : {}) };
   }));
 }
@@ -5287,6 +5314,11 @@ function collectFeats() {
 // The spells chosen in a Talenti row, one per menu in order ("" for one still to choose).
 function featRowSpellIds(row) {
   return Array.from(row.querySelectorAll("[data-feat-field='spell']")).map((select) => select.value);
+}
+
+// Its cantrips, the same way (lot F3b-2).
+function featRowCantripIds(row) {
+  return Array.from(row.querySelectorAll("[data-feat-field='cantrip']")).map((select) => select.value);
 }
 
 function collectDamageDefenses() {

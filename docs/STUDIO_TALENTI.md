@@ -2,7 +2,8 @@
 
 Data: 15 novembre 2026. Stato: **studio, decisioni D1–D15 approvate
 dall'utente il 15/11** (§9); **F0 fatto il 15/11** (§7.1), **F1 il 16/11**
-(§7.2), **la prima parte di F3 il 16/11** (§7.3).
+(§7.2), **la prima parte di F3 il 16/11** (§7.3); **il piano di F3b il 16/11,
+con S1–S9 approvate** (§7.4), **F3b-1 e F3b-2 il 16/11** (§7.5, §7.6).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -1146,13 +1147,61 @@ approvo»).
 - **Import e doppioni:** `spells` dentro il talento. Un incantesimo fuori lista
   va fra i non riconosciuti. L'avviso dei doppioni (D7) vale anche per
   l'incantesimo scelto.
-- **Documenti:** `docs/IMPORT_SCHEDA.md`; le prove in stanza sono in B25.
+- **Documenti:** `docs/IMPORT_SCHEDA.md`; le prove in stanza sono in B27 (nata
+  come B25, numero che aveva già un'altra lista).
 
 **Una correzione al piano.** La §7.4.2 dava per il catalogo solo livello e
 scuola dell'SRD. Le voci fuori dall'SRD hanno scuola, tempo di lancio e rituale
 in `italianReference`: per questo i candidati comprendono Sortilegio, Sussurri
 Dissonanti, Duello Obbligato, Legame con le Bestie, Incuti Paura e Raggio di
 Infermità.
+
+### 7.6 F3b-2, fatto il 16/11
+
+**Iniziato alla Magia, Rudimenti da Artefice e il trucchetto degli Elfi dei
+Boschi.** Come la §7.4 con S1–S5.
+
+- **Le voci** (S1). Una per ognuno dei 73 incantesimi di 1° livello del
+  catalogo, per Iniziato alla Magia e per Rudimenti da Artefice:
+  `talento-<talento>-incantesimo-<spellId>`. Hanno il pool del posto,
+  `…-incantesimo-usi`, e l'azione dal tempo di lancio: Scudo è una reazione. Il
+  catalogo dei talenti arriva a 257 voci e 14 pool.
+- **I trucchetti** (S2) sono una tabella dei 44 del catalogo, `FEAT_CANTRIPS`.
+  Quelli scelti vanno nel libro come «Talento: …», sempre pronti, e la console
+  li offre come i trucchetti di classe.
+- **La caratteristica:**
+  - la classe scelta con Iniziato alla Magia dà la sua: Car per bardo,
+    stregone e warlock, Sag per chierico e druido, Int per il mago;
+  - senza classe, la più alta fra Int, Sag e Car;
+  - Rudimenti da Artefice usa sempre l'Int, gli Elfi dei Boschi la Sag.
+- **Il punto unico** (S3) è `featSpellcastingAbility(scheda, incantesimo)`: dice
+  se un incantesimo viene da un talento e con quale caratteristica.
+  - La console lo usa per il bonus d'attacco e la CD (`pcAttackCore.js`).
+  - Il pannello lo usa per la CD dei lanci, anche con gli slot
+    (`spell-unified-panel.js`).
+  - Un incantesimo che è anche nel libro del PG tiene i numeri della scheda. Le
+    schede senza talenti non cambiano.
+- **Le liste di classe** (S4) non si controllano: i menu offrono tutti i
+  trucchetti e tutti gli incantesimi di 1° livello.
+- **Gli slot** (S5): l'incantesimo di 1° livello è nel libro come «Talento» e si
+  lancia anche con gli slot.
+- **Nella scheda**, sotto la riga del talento:
+  - i menu «Classe», «Trucchetto 1» e «Trucchetto 2» (uno solo, «Trucchetto»,
+    per gli altri due talenti) e «Incantesimo di 1° livello»;
+  - il badge dice la classe e l'incantesimo: «Iniziato alla Magia · Mago ·
+    Scudo»;
+  - un trucchetto fuori dal catalogo resta come «Fuori lista: …», con l'avviso
+    (D8).
+- **L'import:** `class`, `cantrips` e `spell` dentro il talento. Vanno fra i non
+  riconosciuti:
+  - una classe fuori lista;
+  - un nome che non è un trucchetto;
+  - un trucchetto di troppo.
+- **Documenti:** `docs/IMPORT_SCHEDA.md`; le prove in stanza sono in B28.
+
+**Una correzione al piano.** La §7.4.8 metteva `spellbookCatalog.js` fra i file
+di F3b-2. Il libro invece non è cambiato: i trucchetti scelti passano da
+`featGrantedSpells`, che il libro legge già da F3a.
 
 ---
 

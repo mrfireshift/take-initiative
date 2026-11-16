@@ -10,6 +10,8 @@ import { creatureCastableSpellIds } from "../src/attackReactionsCore.js";
 import { getSpellCatalog, getSpellDefinition } from "../src/spells-srd.js";
 import { parseCharacterSheetImport, sheetImportSectionSummary } from "../src/characterSheetImportCore.js";
 import { CLASS_FEATURE_BY_ID, CLASS_FEATURE_RESOURCE_POOL_BY_ID } from "../src/classFeatureCatalog.js";
+import { FEAT_CANTRIPS, featGrantedSpells, featSpellcastingAbility } from "../src/featCatalog.js";
+import { pcAttackResolvedAction, pcAttackSaveLabel, pcAttackSpellBonusTags } from "../src/pcAttackCore.js";
 import reference from "../src/spell-reference-it.json" with { type: "json" };
 import runtimeReference from "../src/spell-reference-it-runtime.json" with { type: "json" };
 
@@ -39,14 +41,15 @@ test("the Touched feats choose among the catalog's 1st-level spells of their sch
     }
   }
   assert.deepEqual(FEATS.filter((entry) => entry.chosenSpells.length).map((entry) => [entry.id, entry.chosenSpells[0].candidates.length]),
-    [["contaminazione-fatata", 19], ["contaminazione-ombrosa", 8]]);
+    [["iniziato-alla-magia", 73], ["contaminazione-fatata", 19], ["contaminazione-ombrosa", 8], ["rudimenti-da-artefice", 73]]);
 });
 
 test("one record per candidate, sharing the slot's use; the profile gets only the chosen one", () => {
   const records = FEAT_FEATURES.filter((feature) => feature.featChoice);
-  assert.equal(records.length, 19 + 8);
+  assert.equal(records.length, 73 + 19 + 8 + 73);
   assert.deepEqual([...new Set(records.map((feature) => feature.trackedResourcePoolIds[0]))],
-    ["talento-contaminazione-fatata-incantesimo-usi", "talento-contaminazione-ombrosa-incantesimo-usi"]);
+    ["talento-iniziato-alla-magia-incantesimo-usi", "talento-contaminazione-fatata-incantesimo-usi", "talento-contaminazione-ombrosa-incantesimo-usi",
+      "talento-rudimenti-da-artefice-incantesimo-usi"]);
   assert.deepEqual(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("talento-contaminazione-fatata-incantesimo-usi").refresh.map((entry) => entry.event), ["riposo_lungo"]);
   assert.deepEqual(featFeaturesForProfile(fey("phb2014-sortilegio")).map((feature) => feature.id),
     ["talento-contaminazione-fatata", "talento-contaminazione-fatata-passo-velato", "talento-contaminazione-fatata-incantesimo-phb2014-sortilegio"]);
@@ -102,4 +105,76 @@ test("the import reads the chosen spell in Italian or in English, and reports on
   ]);
   assert.equal(sheetImportSectionSummary("feats", result.sections.feats),
     "3 talenti: Contaminazione Fatata · Car · Sortilegio, Contaminazione Ombrosa · Vita falsata, Robusto");
+});
+
+// Lot F3b-2 (decisions S2, S3, S4, S5): Magic Initiate, Artificer Initiate and Wood Elf Magic.
+const initiate = (choice, extra = {}) => ({ characterBuild: [{ classId: "guerriero", level: 5 }],
+  abilityModifiers: { str: 3, dex: 1, con: 2, int: 2, wis: 1, cha: 0 }, feats: [{ id: "iniziato-alla-magia", choice }], ...extra });
+
+test("Magic Initiate and Artificer Initiate choose among every 1st-level spell of the catalog, every cantrip too", () => {
+  const firstLevel = catalog.filter((spell) => spell.level === 1).map((spell) => spell.id).sort();
+  for (const featId of ["iniziato-alla-magia", "rudimenti-da-artefice"]) {
+    const [slot] = featChoiceSlots(featId);
+    assert.deepEqual(slot.candidates.map((candidate) => candidate.spellId).sort(), firstLevel, featId);
+    for (const candidate of slot.candidates) {
+      assert.equal(CLASS_FEATURE_BY_ID.get(`talento-${featId}-incantesimo-${candidate.spellId}`).activation.primary,
+        castingKind(getSpellDefinition(candidate.spellId)), candidate.spellId);
+    }
+  }
+  assert.deepEqual(FEAT_CANTRIPS.map((cantrip) => cantrip.spellId).sort(), catalog.filter((spell) => spell.level === 0).map((spell) => spell.id).sort());
+  assert.deepEqual(FEATS.filter((entry) => entry.cantrips).map((entry) => [entry.id, entry.cantrips]),
+    [["iniziato-alla-magia", 2], ["magia-degli-elfi-dei-boschi", 1], ["rudimenti-da-artefice", 1]]);
+  assert.deepEqual(FEATS.filter((entry) => entry.classChoices.length).map((entry) => [entry.id, entry.classChoices]),
+    [["iniziato-alla-magia", ["bardo", "chierico", "druido", "stregone", "warlock", "mago"]]]);
+});
+
+test("Magic Initiate's spells take the chosen class's ability; the cantrips go in the book as «Talento»", () => {
+  const wizard = initiate({ classId: "mago", cantripIds: ["fire-bolt", "sacred-flame"], spellIds: ["shield"] });
+  const shield = speciesSpellCast({ actionId: speciesSpellActionId("talento-iniziato-alla-magia-incantesimo-shield"), card: wizard });
+  assert.deepEqual([shield.ability, shield.dc, shield.feature.activation.primary, shield.feature.trackedResourcePoolIds[0]],
+    ["int", 13, "reazione", "talento-iniziato-alla-magia-incantesimo-usi"]);
+  assert.deepEqual(featGrantedSpells(wizard), [{ spellId: "shield", source: "Talento: Iniziato alla Magia" },
+    { spellId: "fire-bolt", source: "Talento: Iniziato alla Magia" }, { spellId: "sacred-flame", source: "Talento: Iniziato alla Magia" }]);
+  const cleric = initiate({ classId: "chierico", cantripIds: ["sacred-flame"] });
+  assert.equal(featSpellcastingAbility(cleric, "sacred-flame"), "wis");
+  assert.equal(featSpellcastingAbility(initiate({ cantripIds: ["sacred-flame"] }), "sacred-flame"), "int", "no class yet: the highest of Int, Wis, Cha");
+  assert.equal(featSpellcastingAbility({ ...wizard, spellbook: { spellIds: ["fire-bolt"] } }, "fire-bolt"), "",
+    "a spell of the character's own book keeps the card's numbers");
+  assert.equal(featSpellcastingAbility(wizard, "fireball"), "");
+  const elf = card([{ id: "magia-degli-elfi-dei-boschi", choice: { cantripIds: ["shillelagh"] } }]);
+  assert.deepEqual([featSpellcastingAbility(elf, "shillelagh"), featGrantedSpells(elf)], ["wis", [{ spellId: "shillelagh", source: "Talento: Magia degli Elfi dei Boschi" }]]);
+  assert.equal(featSpellcastingAbility(card([{ id: "rudimenti-da-artefice", choice: { cantripIds: ["mending"], spellIds: ["cure-wounds"] } }]), "cure-wounds"), "int");
+});
+
+test("the attack console reads a feat's spell with the feat's bonus and DC, any other with the card's (decision S3)", () => {
+  const cantrip = (spellId) => pcAttackResolvedAction({ id: `cantrip-${spellId}`, label: spellId, kind: "attack",
+    source: { kind: "cantrip", spellIds: [spellId] } }, spellId);
+  const fighter = initiate({ classId: "mago", cantripIds: ["fire-bolt", "sacred-flame"] }, { spellSaveDC: 11, spellAttackBonus: 2 });
+  assert.deepEqual(pcAttackSpellBonusTags(cantrip("fire-bolt"), fighter), ["+5 al tiro"], "3 of proficiency + 2 of Intelligence");
+  assert.equal(pcAttackSaveLabel(cantrip("sacred-flame"), fighter), "TS Destrezza (CD 13)");
+  const plain = { ...fighter, feats: [] };
+  assert.deepEqual(pcAttackSpellBonusTags(cantrip("fire-bolt"), plain), ["+2 al tiro"]);
+  assert.equal(pcAttackSaveLabel(cantrip("sacred-flame"), plain), "TS Destrezza (CD 11)");
+});
+
+test("the sheet and the import: the class, the cantrips, the spell; what is outside the lists is reported", () => {
+  assert.equal(featDisplayName({ id: "iniziato-alla-magia", choice: { classId: "mago", spellIds: ["shield"] } }), "Iniziato alla Magia · Mago · Scudo");
+  assert.deepEqual(featWarnings([{ id: "iniziato-alla-magia", choice: { cantripIds: ["fireball", "fire-bolt"] } }]),
+    [["Il trucchetto scelto (fireball) non è un trucchetto del catalogo."]]);
+  const result = parseCharacterSheetImport(JSON.stringify({ feats: [
+    { name: "Magic Initiate", class: "wizard", cantrips: ["Fire Bolt", "Mano magica", "Luce"], spell: "Scudo" },
+    { name: "Artificer Initiate", cantrips: ["Palla di fuoco"], spells: ["Cura ferite"] },
+    { name: "Wood Elf Magic", cantrips: ["Druidcraft"] },
+    { name: "Iniziato alla Magia", class: "Guerriero" },
+  ] }));
+  assert.deepEqual(result.sections.feats, [
+    { id: "iniziato-alla-magia", choice: { spellIds: ["shield"], classId: "mago", cantripIds: ["fire-bolt", "mage-hand"] } },
+    { id: "rudimenti-da-artefice", choice: { spellIds: ["cure-wounds"] } },
+    { id: "magia-degli-elfi-dei-boschi", choice: { cantripIds: ["druidcraft"] } },
+  ]);
+  assert.deepEqual(result.unresolved, [
+    "trucchetto \"Luce\" per Iniziato alla Magia (ne fa scegliere 2)",
+    "trucchetto \"Palla di fuoco\" per Rudimenti da Artefice",
+    "classe \"Guerriero\" per Iniziato alla Magia",
+  ]);
 });

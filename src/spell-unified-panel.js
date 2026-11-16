@@ -49,6 +49,8 @@ import {
 } from "./spells-srd.js";
 import { planSpellCastCost, spellSlotChoices } from "./spellSlotSpendCore.js";
 import { planSpeciesSpellCost, speciesSpellCast } from "./speciesInnateSpellCore.js";
+import { featSpellcastingAbility } from "./featCatalog.js";
+import { abilitySaveDC } from "./abilityModifiersCore.js";
 import { planSpellReactionSpend } from "./spellReactionCore.js";
 import { readiedHoldName } from "./reactionTrackerCore.js";
 import { isCounterspell } from "./counterspellCore.js";
@@ -525,6 +527,15 @@ export function bootSpellUnifiedPanel(
     });
   };
 
+  // Decision S3 of docs/STUDIO_TALENTI.md: a spell the caster knows only from a feat (Magic Initiate's, cast with a slot
+  // too) takes the feat's DC; null for any other spell, which keeps the card's.
+  const featCastDC = (caster, spellId) => {
+    const card = caster?.metadata?.[`${ID}/meta`]?.initiativeCard || {};
+    const ability = featSpellcastingAbility(card, spellId);
+    const dc = ability ? abilitySaveDC(card, ability) : null;
+    return Number.isInteger(dc) ? dc : null;
+  };
+
   // The Slot menu shows what the caster has left at each level; "Spendi" picks Pact Magic or no slot (a
   // ritual, a free cast). Hidden for a caster without slots.
   const decorateSpellSlotControls = (model) => {
@@ -615,11 +626,12 @@ export function bootSpellUnifiedPanel(
       patchSession({ feedback: { state: "info", message: "Lancio annullato: reazione già usata." } }, { clearFeedback: false });
       return null;
     }
+    const featDC = speciesCast ? null : featCastDC(caster, spell?.id);
     return {
       extraOperations: [...(cost.operation ? [cost.operation] : []), ...reaction.operations],
       spellCost: cost.spent,
       slotLevel: cost.slotLevel,
-      ...(Number.isInteger(speciesCast?.dc) ? { spellSaveDC: speciesCast.dc } : {}),
+      ...(Number.isInteger(speciesCast?.dc) ? { spellSaveDC: speciesCast.dc } : featDC !== null ? { spellSaveDC: featDC } : {}),
     };
   };
 
@@ -675,6 +687,7 @@ export function bootSpellUnifiedPanel(
     const caster = state.casters.find((item) => item.id === state.session?.casterId);
     const dc = state.session?.monsterActionContext?.spellcasting?.saveDC
       ?? speciesCastFor(caster, state.contract?.spell?.id)?.dc
+      ?? featCastDC(caster, state.contract?.spell?.id)
       ?? caster?.metadata?.[`${ID}/meta`]?.initiativeCard?.spellSaveDC;
     return Number.isInteger(dc) && dc > 0 ? dc : null;
   };
