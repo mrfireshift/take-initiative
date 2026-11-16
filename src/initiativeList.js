@@ -81,6 +81,7 @@ import { shouldHandleHistoryUndoShortcut } from "./historyUndoUiCore.js";
 import { adjustSpeedCheckBonus, adjustSpeedCheckDash, clearSpeedCheckCombatMovement, enableSpeedCheckProcessor, mountSpeedCheckEnabledSync, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, prewarmSpeedCheckTurn, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, setSpeedCheckMovementMode, subscribeSpeedCheckEnabled, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
 import { shouldKeepSpeedReadoutOpen } from "./speedCheckCore.js";
 import {
+  classicSpeedReadoutParts,
   makeMovementStepper,
   movementNumber,
   movementReadoutSummary,
@@ -2464,36 +2465,38 @@ function ensureGlobalPanelControls() {
 }
 
 const movementReadout = document.createElement("div");
+// Same frame as the tools row above it (initiativeToolbar.js): full width, so its edges line up with the buttons.
 Object.assign(movementReadout.style, {
-  width: "calc(100% - 24px)",
-  maxWidth: "440px",
+  width: "100%",
+  maxWidth: "none",
   boxSizing: "border-box",
   display: "none",
   flexDirection: "column",
   gap: "6px",
-  padding: "8px 12px",
-  border: "1px solid rgba(148,163,184,.2)",
-  borderRadius: "12px",
-  background: "linear-gradient(180deg, rgba(12,17,28,.64), rgba(7,11,19,.52))",
-  boxShadow: "inset 0 1px 0 rgba(255,255,255,.04), 0 5px 14px rgba(0,0,0,.18)",
+  padding: "8px 10px",
+  border: "1px solid rgba(148,163,184,.22)",
+  borderRadius: "14px",
+  background: "linear-gradient(180deg, rgba(16,21,31,.78), rgba(7,11,18,.72))",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,.05)",
   color: "#fff",
   userSelect: "none",
-  cursor: "pointer",
+  cursor: "default",
 });
 const movementReadoutLine = document.createElement("div");
 Object.assign(movementReadoutLine.style, {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  gap: "10px",
+  gap: "6px",
   fontSize: "11px",
 });
+// The name is the only part of the line that gives way when it is short: the mode and the numbers keep their width.
 const movementReadoutValue = document.createElement("strong");
 Object.assign(movementReadoutValue.style, {
-  flex: "1 1 auto",
+  flex: "0 1 auto",
   minWidth: "0",
   overflow: "hidden",
-  fontSize: "14px",
+  fontSize: "13px",
   fontWeight: "700",
   fontVariantNumeric: "tabular-nums",
   textOverflow: "ellipsis",
@@ -2523,20 +2526,26 @@ const movementModeCaret = document.createElement("span");
 movementModeCaret.className = "obrt-select-caret";
 Object.assign(movementModeCaret.style, {
   position: "absolute",
-  right: "9px",
-  bottom: "9px",
+  right: "5px",
+  top: "50%",
+  width: "9px",
+  height: "6px",
+  backgroundSize: "9px 6px",
+  transform: "translateY(-50%)",
   pointerEvents: "none",
 });
 movementModeTrigger.appendChild(movementModeCaret);
 const movementModeMenu = document.createElement("div");
 movementModeMenu.setAttribute("role", "listbox");
 movementModeMenu.setAttribute("aria-label", "Modalità di movimento");
+// It opens under the mode, wider than the tile, so "Camminare · 10,5 m" fits on one line.
 Object.assign(movementModeMenu.style, {
   display: "none",
   position: "absolute",
   top: "calc(100% + 4px)",
   left: "0",
-  right: "0",
+  right: "auto",
+  minWidth: "170px",
   zIndex: "30",
   overflow: "hidden",
   padding: "4px",
@@ -2548,10 +2557,19 @@ Object.assign(movementModeMenu.style, {
 const movementReadoutMeta = document.createElement("span");
 Object.assign(movementReadoutMeta.style, {
   flex: "0 0 auto",
+  // Pushes the numbers and the lock to the right edge; the name and the mode stay together on the left.
+  marginLeft: "auto",
   color: "rgba(255,255,255,.72)",
   fontVariantNumeric: "tabular-nums",
   whiteSpace: "nowrap",
 });
+const movementReadoutMeters = document.createElement("span");
+Object.assign(movementReadoutMeters.style, {
+  color: "#fff",
+  fontSize: "12px",
+  fontWeight: "700",
+});
+const movementReadoutCells = document.createElement("span");
 const movementReadoutTrack = document.createElement("div");
 Object.assign(movementReadoutTrack.style, {
   height: "4px",
@@ -2590,166 +2608,187 @@ Object.assign(movementCompactLimitCheckbox.style, {
   cursor: "pointer",
 });
 movementCompactLimitControl.appendChild(movementCompactLimitCheckbox);
+// The mode and its speed beside the name. A tile with the menu when the GM can choose among several modes, plain text
+// otherwise (syncMovementModeSelect); the base speed and the conditions are in the tooltip.
+const movementModeChip = document.createElement("span");
+// It keeps its width: with a long name, the name gives way, never the speed.
+Object.assign(movementModeChip.style, {
+  position: "relative",
+  flex: "0 0 auto",
+  minWidth: "0",
+  height: "20px",
+  display: "inline-flex",
+  alignItems: "center",
+  boxSizing: "border-box",
+  padding: "0",
+  border: "1px solid transparent",
+  borderRadius: "7px",
+  background: "transparent",
+  color: "rgba(203,213,225,.88)",
+  fontSize: "11px",
+  fontWeight: "600",
+  whiteSpace: "nowrap",
+});
+const movementModeLabel = document.createElement("span");
+Object.assign(movementModeLabel.style, {
+  minWidth: "0",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+});
+movementModeChip.append(movementModeLabel, movementModeTrigger, movementModeMenu);
+// The mode menu's frame: its border shows the focus and the open menu.
+const movementSpeedCell = movementModeChip;
+
+// Limita movimento holds for the whole session, not for one turn: an icon toggle at the end of the summary line, as
+// on the compact tab. Blue while on, like Focus token in the tools row. GM only (syncMovementControlsAccess).
+const movementLimitControl = document.createElement("label");
+movementLimitControl.title = "Limita movimento: chi va oltre il residuo torna indietro";
+Object.assign(movementLimitControl.style, {
+  position: "relative",
+  flex: "0 0 22px",
+  width: "22px",
+  height: "22px",
+  display: "none",
+  alignItems: "center",
+  justifyContent: "center",
+  boxSizing: "border-box",
+  border: "1px solid rgba(148,163,184,.24)",
+  borderRadius: "7px",
+  color: "#fff",
+  cursor: "pointer",
+});
+// The checkbox stays (keyboard, screen reader, the change listener), invisible over the whole tile.
+const movementLimitCheckbox = document.createElement("input");
+movementLimitCheckbox.type = "checkbox";
+movementLimitCheckbox.setAttribute("aria-label", "Limita movimento alla disponibilit\u00e0 del turno");
+Object.assign(movementLimitCheckbox.style, {
+  position: "absolute",
+  inset: "0",
+  width: "100%",
+  height: "100%",
+  margin: "0",
+  opacity: "0",
+  cursor: "pointer",
+});
+const movementLimitIcon = document.createElement("span");
+movementLimitIcon.setAttribute("aria-hidden", "true");
+Object.assign(movementLimitIcon.style, {
+  display: "inline-flex",
+  pointerEvents: "none",
+});
+movementLimitIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="10" height="7.5" rx="1.6"/><path d="M5.2 7V5.2a2.8 2.8 0 0 1 5.6 0V7"/></svg>';
+movementLimitControl.append(movementLimitCheckbox, movementLimitIcon);
+setToolbarToggleVisual(movementLimitControl, false);
+movementLimitCheckbox.addEventListener("focus", () => {
+  if (movementLimitCheckbox.matches(":focus-visible")) {
+    movementLimitControl.style.outline = "2px solid rgba(147,197,253,.75)";
+  }
+});
+movementLimitCheckbox.addEventListener("blur", () => {
+  movementLimitControl.style.outline = "";
+});
+
 movementReadoutLine.append(
   movementReadoutValue,
+  movementModeChip,
   movementReadoutMeta,
   movementCompactLimitControl,
+  movementLimitControl,
 );
+// The second row: the allowance (Scatto, Bonus) and, apart, the reset that brings the token back. Always open for the
+// GM, with no click to show it; the players never see it (syncMovementControlsAccess).
 const movementDetails = document.createElement("div");
 Object.assign(movementDetails.style, {
   display: "none",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: "6px",
-  paddingTop: "7px",
-  borderTop: "1px solid rgba(255,255,255,.12)",
-});
-const movementDetailValues = {};
-let movementSpeedCell = null;
-for (const [key, label] of [
-  ["speed", "Velocit\u00e0"],
-  ["allowance", "Disponibile"],
-  ["total", "Totale turno"],
-  ["remaining", "Residuo"],
-]) {
-  const cell = document.createElement("div");
-  Object.assign(cell.style, {
-    minWidth: "0",
-    padding: "5px 7px",
-    border: "1px solid rgba(255,255,255,.11)",
-    borderRadius: "6px",
-    background: "rgba(255,255,255,.055)",
-  });
-  const caption = document.createElement("div");
-  caption.textContent = label;
-  Object.assign(caption.style, {
-    color: "rgba(255,255,255,.58)",
-    fontSize: "9px",
-    textTransform: "uppercase",
-  });
-  const value = document.createElement("strong");
-  Object.assign(value.style, {
-    display: "block",
-    overflow: "hidden",
-    marginTop: "2px",
-    fontSize: "11px",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  });
-  movementDetailValues[key] = value;
-  if (key === "speed") {
-    movementSpeedCell = cell;
-    cell.style.position = "relative";
-    value.style.paddingRight = "18px";
-    cell.append(caption, value, movementModeTrigger, movementModeMenu);
-  } else {
-    cell.append(caption, value);
-  }
-  movementDetails.appendChild(cell);
-}
-const movementAllowanceControls = document.createElement("div");
-Object.assign(movementAllowanceControls.style, {
-  gridColumn: "1 / -1",
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  alignItems: "center",
   gap: "6px",
 });
 const movementDashStepper = makeMovementStepper(
-  "Scatto x0",
+  "Scatto ×0",
   () => adjustSpeedCheckDash(-1),
   () => adjustSpeedCheckDash(1),
+  { decreaseLabel: "Uno scatto in meno", increaseLabel: "Uno scatto in più" },
 );
 const movementBonusStepper = makeMovementStepper(
   "Bonus 0 m",
   () => adjustSpeedCheckBonus(-1.5),
   () => adjustSpeedCheckBonus(1.5),
+  { decreaseLabel: "Bonus −1,5 m", increaseLabel: "Bonus +1,5 m" },
 );
-movementAllowanceControls.append(movementDashStepper.wrap, movementBonusStepper.wrap);
-movementDetails.appendChild(movementAllowanceControls);
+for (const stepper of [movementDashStepper, movementBonusStepper]) {
+  stepper.wrap.style.flex = "1 1 0";
+  stepper.wrap.style.minWidth = "0";
+}
+const movementResetDivider = document.createElement("span");
+movementResetDivider.setAttribute("aria-hidden", "true");
+Object.assign(movementResetDivider.style, {
+  flex: "0 0 1px",
+  width: "1px",
+  height: "18px",
+  background: "rgba(148,163,184,.24)",
+});
+// It also moves the token back to where the turn started: the same ↺ as Reset round, set apart from the "+".
 const movementResetButton = document.createElement("button");
 movementResetButton.type = "button";
-movementResetButton.textContent = "Reset movimento";
+movementResetButton.textContent = "↺";
+movementResetButton.title = "Azzera movimento: il token torna alla casella d'inizio turno";
+movementResetButton.setAttribute("aria-label", "Azzera movimento");
 Object.assign(movementResetButton.style, {
-  width: "100%",
-  minWidth: "0",
-  minHeight: "28px",
-  boxSizing: "border-box",
-  border: "1px solid rgba(255,255,255,.2)",
-  borderRadius: "999px",
-  background: "rgba(255,255,255,.09)",
-  color: "#fff",
-  font: "inherit",
-  fontSize: "11px",
-  fontWeight: "700",
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  cursor: "pointer",
-  padding: "0 8px",
-});
-const movementActions = document.createElement("div");
-Object.assign(movementActions.style, {
-  gridColumn: "1 / -1",
-  width: "100%",
-  minWidth: "0",
-  display: "grid",
-  gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-  alignItems: "stretch",
-  gap: "6px",
-});
-const movementLimitControl = document.createElement("label");
-Object.assign(movementLimitControl.style, {
-  width: "100%",
-  minWidth: "0",
-  minHeight: "28px",
-  display: "flex",
+  flex: "0 0 26px",
+  width: "26px",
+  height: "26px",
+  display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
-  gap: "6px",
-  padding: "0 8px",
+  padding: "0",
   boxSizing: "border-box",
-  border: "1px solid rgba(255,255,255,.2)",
-  borderRadius: "999px",
-  background: "rgba(255,255,255,.09)",
+  border: "1px solid rgba(148,163,184,.28)",
+  borderRadius: "8px",
+  background: "rgba(8,12,21,.72)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,.05)",
   color: "#fff",
-  fontSize: "11px",
+  font: "inherit",
+  fontSize: "14px",
   fontWeight: "700",
-  cursor: "pointer",
-  whiteSpace: "nowrap",
-});
-const movementLimitCheckbox = document.createElement("input");
-movementLimitCheckbox.type = "checkbox";
-movementLimitCheckbox.setAttribute("aria-label", "Limita movimento alla disponibilità del turno");
-Object.assign(movementLimitCheckbox.style, {
-  width: "14px",
-  height: "14px",
-  margin: "0",
-  accentColor: "#3b82f6",
+  lineHeight: "1",
   cursor: "pointer",
 });
-const movementLimitLabel = document.createElement("span");
-movementLimitLabel.textContent = "Limita movimento";
-movementLimitControl.append(movementLimitCheckbox, movementLimitLabel);
-movementActions.append(movementLimitControl, movementResetButton);
-movementDetails.appendChild(movementActions);
+movementDetails.append(
+  movementDashStepper.wrap,
+  movementBonusStepper.wrap,
+  movementResetDivider,
+  movementResetButton,
+);
 movementReadout.append(movementReadoutLine, movementReadoutTrack, movementDetails);
 topRow.appendChild(movementReadout);
 
-let movementDetailsOpen = false;
-movementReadout.addEventListener("click", () => {
-  if (isCompactTrackerLayout()) {
-    movementDetailsOpen = false;
-    movementDetails.style.display = "none";
+// The controls act on the movement state, which lives in the GM's tracker: the players get the summary alone. The
+// compact layout never shows this readout (its tab is compact-round-tab.html).
+function syncMovementControlsAccess() {
+  movementDetails.style.display = IS_GM && !isCompactTrackerLayout() ? "flex" : "none";
+  movementLimitControl.style.display = IS_GM ? "inline-flex" : "none";
+}
+
+// The expanded tracker writes the metres in bold and the squares beside them; the compact text stays as it was.
+function renderMovementReadoutMeta(snapshot) {
+  if (!snapshot || isCompactTrackerLayout()) {
+    movementReadoutMeta.textContent = movementReadoutSummary(snapshot, isCompactTrackerLayout());
     return;
   }
-  movementDetailsOpen = !movementDetailsOpen;
-  movementDetails.style.display = movementDetailsOpen ? "grid" : "none";
-});
+  const parts = classicSpeedReadoutParts(snapshot);
+  movementReadoutMeters.textContent = parts.meters;
+  movementReadoutCells.textContent = " · " + parts.cells;
+  movementReadoutMeta.replaceChildren(movementReadoutMeters, movementReadoutCells);
+}
+
 movementResetButton.addEventListener("click", (event) => {
   event.stopPropagation();
   resetSpeedCheckMovement();
 });
 movementLimitControl.addEventListener("click", (event) => event.stopPropagation());
 movementLimitCheckbox.addEventListener("change", () => {
+  setToolbarToggleVisual(movementLimitControl, movementLimitCheckbox.checked);
   setSpeedCheckMovementLimit(movementLimitCheckbox.checked);
 });
 movementCompactLimitControl.addEventListener("click", (event) => event.stopPropagation());
@@ -2757,6 +2796,10 @@ movementCompactLimitCheckbox.addEventListener("change", () => {
   setSpeedCheckMovementLimit(movementCompactLimitCheckbox.checked);
 });
 let movementModeMenuOpen = false;
+// The mode's resting border: the tile's when it opens the menu, none when it is plain text.
+function movementModeRestingBorder() {
+  return movementModeTrigger.style.display === "none" ? "transparent" : "rgba(148,163,184,.24)";
+}
 function setMovementModeMenuOpen(open, focusOption = false) {
   movementModeMenuOpen = open === true && movementModeMenu.childElementCount > 0;
   movementModeMenu.style.display = movementModeMenuOpen ? "block" : "none";
@@ -2764,7 +2807,7 @@ function setMovementModeMenuOpen(open, focusOption = false) {
   if (movementSpeedCell) {
     movementSpeedCell.style.borderColor = movementModeMenuOpen
       ? "rgba(96,165,250,.75)"
-      : "rgba(255,255,255,.11)";
+      : movementModeRestingBorder();
   }
   if (movementModeMenuOpen && focusOption) {
     const selected = movementModeMenu.querySelector("[aria-selected='true']");
@@ -2786,7 +2829,7 @@ movementModeTrigger.addEventListener("focus", () => {
 });
 movementModeTrigger.addEventListener("blur", () => {
   if (!movementModeMenuOpen && movementSpeedCell) {
-    movementSpeedCell.style.borderColor = "rgba(255,255,255,.11)";
+    movementSpeedCell.style.borderColor = movementModeRestingBorder();
   }
 });
 movementModeMenu.addEventListener("click", (event) => event.stopPropagation());
@@ -2816,13 +2859,20 @@ let movementReadoutVisible = false;
 
 function syncMovementModeSelect(snapshot) {
   const modes = Array.isArray(snapshot?.movementModes) ? snapshot.movementModes : [];
-  const selectable = modes.length > 1;
+  // Only the GM's tracker holds the movement state a mode change acts on: for the players the mode is text alone.
+  const selectable = IS_GM && modes.length > 1;
   movementModeTrigger.style.display = selectable ? "block" : "none";
-  if (movementSpeedCell) movementSpeedCell.style.cursor = selectable ? "pointer" : "default";
-  if (modes.length <= 1) {
-    setMovementModeMenuOpen(false);
-    return;
+  if (!selectable) setMovementModeMenuOpen(false);
+  if (movementSpeedCell) {
+    const focused = movementModeMenuOpen || document.activeElement === movementModeTrigger;
+    Object.assign(movementSpeedCell.style, {
+      cursor: selectable ? "pointer" : "default",
+      padding: selectable ? "0 18px 0 6px" : "0",
+      background: selectable ? "rgba(255,255,255,.05)" : "transparent",
+      borderColor: selectable && focused ? "rgba(96,165,250,.75)" : movementModeRestingBorder(),
+    });
   }
+  if (!selectable) return;
   const signature = modes
     .map((mode) => `${mode.id}:${mode.speedMeters}:${mode.blocked}`)
     .join("|");
@@ -2865,33 +2915,52 @@ function syncMovementModeSelect(snapshot) {
   movementModeTrigger.title = `Modalità attiva: ${snapshot.activeModeLabel}`;
 }
 
+// How long the readout keeps the last numbers while the next turn resolves: the GM reads the token in a few ms, the
+// players wait for the GM's broadcast. Past it the turn is taken as having nothing to show, and the readout closes.
+const MOVEMENT_READOUT_RESOLVE_MS = 2000;
+let movementReadoutResolveTimer = 0;
+
 subscribeSpeedCheckState((snapshot) => {
   const previousSnapshot = latestMovementSnapshot;
   latestMovementSnapshot = snapshot;
   queueMicrotask(() => updateActiveCardMovementIndicator(snapshot));
-  movementReadoutVisible = shouldKeepSpeedReadoutOpen(snapshot, previousSnapshot);
+  // Open while the next turn resolves (one or more snapshots with the turn alone), so the readout does not close and
+  // reopen at each turn change and the list below does not jump.
+  movementReadoutVisible = shouldKeepSpeedReadoutOpen(snapshot, previousSnapshot, movementReadoutVisible);
   movementReadout.style.display = movementReadoutVisible && !isCompactTrackerLayout()
     ? "flex"
     : "none";
+  clearTimeout(movementReadoutResolveTimer);
+  if (movementReadoutVisible && !snapshot.available) {
+    movementReadoutResolveTimer = setTimeout(() => {
+      if (latestMovementSnapshot !== snapshot) return;
+      movementReadoutVisible = false;
+      movementReadout.style.display = "none";
+    }, MOVEMENT_READOUT_RESOLVE_MS);
+  }
   if (!snapshot.available) return;
   movementReadoutValue.textContent = snapshot.name || "Movimento";
-  movementReadoutMeta.textContent = movementReadoutSummary(snapshot, isCompactTrackerLayout());
+  renderMovementReadoutMeta(snapshot);
   syncMovementModeSelect(snapshot);
-  movementReadout.title = snapshot.name + ": " + movementNumber(snapshot.totalMeters) + " m totali nel turno; " + movementNumber(snapshot.remainingMeters) + " m al limite disponibile"
-    + "; modalità " + snapshot.activeModeLabel
-    + (snapshot.conditionSummary ? "; " + snapshot.conditionSummary : "");
-
-  movementDetailValues.speed.textContent = snapshot.activeModeLabel + " · " + movementNumber(snapshot.speedMeters) + " m"
+  // What the line leaves out (the remainder, the word "caselle", the base speed, the conditions) is in the tooltip
+  // of the summary line and of the bar, not of the whole box: the controls below keep their own.
+  const movementSummaryTitle = snapshot.name + ": " + movementNumber(snapshot.totalMeters) + " m totali nel turno ("
+    + movementNumber(snapshot.totalCells) + "/" + movementNumber(snapshot.allowanceCells) + " caselle); "
+    + movementNumber(snapshot.remainingMeters) + " m al limite disponibile"
+    + "; modalità " + snapshot.activeModeLabel + " " + movementNumber(snapshot.speedMeters) + " m"
     + (snapshot.modeBaseSpeedMeters !== snapshot.speedMeters
       ? " (base " + movementNumber(snapshot.modeBaseSpeedMeters) + " m)"
-      : "");
-  movementDetailValues.allowance.textContent = movementNumber(snapshot.allowanceMeters) + " m";
-  movementDetailValues.total.textContent = movementNumber(snapshot.totalMeters) + " m";
-  movementDetailValues.remaining.textContent = movementNumber(snapshot.remainingMeters) + " m";
+      : "")
+    + (snapshot.conditionSummary ? "; " + snapshot.conditionSummary : "");
+  movementReadoutLine.title = movementSummaryTitle;
+  movementReadoutTrack.title = movementSummaryTitle;
 
-  movementDashStepper.value.textContent = "Scatto x" + snapshot.dashCount;
+  movementModeLabel.textContent = snapshot.activeModeLabel + " " + movementNumber(snapshot.speedMeters) + " m";
+
+  movementDashStepper.value.textContent = "Scatto ×" + snapshot.dashCount;
   movementBonusStepper.value.textContent = "Bonus " + movementNumber(snapshot.bonusMeters) + " m";
   movementLimitCheckbox.checked = snapshot.movementLimited === true;
+  setToolbarToggleVisual(movementLimitControl, movementLimitCheckbox.checked);
   movementCompactLimitCheckbox.checked = snapshot.movementLimited === true;
   const percent = Math.max(0, Math.min(100, snapshot.progress * 100));
   movementReadoutBar.style.width = percent + "%";
@@ -4089,7 +4158,6 @@ function applyTrackerLayout() {
       cursor: "default",
       pointerEvents: "auto",
     });
-    movementDetailsOpen = false;
     movementDetails.style.display = "none";
     movementReadoutValue.style.display = "none";
     movementCompactLimitControl.style.display = IS_GM ? "inline-flex" : "none";
@@ -4170,20 +4238,21 @@ function applyTrackerLayout() {
       position: "static",
       left: "",
       top: "",
-      width: "calc(100% - 24px)",
-      maxWidth: "440px",
+      width: "100%",
+      maxWidth: "none",
       minWidth: "",
       flex: "",
       pointerEvents: "auto",
       gap: "6px",
-      padding: "8px 12px",
-      borderRadius: "12px",
+      padding: "8px 10px",
+      borderRadius: "14px",
       textAlign: "left",
-      cursor: "pointer",
+      cursor: "default",
     });
     movementReadoutValue.style.display = "block";
     movementCompactLimitControl.style.display = "none";
-    movementReadoutMeta.textContent = movementReadoutSummary(latestMovementSnapshot, false);
+    syncMovementControlsAccess();
+    renderMovementReadoutMeta(latestMovementSnapshot);
     movementReadoutLine.style.justifyContent = "space-between";
     Object.assign(movementReadoutMeta.style, {
       flex: "0 0 auto",
@@ -11891,8 +11960,7 @@ try {
       globalPanelsWrap.style.display = IS_GM ? "inline-flex" : "none";
       zoomToggleWrap.style.display = IS_GM ? "flex" : "none";
       trackedMoveButton.style.display = IS_GM ? "inline-flex" : "none";
-      movementAllowanceControls.style.display = IS_GM ? "grid" : "none";
-      movementActions.style.display = IS_GM ? "grid" : "none";
+      syncMovementControlsAccess();
       movementCompactLimitControl.style.display = IS_GM && isCompactTrackerLayout() ? "inline-flex" : "none";
       // Mostra il toggle Tana solo al GM (e nascondilo a tutti gli altri)
 try {

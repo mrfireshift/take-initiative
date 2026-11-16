@@ -7,6 +7,7 @@ import {
   climbingMovementCostMultiplier,
   elevationMovementCells,
   hasClimbingSpeed,
+  isResolvingSpeedSnapshot,
   limitedMovementRejection,
   measureSquareGridCells,
   movementCostForSegment,
@@ -112,6 +113,32 @@ test("keeps the speed readout open while the next token speed is resolving", () 
   assert.equal(shouldKeepSpeedReadoutOpen(pending, previous), true);
   assert.equal(shouldKeepSpeedReadoutOpen(disabled, previous), false);
   assert.equal(shouldKeepSpeedReadoutOpen(buildSpeedCheckSnapshot(null), previous), false);
+});
+
+test("keeps the readout open on the turn change the engine really sends, with no token id", () => {
+  const previous = buildSpeedCheckSnapshot({ turnKey: "2:7:goblin-a", itemId: "goblin-a", speedMeters: 9 });
+  // notifyMovementState at a turn change: built from currentTurn, which has the actor but not the item id.
+  const resolving = buildSpeedCheckSnapshot({ actorId: "goblin-b", turnKey: "2:8:goblin-b" });
+  assert.equal(resolving.itemId, "");
+  assert.equal(isResolvingSpeedSnapshot(resolving), true);
+  assert.equal(shouldKeepSpeedReadoutOpen(resolving, previous), true);
+
+  // A second resolving snapshot (the players: their own turn sync, then the GM's broadcast) keeps it open while it is.
+  assert.equal(shouldKeepSpeedReadoutOpen(resolving, resolving, true), true);
+  assert.equal(shouldKeepSpeedReadoutOpen(resolving, resolving), false);
+  // A closed readout does not open on a turn that has nothing to show yet.
+  assert.equal(shouldKeepSpeedReadoutOpen(resolving, previous, false), false);
+});
+
+test("closes the readout on the states that end a turn change", () => {
+  const disabled = buildSpeedCheckSnapshot({ turnKey: "2:2:__EPIC__::auril::after::sera", disabled: true });
+  const trackingOff = buildSpeedCheckSnapshot({ turnKey: "2:8:goblin-b" }, false);
+  const sceneClosed = buildSpeedCheckSnapshot(null);
+  for (const snapshot of [disabled, trackingOff, sceneClosed]) {
+    assert.equal(isResolvingSpeedSnapshot(snapshot), false);
+    assert.equal(shouldKeepSpeedReadoutOpen(snapshot, null, true), false);
+  }
+  assert.equal(shouldKeepSpeedReadoutOpen(buildSpeedCheckSnapshot({ turnKey: "2:8:goblin-b", speedMeters: 9 }), null, false), true);
 });
 
 test("the movement snapshot exposes the active mode and available alternatives", () => {

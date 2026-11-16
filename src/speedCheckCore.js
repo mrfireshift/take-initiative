@@ -132,13 +132,27 @@ export function speedWarningDestination(state) {
   return state?.nonPlayerCreature === true || state?.hiddenFromPlayers === true ? "LOCAL" : "ALL";
 }
 
-export function shouldKeepSpeedReadoutOpen(snapshot, previousSnapshot = null) {
-  if (snapshot?.available === true) return true;
+// A turn whose movement is still being read: tracking on, a turn, nothing known about it yet. The engine sends it at
+// each turn change, built from the turn alone (no token id), before the creature's speed is loaded; the players get it
+// too, and then wait for the GM's answer. The state that follows is available, or disabled, or tracking is off.
+export function isResolvingSpeedSnapshot(snapshot) {
   return snapshot?.enabled === true
     && snapshot?.disabled !== true
-    && !!snapshot?.turnKey
-    && !!snapshot?.itemId
-    && previousSnapshot?.available === true;
+    && snapshot?.available !== true
+    && !!snapshot?.turnKey;
+}
+
+// The readout stays open while the next turn resolves, with the last numbers, so it does not close and reopen at each
+// turn change (and the list below it does not jump). wasOpen: whether the readout is open now; by default, whether the
+// previous snapshot showed something. A caller that passes it keeps the readout open across several resolving
+// snapshots in a row, and closes it itself if the turn never resolves.
+export function shouldKeepSpeedReadoutOpen(
+  snapshot,
+  previousSnapshot = null,
+  wasOpen = previousSnapshot?.available === true,
+) {
+  if (snapshot?.available === true) return true;
+  return wasOpen === true && isResolvingSpeedSnapshot(snapshot);
 }
 
 export function limitedMovementRejection(snapshot, movedCells) {

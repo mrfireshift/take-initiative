@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  classicSpeedReadoutParts,
   makeMovementStepper,
   movementNumber,
   movementReadoutSummary,
@@ -14,8 +15,12 @@ function createTestDocument() {
         tagName: String(tagName).toUpperCase(),
         style: {},
         listeners: {},
+        attributes: {},
         children: [],
         textContent: "",
+        setAttribute(name, value) {
+          this.attributes[name] = String(value);
+        },
         addEventListener(type, listener) {
           this.listeners[type] = listener;
         },
@@ -56,6 +61,14 @@ test("il readout mantiene le forme classic e compact correnti", () => {
   assert.equal(movementReadoutSummary(null, true), "");
 });
 
+test("la riga del tracker esteso divide metri e caselle, senza la parola", () => {
+  assert.deepEqual(
+    classicSpeedReadoutParts({ totalMeters: 4.5, allowanceMeters: 9, totalCells: 3, allowanceCells: 6 }),
+    { meters: "4,5 / 9 m", cells: "3/6" },
+  );
+  assert.deepEqual(classicSpeedReadoutParts(null), { meters: "", cells: "" });
+});
+
 test("lo stepper conserva struttura, stile e ordine delle callback", () => {
   const calls = [];
   const documentRef = createTestDocument();
@@ -67,8 +80,10 @@ test("lo stepper conserva struttura, stile e ordine delle callback", () => {
   );
 
   const [decrease, value, increase] = result.wrap.children;
-  assert.equal(result.wrap.style.gridTemplateColumns, "24px minmax(0, 1fr) 24px");
-  assert.equal(decrease.textContent, "-");
+  assert.equal(result.wrap.style.gridTemplateColumns, "20px minmax(0, 1fr) 20px");
+  assert.equal(decrease.title, undefined);
+  assert.deepEqual(decrease.attributes, {});
+  assert.equal(decrease.textContent, "−");
   assert.equal(decrease.type, "button");
   assert.equal(value, result.value);
   assert.equal(value.textContent, "Bonus 0 m");
@@ -80,4 +95,17 @@ test("lo stepper conserva struttura, stile e ordine delle callback", () => {
   increase.dispatch("click", { stopPropagation: () => events.push("stop-increase") });
   assert.deepEqual(events, ["stop-decrease", "stop-increase"]);
   assert.deepEqual(calls, ["decrease", "increase"]);
+});
+
+test("lo stepper dà nome e suggerimento ai pulsanti - e +", () => {
+  const result = makeMovementStepper("Scatto ×0", () => {}, () => {}, {
+    documentRef: createTestDocument(),
+    decreaseLabel: "Uno scatto in meno",
+    increaseLabel: "Uno scatto in più",
+  });
+  const [decrease, , increase] = result.wrap.children;
+  assert.equal(decrease.title, "Uno scatto in meno");
+  assert.equal(decrease.attributes["aria-label"], "Uno scatto in meno");
+  assert.equal(increase.title, "Uno scatto in più");
+  assert.equal(increase.attributes["aria-label"], "Uno scatto in più");
 });

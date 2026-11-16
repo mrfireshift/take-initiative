@@ -94,13 +94,14 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B65. Carica, Maestro degli Scudi, Lottatore da Taverna, Appostato | 4 |
 | B66. Lottatore: vantaggio e Immobilizza | 4 |
 | B67. Tempra Nanica | 4 |
-| **C. Tracker e UX** | **21** |
+| **C. Tracker e UX** | **27** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
 | C3. Riposo del gruppo (U6′) | 3 |
 | C4. Animazioni dei gruppi (U13) | 2 |
 | C5. PF e console (U1, U3, U4) | 5 |
 | C6. Menu della card (U2) | 2 |
+| C7. Riquadro del movimento compresso | 6 |
 | **D. Avvisi, registro e gioco online** | **24** |
 | D1. Avvisi di reazione | 13 |
 | D2. Registro delle schede nella stanza | 3 |
@@ -119,7 +120,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **693** |
+| **Totale** | **699** |
 
 ## A. Incantesimi
 
@@ -1326,6 +1327,17 @@ Fonte: [PROVA_STANZA_AUDIT_UX.md](PROVA_STANZA_AUDIT_UX.md), punto 6. Fatto il 3
 
 - [ ] Ogni creatura ha la voce della scheda nel menu: «Scheda personaggio» per PG e alleati, «Statblock» per gli altri. Movimento resta tra i quattro strumenti.
 - [ ] La **Console Boss** si apre dal token di un boss anche quando il token ha un profilo collegato.
+
+### C7. Riquadro del movimento compresso
+
+Fonte: decisioni D1–D4 del 14/11 (riquadro del movimento del tracker esteso), memoria `movement-panel-compression`. Le voci sono nuove: nessuna lista le aveva. Servono Movimento acceso nelle Opzioni, un PG con velocità e un mostro con due modalità (camminare e volare), con un nome lungo.
+
+- [ ] **Vista estesa, GM:** nel turno del PG il riquadro ha la riga sempre aperta: il nome, «usati / disponibili m» in grassetto con le caselle accanto, la modalità e il lucchetto. Un clic sul riquadro non apre niente. Passando sulla riga, il suggerimento dice il resto, le caselle, la velocità base e le condizioni.
+- [ ] **I comandi:** Scatto e Bonus hanno «−» e «+» con il loro suggerimento («Uno scatto in più»); Limita movimento è il lucchetto, acceso o spento; Azzera è ↺. Ognuno fa ciò che faceva prima.
+- [ ] **Modalità e nome lungo:** nel turno del mostro il GM sceglie la modalità dal menu della riga; il nome lungo si tronca senza mandare a capo la riga.
+- [ ] **Lo schermo del tavolo:** nella finestra dei giocatori il riquadro è in sola lettura, più basso: niente Scatto, Bonus, lucchetto, ↺ né menu delle modalità.
+- [ ] **Il cambio di turno:** passando al turno dopo, il riquadro resta aperto con gli ultimi numeri finché arriva il turno nuovo, e la lista sotto non salta. Si chiude nei turni senza movimento (Azioni Epiche, creature senza velocità, nemici per i giocatori), al più tardi dopo 2 s.
+- [ ] **La vista compatta:** la linguetta compatta del movimento è quella di prima.
 
 ## D. Avvisi, registro e gioco online
 

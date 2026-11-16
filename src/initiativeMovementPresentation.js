@@ -2,43 +2,52 @@ export function makeMovementStepper(
   label,
   onDecrease,
   onIncrease,
-  { documentRef = globalThis.document } = {},
+  { documentRef = globalThis.document, decreaseLabel = "", increaseLabel = "" } = {},
 ) {
   const wrap = documentRef.createElement("div");
   Object.assign(wrap.style, {
     display: "grid",
-    gridTemplateColumns: "24px minmax(0, 1fr) 24px",
+    gridTemplateColumns: "20px minmax(0, 1fr) 20px",
     alignItems: "center",
-    gap: "4px",
-    padding: "4px",
-    border: "1px solid rgba(255,255,255,.11)",
-    borderRadius: "6px",
-    background: "rgba(255,255,255,.055)",
+    gap: "3px",
+    padding: "2px",
+    // The tiles of the tracker's tools row (initiativeToolbar.js).
+    border: "1px solid rgba(148,163,184,.24)",
+    borderRadius: "9px",
+    background: "linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025))",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.04)",
   });
   const decrease = documentRef.createElement("button");
   const increase = documentRef.createElement("button");
   const value = documentRef.createElement("strong");
   decrease.type = increase.type = "button";
-  decrease.textContent = "-";
+  // The minus sign, not the hyphen: as wide and as high as the "+" beside it.
+  decrease.textContent = "−";
   increase.textContent = "+";
   value.textContent = label;
   Object.assign(value.style, {
     overflow: "hidden",
-    fontSize: "10px",
+    fontSize: "11px",
     textAlign: "center",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   });
-  for (const button of [decrease, increase]) {
+  for (const [button, buttonLabel] of [[decrease, decreaseLabel], [increase, increaseLabel]]) {
+    // "-" and "+" say little to a screen reader or on a hover: the caller names what they change.
+    if (buttonLabel) {
+      button.title = buttonLabel;
+      button.setAttribute("aria-label", buttonLabel);
+    }
     Object.assign(button.style, {
-      width: "24px",
-      height: "24px",
+      width: "20px",
+      height: "20px",
       padding: "0",
-      border: "1px solid rgba(255,255,255,.18)",
-      borderRadius: "50%",
-      background: "rgba(0,0,0,.28)",
+      border: "1px solid rgba(148,163,184,.28)",
+      borderRadius: "6px",
+      background: "rgba(8,12,21,.72)",
+      boxShadow: "inset 0 1px 0 rgba(255,255,255,.05)",
       color: "#fff",
-      fontSize: "15px",
+      fontSize: "14px",
       lineHeight: "1",
       cursor: "pointer",
     });
@@ -64,6 +73,16 @@ export function movementReadoutSummary(snapshot, compact = false) {
   return compact
     ? movementNumber(snapshot.totalMeters) + "/" + movementNumber(snapshot.allowanceMeters) + " m · (" + movementNumber(snapshot.totalCells) + "/" + movementNumber(snapshot.allowanceCells) + ")"
     : movementNumber(snapshot.totalMeters) + " / " + movementNumber(snapshot.allowanceMeters) + " m · " + movementNumber(snapshot.totalCells) + "/" + movementNumber(snapshot.allowanceCells) + " caselle";
+}
+
+// The summary of the expanded tracker, in two parts: the metres, in bold, and the squares beside them. The word
+// "caselle" stays in the tooltip, so the line keeps room for the name, the mode and the lock.
+export function classicSpeedReadoutParts(snapshot) {
+  if (!snapshot) return { meters: "", cells: "" };
+  return {
+    meters: movementNumber(snapshot.totalMeters) + " / " + movementNumber(snapshot.allowanceMeters) + " m",
+    cells: movementNumber(snapshot.totalCells) + "/" + movementNumber(snapshot.allowanceCells),
+  };
 }
 
 const COMPACT_MODE_LABELS = Object.freeze({ walk: "Piedi", fly: "Volo", swim: "Nuoto", climb: "Scalata", burrow: "Scavo" });
