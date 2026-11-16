@@ -193,6 +193,54 @@ GA2, nel dettaglio:
     runtime con un Owlbear finto;
   - suite completa verde in una copia pulita (6210 test);
   - build di controllo riuscita.
+- **Correzione del 16/11:** GA2 caricava `readInitiativeCardRegistry` da
+  `src/initiativeCards.js`, che non la esportava. Nella stanza la lettura del
+  registro falliva in silenzio: il caso C e i token senza identità restavano
+  senza giocatore. Ora è esportata, e un test lo controlla sul sorgente (il test
+  del runtime sostituisce il modulo e non poteva vederlo).
+
+**Fatto il 16/11 (GA4).**
+
+- **Dove:** Opzioni → Vista giocatori → scheda **Giocatori**, subito sotto
+  «Modalità di gioco». Si vede solo nella vista Stanza e col profilo Online
+  scelto nella pagina, anche prima di «Salva».
+- **Le righe** (`src/playerAssignmentPanelCore.js`): un personaggio per riga,
+  dalle schede del registro, tranne quelle dei mostri e quelle cancellate, più
+  i PG e gli alleati della scena che il tracker conosce. Le righe si uniscono
+  per identità, poi per nome.
+- **I giocatori:** «Nessuno», poi i collegati, poi quelli che il browser del GM
+  ricorda, con «(non collegato)».
+- **La scelta si applica subito,** fuori dalla bozza e da «Salva»
+  (`src/playerAssignmentPanel.js`):
+  1. prima la memoria della stanza: tolte le altre chiavi del personaggio,
+     scritta quella della sua identità, come fa il menu della card;
+  2. poi i token della scena di quel personaggio che il tracker conosce, con
+     `writePlayerAssignment` (metadata in fusione, proprietario di Owlbear);
+     «Nessuno» li ridà al GM;
+  3. i token che il tracker non conosce restano al background del GM (GA2).
+- **Chi scrive la memoria:** sempre e solo `src/playerAssignmentMemory.js`, con
+  la nuova `updatePlayerAssignmentMemory`.
+- **Chiavi senza personaggio:** le chiavi ricordate che nessuna riga spiega
+  hanno una riga sola con **Dimentica**.
+- **Caricamento:** il modulo del pannello si carica alla prima apertura della
+  scheda, perché legge il registro delle schede, che è pesante. La pagina
+  Opzioni resta leggera.
+- **Rischi:**
+  - nessun ciclo con GA3: il token riceve prima i metadata e poi il
+    proprietario, quindi il proprietario nuovo coincide già con
+    l'assegnazione;
+  - PF, turno e ordine non sono toccati.
+- **Prove:**
+  - 6 test in `test/playerAssignmentPanel.test.js`, tra cui un giro completo
+    con un Owlbear finto, la memoria scritta prima del token e «Nessuno»;
+  - suite completa verde in una copia pulita (6222 test) e build riuscita;
+  - banco con l'SDK simulato:
+    - righe senza il Goblin;
+    - Lyra a Mario: memoria e token;
+    - Tom a un giocatore non collegato;
+    - «Nessuno» ridà il token al GM;
+    - Dimentica;
+    - scheda nascosta in «Questa scena» e in Tavolo.
 
 Facoltativo: «Giocatore ›» anche nel menu contestuale del token di Owlbear
 (`src/contextMenu.js`), per assegnare un token non ancora nel tracker. Con GA2 e
@@ -1026,7 +1074,7 @@ Atteso dal codice:
 5. Punto 2, DM1 e DM2: dopo il lavoro in corso su `pc-attack.js`.
 6. Punto 5: SB1 e SB2, poi il piano di SB3.
 7. Punto 3: W1–W4, poi il piano di W5, poi W6 e W7.
-8. GA4, BA3 e SB4.
+8. GA4 (fatto il 16/11), BA3 (fatto) e SB4.
 
 ## Metodo e fonti
 

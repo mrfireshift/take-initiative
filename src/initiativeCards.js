@@ -392,7 +392,8 @@ async function roomClassFeatureDefaults() {
   return (characterBuild) => getEnabledClassFeatures({ characterBuild }).map((feature) => feature.id);
 }
 
-async function readInitiativeCardRegistry() {
+// Exported for the player assignment memory (lots GA2 and GA4 of docs/STUDIO_GIOCO_ONLINE.md), which loads it lazily.
+export async function readInitiativeCardRegistry() {
   const local = readLocalInitiativeCards();
   const classFeatureDefaults = await roomClassFeatureDefaults();
   const metadata = await OBR.room.getMetadata().catch(() => ({}));

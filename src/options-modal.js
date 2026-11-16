@@ -277,6 +277,7 @@ function render() {
     card.title = onlineProfile ? "In modalità Online ogni giocatore sceglie da sé, dal menu ⚙ del suo tracker." : "";
     for (const control of card.querySelectorAll("input, select")) control.disabled = onlineProfile;
   }
+  renderPlayerAssignmentCard(onlineProfile);
   for (const control of document.querySelectorAll("[data-scene-mode]")) {
     setControlValue(control, draft.scene[control.dataset.sceneMode].mode);
   }
@@ -306,6 +307,29 @@ function render() {
   }
   renderReactionOptions();
   renderPreview();
+}
+
+// Lot GA4 of docs/STUDIO_GIOCO_ONLINE.md: the «Giocatori» card, in the Online profile and the room scope only. Its
+// module reads the card registry (a heavy one), so it is loaded the first time the card shows; it writes at once,
+// outside the draft and «Salva».
+let playerAssignmentPanel = null;
+let playerAssignmentPanelLoading = false;
+function renderPlayerAssignmentCard(online) {
+  const card = document.querySelector("[data-player-assignment-card]");
+  if (!card) return;
+  card.hidden = editScope !== "room" || !online;
+  if (card.hidden || playerAssignmentPanel || playerAssignmentPanelLoading) return;
+  playerAssignmentPanelLoading = true;
+  import("./playerAssignmentPanel.js").then(({ mountPlayerAssignmentPanel }) => {
+    playerAssignmentPanel = mountPlayerAssignmentPanel(card.querySelector("[data-player-assignment-list]"), {
+      obr: OBR,
+      isCurrent: () => sceneLifecycle.isReady(),
+      notify: (message, variant = "INFO") => { void OBR.notification.show(message, variant).catch(() => {}); },
+    });
+  }, (error) => {
+    playerAssignmentPanelLoading = false;
+    console.warn("[options-panel] pannello Giocatori:", error?.message || error);
+  });
 }
 
 // The switches, then the reactions muted with «Non chiedere più», one row each with its ↺ (it takes effect at Salva).
@@ -661,4 +685,7 @@ OBR.onReady(async () => {
   }
 });
 
-window.addEventListener("pagehide", () => sceneLifecycle.dispose());
+window.addEventListener("pagehide", () => {
+  playerAssignmentPanel?.dispose();
+  sceneLifecycle.dispose();
+});

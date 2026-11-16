@@ -103,3 +103,10 @@ input[type="checkbox"]:disabled { opacity: .45; cursor: not-allowed; }
 .reaction-muted-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; padding: 3px 4px 3px 8px; border: 1px solid var(--obrt-line); border-radius: 8px; background: rgba(15,23,42,.58); color: var(--obrt-text, #fff); font-size: var(--obrt-type-body); font-weight: var(--obrt-weight-medium); }
 .reaction-muted-row button { min-height: 26px; padding: 0 8px; }
 .reaction-muted-empty { margin: 0; color: var(--obrt-muted); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-regular); }
+.player-assignment-list { display: grid; gap: 3px; }
+.player-assignment-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; padding: 3px 4px 3px 8px; border: 1px solid var(--obrt-line); border-radius: 8px; background: rgba(15,23,42,.58); color: var(--obrt-text, #fff); font-size: var(--obrt-type-body); font-weight: var(--obrt-weight-medium); }
+.player-assignment-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player-assignment-row select { flex: 0 0 52%; width: 52%; height: 28px; min-height: 28px; }
+.player-assignment-row button { min-height: 26px; padding: 0 8px; }
+.player-assignment-orphans { color: var(--obrt-muted); font-weight: var(--obrt-weight-regular); }
+.player-assignment-empty { margin: 0; color: var(--obrt-muted); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-regular); }

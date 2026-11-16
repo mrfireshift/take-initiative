@@ -43,14 +43,23 @@ export async function rememberPlayerAssignment(item, player, { obr = OBR } = {})
   const key = playerMemoryKeyOfItem(item);
   if (!key) return false;
   if (player) rememberLocalName(player);
+  return updatePlayerAssignmentMemory((memory) => playerAssignmentMemoryWith(memory, key, player?.id || null), { obr });
+}
+
+// Lot GA4 of docs/STUDIO_GIOCO_ONLINE.md: the memory changed by the «Giocatori» panel of the Options (`update` takes
+// the current memory and returns the next one). This file stays the only writer of the room key. Unchanged, no write.
+export async function updatePlayerAssignmentMemory(update, { obr = OBR } = {}) {
   const metadata = await obr.room.getMetadata();
-  const next = retainPlayerAssignmentMemoryWithinByteBudget(
-    playerAssignmentMemoryWith(metadata?.[MEMORY_KEY], key, player?.id || null),
-  );
-  if (JSON.stringify(next) === JSON.stringify(normalizePlayerAssignmentMemory(metadata?.[MEMORY_KEY]))) return true;
+  const current = normalizePlayerAssignmentMemory(metadata?.[MEMORY_KEY]);
+  const next = retainPlayerAssignmentMemoryWithinByteBudget(update(current));
+  if (JSON.stringify(next) === JSON.stringify(current)) return true;
   await writeRoomMetadataKey(obr.room, METADATA_OWNERSHIP.PLAYER_ASSIGNMENTS, next, { runtime: "player-assignment-memory" });
   return true;
 }
+
+// GA4: the names and colours of the players the GM's browser has seen, and one more to remember.
+export const readRememberedPlayerNames = (storage) => readLocalNames(storage);
+export const rememberPlayerName = (player, storage) => rememberLocalName(player, storage);
 
 // GM background: listens only while the room profile is Online.
 export function mountPlayerAssignmentMemory({ obr = OBR, service = runtimeOptionsService } = {}) {
