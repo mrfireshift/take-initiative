@@ -488,7 +488,12 @@ const DEFINITIONS = [
 
   // Calderone Omnicomprensivo di Tasha, capitolo 1, pp. 79–81.
   feat("tce", 79, "Abilità Impeccabile", "Skill Expert", { abilities: ALL_ABILITIES, plugin: ON_SHEET }),
-  feat("tce", 79, "Adepto di Metamagia", "Metamagic Adept", { prerequisite: "Lanciare Incantesimi o Magia del Patto" }),
+  // Lot F9-2 (decision D14): the two metamagic options chosen, cards of the feat that spend its own 2 points with the
+  // sorcerer's costs (classFeatureCatalog.js, featOptionFeatures); the points come back with a long rest.
+  feat("tce", 79, "Adepto di Metamagia", "Metamagic Adept", { prerequisite: "Lanciare Incantesimi o Magia del Patto",
+    plugin: "Le due opzioni scelte nei Talenti della scheda sono card di questo talento, che spendono i suoi 2 punti, separati da quelli dello stregone. Di nuovo col riposo lungo.",
+    pool: { key: "punti", name: "Adepto di Metamagia: punti stregoneria", count: 2, options: true },
+    borrowed: { key: "metamagia", label: "Opzione di metamagia", count: 2, parentFeatureId: "stregone-metamagia" } }),
   // Lot F9-1: the invocation chosen, a card of the feat with its text (classFeatureCatalog.js, featOptionFeatures); one
   // beyond the character's warlock level is warned about (decision D8).
   feat("tce", 79, "Adepto Occulto", "Eldritch Adept", { prerequisite: "Lanciare Incantesimi o Magia del Patto",
@@ -674,7 +679,8 @@ function recordBehaviour({ effect, poolId }) {
 
 function featRecord(entry) {
   // A pool a part spends (lot F5-1: the Chef's treats) is not the feat card's.
-  const poolId = entry.pool && !entry.pool.part ? featPoolId(entry) : "";
+  // A pool its options spend (lot F9-2: Metamagic Adept's points) is not the feat card's either.
+  const poolId = entry.pool && !entry.pool.part && !entry.pool.options ? featPoolId(entry) : "";
   return Object.freeze({
     id: featFeatureId(entry.id),
     name: entry.name,
@@ -858,6 +864,12 @@ export function sanitizeFeats(value) {
 // The options a feat borrows from a class (lot F9): { key, label, count, parentFeatureId }, or null.
 export function featBorrowedSlot(featId) {
   return getFeat(featId)?.borrowed || null;
+}
+
+// The pool a feat's borrowed options spend instead of the class's (lot F9-2: Metamagic Adept's 2 points), or "".
+export function featBorrowedPoolId(featId) {
+  const entry = getFeat(featId);
+  return entry?.borrowed && entry.pool?.options ? featPoolId(entry) : "";
 }
 
 // The options chosen on a sheet's entry, at most the feat's count, each once: the last part of the class records' ids.

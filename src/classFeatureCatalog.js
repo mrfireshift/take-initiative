@@ -14,8 +14,8 @@ import {
   classFeatureResourceCostUsesActiveParent,
 } from "./classFeatureCore.js";
 import { SPECIES_FEATURES, SPECIES_RESOURCE_POOLS, speciesFeaturesForProfile } from "./speciesTraitCore.js";
-import { FEATS, FEATS_FIELD, FEAT_FEATURES, FEAT_RESOURCE_POOLS, FEAT_THEME, featChosenOptionIds, featFeaturesForProfile,
-  sanitizeFeats } from "./featCatalog.js";
+import { FEATS, FEATS_FIELD, FEAT_FEATURES, FEAT_RESOURCE_POOLS, FEAT_THEME, featBorrowedPoolId, featChosenOptionIds,
+  featFeaturesForProfile, sanitizeFeats } from "./featCatalog.js";
 import { SPELL_SLOT_RESOURCE_POOLS } from "./spellSlotCore.js";
 
 export { classFeatureIsReferenceOnly, classFeatureRuntimeSupport };
@@ -37,9 +37,24 @@ export const CLASS_FEATURE_RESOURCE_POOLS = Object.freeze(
 // Lot F9 of docs/STUDIO_TALENTI.md: the options a feat borrows from a class (a fighting style, an invocation), each a
 // card of the feat, "talento-<feat>-<option>", copied from the class's record: its name, manual, page and use; its text
 // is the option's (sourceFeatureId, classFeatureDescriptions.js). Built here: the feat catalog does not load the class
-// catalog. Reference cards, as the class's are today.
+// catalog. Reference cards, as the class's are today, except where the feat has points of its own (featOptionUse).
 const NOT_AUTOMATED = Object.freeze({ status: "not-automated", adapter: null, reason: "adapter-not-implemented" });
 const SELF_TARGETING = Object.freeze({ mode: "self", rangeMeters: null, maxTargets: 1, excludeSource: false });
+// Lot F9-2: a feat with a pool of its own for the options (Metamagic Adept's points, decision D14) keeps the class's use
+// of the option (its adapter and costs), the costs spending the feat's pool instead of the class's.
+function featOptionUse(feat, source) {
+  const poolId = featBorrowedPoolId(feat.id);
+  if (!poolId) return {};
+  const costs = (Array.isArray(source.resourceCosts) ? source.resourceCosts : []).map((cost) => Object.freeze({ ...cost, poolId }));
+  return {
+    automationLevel: source.automationLevel,
+    completenessStatus: source.completenessStatus,
+    runtimeSupport: source.runtimeSupport,
+    trackingMode: source.trackingMode,
+    trackedResourcePoolIds: Object.freeze([poolId]),
+    resourceCosts: Object.freeze(costs),
+  };
+}
 function featOptionRecord(feat, slot, source) {
   const slug = source.id.slice(slot.parentFeatureId.length + 1);
   return Object.freeze({
@@ -72,6 +87,7 @@ function featOptionRecord(feat, slot, source) {
     theme: FEAT_THEME,
     breaksConcentration: false,
     resourceCosts: Object.freeze([]),
+    ...featOptionUse(feat, source),
   });
 }
 const FEAT_OPTIONS_BY_FEAT = new Map(FEATS.filter((feat) => feat.borrowed).map((feat) => [feat.id, Object.freeze(CLASS_FEATURES
@@ -100,9 +116,20 @@ export function featBorrowedWarnings(entry, characterBuild = []) {
   const candidates = featBorrowedCandidates(entry?.id);
   const warlock = (Array.isArray(characterBuild) ? characterBuild : []).find((row) => row?.classId === "warlock");
   const level = Number.isInteger(warlock?.level) ? warlock.level : 0;
-  return featChosenOptionIds(entry).map((slug) => candidates.find((candidate) => candidate.slug === slug))
-    .filter((candidate) => candidate && candidate.minimumLevel > 2 && entry.id === "adepto-occulto" && level < candidate.minimumLevel)
+  const chosen = featChosenOptionIds(entry).map((slug) => candidates.find((candidate) => candidate.slug === slug)).filter(Boolean);
+  const warnings = chosen
+    .filter((candidate) => candidate.minimumLevel > 2 && entry.id === "adepto-occulto" && level < candidate.minimumLevel)
     .map((candidate) => `${candidate.name} chiede un warlock di ${candidate.minimumLevel}° livello: i prerequisiti li controlla il GM.`);
+  // Lot F9-2: an option that costs more than the feat's points (Heightened Spell, 3 of 2) cannot be used with them.
+  const pool = getClassFeatureResourcePool(featBorrowedPoolId(entry?.id));
+  const capacity = pool?.capacity?.type === "fixed" ? pool.capacity.value : null;
+  for (const candidate of chosen) {
+    const cost = CLASS_FEATURE_BY_ID.get(candidate.featureId)?.resourceCosts?.find((value) => value?.poolId);
+    if (capacity !== null && cost && cost.variable !== true && Number(cost.amount) > capacity) {
+      warnings.push(`${candidate.name} costa ${cost.amount} punti: con i ${capacity} del talento non si usa.`);
+    }
+  }
+  return warnings;
 }
 
 // The cards of the options chosen on the sheet, in the feats' order.

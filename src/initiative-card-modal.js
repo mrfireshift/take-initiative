@@ -245,6 +245,10 @@ const WILD_MAGIC_TIDES_FEATURE_ID = "stregone-magia-selvaggia-onde-di-caos";
 const WILD_MAGIC_TIDES_POOL_ID = "stregone-magia-selvaggia-onde-di-caos-usi";
 const WILD_MAGIC_CONTROLLED_FEATURE_ID = "stregone-magia-selvaggia-caos-controllato";
 const TWINNED_SPELL_FEATURE_ID = "stregone-metamagia-incantesimo-raddoppiato";
+// Twinned Spell, the sorcerer's or a feat's (lot F9-2 of docs/STUDIO_TALENTI.md: Metamagic Adept's card, spending the
+// feat's points): the pool its cost names.
+const isTwinnedSpell = (feature) => feature?.id === TWINNED_SPELL_FEATURE_ID || feature?.sourceFeatureId === TWINNED_SPELL_FEATURE_ID;
+const twinnedSpellPoolId = (feature) => feature?.resourceCosts?.find((cost) => cost?.poolId)?.poolId || "stregone-punti-stregoneria";
 const SPELL_THIEF_FEATURE_ID = "ladro-mistificatore-arcano-ladro-di-incantesimi";
 const UNSETTLING_WORDS_FEATURE_ID = "bardo-collegio-dell-eloquenza-parole-inquietanti";
 const UNIVERSAL_SPEECH_FEATURE_ID = "bardo-collegio-dell-eloquenza-linguaggio-universale";
@@ -848,12 +852,12 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surf
         await launchSpecialClassFeature(feature, targetIds);
       } else {
         let resourceValues = {};
-        if (feature?.id === TWINNED_SPELL_FEATURE_ID) {
+        if (isTwinnedSpell(feature)) {
           const rawLevel = window.prompt("Livello dell'incantesimo (0-9):", "0");
           if (rawLevel === null) throw { cancelled: true };
           const cost = classFeatureTwinnedSpellCost(rawLevel);
           if (cost === null) throw new Error("Inserisci un livello di incantesimo tra 0 e 9.");
-          resourceValues = { [SORCERY_POINTS_POOL_ID]: cost };
+          resourceValues = { [twinnedSpellPoolId(feature)]: cost };
         }
         // Fey Gift's Hospitality: the d6 of its temporary hit points, rolled at the table.
         const dieOption = speciesChoiceDieOption(feature, choiceId);
@@ -2143,7 +2147,7 @@ function buildTwinnedSpellControls(feature) {
       return activateClassFeature({
         sourceId: item.id,
         featureId: feature.id,
-        resourceValues: { [SORCERY_POINTS_POOL_ID]: cost },
+        resourceValues: { [twinnedSpellPoolId(feature)]: cost },
       });
     },
     "Incantesimo Raddoppiato confermato.",
@@ -3057,7 +3061,7 @@ function renderClassFeatures() {
             appendFeatureControl(buildSpeciesHpTraitControls(feature, state, active));
           } else if (feature.breath) {
             appendFeatureControl(buildBreathControls(feature));
-          } else if (adapter === "resource-only" && feature.id === TWINNED_SPELL_FEATURE_ID) {
+          } else if (adapter === "resource-only" && isTwinnedSpell(feature)) {
             appendFeatureControl(buildTwinnedSpellControls(feature));
           } else if (adapter === "resource-only") {
             appendFeatureControl(buildResourceOnlyControls(feature));

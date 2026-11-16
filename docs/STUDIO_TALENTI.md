@@ -8,7 +8,7 @@ con S1–S9 approvate** (§7.4), **F3b-1, F3b-2, F3b-3, F3b-4 e F3b-5 il 16/11**
 con H1–H7 approvate** (§7.11), **F5-1, F5-2 e F5-3 il 16/11** (§7.12–§7.14):
 F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 approvate** (§7.15), **F6-1…F6-5
 il 16/11** (§7.16–§7.20): F6 è chiuso. **Il piano di F9 il 16/11** (§7.21),
-**F9-1 il 16/11** (§7.22).
+**F9-1 e F9-2 il 16/11** (§7.22, §7.23).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -1941,6 +1941,27 @@ classe).
 - **`classFeatureCatalog.js`** ha righe non committate delle trasformazioni: il
   commit prende HEAD + le righe di F9-1.
 - **Documenti:** le prove in stanza sono in B50.
+
+### 7.23 F9-2, fatto il 16/11
+
+**Adepto di Metamagia.** Come la §7.21, con D14.
+
+- **Le opzioni:** due delle otto di metamagia, nel menu «Opzione di metamagia»
+  della scheda; nell'import, `metamagic` (o `metamagia`), per nome italiano.
+- **I punti:** un pool del talento, 2 punti, di nuovo col riposo lungo; lo
+  spendono le card delle opzioni, non quella del talento (`pool.options`).
+- **Le card:** per un talento con punti suoi, la card dell'opzione tiene
+  l'automazione della classe (`resource-only`) e i suoi costi, sul pool del
+  talento (`featOptionUse`): Incantesimo Rapido costa 2, Celato 1. Quelle dello
+  stregone restano sui punti stregoneria.
+- **Incantesimo Raddoppiato** chiede il livello dell'incantesimo come quello
+  dello stregone, nella console e nella scheda, e spende i punti del talento
+  (`isTwinnedSpell` guarda anche `sourceFeatureId`).
+- **L'avviso:** Incantesimo Intensificato costa 3 punti, uno più dei 2 del
+  talento; la scheda lo dice.
+- **`classFeatureCatalog.js` e `pcAttackFeatureFormCore.js`** hanno righe non
+  committate di altre sessioni: il commit prende HEAD + le righe di F9-2.
+- **Documenti:** le prove in stanza sono in B51.
 
 ---
 

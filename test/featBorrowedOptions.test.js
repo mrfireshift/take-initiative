@@ -24,7 +24,8 @@ test("the two feats borrow from the fighter's styles and the warlock's invocatio
   assert.deepEqual(featBorrowedCandidates("rudimenti-da-guerriero").map((option) => option.name),
     ["Combattere con Armi Possenti", "Combattere con Due Armi", "Difesa", "Duellare", "Protezione", "Tiro"]);
   assert.equal(featBorrowedCandidates("adepto-occulto").length, 46);
-  assert.equal(FEAT_OPTION_FEATURES.length, 6 + 46);
+  // And the eight metamagic options of Metamagic Adept (lot F9-2, test/featMetamagicAdept.test.js).
+  assert.equal(FEAT_OPTION_FEATURES.length, 6 + 46 + 8);
   assert.deepEqual(featBorrowedCandidates("adepto-occulto").find((option) => option.slug === "fardello-mentale"),
     { slug: "fardello-mentale", name: "Fardello Mentale", featureId: "talento-adepto-occulto-fardello-mentale", minimumLevel: 5 });
 });

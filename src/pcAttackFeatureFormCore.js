@@ -35,6 +35,10 @@ const BARDIC_INSPIRATION_ADAPTER = "bardic-inspiration";
 const BARDIC_INSPIRATION_POOL_ID = "bardo-ispirazione-bardica-usi";
 const TWINNED_SPELL_FEATURE_ID = "stregone-metamagia-incantesimo-raddoppiato";
 const SORCERY_POINTS_POOL_ID = "stregone-punti-stregoneria";
+// Twinned Spell, the sorcerer's or a feat's (lot F9-2 of docs/STUDIO_TALENTI.md: Metamagic Adept's card, spending the
+// feat's points): the pool its cost names.
+const isTwinnedSpell = (feature) => feature?.id === TWINNED_SPELL_FEATURE_ID || feature?.sourceFeatureId === TWINNED_SPELL_FEATURE_ID;
+const twinnedSpellPoolId = (feature) => feature?.resourceCosts?.find((cost) => cost?.poolId)?.poolId || SORCERY_POINTS_POOL_ID;
 
 // The adapters whose controls the console does not repeat: the character sheet hosts them (the Channel Divinity
 // turns, Night Eyes). Wild Magic Surge has its own d100 popup (wild-magic-surge.html), opened by Tira l'Impulso.
@@ -220,7 +224,7 @@ export function pcAttackFeatureForm(feature, state = {}, { characterBuild = [], 
       note: "Seleziona sulla mappa la creatura che lancia; trigger, CD e TS restano conferme del tavolo.",
       disabledReason: remaining === 0 ? "Nessun uso rimasto." : "" };
   }
-  if (adapter === "resource-only" && feature.id === TWINNED_SPELL_FEATURE_ID) {
+  if (adapter === "resource-only" && isTwinnedSpell(feature)) {
     return { kind: "activate", label: "Usa", call: "activateClassFeature", twinned: true,
       fields: [{ id: "spellLevel", type: "number", label: "Livello dell'incantesimo (0–9)", min: 0, max: 9, value: "0" }] };
   }
@@ -303,7 +307,7 @@ export function pcAttackFeatureRequest(feature, form, values = {}, { sourceId = 
   if (form.twinned) {
     const cost = classFeatureTwinnedSpellCost(values.spellLevel);
     if (cost === null) return { error: "Inserisci un livello di incantesimo tra 0 e 9." };
-    return { fn: "activateClassFeature", params: { sourceId, featureId: feature.id, resourceValues: { [SORCERY_POINTS_POOL_ID]: cost } } };
+    return { fn: "activateClassFeature", params: { sourceId, featureId: feature.id, resourceValues: { [twinnedSpellPoolId(feature)]: cost } } };
   }
   const adapter = adapterOf(feature);
   if (adapter === "unsettling-words") {

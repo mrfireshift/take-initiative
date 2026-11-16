@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **265** |
+| **B. Console attacchi, mostri e capacità** | **269** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -78,6 +78,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B48. Sterminatore di Maghi e Incantatore da Guerra | 4 |
 | B49. Fiamme di Flegesto | 4 |
 | B50. Rudimenti da Guerriero e Adepto Occulto | 4 |
+| B51. Adepto di Metamagia | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -103,7 +104,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **628** |
+| **Totale** | **632** |
 
 ## A. Incantesimi
 
@@ -967,6 +968,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F9-1. Le voci sono nuove: n
 - [ ] **La reazione:** nella console attacchi, scheda Capacità, la card di Protezione ha «Usa reazione», che segna la reazione.
 - [ ] **La supplica:** **Adepto Occulto** ha il menu «Supplica occulta»; scelta **Vista del Diavolo**, la card «Adepto Occulto: Vista del Diavolo» ha il suo testo. Scelta **Fardello Mentale** (5°), sotto la riga c'è l'avviso del livello da warlock, e il salvataggio resta possibile.
 - [ ] **L'import:** `{ "name": "Adepto Occulto", "invocation": "Vista del Diavolo" }` nel blocco JSON della scheda sceglie la supplica; un nome che non esiste viene segnalato.
+
+### B51. Adepto di Metamagia
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F9-2 (decisione D14). Le voci sono nuove: nessuna lista le aveva. Serve un mago di 4° livello con Adepto di Metamagia; per l'ultima voce, uno stregone con lo stesso talento.
+
+- [ ] **Le opzioni:** nei Talenti della scheda ci sono due menu «Opzione di metamagia»; scelti **Incantesimo Rapido** e **Incantesimo Raddoppiato** e salvato, fra le capacità ci sono le due card del talento e il contatore dei 2 punti.
+- [ ] **I punti:** **Incantesimo Rapido** spende 2 punti del talento; un secondo uso viene rifiutato; dopo un riposo lungo i punti tornano 2.
+- [ ] **Incantesimo Raddoppiato:** chiede il livello dell'incantesimo; con 1 spende 1 punto del talento, nella scheda e nella scheda Capacità della console. Scelto **Incantesimo Intensificato**, la scheda avvisa che costa 3 punti.
+- [ ] **Lo stregone:** con lo stesso talento, le card dello stregone spendono i punti stregoneria e quelle del talento i 2 punti suoi, separati.
 
 ## C. Tracker e UX
 
