@@ -28,6 +28,7 @@ import {
   classFeatureRequiresActivationChoice,
   classFeatureSpellSlotCreationCost,
   classFeatureTemporaryHpApplications,
+  classFeatureTemporaryHpSheetBlocker,
   classFeatureRuntimeSupport,
   classFeatureTargetIds,
   classFeatureTargetWithinRange,
@@ -130,7 +131,7 @@ function classFeatureMutationPools(feature) {
     .filter(Boolean);
 }
 
-function classFeatureError(reason, poolId = "") {
+function classFeatureError(reason, poolId = "", maxTargets = null) {
   if (reason === "feature-not-found") return new Error("Capacità non trovata.");
   if (reason === "feature-not-automated") {
     return new Error("Questa capacità è nel catalogo, ma non è ancora automatizzata.");
@@ -152,7 +153,9 @@ function classFeatureError(reason, poolId = "") {
     return new Error("Seleziona almeno un bersaglio sulla mappa.");
   }
   if (reason === "target-too-many") {
-    return new Error("Questa capacità richiede un solo bersaglio diverso dal caster.");
+    // Lot F5-1 of docs/STUDIO_TALENTI.md (decision H2): a feature for several creatures says how many (Inspiring Leader's six).
+    return new Error(Number(maxTargets) > 1 ? `Al massimo ${maxTargets} bersagli: deseleziona quelli in più.`
+      : "Questa capacità richiede un solo bersaglio diverso dal caster.");
   }
   if (reason === "target-out-of-range") {
     return new Error("Il bersaglio selezionato è fuori portata.");
@@ -310,7 +313,7 @@ async function resolveTargetIds(sourceId, feature, requestedTargetIds, character
   const valid = validItems.map((entry) => entry.id);
   if (!valid.length) throw classFeatureError("target-required");
   if (targeting.maxTargets !== null && valid.length > targeting.maxTargets) {
-    throw classFeatureError("target-too-many");
+    throw classFeatureError("target-too-many", "", targeting.maxTargets);
   }
 
   if (targeting.rangeMeters) {
@@ -1660,6 +1663,10 @@ export async function activateClassFeature({
   }
   // The choice the activation took: the one asked, or the one configured on the sheet (Storm Aura's Tundra).
   const plannedChoiceId = String(activation.instance?.choiceId || choiceId || "").trim();
+  // Lot F5-1 of docs/STUDIO_TALENTI.md: temporary hit points counted on the sheet (a feat's) stop the command without
+  // the level or the modifier.
+  const temporaryHpBlocker = classFeatureTemporaryHpSheetBlocker(feature, plannedChoiceId, profile);
+  if (temporaryHpBlocker) throw new Error(temporaryHpBlocker);
   const temporaryHpApplications = [
     ...classFeatureTemporaryHpApplications(feature, {
       sourceId: sourceItem.id,
@@ -1667,6 +1674,7 @@ export async function activateClassFeature({
       selectedTargetIds: await selectedTemporaryHpCreatureIds(feature, plannedChoiceId, targetIds, sourceItem.id, profile.characterBuild),
       choiceId: plannedChoiceId,
       characterBuild: profile.characterBuild,
+      abilityModifiers: profile.abilityModifiers,
       value,
     }),
     // A shifter's Shifting: temporary hit points from the sheet (Beasthide's d6 entered at the table, as value).

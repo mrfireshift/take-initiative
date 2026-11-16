@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **225** |
+| **B. Console attacchi, mostri e capacità** | **229** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -68,6 +68,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B32. Statblock dai PDF e da GM Binder | 5 |
 | B33. La spinta di Telecinesi | 3 |
 | B36. Concentrazione: Incantatore da Guerra e Sterminatore di Maghi | 5 |
+| B38. PF temporanei: Condottiero Ispiratore e le delizie del Cuoco | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -93,7 +94,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **588** |
+| **Totale** | **592** |
 
 ## A. Incantesimi
 
@@ -867,6 +868,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F4. Le voci sono nuove: nes
 - [ ] **Tutti e due:** lo Sterminatore colpisce il PG con Incantatore da Guerra concentrato: l'avviso dice «vantaggio e svantaggio annullati».
 - [ ] **Più creature:** un trucchetto ad area della console attacchi (Turbine di Spade) colpisce due creature concentrate: ogni riga ha il suo «TS +N» e, dove serve, «vantaggio» o «svantaggio».
 - [ ] **Il mostro e il PG senza TS:** un mostro importato e concentrato mostra il suo modificatore di Costituzione; un PG senza il TS di Costituzione nella scheda non mostra numeri. **Superato** e **Fallito** funzionano come prima.
+
+### B38. PF temporanei: Condottiero Ispiratore e le delizie del Cuoco
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F5-1 (decisioni H1–H4, H7). Le voci sono nuove: nessuna lista le aveva. Serve un PG di 5° livello con Condottiero Ispiratore e Carisma +3 nella scheda, un PG di 5° livello con Cuoco e tre alleati nella scena, uno a più di 9 m.
+
+- [ ] **Il discorso:** in Capacità, «Condottiero Ispiratore: discorso» dice «Nel plugin: 8 PF temporanei (livello 5 + Carisma 3) a fino a 6 creature selezionate entro 9 m…». Selezionati il condottiero e due alleati vicini, **Usa** dà 8 PF temporanei a tutti e tre: le barre e i numeri dei PF li mostrano, e un alleato che ne aveva già di più tiene i suoi. Un **Annulla** nella Cronologia li toglie. Da provare in vista compatta ed estesa.
+- [ ] **Troppi o lontani:** con sette creature selezionate il comando si ferma con «Al massimo 6 bersagli: deseleziona quelli in più.»; con l'alleato oltre 9 m, con «fuori portata». Nessun PF cambia.
+- [ ] **Le delizie:** il Cuoco ha in Risorse «Delizie» 3/3. Selezionato un alleato, **Usa** su «Cuoco: dai una delizia» gli dà 3 PF temporanei e le delizie scendono a 2/3; senza selezione li prende il cuoco. **Riposo lungo** le rimette.
+- [ ] **Senza livello:** su una scheda senza classi la riga del discorso chiede livello e modificatori, e **Usa** dice che cosa manca, senza scrivere PF.
 
 ## C. Tracker e UX
 

@@ -12,7 +12,7 @@
 // shape, not the catalog: an id this version does not know stays, so an older client never drops a newer one's feats.
 // A half feat's +1 is not applied: the sheet stores the modifiers, which already hold it (decision D4).
 // Lot F3b-5: the DC of a part with a save (Telekinetic's shove) comes from abilityModifiersCore.js, a module with no imports.
-import { abilitySaveDC } from "./abilityModifiersCore.js";
+import { abilityModifier, abilitySaveDC, proficiencyBonusForLevel } from "./abilityModifiersCore.js";
 
 export const FEATS_FIELD = "feats";
 export const MAX_FEATS = 20;
@@ -326,7 +326,12 @@ const DEFINITIONS = [
   feat("phb", 167, "Combattente a Due Armi", "Dual Wielder", {
     plugin: "Il +1 alla CA va compreso nella CA della scheda; il resto si gestisce al tavolo." }),
   feat("phb", 167, "Combattente in Sella", "Mounted Combatant", { plugin: AT_TABLE }),
-  feat("phb", 167, "Condottiero Ispiratore", "Inspiring Leader", { prerequisite: "Carisma 13" }),
+  feat("phb", 167, "Condottiero Ispiratore", "Inspiring Leader", { prerequisite: "Carisma 13",
+    plugin: "Dalla card del discorso, PF temporanei pari a livello + Carisma alle creature selezionate entro 9 m, al massimo sei, tu compreso se selezionato. Una volta per creatura fino al suo riposo: lo ricorda il tavolo.",
+    // Lot F5-1 (decisions H1–H3, H7): the speech, temporary hit points on the creatures selected.
+    parts: [{ key: "discorso", name: "Condottiero Ispiratore: discorso", activation: "speciale",
+      description: "Dieci minuti di discorso: fino a sei creature amiche entro 9 m, tu compreso, ottengono PF temporanei. Seleziona chi ti ascolta, poi Usa.",
+      temporaryHp: { characterLevel: true, plusAbility: "cha" }, rangeMeters: 9, maxTargets: 6 }] }),
   feat("phb", 167, "Corazze Leggere", "Lightly Armored", { abilities: ["str", "dex"], plugin: ON_SHEET }),
   feat("phb", 167, "Corazze Medie", "Moderately Armored", { prerequisite: "Competenza nelle armature leggere",
     abilities: ["str", "dex"], plugin: ON_SHEET }),
@@ -438,7 +443,13 @@ const DEFINITIONS = [
     plugin: "Invisibilità e l'incantesimo di 1° livello scelto, una volta per riposo lungo ciascuno senza slot, o con i tuoi slot, con la caratteristica del talento: si lanciano dalle loro card.",
     spellAbility: "feat", spells: [{ key: "invisibilita", spellId: "invisibility", name: "Invisibilità", uses: "lungo", slots: true }],
     chosenSpells: [{ key: "incantesimo", label: "Incantesimo di 1° (illusione o necromanzia)", candidates: SHADOW_TOUCHED_SPELLS, uses: "lungo", slots: true }] }),
-  feat("tce", 80, "Cuoco", "Chef", { abilities: ["con", "wis"] }),
+  feat("tce", 80, "Cuoco", "Chef", { abilities: ["con", "wis"],
+    plugin: "Delizie pari al bonus di competenza, di nuovo piene con il riposo lungo (l'ora di cucina è il ↺). La card «dai una delizia» dà a chi la mangia PF temporanei pari al tuo bonus. Il cibo del riposo breve resta al tavolo.",
+    // Lot F5-1 (decision H4): the treats' pool, spent by the card that gives one, not by the feat's.
+    pool: { key: "delizie", name: "Delizie", count: "pb", part: "delizia" },
+    parts: [{ key: "delizia", name: "Cuoco: dai una delizia", activation: "azione_bonus",
+      description: "Chi mangia una delizia, con un'azione bonus, ottiene PF temporanei pari al tuo bonus di competenza. Seleziona chi la mangia (nessuno: tu), poi Usa.",
+      temporaryHp: { proficiency: true }, maxTargets: 1 }] }),
   feat("tce", 80, "Maestria dei Veleni", "Poisoner"),
   feat("tce", 80, "Martello Vivente", "Crusher", { abilities: ["str", "con"],
     plugin: "Nella console attacchi, una volta per turno su un colpo contundente: la nota «spostalo di 1,5 m»; al critico, gli attacchi contro il bersaglio hanno vantaggio fino all'inizio del tuo prossimo turno.",
@@ -531,8 +542,10 @@ export function featFeatureId(featId) {
   return `talento-${featId}`;
 }
 
+// capacity: a number, or "pb" for the proficiency bonus (lot F5-1: the Chef's treats), as the species' pools.
 const pool = (id, name, capacity, shortRest = false) => Object.freeze({
-  id, name, capacity: Object.freeze({ type: "fixed", value: capacity }), maximumByClassLevel: null,
+  id, name, capacity: Object.freeze(capacity === "pb" ? { type: "formula", expression: "bonus_competenza" } : { type: "fixed", value: capacity }),
+  maximumByClassLevel: null,
   refresh: Object.freeze((shortRest ? ["riposo_breve", "riposo_lungo"] : ["riposo_lungo"])
     .map((event) => Object.freeze({ event, amount: "massimo" }))),
   refreshByClassLevel: Object.freeze([]),
@@ -582,7 +595,8 @@ function recordBehaviour({ effect, poolId }) {
 }
 
 function featRecord(entry) {
-  const poolId = entry.pool ? featPoolId(entry) : "";
+  // A pool a part spends (lot F5-1: the Chef's treats) is not the feat card's.
+  const poolId = entry.pool && !entry.pool.part ? featPoolId(entry) : "";
   return Object.freeze({
     id: featFeatureId(entry.id),
     name: entry.name,
@@ -614,7 +628,17 @@ function featRecord(entry) {
 // A second effect of a feat (Slasher's critical): a record of its own, with its pill and the line it shows as text; no
 // rules entry, the feat's card has it. Lot F3b-5: activation, its own (Telekinetic's shove is a bonus action); save, the
 // save it forces ({ ability }), whose DC its card shows (featPartSave): the move stays the table's (decision S8).
+// Lot F5-1: temporaryHp, the amount it gives to the creatures selected (classFeatureTemporaryHpAmount: Inspiring Leader's
+// level + Charisma, the Chef's proficiency bonus), within rangeMeters, maxTargets at most, the character included; the
+// feat's pool when it is the part's (pool.part). One command, no pill (resource-only).
 function featPartRecord(entry, part) {
+  const poolId = entry.pool?.part === part.key ? featPoolId(entry) : "";
+  const temporaryHp = part.temporaryHp ? {
+    automationLevel: "assistita", completenessStatus: "partial", runtimeSupport: RESOURCE_ONLY, targetMode: "selection",
+    targeting: Object.freeze({ mode: "single-target", rangeMeters: part.rangeMeters ?? null, maxTargets: part.maxTargets ?? 1,
+      excludeSource: false }),
+    effectPlan: Object.freeze({ kind: "none", temporaryHp: Object.freeze({ amount: Object.freeze({ ...part.temporaryHp }), applyTo: "targets" }) }),
+  } : {};
   return Object.freeze({
     id: `${featFeatureId(entry.id)}-${part.key}`,
     name: part.name,
@@ -631,13 +655,14 @@ function featPartRecord(entry, part) {
     defaultEnabled: true,
     runtimeRequirements: Object.freeze([]),
     missingForExecution: Object.freeze([]),
-    ...recordBehaviour({ effect: part.effect, poolId: "" }),
+    ...recordBehaviour({ effect: part.effect, poolId }),
+    ...temporaryHp,
     ...(part.activation ? { activation: Object.freeze({ primary: part.activation }) } : {}),
     ...(part.save ? { featSave: Object.freeze({ ...part.save }) } : {}),
-    trackedResourcePoolIds: Object.freeze([]),
+    trackedResourcePoolIds: Object.freeze(poolId ? [poolId] : []),
     theme: FEAT_THEME,
     breaksConcentration: false,
-    resourceCosts: Object.freeze([]),
+    resourceCosts: Object.freeze(poolId ? [Object.freeze({ poolId, amount: 1 })] : []),
   });
 }
 
@@ -777,6 +802,24 @@ export function featSpellAbility(feature, card = {}) {
   return featEntryAbility(definition, sanitizeFeats(card?.[FEATS_FIELD]).find((entry) => entry.id === definition.id), card);
 }
 
+// The line of a part that gives temporary hit points (lot F5-1): "8 PF temporanei (livello 5 + Carisma 3) a fino a 6
+// creature selezionate entro 9 m…", or what the sheet lacks for the number.
+function featTemporaryHpLine(amount, feature, profile) {
+  const level = totalCharacterLevel(profile);
+  const modifier = amount.plusAbility ? abilityModifier(profile?.abilityModifiers, amount.plusAbility) : 0;
+  const value = !level ? null : amount.proficiency ? proficiencyBonusForLevel(level) : modifier === null ? null : Math.max(0, level + modifier);
+  const ability = FEAT_ABILITY_LABELS[amount.plusAbility] || "";
+  const formula = amount.proficiency ? "bonus di competenza"
+    : `livello${level ? ` ${level}` : ""} + ${ability}${modifier !== null && amount.plusAbility ? ` ${modifier}` : ""}`;
+  const max = Number(feature.targeting?.maxTargets) || 1;
+  const range = Number(feature.targeting?.rangeMeters) || 0;
+  const who = max > 1
+    ? `a fino a ${max} creature selezionate${range ? ` entro ${String(range).replace(".", ",")} m` : ""}, tu compreso se selezionato`
+    : "alla creatura selezionata (nessuna: tu)";
+  return value === null ? `PF temporanei (${formula}) ${who}: per il numero servono il livello e i modificatori nella scheda.`
+    : `${value} PF temporanei (${formula}) ${who}; non si sommano a quelli che ${max > 1 ? "hanno" : "ha"} già.`;
+}
+
 // The save a feat's part forces (lot F3b-5, decision S8: Telekinetic's shove): { ability, dcAbility, dc, label }, the DC
 // 8 + proficiency + the feat's ability (the half feat's, as its spells'), null without the level or the modifier; null
 // for a part with no save.
@@ -884,6 +927,10 @@ function totalCharacterLevel(profile) {
 // The "Nel plugin" line of a feat's card, with the half feat's ability: Robusto's counted on the character's level.
 export function featPluginLine(feature, profile = null) {
   const definition = getFeat(feature?.featId);
+  // A part that gives temporary hit points (lot F5-1): their number on this sheet, as the command counts it
+  // (classFeatureTemporaryHpAmount, which this module cannot import: a test checks they agree).
+  const temporaryHp = definition && feature?.featPart ? feature.effectPlan?.temporaryHp?.amount : null;
+  if (temporaryHp) return featTemporaryHpLine(temporaryHp, feature, profile);
   // A part with a save (Telekinetic's shove, lot F3b-5): its DC, the token moved by hand.
   const save = definition && feature?.featSave ? featPartSave(feature, profile) : null;
   if (save) return save.dc !== null ? `${save.label}: chi lo fallisce si sposta di 1,5 m; il token si sposta a mano.`

@@ -4,7 +4,8 @@ Data: 15 novembre 2026. Stato: **studio, decisioni D1–D15 approvate
 dall'utente il 15/11** (§9); **F0 fatto il 15/11** (§7.1), **F1 il 16/11**
 (§7.2), **la prima parte di F3 il 16/11** (§7.3); **il piano di F3b il 16/11,
 con S1–S9 approvate** (§7.4), **F3b-1, F3b-2, F3b-3, F3b-4 e F3b-5 il 16/11**
-(§7.5–§7.9): F3 è chiuso. **F4 il 16/11** (§7.10).
+(§7.5–§7.9): F3 è chiuso. **F4 il 16/11** (§7.10). **Il piano di F5 il 16/11,
+con H1–H7 approvate** (§7.11), **F5-1 il 16/11** (§7.12).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -1329,6 +1330,177 @@ spostato a mano.
   `concentrationSaveReminderCore.js`).
 - **Documenti:** le prove in stanza sono in B36 (B34 e B35 sono delle
   trasformazioni, in lavorazione).
+
+### 7.11 F5, piano (16/11)
+
+Solo piano: nessun codice. F5 scrive PF, quindi, come chiedono AGENTS.md e la
+§9, il piano dice esattamente dove e come; le decisioni H1–H7 sono in fondo.
+
+#### 7.11.1 Che cosa fanno i quattro talenti (PHB 2014, Tasha)
+
+| Talento | Che cosa fa | Nel plugin oggi |
+|---|---|---|
+| Condottiero Ispiratore | Un discorso di 10 minuti: fino a sei creature amiche entro 9 m, sé compreso, ottengono PF temporanei pari a livello + Carisma. Una creatura non li riottiene prima di un riposo. | Riferimento |
+| Cuoco | Nel riposo breve, chi mangia il suo cibo e spende Dadi Vita recupera 1d8 PF in più (fino a 4 + competenza creature). In un'ora, o finito un riposo lungo, prepara delizie pari al bonus di competenza: chi ne mangia una, con un'azione bonus, ottiene PF temporanei pari al bonus di competenza del cuoco. | Riferimento |
+| Guaritore | Con un uso della borsa del guaritore, un'azione: la creatura recupera 1d6 + 4 + il suo numero massimo di Dadi Vita, una volta fino al suo riposo. Stabilizzando con la borsa, la creatura torna anche a 1 PF. | Riferimento |
+| Tenace | Tirando un Dado Vita per recuperare PF, il minimo per dado è 2 × Costituzione (almeno 2). | Riferimento |
+
+#### 7.11.2 Che cosa c'è già
+
+- **I PF temporanei stanno in `meta.tempHp`** (CAP-TEMP); `meta.hp` arriva fino a
+  `meta.hpMax`. `calculateQuickHPChange` non li somma: resta il valore più alto.
+- **Il percorso delle capacità che danno PF temporanei.** È `activateClassFeature`
+  con `effectPlan.temporaryHp = { amount, applyTo }`:
+  - la Tundra dell'Aura Tempestosa e lo spirito dell'Orso del Pastore lo usano;
+  - con `applyTo: "selection"` i PF vanno alle creature selezionate sulla mappa
+    (nessuna: il personaggio stesso), e un'aura le filtra con la sua gittata
+    (`selectedTemporaryHpCreatureIds` in `classFeatureRuntime.js`);
+  - è un comando solo: `metadataPatches` su `hp` e `tempHp` con le aspettative
+    sui valori del momento, una voce di Cronologia, un Annulla.
+  - **Il limite:** gli importi (`classFeatureTemporaryHpAmount`,
+    `classFeatureCore.js:1430`) si contano sul livello di classe. Un talento non
+    ha classe: per lui torna 0.
+- **Le cure e i PF temporanei dei tratti di specie** (`speciesHpTraitCore.js`):
+  - Mani guaritrici cura la creatura toccata, con i d4 scritti al tavolo;
+  - Scarica di adrenalina dà PF temporanei pari al bonus di competenza;
+  - scrivono con `hp:set` in un comando, con l'uso speso nello stesso Annulla
+    (`applySpeciesHpTraitResolved` in `classFeatureRuntime.js`);
+  - la scheda mostra i loro controlli per ogni voce con `hpTrait`, non solo
+    per le specie (`buildSpeciesHpTraitControls`).
+- **Il riposo di gruppo** (`group-rest.js`, `groupRestCore.js`) ha per ogni PG il
+  campo «PF recuperati con i Dadi Vita»: il GM scrive il totale tirato.
+- **Il profilo di un mostro importato** tiene la formula dei PF («8d8 + 16»):
+  da lì si leggono i suoi Dadi Vita.
+- **I pool delle specie** hanno già la capienza «bonus_competenza». Quelli dei
+  talenti oggi conoscono solo numeri fissi (Fortunato: 3): l'aiutante dei pool di
+  `featCatalog.js` va esteso per le delizie.
+
+#### 7.11.3 Il piano, talento per talento
+
+- **Condottiero Ispiratore**, una voce «Discorso ispiratore» del talento
+  (attivazione «speciale»: 10 minuti):
+  - `effectPlan.temporaryHp` con `applyTo: "selection"` e un'aura di 9 m, come
+    la Tundra: vanno alle creature selezionate entro 9 m; il personaggio è
+    compreso solo se selezionato, o se non c'è altra selezione;
+  - l'importo è nuovo: livello totale + modificatore di Carisma;
+  - più di sei creature selezionate: il comando si ferma e lo dice, senza
+    scegliere al posto del GM;
+  - nessuna pill; chi ha già più PF temporanei tiene i suoi.
+- **Cuoco**, un pool «Delizie» e una voce «Dai una delizia»:
+  - il pool vale il bonus di competenza e si ricarica con il riposo lungo;
+    l'ora di cucina è il ↺ del GM sul pool;
+  - la voce spende una delizia e dà alla creatura selezionata (nessuna: il
+    cuoco) PF temporanei pari al bonus di competenza **del cuoco**;
+  - l'azione bonus di chi la mangia resta al tavolo.
+- **Guaritore**, una voce «Cura con la borsa», come Mani guaritrici:
+  - la creatura selezionata entro 1,5 m (nessuna: il guaritore stesso);
+  - cura il d6 scritto dal GM + 4 + i Dadi Vita massimi del bersaglio;
+  - i Dadi Vita sono il livello totale per un PG, i dadi della formula dei PF
+    per un mostro importato; altrimenti un campo «Dadi Vita del bersaglio» che
+    il GM riempie, e senza quel numero il comando si ferma;
+  - nessun uso da spendere: la borsa ha 10 usi, che restano al tavolo come la
+    stabilizzazione con 1 PF.
+- **Tenace**, una nota nel riposo di gruppo, sotto il PG che ha il talento:
+  «Tenace: almeno 4 PF per Dado Vita (2 × Costituzione)». Il GM scrive il
+  totale come oggi.
+- **Il +1d8 del Cuoco**, una nota nel riposo di gruppo quando un PG scelto ha il
+  talento: «Cuoco: chi ha mangiato e spende Dadi Vita recupera 1d8 in più (fino
+  a N creature)».
+- **Resta al tavolo** (§8): «una volta per creatura fino al riposo» di
+  Condottiero Ispiratore e Guaritore, chi vede e sente il discorso, la durata
+  di 8 ore delle delizie.
+
+#### 7.11.4 Dove si scrive il codice
+
+| File | Che cosa cambia |
+|---|---|
+| `featCatalog.js` | Le voci «Discorso ispiratore», «Dai una delizia», «Cura con la borsa»; il pool «Delizie», con la capienza pari al bonus di competenza; le righe «Nel plugin» dei quattro talenti. |
+| `classFeatureCore.js` | `classFeatureTemporaryHpAmount` accetta due importi sul personaggio intero: livello totale + una caratteristica, e bonus di competenza. Riceve i modificatori della scheda; gli importi di oggi non cambiano. |
+| `classFeatureRuntime.js` | Passa i modificatori della scheda al calcolo; il limite di sei creature. **Il file ha righe non committate di un'altra sessione**: il commit prende HEAD + le sole righe di F5. |
+| `speciesHpTraitCore.js` | Una cura con un dado qualsiasi (1d6), un più fisso (4) e i Dadi Vita del bersaglio, letti dalla sua scheda. |
+| `initiative-card-modal.js` | Il campo «Dadi Vita del bersaglio» della cura, quando serve. |
+| `groupRestCore.js`, `group-rest.js` | Le note di Tenace e del Cuoco. |
+
+#### 7.11.5 Rischi, come chiede AGENTS.md
+
+| Area | Rischio | Come lo si evita |
+|---|---|---|
+| **PF** | F5 scrive `meta.hp` e `meta.tempHp`. | Solo i due percorsi che esistono e sono provati, con le aspettative sui valori del momento: un comando, una voce di Cronologia, un Annulla. Nessun campo nuovo; la cura non supera `hpMax`; i PF temporanei non si sommano. |
+| **Barre PF sulla mappa** | Nessuno. | Derivano da `meta.hp` e `meta.tempHp` con la proiezione dopo il commit di oggi; nessun lavoro sugli allegati. |
+| **Memoria dei PF dei PG** (`hpMemory.js`) | Nessuno. | La sincronizza la stessa proiezione, come per la Tundra e le Mani guaritrici. |
+| **Turno attivo, ordine, loop di metadata** | Nessuno. | Ogni scrittura nasce da un clic; nessun ascoltatore nuovo. |
+| **Importi delle capacità di classe** | `classFeatureTemporaryHpAmount` è condiviso. | Gli importi nuovi hanno chiavi nuove; un test controlla che quelli di oggi diano gli stessi numeri. |
+| **Altre sessioni** | `classFeatureRuntime.js` è in lavorazione altrove. | Le righe di F5 stanno lontano dalle loro e si committano da sole, con la versione «HEAD + mie righe». |
+
+#### 7.11.6 Sottolotti
+
+| Sottolotto | Contenuto | Scrive PF? |
+|---|---|---|
+| **F5-1** | Condottiero Ispiratore e le delizie del Cuoco: PF temporanei | Sì, `meta.tempHp` |
+| **F5-2** | Guaritore: la cura | Sì, `meta.hp` |
+| **F5-3** | Tenace e il +1d8 del Cuoco: note nel riposo di gruppo | No |
+
+Ogni sottolotto ha test che falliscono senza la patch, la suite completa in una
+copia pulita, le voci in `PROVE_IN_STANZA.md` e la prova al banco.
+
+#### 7.11.7 Decisioni
+
+**Esito:** il 16/11 l'utente le ha approvate tutte come raccomandate («Sì,
+approvo»).
+
+| # | Decisione | Possibilità | Raccomandazione |
+|---|---|---|---|
+| **H1** | Condottiero Ispiratore | (a) un comando dalla scheda del condottiero, sulle creature selezionate entro 9 m; (b) un pulsante per creatura | **(a)**: il discorso è uno, i PF vanno a tutti insieme, un Annulla. |
+| **H2** | Più di sei creature selezionate | (a) il comando si ferma e lo dice; (b) prende le prime sei | **(a)**: chi sono le sei lo sceglie il GM. |
+| **H3** | «Una volta per creatura fino al riposo» (Condottiero, Guaritore) | (a) resta al tavolo, come la §8; (b) una pill fino al riposo | **(a)**: niente da segnare a mano, e la §8 l'ha già deciso. |
+| **H4** | Le delizie del Cuoco | (a) pool «Delizie» e «Dai una delizia» dalla scheda del cuoco; (b) solo promemoria | **(a)**: sono PF da scrivere, e il pool conta le delizie. |
+| **H5** | I Dadi Vita del bersaglio di Guaritore | (a) PG: livello totale; mostro: la formula dei PF; altrimenti il campo; (b) sempre il campo | **(a)**: il GM scrive solo quando la scheda non lo sa. |
+| **H6** | Tenace e il +1d8 del Cuoco | (a) note nel riposo di gruppo, il totale lo scrive il GM; (b) un campo per dado con il minimo applicato | **(a)**: il riposo di gruppo chiede il totale, non i singoli dadi. |
+| **H7** | Dove nascono gli importi nuovi | (a) nel calcolo comune dei PF temporanei delle capacità (`classFeatureCore.js`), con chiavi nuove; (b) funzioni solo per i talenti in `classFeatureRuntime.js` | **(a)**: un percorso solo, già provato; il file condiviso con l'altra sessione cambia di una riga. |
+
+### 7.12 F5-1, fatto il 16/11
+
+**I PF temporanei: Condottiero Ispiratore e le delizie del Cuoco.** Come la
+§7.11 con H1–H4 e H7.
+
+- **Le due voci** sono seconde voci dei talenti, come la spinta di Telecinesi:
+  - «Condottiero Ispiratore: discorso», attivazione speciale;
+  - «Cuoco: dai una delizia», azione bonus di chi la mangia.
+
+  Hanno l'adattatore «resource-only»: nessuna pill, e `effectPlan.temporaryHp`
+  con `applyTo: "targets"`.
+- **Il percorso** è quello delle capacità: `activateClassFeature` scrive `hp` e
+  `tempHp` con le aspettative sui valori del momento, in un comando, con una
+  voce di Cronologia e un Annulla.
+- **I bersagli.** Una correzione al piano: invece di un limite nuovo, i
+  bersagli delle capacità.
+  - `resolveTargetIds` controlla già il numero, la gittata e il personaggio
+    stesso quando nessuno è selezionato.
+  - Il discorso ha fino a 6 bersagli entro 9 m, il condottiero compreso; la
+    delizia uno, senza gittata.
+  - Con più di sei creature il messaggio ora dice quante ne servono: «Al
+    massimo 6 bersagli: deseleziona quelli in più.» (H2). Quello delle capacità
+    a un bersaglio non cambia.
+- **Gli importi** (H7). `classFeatureTemporaryHpAmount` accetta
+  `{ characterLevel: true, plusAbility: "cha" }` e `{ proficiency: true }`,
+  contati sul personaggio intero con i modificatori della scheda.
+  - Gli importi di classe non cambiano: un test li confronta.
+  - Senza livello o modificatore, `classFeatureTemporaryHpSheetBlocker` ferma il
+    comando prima di scrivere.
+- **Il pool «Delizie»** vale il bonus di competenza (l'aiutante dei pool dei
+  talenti ora accetta «pb») e lo spende la card della delizia, non quella del
+  talento (`pool.part`).
+- **La riga «Nel plugin»** delle due card dice il numero della scheda: «8 PF
+  temporanei (livello 5 + Carisma 3)…». È calcolata nel catalogo, che non può
+  importare il calcolo comune; un test controlla che diano lo stesso numero su
+  ogni scheda.
+- **Il pulsante** delle due card dice «Usa», non «Conferma consumo»: la scheda
+  dava a ogni voce «resource-only» un pulsante che spende solo la risorsa
+  (`buildResourceOnlyControls`). Le altre voci non cambiano. La console le
+  offre già come «Usa», con le creature selezionate.
+- **`classFeatureRuntime.js`** ha righe non committate di un'altra sessione: il
+  commit prende HEAD + le sei righe di F5-1.
+- **Documenti:** le prove in stanza sono in B38 (B37 è delle trasformazioni).
 
 ---
 

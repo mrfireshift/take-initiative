@@ -1,6 +1,6 @@
 import { gridRangeDistance } from "./distance3dCore.js";
 import { normalizeEffectSaveReminders } from "./effectSaveReminderCore.js";
-import { abilityModifier } from "./abilityModifiersCore.js";
+import { abilityModifier, proficiencyBonusForLevel, totalCharacterLevel } from "./abilityModifiersCore.js";
 import { SPELL_SLOT_CAPACITY_TYPE, isSpellSlotPool, spellSlotPoolMaximum } from "./spellSlotCore.js";
 
 export const CLASS_FEATURE_STATE_FIELD = "classFeatureState";
@@ -1427,9 +1427,19 @@ export function classFeatureStatusName(feature) {
 // { perClassLevel: 4 } (4 per level in the feature's class), { base: 5, plusClassLevel: true } (5 + that level),
 // { byClassLevel: { "3": 2, "5": 3 } } (the highest level reached), or { die: "1d12" } (the roll entered at the table,
 // activation.value: none entered, none given). null when the amount can't be read.
-export function classFeatureTemporaryHpAmount(feature, spec, { characterBuild = [], value = null } = {}) {
+export function classFeatureTemporaryHpAmount(feature, spec, { characterBuild = [], value = null, abilityModifiers = null } = {}) {
   if (typeof spec === "number" || typeof spec === "string") return Math.max(0, Math.floor(Number(spec) || 0));
   if (!spec || typeof spec !== "object") return 0;
+  // Lot F5-1 of docs/STUDIO_TALENTI.md (decision H7): amounts counted on the whole character, for a feat, which has no
+  // class: its total level plus an ability's modifier (Inspiring Leader), its proficiency bonus (the Chef's treats).
+  // null without the level or the modifier on the sheet.
+  if (spec.characterLevel === true || spec.proficiency === true) {
+    const total = totalCharacterLevel(characterBuild);
+    if (!total) return null;
+    if (spec.proficiency === true) return proficiencyBonusForLevel(total);
+    const modifier = spec.plusAbility ? abilityModifier(abilityModifiers, spec.plusAbility) : 0;
+    return modifier === null ? null : Math.max(0, total + modifier);
+  }
   const level = characterClassLevel(characterBuild, feature?.classId);
   if (spec.die) {
     const faces = Number(String(spec.die).match(/^1d(\d+)$/u)?.[1]) || 0;
@@ -1447,6 +1457,15 @@ export function classFeatureTemporaryHpAmount(feature, spec, { characterBuild = 
     return reached ? Math.max(0, Math.floor(Number(reached[1]) || 0)) : 0;
   }
   return 0;
+}
+
+// Lot F5-1: why temporary hit points counted on the sheet cannot be given ("" when they can): the level or the modifier
+// missing. The runtime stops the command with it, before anything is written.
+export function classFeatureTemporaryHpSheetBlocker(feature, choiceId = "", { characterBuild = [], abilityModifiers = null } = {}) {
+  const spec = classFeatureEffectPlan(feature, choiceId)?.temporaryHp?.amount;
+  if (!spec || typeof spec !== "object" || (spec.characterLevel !== true && spec.proficiency !== true)) return "";
+  if (classFeatureTemporaryHpAmount(feature, spec, { characterBuild, abilityModifiers }) !== null) return "";
+  return `${feature?.name || "Capacità"}: ${spec.proficiency === true ? "manca il livello" : "mancano il livello o il modificatore"} sulla scheda.`;
 }
 
 // The die a feature's temporary hit points ask at the table for this choice ("1d12": Wild Surge's Shadowy Tendrils), or

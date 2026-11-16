@@ -2404,11 +2404,15 @@ function buildSpeciesHpTraitControls(feature, state, active = []) {
 }
 
 function buildResourceOnlyControls(feature) {
+  // Lot F5-1 of docs/STUDIO_TALENTI.md: a card that gives temporary hit points (Inspiring Leader's speech, the Chef's
+  // treat) says so; the command reads the creatures selected on the map.
+  const temporaryHp = !!feature?.effectPlan?.temporaryHp;
   return classFeatureButton(
-    "Conferma consumo",
-    "Consuma soltanto la risorsa; non crea etichette o effetti automatici",
+    temporaryHp ? "Usa" : "Conferma consumo",
+    temporaryHp ? "Dà i PF temporanei alle creature selezionate (nessuna: il personaggio) e spende l'uso, se ne ha uno"
+      : "Consuma soltanto la risorsa; non crea etichette o effetti automatici",
     () => activateClassFeature({ sourceId: item.id, featureId: feature.id }),
-    `${feature.name} confermata.`,
+    temporaryHp ? `${feature.name}: PF temporanei dati.` : `${feature.name} confermata.`,
   );
 }
 
