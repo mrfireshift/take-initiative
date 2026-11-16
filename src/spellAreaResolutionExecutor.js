@@ -90,7 +90,7 @@ import {
   spellDamagePartsDefenses,
   spellDamageTypes,
 } from "./spellDamageDefenseCore.js";
-import { evasionFactor, evasionForItem } from "./damageDefensesCore.js";
+import { evasionFactor, evasionForItem, featResistanceBypassForItem } from "./damageDefensesCore.js";
 import { planStabilizeTarget, returnFromDeathCondition, STABILIZE_SPELL_ID_SET } from "./stabilizeSpellRules.js";
 import { spellEffectConditionOptions } from "./spellEffectCore.js";
 import {
@@ -374,7 +374,7 @@ function casterHealingEntryFromAppliedDamage({ entries = [], caster = null, rati
   return change.changed ? { item: caster, change, outcome: "healing" } : null;
 }
 
-function prismaticSprayHPEntries(items, prismaticSprayPlan, ignoredDefenses = {}) {
+function prismaticSprayHPEntries(items, prismaticSprayPlan, ignoredDefenses = {}, bypass = []) {
   const contributionsByTarget = new Map();
   for (const contribution of prismaticSprayPlan?.damageContributions || []) {
     const targetId = text(contribution?.targetId);
@@ -388,7 +388,8 @@ function prismaticSprayHPEntries(items, prismaticSprayPlan, ignoredDefenses = {}
     .map((item) => {
       // Each ray with its own type and save, after the creature's defense (spellDamageDefenseCore.js).
       const contributions = (contributionsByTarget.get(text(item.id)) || [])
-        .map((contribution) => spellDamagePartAfterDefense(contribution, magicalDamageDefensesForItem(item, META_KEY), ignoredDefenses?.[text(item.id)]));
+        .map((contribution) => spellDamagePartAfterDefense(contribution, magicalDamageDefensesForItem(item, META_KEY, { bypass }),
+          ignoredDefenses?.[text(item.id)]));
       if (!contributions.length) return null;
       const value = contributions.reduce(
         (total, contribution) => total + Math.max(0, Math.floor(Number(contribution.amount) || 0)),
@@ -460,7 +461,7 @@ function magicMissileHPEntries(command, items, allItems = items) {
 function spellHpDefenseRows(hp, spell, item) {
   return spellDamageDefenseRows({
     types: Array.isArray(hp?.damageTypes) ? hp.damageTypes : spellDamageTypes(spell?.id),
-    defenses: magicalDamageDefensesForItem(item, META_KEY),
+    defenses: magicalDamageDefensesForItem(item, META_KEY, { bypass: hp?.resistanceBypass }),
     ignoredTypes: hp?.ignoredDefenses?.[text(item?.id)],
   });
 }
@@ -476,7 +477,7 @@ function spellHpDamagePartRows(hp, item) {
   return parts
     ? spellDamagePartsAfterDefense({
       parts,
-      defenses: magicalDamageDefensesForItem(item, META_KEY),
+      defenses: magicalDamageDefensesForItem(item, META_KEY, { bypass: hp?.resistanceBypass }),
       ignoredTypes: hp?.ignoredDefenses?.[text(item?.id)],
     }).rows
     : null;
@@ -486,14 +487,14 @@ function spellHpDamagePartRows(hp, item) {
 function spellPrimaryHitDefenseRows(hp, primaryHit, item) {
   return spellDamageDefenseRows({
     types: Array.isArray(hp?.primaryDamageTypes) ? hp.primaryDamageTypes : spellCastPrimaryHitTypes(primaryHit),
-    defenses: magicalDamageDefensesForItem(item, META_KEY),
+    defenses: magicalDamageDefensesForItem(item, META_KEY, { bypass: hp?.resistanceBypass }),
     ignoredTypes: hp?.ignoredDefenses?.[text(item?.id)],
   });
 }
 
 function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan = null }) {
   if (spell?.id === PRISMATIC_SPRAY_SPELL_ID && prismaticSprayPlan) {
-    return prismaticSprayHPEntries(items, prismaticSprayPlan, command?.hp?.ignoredDefenses);
+    return prismaticSprayHPEntries(items, prismaticSprayPlan, command?.hp?.ignoredDefenses, command?.hp?.resistanceBypass);
   }
   if (spell?.id === MAGIC_MISSILE_SPELL_ID) return magicMissileHPEntries(command, items, allItems);
   const hp = command?.hp || {};
@@ -540,7 +541,7 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
         ? spellDamagePartsAfterDefense({
           parts: spellHpDamageParts(hp),
           factor: factorName,
-          defenses: magicalDamageDefensesForItem(item, META_KEY),
+          defenses: magicalDamageDefensesForItem(item, META_KEY, { bypass: hp?.resistanceBypass }),
           ignoredTypes: hp?.ignoredDefenses?.[targetId],
         })
         : null;
@@ -555,7 +556,7 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
         parts: spellHpDamageParts(hp) || [{ type: reactionTypes[0], amount }],
         factor: factorName,
         defenseFor: (type) => (!spellHpDamageParts(hp) && reactionTypes.length > 1 ? null : spellDamageDefenseApplied(spellDamageDefenseRows({
-          types: [type], defenses: magicalDamageDefensesForItem(item, META_KEY), ignoredTypes: hp?.ignoredDefenses?.[targetId] }))),
+          types: [type], defenses: magicalDamageDefensesForItem(item, META_KEY, { bypass: hp?.resistanceBypass }), ignoredTypes: hp?.ignoredDefenses?.[targetId] }))),
         reactions: (Array.isArray(hp?.damageReactions) ? hp.damageReactions : []).filter((row) => damageReactionAppliesTo(row, targetId)),
       });
       const reactionRecords = reacted ? reacted.records.map((record) => ({ id: targetId, ...record })) : [];
@@ -1472,6 +1473,11 @@ async function buildPlan(command, runtime) {
       || (await runtime.readItems([casterId]))[0]
       || null
     : null;
+  // Lot F7-2 of docs/STUDIO_TALENTI.md: the resistances the caster's spells ignore, read from its card (never from the
+  // request), for every defense of this cast (hp.resistanceBypass), as the panel's preview counts them.
+  if (command?.hp && typeof command.hp === "object") {
+    command = { ...command, hp: { ...command.hp, resistanceBypass: featResistanceBypassForItem(caster, META_KEY, { spell: true }) } };
+  }
   let bossActionProfile = null;
   let bossAction = null;
   if (command.monsterActionContext) {

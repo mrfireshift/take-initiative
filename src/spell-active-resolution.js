@@ -65,7 +65,7 @@ import {
   spellStructureNounWords,
   spellStructureSegmentMiddle,
 } from "./spellStructureCore.js";
-import { DAMAGE_TYPES, evasionForItem } from "./damageDefensesCore.js";
+import { DAMAGE_TYPES, evasionForItem, featResistanceBypassForItem } from "./damageDefensesCore.js";
 import { dodgeSaveAdvantage } from "./attackAdvantagePillsCore.js";
 import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 import { wallOfLightTargetWithinRange } from "./wallOfLightActiveCore.js";
@@ -2138,6 +2138,12 @@ function updatePrismaticWallApplyState(state = prismaticWallLiveState()) {
 }
 
 // What the whole wall does to the creature, by the plan and the defenses the resolution applies.
+// Lot F7-2 of docs/STUDIO_TALENTI.md: the resistances the caster's spell ignores, struck through on the chips, as the executor
+// counts them (spellApplicationExecutor.js).
+function casterResistanceBypass() {
+  return featResistanceBypassForItem(sceneItems.find((item) => item?.id === payload?.casterId), META_KEY, { spell: true });
+}
+
 function prismaticWallTraversalDamage(state) {
   const item = sceneItems.find((entry) => entry?.id === selectedPrismaticTarget);
   const plan = prismaticWallTraversalPlan({
@@ -2148,7 +2154,7 @@ function prismaticWallTraversalDamage(state) {
     parentEffectId: payload?.instanceId,
     sourceId: payload?.casterId,
   });
-  const defenses = magicalDamageDefensesForItem(item, META_KEY);
+  const defenses = magicalDamageDefensesForItem(item, META_KEY, { bypass: casterResistanceBypass() });
   const ignored = [...(ignoredDefenses.get(selectedPrismaticTarget) || [])];
   return plan.damageContributions.reduce(
     (sum, part) => sum + (Number(spellDamagePartAfterDefense(part, defenses, ignored)?.amount) || 0),
@@ -2469,7 +2475,7 @@ function renderTargetLine(targetName = "", emptyText = "", item = null) {
 function targetDefenseRows(item, types = popupDamageTypes()) {
   return spellDamageDefenseRows({
     types,
-    defenses: magicalDamageDefensesForItem(item, META_KEY),
+    defenses: magicalDamageDefensesForItem(item, META_KEY, { bypass: casterResistanceBypass() }),
     ignoredTypes: [...(ignoredDefenses.get(item?.id) || [])],
   });
 }
@@ -2559,7 +2565,7 @@ function prismaticLayerDefenseChips(layer, layerId) {
   const roll = written !== "" && Number.isFinite(Number(written)) ? Math.max(0, Math.floor(Number(written))) : 0;
   return spellDamageDefenseRows({
     types: spellActionDamageTypes(layer),
-    defenses: magicalDamageDefensesForItem(item, META_KEY),
+    defenses: magicalDamageDefensesForItem(item, META_KEY, { bypass: casterResistanceBypass() }),
     ignoredTypes: [...(ignoredDefenses.get(item.id) || [])],
   }).map((row) => {
     const before = Math.floor(roll * factor);

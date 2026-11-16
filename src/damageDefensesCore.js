@@ -3,7 +3,7 @@
 import { scaledQuickHPAmount } from "./quickHpCore.js";
 import { classFeatureEffectPlan, sanitizeCharacterBuild } from "./classFeatureCore.js";
 import { CLASS_FEATURE_BY_ID, CLASS_FEATURES, classFeatureAvailableForBuild, getEnabledClassFeatures } from "./classFeatureCatalog.js";
-import { featFeaturesForProfile } from "./featCatalog.js";
+import { featFeaturesForProfile, sanitizeFeats } from "./featCatalog.js";
 import { SPECIES_FIELD, speciesDamageDefenses } from "./speciesTraitCore.js";
 import { speciesConditionImmunities } from "./speciesConditionImmunityCore.js";
 
@@ -212,6 +212,41 @@ export function mergeDamageDefenses(...sets) {
     for (const [list] of DEFENSE_LISTS) lists[list].push(...clean[list]);
   }
   return cleanDamageDefenses(lists, { both: true });
+}
+
+// Lot F7-2 of docs/STUDIO_TALENTI.md (decisions D12, N1, N2): the resistances an attacker's damage ignores, not the immunity
+// nor the vulnerability. Elemental Adept: the type chosen for each copy of the feat, on a spell's damage; Poisoner: poison,
+// on any damage the character deals. [{ type, source }], one per type, the first source kept.
+export const ELEMENTAL_ADEPT_SOURCE = "Adepto Elementale";
+export const POISONER_SOURCE = "Maestria dei Veleni";
+export function featResistanceBypass(card, { spell = false } = {}) {
+  const feats = sanitizeFeats(card?.feats);
+  const rows = [
+    ...(spell ? feats.filter((entry) => entry.id === "adepto-elementale" && TYPE_IDS.has(entry.choice?.damageType))
+      .map((entry) => ({ type: entry.choice.damageType, source: ELEMENTAL_ADEPT_SOURCE })) : []),
+    ...(feats.some((entry) => entry.id === "maestria-dei-veleni") ? [{ type: "poison", source: POISONER_SOURCE }] : []),
+  ];
+  return rows.filter((row, index) => rows.findIndex((other) => other.type === row.type) === index);
+}
+export function featResistanceBypassForItem(item, metaKey, options = {}) {
+  return featResistanceBypass(item?.metadata?.[metaKey]?.initiativeCard, options);
+}
+// The defenses with those resistances taken away: immunity stays; a type both resisted and vulnerable stays vulnerable.
+// bypassed: the types whose resistance alone went (struck through in view, N1), with their source; kept: the types the GM
+// applies again to this damage.
+export function withResistanceBypass(defenses, bypass = [], kept = []) {
+  const clean = cleanDamageDefenses(defenses, { both: true });
+  const again = new Set(Array.isArray(kept) ? kept : []);
+  const rows = (Array.isArray(bypass) ? bypass : []).filter((row) => row && TYPE_IDS.has(row.type) && !again.has(row.type)
+    && clean.resistances.includes(row.type) && !clean.immunities.includes(row.type));
+  if (!rows.length) return defenses;
+  const types = new Set(rows.map((row) => row.type));
+  return {
+    immunities: [...clean.immunities],
+    resistances: clean.resistances.filter((type) => !types.has(type)),
+    vulnerabilities: [...clean.vulnerabilities],
+    bypassed: rows.filter((row) => !clean.vulnerabilities.includes(row.type)).map((row) => ({ type: row.type, source: row.source })),
+  };
 }
 
 // Effective defenses: the Actor Profile plus every active effect. The profile itself is never rewritten.

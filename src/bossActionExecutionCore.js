@@ -6,7 +6,7 @@ import { bossActionUsageAvailability, consumeBossActionUsage, bossActionUsageSum
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem, mergeDamageDefenses, profileDamageDefensesForItem,
-  EVASION_DEFENSE, evasionAppliesTo, evasionFactor, evasionForItem, withSpellDamageResistance } from "./damageDefensesCore.js";
+  EVASION_DEFENSE, evasionAppliesTo, evasionFactor, evasionForItem, withResistanceBypass, withSpellDamageResistance } from "./damageDefensesCore.js";
 import { adjustForDamageReactions, damageReactionAppliesTo, defenseWithReactionResistance } from "./damageReactionCore.js";
 
 export const BOSS_ACTION_STATE_FIELD = "bossActionState";
@@ -211,8 +211,10 @@ export function damageAmount(value) {
 // spell: the damage is a spell's (the attack console's spells and cantrips), so a resistance to spells counts on top.
 // reactions (avvisi di reazione, lot R3b): the target's reactions to this damage (Uncanny Dodge, Parry, Spectral
 // Defense...), applied after the check of the defenses the GM saw (damageReactionCore.js); none: as before.
+// bypass, kept (lot F7-2 of docs/STUDIO_TALENTI.md): the resistances the attacker's feats ignore (featResistanceBypass), but
+// not those the GM applied again; each piece they touch says its source (resistanceBypass).
 export function defendedComponents(components, inputs, factor, targetItem, ignoredTypes = [], expectedDefenses, marked = false,
-  { spell = false, reactions = [] } = {}) {
+  { spell = false, reactions = [], bypass = [], kept = [] } = {}) {
   const profileDefenses = damageDefensesForItem(targetItem, META_KEY);
   const ownProfileDefenses = profileDamageDefensesForItem(targetItem, META_KEY);
   // Cleaned as the effective defenses are: a resistance and a vulnerability to the same type both stay (lotto M6).
@@ -220,7 +222,8 @@ export function defendedComponents(components, inputs, factor, targetItem, ignor
     throw new Error(`Le difese ai danni di ${targetItem.name || targetItem.id} sono cambiate: riapri l’azione.`);
   // A boss mark changes only this resolution's cold defense; the Actor Profile is never rewritten.
   const marks = marked ? bossMarkedDefenses(profileDefenses) : profileDefenses;
-  const defenses = spell ? withSpellDamageResistance(marks, targetItem, META_KEY) : marks;
+  const defenses = withResistanceBypass(spell ? withSpellDamageResistance(marks, targetItem, META_KEY) : marks, bypass, kept);
+  const bypassedBy = new Map((defenses.bypassed || []).map((row) => [row.type, row.source]));
   const ignored = new Set(Array.isArray(ignoredTypes) ? ignoredTypes : []);
   // Lot R3b: what the reactions leave to compute (halvings in the inputs, so the factor is "full") and what they resist.
   const reacted = Array.isArray(reactions) && reactions.length
@@ -239,6 +242,7 @@ export function defendedComponents(components, inputs, factor, targetItem, ignor
     const defenseSource = damageDefenseFor(ownProfileDefenses, component.type) === profileDefense ? "actor-profile" : "effect";
     return {...clone(component),inputAmount,factor,defense,
       ...(profileDefense ? {defenseSource,...(ownDefense ? {} : {defenseIgnored:profileDefense})} : {}),...markRule,
+      ...(bypassedBy.has(component.type) ? {resistanceBypass:bypassedBy.get(component.type)} : {}),
       ...(reacted?.active ? {reactionInput:computeInputs[component.id],...(resisted.has(component.type) && defense !== ownDefense ? {reactionDefense:true} : {})} : {}),
       amount:componentDamageAfterDefense(computeInputs[component.id],computeFactor,defense)};
   });

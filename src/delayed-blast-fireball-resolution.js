@@ -12,7 +12,7 @@ import {
 } from "./spellUnifiedPopupProtocol.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { initializePopoverDrag } from "./popoverDrag.js";
-import { evasionFactor, evasionForItem } from "./damageDefensesCore.js";
+import { evasionFactor, evasionForItem, featResistanceBypassForItem } from "./damageDefensesCore.js";
 import {
   magicalDamageDefensesForItem,
   spellDamageAfterDefense,
@@ -121,7 +121,8 @@ function renderDamageDefenseChips(ids, itemsById, roll) {
     const name = text(item?.name) || id;
     return spellDamageDefenseRows({
       types,
-      defenses: magicalDamageDefensesForItem(item, META_KEY),
+      // Lot F7-2 of docs/STUDIO_TALENTI.md: the resistances the caster's spell ignores, as the area executor counts them.
+      defenses: magicalDamageDefensesForItem(item, META_KEY, { bypass: featResistanceBypassForItem(context?.caster, META_KEY, { spell: true }) }),
       ignoredTypes: [...(ignoredDefenses.get(id) || [])],
     }).map((row) => {
       // Evasion (a Dexterity save that halves): nothing on a success, half on a failure, as the executor counts it.

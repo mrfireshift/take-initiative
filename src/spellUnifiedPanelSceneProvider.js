@@ -42,7 +42,7 @@ import { pendingSpellZoneTriggerActivations } from "./spellZoneTriggerCore.js";
 import { turbineSizeFromToken } from "./xanatharTurbineCore.js";
 import { magicMissileTargetGuard } from "./magicMissileCore.js";
 import { magicalDamageDefensesForItem } from "./spellDamageDefenseCore.js";
-import { evasionForItem } from "./damageDefensesCore.js";
+import { evasionForItem, featResistanceBypassForItem } from "./damageDefensesCore.js";
 import { isDodging } from "./attackAdvantagePillsCore.js";
 import { blinkSemanticDetail } from "./blinkRules.js";
 import { transformationStashForMeta } from "./transformationHpCore.js";
@@ -270,6 +270,8 @@ function targetCandidate(item, dpi = 150) {
     magicMissileGuard: magicMissileTargetGuard(item),
     // Against a spell's damage, for the preview of the others.
     damageDefenses: magicalDamageDefensesForItem(item, `${ID}/meta`),
+    // Lot F7-2 of docs/STUDIO_TALENTI.md: as the caster, the resistances its spells ignore (Elemental Adept, Poisoner).
+    resistanceBypass: featResistanceBypassForItem(item, `${ID}/meta`, { spell: true }),
     // Evasion (the rogue's, the monk's, the hunter's, a monster's): a Dexterity save that halves takes nothing or half.
     evasion: evasionForItem(item, `${ID}/meta`),
     // In Dodge: advantage on a Dexterity save, said on its row (lot T5 of docs/STUDIO_AZIONI_DI_TURNO.md).

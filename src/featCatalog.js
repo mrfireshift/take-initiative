@@ -325,8 +325,11 @@ const GRAPPLER_SRD_TEXT = [
 const DEFINITIONS = [
   // Manuale del Giocatore 2014, capitolo 6, pp. 165–170.
   feat("phb", 165, "Abile", "Skilled", { plugin: ON_SHEET }),
+  // Lot F7-2 of docs/STUDIO_TALENTI.md (decisions D12, N1, N2): its spells ignore the resistance to the type chosen, not the
+  // immunity (damageDefensesCore.js, featResistanceBypass), in the attack console and the spell panel; the 1s stay at the table.
   feat("phb", 165, "Adepto Elementale", "Elemental Adept", { prerequisite: "Saper lanciare almeno un incantesimo",
-    choices: ["damageType"], repeatable: true }),
+    choices: ["damageType"], repeatable: true,
+    plugin: "I tuoi incantesimi ignorano la resistenza al tipo scelto, non l'immunità: barrata, «superata», nella console e nel pannello; un clic la rimette. Gli 1 come 2 al tavolo." }),
   // Lot F9-3 (decision D14): the two maneuvers chosen, cards of the feat with its own superiority die, a d6 back with a
   // short or long rest: on a hit in the attack console (pcAttackActivationCatalog.js), Parry and Riposte in the reaction
   // prompts, the others from their cards.
@@ -540,9 +543,9 @@ const DEFINITIONS = [
       description: "Chi mangia una delizia, con un'azione bonus, ottiene PF temporanei pari al tuo bonus di competenza. Seleziona chi la mangia (nessuno: tu), poi Usa.",
       temporaryHp: { proficiency: true }, maxTargets: 1 }] }),
   // Lot F7-1 (decision N3): the potent poison, an activation of the attack console on a weapon's hit (pcAttackActivationCatalog.js);
-  // the coating is not counted. Ignoring the resistance to poison comes with lot F7-2.
+  // the coating is not counted. Lot F7-2: its damage ignores the resistance to poison, not the immunity (featResistanceBypass).
   feat("tce", 80, "Maestria dei Veleni", "Poisoner", {
-    plugin: "Nella console attacchi, sul colpo con un'arma, «Veleno potente»: TS Costituzione CD 14; se fallisce, 2d8 veleno e Avvelenato fino alla fine del tuo prossimo turno.",
+    plugin: "Il tuo veleno ignora la resistenza al veleno, non l'immunità. Nella console, sul colpo con un'arma, «Veleno potente»: TS Cos CD 14, 2d8 veleno e Avvelenato se fallisce.",
     parts: [{ key: "veleno-potente", name: "Maestria dei Veleni: Veleno potente",
       description: "Sul colpo con un'arma spalmata di veleno potente: TS Costituzione CD 14; se fallisce, 2d8 veleno e Avvelenato fino alla fine del tuo prossimo turno. Si spunta nella console attacchi." }] }),
   feat("tce", 80, "Martello Vivente", "Crusher", { abilities: ["str", "con"],

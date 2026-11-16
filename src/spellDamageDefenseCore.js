@@ -9,6 +9,7 @@ import {
   damageDefensesForItem,
   damageTypeLabel,
   nonmagicalDefenseMarkerForItem,
+  withResistanceBypass,
   withSpellDamageResistance,
 } from "./damageDefensesCore.js";
 import { scaledQuickHPAmount } from "./quickHpCore.js";
@@ -84,23 +85,32 @@ export function spellPanelDamageTypes(spellId, trigger = null) {
 // A spell's damage is magical: a defense limited to nonmagical weapons does not count, a monster's (monsterProfileCore.js) or a
 // class feature's (Avatar of Battle). And a resistance to the damage of spells does (the Aura of Warding). spell: false for a
 // damage that is magical without being a spell's (a class feature's reminder).
-export function magicalDamageDefensesForItem(item, metaKey, { spell = true } = {}) {
+// bypass (lot F7-2 of docs/STUDIO_TALENTI.md): the resistances the caster's damage ignores (featResistanceBypass), struck
+// through in the rows below.
+export function magicalDamageDefensesForItem(item, metaKey, { spell = true, bypass = [] } = {}) {
   const all = damageDefensesForItem(item, metaKey);
   const nonmagical = nonmagicalDefenseMarkerForItem(item, metaKey)?.types;
   // Only a resistance or an immunity holds against nonmagical weapons: a vulnerability to the same type stays (lotto M6).
   const defenses = !Array.isArray(nonmagical) || !nonmagical.length ? all : Object.fromEntries(Object.entries(all)
     .map(([list, types]) => [list, list === "vulnerabilities" ? types : types.filter((type) => !nonmagical.includes(type))]));
-  return spell ? withSpellDamageResistance(defenses, item, metaKey) : defenses;
+  return withResistanceBypass(spell ? withSpellDamageResistance(defenses, item, metaKey) : defenses, bypass);
 }
 
 // One row for each defense of the creature against this damage. manual: two types in one number, the GM does the sum.
+// A resistance the caster's damage ignores (defenses.bypassed, lot F7-2): its row after the others, struck through with its
+// source; a click (the type among ignoredTypes) applies it again to this cast.
 export function spellDamageDefenseRows({ types = [], defenses = null, ignoredTypes = [] } = {}) {
   const ignored = new Set(Array.isArray(ignoredTypes) ? ignoredTypes : []);
   const manual = types.length > 1;
-  return types
+  const rows = types
     .map((type) => ({ type, defense: damageDefenseFor(defenses, type) }))
     .filter((row) => row.defense)
     .map((row) => ({ ...row, ignored: ignored.has(row.type), ...(manual ? { manual: true } : {}) }));
+  const bypassed = (Array.isArray(defenses?.bypassed) ? defenses.bypassed : [])
+    .filter((entry) => types.includes(entry.type) && !rows.some((row) => row.type === entry.type))
+    .map((entry) => ({ type: entry.type, defense: "resistance", bypass: entry.source, ignored: !ignored.has(entry.type),
+      ...(manual ? { manual: true } : {}) }));
+  return [...rows, ...bypassed];
 }
 
 // The defense that changes the number, if any.
@@ -179,6 +189,7 @@ const DEFENSE_HOLDER = Object.freeze({
 
 // The chip's words: the same as the consoles, with what the defense did to the damage written.
 export function spellDamageDefenseText(row, { before = 0, after = 0 } = {}) {
+  if (row?.bypass && row.ignored) return `${damageDefenseTag(row)} · superata (${row.bypass})`;
   if (row?.manual) return `${damageDefenseTag(row)}: al GM`;
   return damageDefenseCount({ ...row, before, after });
 }
@@ -188,6 +199,12 @@ export function spellDamageDefenseTitle(row, { name = "La creatura", before = 0,
   const holder = DEFENSE_HOLDER[row?.defense];
   if (!holder) return "";
   const said = `${name} ${holder.has} ${damageWords(row.type)}`;
+  // Lot F7-2: a resistance the caster's feat ignores, struck through; a click applies it again.
+  if (row.bypass) {
+    return row.ignored
+      ? `${said}, ma ${row.bypass} la supera ${where}. Clic per applicarla.`
+      : `${said}: applicata ${where} nonostante ${row.bypass}. Clic per toglierla.`;
+  }
   if (row.manual) {
     return `${said}, ma questo incantesimo somma due tipi di danno in un solo numero. Il conto resta a te: scrivi il danno già ridotto.`;
   }

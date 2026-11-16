@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **310** |
+| **B. Console attacchi, mostri e capacità** | **314** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -89,6 +89,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B60. Mobilità e Gioco di Gambe: niente AdO dal bersaglio | 4 |
 | B61. Attacco con Manovra: l'alleato senza AdO | 4 |
 | B62. Costituzione Infernale e Veleno potente | 4 |
+| B63. Adepto Elementale e Maestria dei Veleni: la resistenza superata | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -114,7 +115,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **673** |
+| **Totale** | **677** |
 
 ## A. Incantesimi
 
@@ -1191,6 +1192,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F7-1 (decisione N3). Le voc
 - [ ] **Veleno potente, TS fallito:** il ladro colpisce l'ogre con il pugnale; fra le attivazioni c'è «Veleno potente» con TS Costituzione CD 14 e 2d8. Fallito, 7 di veleno: 5 + 7 = 12 danni, e l'ogre è Avvelenato fino alla fine del prossimo turno del ladro.
 - [ ] **TS superato:** il campo del danno sparisce; **Registra** fa solo i 5 del pugnale, senza Avvelenato.
 - [ ] **Annulla:** l'Annulla della console rimette i PF dell'ogre e toglie Avvelenato.
+
+### B63. Adepto Elementale e Maestria dei Veleni: la resistenza superata
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F7-2 (decisioni D12, N1, N2). Le voci sono nuove: nessuna lista le aveva. Servono un mago con Adepto Elementale (fuoco), Palla di fuoco e Dardo di fuoco; un ladro con Maestria dei Veleni e un pugnale; un ogre resistente al fuoco e al veleno e un goblin immune al fuoco. Ogni voce in vista compatta ed estesa, guardando anche la barra PF sulla mappa.
+
+- [ ] **Il pannello:** Palla di fuoco da 28 sull'ogre, TS fallito: il chip dice «Res. fuoco · superata (Adepto Elementale)» e l'anteprima toglie 28; superato, 14. Il goblin immune resta a 0 danni. **Registra** scrive gli stessi numeri.
+- [ ] **Il clic:** un clic sul chip rimette la resistenza: «Res. fuoco: 28 → 14»; un altro la toglie di nuovo. Il commit segue il chip.
+- [ ] **La console:** Dardo di fuoco dalla console sull'ogre, 10: 10 danni, con il chip barrato e il clic per rimetterla. Il pugnale del ladro con Veleno potente, 5 + 7: 12, «Res. veleno · superata (Maestria dei Veleni)».
+- [ ] **Le zone e i promemoria:** una zona di fuoco del mago (o un ⚡ di un suo incantesimo) sull'ogre: la resistenza è barrata anche lì. Senza il talento, tutto come prima.
 
 ## C. Tracker e UX
 

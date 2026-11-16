@@ -53,7 +53,7 @@ import {
   spellDamagePartsDefenses,
   spellDamageTypes,
 } from "./spellDamageDefenseCore.js";
-import { evasionForItem } from "./damageDefensesCore.js";
+import { evasionForItem, featResistanceBypassForItem } from "./damageDefensesCore.js";
 import { spellCastHealingDice, spellCastTemporaryHpAmount, spellCastTemporaryHpRule } from "./spellTemporaryHpRules.js";
 import {
   resolveZeroHPUnconsciousAction,
@@ -694,11 +694,13 @@ async function buildCastTemporaryHpMutation({ spell, phase = "", targetIds = [],
 
 // A smite's damage, written apart from the weapon's: each target's defense against its type counts, as in every other spell
 // (spellDamageDefenseCore.js), unless the GM ignored it with a click on its chip (ignoredDefenses, by target).
+// bypass (lot F7-2 of docs/STUDIO_TALENTI.md): the resistances the caster's spells ignore.
 async function buildPreparedInitialDamageMutation({
   targetIds = [],
   amount = null,
   damageTypes = [],
   ignoredDefenses = {},
+  bypass = [],
 } = {}) {
   const damage = manualDamageValue(amount);
   if (damage === null || damage <= 0) {
@@ -728,7 +730,7 @@ async function buildPreparedInitialDamageMutation({
     const currentHp = current.hp;
     const defenses = spellDamageDefenseRows({
       types: damageTypes,
-      defenses: magicalDamageDefensesForItem(item, `${ID}/meta`),
+      defenses: magicalDamageDefensesForItem(item, `${ID}/meta`, { bypass }),
       ignoredTypes: ignoredDefenses?.[targetId],
     });
     const taken = spellDamageAfterDefense(damage, "full", spellDamageDefenseApplied(defenses));
@@ -1415,6 +1417,10 @@ export async function executeSpellActiveResolution({
     ...(payload && typeof payload === "object" ? payload : {}),
     ...(outcomes && typeof outcomes === "object" ? { outcomes } : {}),
   };
+  // Lot F7-2 of docs/STUDIO_TALENTI.md: the resistances the caster's spell ignores, read from its card when a damage needs them.
+  let activeBypass = null;
+  const casterBypass = async () => (activeBypass ??= featResistanceBypassForItem(
+    (await OBR.scene.items.getItems([payload?.casterId]).catch(() => []))[0], `${ID}/meta`, { spell: true }));
   const payloadValidation = validateSpellActiveResolutionPayload(payload);
   if (!payloadValidation.valid) {
     throw new Error("Invalid active spell resolution: " + payloadValidation.errors.join(", "));
@@ -1761,9 +1767,10 @@ export async function executeSpellActiveResolution({
       const targetPlan = plan.targetPlans?.[0] || null;
       // Each layer with its own type and save, after the creature's defense. A copy: the plan is frozen, and the commit's
       // validation reads it as it is.
+      const wallBypass = await casterBypass();
       const damageContributions = (targetPlan?.damageContributions || []).map((contribution) => spellDamagePartAfterDefense(
         contribution,
-        magicalDamageDefensesForItem(byId.get(contribution.targetId), `${ID}/meta`),
+        magicalDamageDefensesForItem(byId.get(contribution.targetId), `${ID}/meta`, { bypass: wallBypass }),
         ignoredDefenses?.[contribution.targetId],
       ));
       const currentHpById = new Map();
@@ -2026,7 +2033,7 @@ export async function executeSpellActiveResolution({
         // The creature's defense against this damage, the same as the popup's preview.
         const defenses = spellDamageDefenseRows({
           types: spellActionDamageTypes(damageAction),
-          defenses: magicalDamageDefensesForItem(item, `${ID}/meta`),
+          defenses: magicalDamageDefensesForItem(item, `${ID}/meta`, { bypass: await casterBypass() }),
           ignoredTypes: ignoredDefenses?.[targetId],
         });
         const damage = direct
@@ -2728,6 +2735,7 @@ export async function executeSpellApplication({
       amount: manualDamage,
       damageTypes: spellDamageTypes(spell?.id),
       ignoredDefenses,
+      bypass: featResistanceBypassForItem((await OBR.scene.items.getItems([casterId]).catch(() => []))[0], `${ID}/meta`, { spell: true }),
     })
     : { metadataPatches: [], operations: [], applied: 0, targets: [] };
   if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {

@@ -22,8 +22,9 @@ import { bossDefendedDamage, bossDefenseCounts } from "./bossActionsViewCore.js"
 import { getSpellDefinition, getSpellEffects, getSpellSummaryParts } from "./spells-srd.js";
 import { catalogSpellApplicationOperations } from "./spellLifecycleOperationsCore.js";
 import { spellEffectThemeFor } from "./spellColorCore.js";
-import { DAMAGE_TYPES, actorHasEvasion, creatureConditionImmunities, damageDefenseCount, damageDefenseTag, damageDefensesForItem, damageTypeLabel, evasionFactor,
-  markNonmagicalDefenses, nonmagicalDefenseMarkerForItem, relevantDamageDefenses, withSpellDamageResistance } from "./damageDefensesCore.js";
+import { DAMAGE_TYPES, actorHasEvasion, creatureConditionImmunities, damageDefenseCount, damageDefenseFor, damageDefenseTag, damageDefensesForItem, damageTypeLabel, evasionFactor,
+  markNonmagicalDefenses, nonmagicalDefenseMarkerForItem, relevantDamageDefenses, withSpellDamageResistance,
+  featResistanceBypassForItem, withResistanceBypass } from "./damageDefensesCore.js";
 import { MONSTER_PROFILE_FIELD } from "./monsterProfileCore.js";
 import { CLASS_FEATURE_RESOURCE_POOL_BY_ID, getClassFeatureDefinition, getClassFeatureResourcePool, getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import {
@@ -1294,8 +1295,8 @@ export function pcAttackMagicToggleable(action) {
 function pcAttackAreaMagicIgnored(attack, item) {
   return attack?.magical === true ? pcAttackMagicIgnoredDefenses(attack, item) : [];
 }
-// A defense's words with what it did ("Res. taglienti: 10 → 5"), or, struck through by a magic weapon, why it did not count.
 export function pcAttackDefenseText(row) {
+  if (row?.bypass && row.ignored) return `${damageDefenseTag(row)} · superata (${row.bypass})`;
   return row?.magic && row.ignored ? `${damageDefenseTag(row)} · superata (arma magica)` : damageDefenseCount(row);
 }
 
@@ -1326,6 +1327,25 @@ function pcAttackSpellDamage(attack) {
 function pcAttackDefensesAgainst(attack, defenses, targetItem) {
   return targetItem && pcAttackSpellDamage(attack) ? withSpellDamageResistance(defenses, targetItem, META_KEY) : defenses;
 }
+
+// Lot F7-2 of docs/STUDIO_TALENTI.md (decisions D12, N1, N2): the resistances the attacker's damage ignores, from its feats
+// (Elemental Adept on a spell's or a cantrip's damage, Poisoner on any). spell: whether this damage is a spell's.
+function pcAttackResistanceBypass(sourceItem, spell) {
+  return sourceItem ? featResistanceBypassForItem(sourceItem, META_KEY, { spell: !!spell }) : [];
+}
+// The rows of the resistances it ignores, struck through with their source (N1), or applied again by the GM (kept).
+function pcAttackBypassRows(defenses, raw, bypass, kept, types) {
+  const wanted = new Set(types);
+  const again = new Set(Array.isArray(kept) ? kept : []);
+  return [
+    ...(defenses?.bypassed || []).filter((row) => wanted.has(row.type))
+      .map((row) => ({ type: row.type, defense: "resistance", bypass: row.source, ignored: true })),
+    ...bypass.filter((row) => wanted.has(row.type) && again.has(row.type) && damageDefenseFor(raw, row.type) === "resistance")
+      .map((row) => ({ type: row.type, bypass: row.source })),
+  ];
+}
+// A defense's words with what it did ("Res. taglienti: 10 → 5"), or, struck through by a magic weapon or by a feat (lot
+// F7-2), why it did not count.
 
 // What the GM sees before committing: the defenses that apply, the damage after them and the HP it leaves.
 // The commit recomputes everything from live state; this is a read model only.
@@ -1373,7 +1393,10 @@ export function pcAttackPreview({
     ...Object.fromEntries(chosenExtras.map((extra, index) => [`x${index + 1}`, extra.amount])),
   };
   const profileDefenses = targetItem ? damageDefensesForItem(targetItem, META_KEY) : {};
-  const attackDefenses = pcAttackDefensesAgainst(attack, profileDefenses, targetItem);
+  // Lot F7-2: the resistances the attacker's feats ignore, unless the GM applied them again (reappliedDefenses).
+  const attackBypass = pcAttackResistanceBypass(sourceItem, pcAttackSpellDamage(attack));
+  const rawAttackDefenses = pcAttackDefensesAgainst(attack, profileDefenses, targetItem);
+  const attackDefenses = withResistanceBypass(rawAttackDefenses, attackBypass, reappliedDefenses);
   // A spell with several types (Chromatic Orb): until one is picked no defense applies to its damage, whatever type it holds meanwhile.
   const typedComponents = attack.spell?.types && !attack.spell.types.includes(spellCast?.damageType)
     ? components.filter((component) => component.id !== attack.components[0]?.id) : components;
@@ -1383,8 +1406,13 @@ export function pcAttackPreview({
   const heldDefense = (row) => magicWeapon.includes(row.type) || !magicIgnored.includes(row.type);
   const magicRow = (row) => (magicWeapon.includes(row.type) ? { ...row, magic: true, ignored: row.ignored === true || magicIgnored.includes(row.type) } : row);
   const appliedIgnored = [...ignoredDefenses, ...magicIgnored];
-  const defenses = markNonmagicalDefenses(relevantDamageDefenses(attackDefenses, typedComponents.filter((component) => damageTypeSet.has(component.type)), ignoredDefenses),
-    targetItem?.metadata?.[META_KEY]?.initiativeCard).filter(heldDefense).map(magicRow);
+  const typedForDefenses = typedComponents.filter((component) => damageTypeSet.has(component.type));
+  const bypassRows = pcAttackBypassRows(attackDefenses, rawAttackDefenses, attackBypass, reappliedDefenses,
+    typedForDefenses.map((component) => component.type));
+  const defenses = [...markNonmagicalDefenses(relevantDamageDefenses(attackDefenses, typedForDefenses, ignoredDefenses),
+    targetItem?.metadata?.[META_KEY]?.initiativeCard).filter(heldDefense).map(magicRow)
+    .map((row) => { const again = bypassRows.find((entry) => entry.type === row.type && !entry.ignored); return again ? { ...row, bypass: again.bypass } : row; }),
+  ...bypassRows.filter((row) => row.ignored)];
   // Full damage on a hit, a critical or a failed save (the shared helper would halve a "passed" save).
   // A monster's hit effect (fase 5, lotto 4): its save's damage on top, with the target's defenses.
   const hitPlan = targetItem ? pcAttackHitEffectPlan({ attack, outcome, hitEffect, targetItem, sourceItem }) : null;
@@ -1423,7 +1451,8 @@ export function pcAttackPreview({
   const secondaryWanted = !!secondarySource;
   const secondaryDefenses = secondaryWanted && secondaryItem ? damageDefensesForItem(secondaryItem, META_KEY) : {};
   // Green-Flame Blade's fire is a cantrip's damage: a resistance to spells counts on it, not on an activation's die.
-  const secondaryAgainst = wovenSecondary && secondaryItem ? withSpellDamageResistance(secondaryDefenses, secondaryItem, META_KEY) : secondaryDefenses;
+  const secondaryAgainst = withResistanceBypass(wovenSecondary && secondaryItem
+    ? withSpellDamageResistance(secondaryDefenses, secondaryItem, META_KEY) : secondaryDefenses, pcAttackResistanceBypass(sourceItem, !!wovenSecondary));
   const secondaryMeta = secondaryItem?.metadata?.[META_KEY] || {};
   const secondaryTotal = secondaryWanted && secondaryItem && validAmount(secondarySource.amount) && damageTypeSet.has(secondarySource.type)
     ? bossDefendedDamage([{ id: "s1", type: secondarySource.type }], { s1: secondarySource.amount }, "hit", secondaryAgainst, []) : 0;
@@ -1607,7 +1636,8 @@ export function buildPcAttackMutation({
   const reactionsOnTarget = miss ? [] : (Array.isArray(damageReactions) ? damageReactions : []);
   const damageComponents = [...defendedComponents(components, inputs, factor, targetItem,
     [...ignoredDefenses, ...pcAttackMagicIgnoredDefenses(attack, targetItem, reappliedDefenses)],
-    expectedDefenses, false, { spell: pcAttackSpellDamage(attack), reactions: reactionsOnTarget }), ...hitPlan.components];
+    expectedDefenses, false, { spell: pcAttackSpellDamage(attack), reactions: reactionsOnTarget,
+      bypass: pcAttackResistanceBypass(sourceItem, pcAttackSpellDamage(attack)), kept: reappliedDefenses }), ...hitPlan.components];
   // Why the damage is what it is (lot R3b): one line per reaction, for the History and the combat log.
   const damageReactionRecords = reactionsOnTarget.length
     ? adjustForDamageReactions({ components, inputs, factor, reactions: reactionsOnTarget }).records
@@ -1627,10 +1657,12 @@ export function buildPcAttackMutation({
   const secondaryItemUsed = woven?.secondary?.item || activationSecondary?.item || null;
   const secondaryComponents = woven?.secondary
     ? defendedComponents([{ id: "s1", type: woven.type, source: { kind: "cantrip", spellId: woven.spellId, name: woven.name } }],
-      { s1: woven.secondary.amount }, "full", secondaryItemUsed, [], expectedSecondaryDefenses, false, { spell: true })
+      { s1: woven.secondary.amount }, "full", secondaryItemUsed, [], expectedSecondaryDefenses, false,
+      { spell: true, bypass: pcAttackResistanceBypass(sourceItem, true) })
     : activationSecondary
       ? defendedComponents([{ id: "s1", type: activationSecondary.type, source: { kind: "class-feature", featureId: activationSecondary.id,
-        name: activationSecondary.option.label, activation: true } }], { s1: activationSecondary.amount }, "full", secondaryItemUsed, [], expectedSecondaryDefenses)
+        name: activationSecondary.option.label, activation: true } }], { s1: activationSecondary.amount }, "full", secondaryItemUsed, [], expectedSecondaryDefenses,
+        false, { bypass: pcAttackResistanceBypass(sourceItem, false) })
       : [];
   // Vampiric Touch: the caster regains half the spell's necrotic damage, after the target's defenses.
   const sourceHpMeta = sourceItem.metadata?.[META_KEY] || {};
@@ -2299,7 +2331,8 @@ export function pcAttackAreaPreview({
     const factor = areaFactor(attack, member.outcome, card, evasion);
     const meta = member.item.metadata?.[META_KEY] || {};
     const profileDefenses = damageDefensesForItem(member.item, META_KEY);
-    const memberDefenses = pcAttackDefensesAgainst(attack, profileDefenses, member.item);
+    const memberDefenses = withResistanceBypass(pcAttackDefensesAgainst(attack, profileDefenses, member.item),
+      pcAttackResistanceBypass(sourceItem, pcAttackSpellDamage(attack)));
     const magicTypes = pcAttackAreaMagicIgnored(attack, member.item);
     const memberReactions = (Array.isArray(damageReactions) ? damageReactions : []).filter((reaction) => damageReactionAppliesTo(reaction, member.item.id));
     const total = member.outcome && factor !== "zero" && amountsReady
@@ -2411,7 +2444,8 @@ export function buildPcAttackAreaMutation({
     const memberReactions = factor === "zero" ? []
       : (Array.isArray(damageReactions) ? damageReactions : []).filter((reaction) => damageReactionAppliesTo(reaction, member.item.id));
     const damageComponents = defendedComponents(components, inputs, factor, member.item, pcAttackAreaMagicIgnored(attack, member.item),
-      expectedDefenses?.[member.item.id], false, { spell: pcAttackSpellDamage(attack), reactions: memberReactions });
+      expectedDefenses?.[member.item.id], false, { spell: pcAttackSpellDamage(attack), reactions: memberReactions,
+        bypass: pcAttackResistanceBypass(sourceItem, pcAttackSpellDamage(attack)) });
     const requested = damageComponents.reduce((sum, component) => sum + component.amount, 0);
     const reactionRecords = memberReactions.length
       ? adjustForDamageReactions({ components, inputs, factor, reactions: memberReactions }).records.map((record) => ({ id: member.item.id, ...record })) : [];

@@ -10,7 +10,7 @@ F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 approvate** (§7.15), **F6-
 il 16/11** (§7.16–§7.20): F6 è chiuso. **Il piano di F9 il 16/11** (§7.21),
 **F9-1…F9-4 il 16/11** (§7.22–§7.25): F9 è chiuso. **Il piano di F2 il 16/11,
 con M1–M6 approvate** (§7.26), **F2-1, F2-2 e F2-3 il 16/11** (§7.27–§7.29): F2 è
-chiuso. **Il piano dei PF di F7 il 16/11, con N1–N6 approvate** (§7.30), **F7-1 il 16/11** (§7.31).
+chiuso. **Il piano dei PF di F7 il 16/11, con N1–N6 approvate** (§7.30), **F7-1 e F7-2 il 16/11** (§7.31, §7.32).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -2317,6 +2317,39 @@ con F7-1»).
 - **Le righe «Nel plugin»** dei due talenti lo dicono. La resistenza al veleno
   ignorata da Maestria dei Veleni arriva con F7-2.
 - **Documenti:** le prove in stanza sono in B62.
+
+### 7.32 F7-2, fatto il 16/11
+
+**Ignorare la resistenza: Adepto Elementale e Maestria dei Veleni (R2).**
+
+- **Le funzioni comuni** (`damageDefensesCore.js`):
+  - `featResistanceBypass` dice quali resistenze supera l'attaccante: il tipo
+    di ogni copia di Adepto Elementale sul danno di un incantesimo, il veleno di
+    Maestria dei Veleni su ogni danno;
+  - `withResistanceBypass` le toglie dalle resistenze; immunità e
+    vulnerabilità restano, e un tipo resistente e vulnerabile resta
+    vulnerabile. `bypassed` dice quali sono state superate, per la riga
+    barrata.
+- **Console attacchi:** anteprima e commit (`defendedComponents`, opzioni
+  `bypass` e `kept`) su attacco, seconda creatura e aree. La difesa superata
+  resta in vista, «Res. veleno · superata (Maestria dei Veleni)»; il clic la
+  rimette (`reappliedDefenses`, come l'arma magica). Ogni componente toccato
+  dice la sua fonte (`resistanceBypass`) nella Cronologia.
+- **Pannello incantesimi:** ogni candidato porta le resistenze che i suoi
+  incantesimi superano (`resistanceBypass`); la vista le applica alle difese
+  di tutti i bersagli con quelle del caster, prima di ogni conto e chip.
+  `spellDamageDefenseRows` aggiunge la riga barrata; il clic sul chip (lo
+  stesso che ignora una difesa) la rimette.
+- **I commit del pannello** leggono il caster dalla scheda, mai dalla
+  richiesta: le aree (`command.hp.resistanceBypass` in `buildPlan`), il primo
+  danno degli incantesimi preparati, le azioni ⚡ e il Muro prismatico. Lo
+  stesso fanno l'anteprima delle ⚡, i promemoria (la fonte dell'effetto) e la
+  Palla di fuoco ritardata.
+- **I numeri** sono quelli della §7.30.4: Palla di fuoco 28 su un bersaglio
+  resistente, 28; immune, 0; resistente e vulnerabile, 56; il pugnale 5 + 7
+  veleno, 12.
+- **Le righe «Nel plugin»** dei due talenti lo dicono.
+- **Documenti:** le prove in stanza sono in B63.
 
 ---
 

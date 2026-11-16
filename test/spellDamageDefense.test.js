@@ -116,7 +116,7 @@ function sprayCommand({ ignoredDefenses } = {}) {
 
 async function sprayPlan(options = {}) {
   const items = [
-    creature("caster"),
+    creature("caster", options.casterCard || {}),
     creature("sera", { damageDefenses: { resistances: ["fire"] } }),
     creature("mira", { damageDefenses: { resistances: ["fire"] } }),
   ];
@@ -428,7 +428,7 @@ test("un immune non subisce danni e un esito Immune non cerca difese", async () 
   assert.equal(plan.entries.some((entry) => entry.item.id === "sera"), false, "nessuna modifica ai PF");
 });
 
-function reminderPlan({ damage = { dice: "1d6", type: "fuoco", onSave: "half" }, resolutionKind = "manual-save", outcome = "failed", roll = 9, card = { damageDefenses: { resistances: ["fire"] } }, ignoredDefenses = [] } = {}) {
+function reminderPlan({ damage = { dice: "1d6", type: "fuoco", onSave: "half" }, resolutionKind = "manual-save", outcome = "failed", roll = 9, card = { damageDefenses: { resistances: ["fire"] } }, ignoredDefenses = [], casterCard = {} } = {}) {
   const resolution = buildZoneTriggerReminderResolution({
     activation: {
       id: "activation",
@@ -447,7 +447,7 @@ function reminderPlan({ damage = { dice: "1d6", type: "fuoco", onSave: "half" },
   });
   const items = [
     creature("target", card),
-    creature("caster"),
+    creature("caster", casterCard),
     { id: "zone", name: "Zona", metadata: { [SPELL_STATIC_ZONE_META_KEY]: { triggerRuntime: { pending: [{ id: "activation", targetIds: ["target"] }] } } } },
   ];
   return {
@@ -552,4 +552,51 @@ test("le sette punizioni dichiarano il tipo del loro danno, letto dalle regole d
     assert.deepEqual(spellActionDamageTypes({ damage: { type: bonus?.type } }), [type], `${id}: il tipo delle regole`);
   }
   assert.equal(Object.keys(SPELL_DAMAGE_TYPE_LEFT_TO_GM).some((id) => /punizione|smite/.test(id)), false);
+});
+
+// Lot F7-2 of docs/STUDIO_TALENTI.md (decisions D12, N1, N2): the resistances the caster's feats ignore, not the immunity.
+// The panel reads them from the caster's candidate (resistanceBypass), the area commit from the caster's card; the
+// resistance stays on its chip, struck through, and a click applies it again to this cast.
+const ADEPT_FIRE = { feats: [{ id: "adepto-elementale", choice: { damageType: "fire" } }] };
+const POISONER = { feats: [{ id: "maestria-dei-veleni" }] };
+
+test("Adepto Elementale nel pannello: la resistenza al fuoco barrata, il danno pieno; un clic la rimette", () => {
+  const contract = buildSpellUnifiedPanelContract({ spellId: "symbol", phase: "resolve", choiceValue: "death", castContext: { slotLevel: 7 } });
+  const row = (defenses, bypass, ignoredDefenses = {}) => {
+    const session = createSpellPanelSession({ contract, casterId: "caster", phase: "resolve", variant: "death", targetIds: ["sera"],
+      outcomes: { sera: "failed" }, hpValues: { damage: 20 }, ignoredDefenses });
+    return buildUnifiedPanelViewModel({ contract, session, targetCandidates: [
+      { key: "caster", label: "Caster", hp: 40, hpMax: 40, resistanceBypass: bypass },
+      { key: "sera", label: "Sera", hp: 40, hpMax: 40, damageDefenses: defenses },
+    ] }).targets.candidates.find((candidate) => candidate.key === "sera");
+  };
+  const necrotic = [{ type: "necrotic", source: "Adepto Elementale" }];
+  const bypassed = row({ resistances: ["necrotic"] }, necrotic);
+  assert.equal(bypassed.hpPreview.afterHP, 20, "20 pieni");
+  assert.deepEqual(bypassed.defenseChips.map((chip) => chip.text), ["Res. necrotici · superata (Adepto Elementale)"]);
+  assert.match(bypassed.defenseChips[0].title, /Adepto Elementale la supera in questo lancio\. Clic per applicarla\./u);
+  const again = row({ resistances: ["necrotic"] }, necrotic, { sera: ["necrotic"] });
+  assert.equal(again.hpPreview.afterHP, 30, "applicata di nuovo: 10");
+  assert.deepEqual(again.defenseChips.map((chip) => chip.text), ["Res. necrotici: 20 → 10"]);
+  assert.equal(row({ immunities: ["necrotic"] }, necrotic).hpPreview.afterHP, 40, "l'immunità resta");
+  assert.equal(row({ resistances: ["necrotic"] }, []).hpPreview.afterHP, 30, "senza il talento, come prima");
+  assert.equal(row({ resistances: ["necrotic"], vulnerabilities: ["necrotic"] }, necrotic).hpPreview.afterHP, 0, "resta la vulnerabilità: 40");
+});
+
+test("Adepto Elementale nel commit delle aree: il caster con il talento passa la resistenza al fuoco, non chi non l'ha", async () => {
+  const plan = await sprayPlan({ casterCard: ADEPT_FIRE });
+  const entry = (id) => plan.entries.find((candidate) => candidate.item.id === id);
+  assert.equal(entry("sera").change.requested, 50, "fuoco 30 pieno, acido 20");
+  assert.equal(entry("mira").change.requested, 15, "fuoco 30, metà per il TS, niente resistenza");
+  const plain = await sprayPlan();
+  assert.equal(plain.entries.find((candidate) => candidate.item.id === "sera").change.requested, 35, "senza il talento, come prima");
+});
+
+test("Maestria dei Veleni in un promemoria: il veleno della sua zona passa la resistenza al veleno", () => {
+  const poison = { dice: "1d6", type: "veleno", onSave: "half" };
+  const resists = { damageDefenses: { resistances: ["poison"] } };
+  assert.equal(reminderPlan({ damage: poison, card: resists }).plan.damage.amount, 4, "senza il talento: 9 → 4");
+  const bypassed = reminderPlan({ damage: poison, card: resists, casterCard: POISONER });
+  assert.equal(bypassed.plan.damage.amount, 9);
+  assert.equal(reminderPlan({ damage: poison, card: { damageDefenses: { immunities: ["poison"] } }, casterCard: POISONER }).plan.damage.amount, 0);
 });

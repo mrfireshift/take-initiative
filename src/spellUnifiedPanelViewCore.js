@@ -20,7 +20,7 @@ import {
   spellDamagePartsAfterDefense,
   spellPanelDamageTypes,
 } from "./spellDamageDefenseCore.js";
-import { evasionFactor, RESISTANCE_VULNERABILITY } from "./damageDefensesCore.js";
+import { evasionFactor, RESISTANCE_VULNERABILITY, withResistanceBypass } from "./damageDefensesCore.js";
 import { DODGE_SAVE_NOTE } from "./attackAdvantagePillsCore.js";
 import { spellTargetMatchesFilters } from "./spellsPanelTargetPicker.js";
 import {
@@ -1237,8 +1237,16 @@ export function buildUnifiedPanelViewModel({
   const effectiveTargetLocked = isAreaSubset || isPostPlacement
     ? false
     : workflow.placement.targetLocked;
+  // Lot F7-2 of docs/STUDIO_TALENTI.md: the resistances the caster's spells ignore (its candidate's resistanceBypass) taken
+  // off every target's defenses, struck through on its chips; the commit reads the same (spellAreaResolutionExecutor.js).
+  const casterBypass = (Array.isArray(targetCandidates) ? targetCandidates : [])
+    .find((candidate) => asText(candidate?.key || candidate?.value) === asText(session?.casterId))?.resistanceBypass || [];
+  const bypassedCandidates = casterBypass.length && Array.isArray(targetCandidates)
+    ? targetCandidates.map((candidate) => (candidate?.damageDefenses
+      ? { ...candidate, damageDefenses: withResistanceBypass(candidate.damageDefenses, casterBypass) } : candidate))
+    : targetCandidates;
   const allCandidates = normalizeTargetCandidates(
-    targetCandidates,
+    bypassedCandidates,
     selectedTargetIds,
     session?.outcomes,
     maxTargets,

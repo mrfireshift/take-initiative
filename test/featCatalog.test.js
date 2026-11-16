@@ -48,9 +48,10 @@ test("the catalog holds the 72 feats of the three manuals, 34 of them half feats
   // (lot F5-3), Defensive Duelist, Fade Away and Second Chance (lot F6-1), Sentinel (lot F6-2), Polearm Master (lot F6-3),
   // Mage Slayer and War Caster (lot F6-4), Flames of Phlegethos (lot F6-5), Fighting Initiate and Eldritch Adept (lot
   // F9-1), Metamagic Adept (lot F9-2), Martial Adept (lot F9-3), Dragon Fear (lot F9-4), Mobile and Squat Nimbleness (lot
-  // F2-1), Infernal Constitution and Poisoner (lot F7-1) have a line of their own; the others wait for their lot.
+  // F2-1), Infernal Constitution and Poisoner (lot F7-1), Elemental Adept (lot F7-2) have a line of their own; the others
+  // wait for their lot.
   assert.equal(FEATS.filter((entry) => !entry.plugin.startsWith("Per ora solo riferimento")).length,
-    23 + 9 + 7 + 2 + 1 + 1 + 2 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 2 + 1 + 1 + 1 + 2 + 2);
+    23 + 9 + 7 + 2 + 1 + 1 + 2 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 2 + 1 + 1 + 1 + 2 + 2 + 1);
 });
 
 test("feats resolve by id like the species traits, but stay out of the class catalog", () => {

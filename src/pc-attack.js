@@ -2743,13 +2743,15 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     defensesBox.replaceChildren(...view.defenses.map(row=>{
       const chip=node("button",pcAttackDefenseText({...row,...(view.defenseCounts || []).find(entry=>entry.type===row.type),short:true}),"defense-chip");chip.type="button";
       chip.setAttribute("aria-pressed",String(!row.ignored));
-      chip.title=row.magic?(row.ignored?"Superata dall'arma magica: clic per applicarla a questo colpo":"Applicata a questo colpo nonostante l'arma magica: clic per toglierla")
+      // A feat's (lot F7-2: Elemental Adept, Poisoner): struck through with its name, a click applies it again to this hit.
+      chip.title=row.bypass?(row.ignored?`Superata da ${row.bypass}: clic per applicarla a questo colpo`:`Applicata a questo colpo nonostante ${row.bypass}: clic per toglierla`)
+        :row.magic?(row.ignored?"Superata dall'arma magica: clic per applicarla a questo colpo":"Applicata a questo colpo nonostante l'arma magica: clic per toglierla")
         :row.ignored?"Difesa ignorata: clic per applicarla"
         :row.nonmagical?`Vale solo contro danni ${row.nonmagical}: ${magicOffered?"per un'arma magica accendi ✦ Magica; ":""}con un'arma che la supera, clic per ignorarla in questo attacco`
         :"Clic per ignorarla in questo attacco";
       chip.disabled=busy;
       chip.addEventListener("click",()=>{
-        if(row.magic) {
+        if(row.magic || row.bypass) {
           draft.reapplied=row.ignored?[...new Set([...(draft.reapplied || []),row.type])]:(draft.reapplied || []).filter(type=>type!==row.type);
           if(row.ignored) draft.ignored=draft.ignored.filter(type=>type!==row.type);
         } else draft.ignored=row.ignored?draft.ignored.filter(type=>type!==row.type):[...draft.ignored,row.type];

@@ -30,7 +30,7 @@ import {
   spellDamageDefenseApplied,
   spellDamageDefenseRows,
 } from "./spellDamageDefenseCore.js";
-import { evasionFactor, evasionForItem } from "./damageDefensesCore.js";
+import { evasionFactor, evasionForItem, featResistanceBypassForItem } from "./damageDefensesCore.js";
 import {
   resolveTurbineSaveChain,
   turbineSizeFromToken,
@@ -1059,11 +1059,13 @@ export function reminderResolutionDamage(resolution, outcome, roll, defense = nu
 // The target's defenses against a reminder's damage: its type is on the damage ("taglienti"), and a type left to the caster
 // ("radiosi o necrotici") stays with the GM. The notice shows these rows, and the plan applies them. A resistance to spells
 // (the Aura of Warding) counts when the zone or the effect says its spell; a class feature's damage has none.
-export function reminderDamageDefenseRows({ resolution = null, target = null, ignoredTypes = [] } = {}) {
+// source (lot F7-2 of docs/STUDIO_TALENTI.md): the creature whose effect it is; the resistances its feats ignore are struck
+// through (Elemental Adept only on a spell's damage, Poisoner on any).
+export function reminderDamageDefenseRows({ resolution = null, target = null, ignoredTypes = [], source = null } = {}) {
   const spell = Boolean(resolution?.activation?.spellId || resolution?.effect?.spellId || resolution?.spellId);
   return spellDamageDefenseRows({
     types: spellActionDamageTypes(resolution),
-    defenses: magicalDamageDefensesForItem(target, META_KEY, { spell }),
+    defenses: magicalDamageDefensesForItem(target, META_KEY, { spell, bypass: featResistanceBypassForItem(source, META_KEY, { spell }) }),
     ignoredTypes,
   });
 }
@@ -1861,7 +1863,7 @@ export function buildReminderResolutionPlan({
     };
   }
   const damageDefenses = resolution.damage
-    ? reminderDamageDefenseRows({ resolution, target, ignoredTypes: ignoredDefenses })
+    ? reminderDamageDefenseRows({ resolution, target, ignoredTypes: ignoredDefenses, source: itemsById.get(sourceId) || null })
     : [];
   const damage = reminderResolutionDamage(
     resolution,
