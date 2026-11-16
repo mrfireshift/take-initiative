@@ -91,13 +91,16 @@ function attackSaveOf(value) {
   const saveDC = boundedInteger(value?.saveDC, 1, 30);
   if (!save || saveDC === null) return null;
   const condition = shortText(value.onFail?.condition, 80);
+  // A failure that is no condition of the book (decision D12 of STUDIO_IMPORT_STATBLOCK_TESTO.md): condition is then the
+  // pill's name (the action's) and effect its description.
+  const effect = shortText(value.onFail?.effect, 400);
   const area = attackAreaOf(value.area);
   const immuneHours = boundedInteger(value.immuneHours, 1, 720);
   return {
     save, saveDC,
     ...(value.saveHalf === true ? { saveHalf: true } : {}),
     ...(area ? { area } : {}),
-    ...(condition ? { onFail: { condition, ...attackFailureTimingOf(value.onFail) } } : {}),
+    ...(condition ? { onFail: { condition, ...(effect ? { effect } : {}), ...attackFailureTimingOf(value.onFail) } } : {}),
     // A success makes the creature immune to this action for these hours (fase 5, lotto 3: Frightful Presence, 24).
     ...(immuneHours !== null ? { immuneHours } : {}),
   };

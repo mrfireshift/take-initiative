@@ -551,3 +551,50 @@ La CI completa è verde su un worktree di `8641fd03` con i soli file del lotto: 
 |---|---|---|---|
 | D11 | Incantesimi lanciati da un'azione (12 azioni bonus, più azioni normali come Lightning Bolt) | (a) prendere la CD e il bonus dal tratto Spellcasting della scheda e le regole dell'incantesimo dal catalogo: «Morgantha casts lightning bolt» diventa un fulmine con la CD della congrega, e il danno in più della congrega si somma; (b) lasciarle al tavolo come oggi | **(a)**, come lotto a sé dopo ST3 |
 | D12 | TS senza danni né condizioni del Manuale (8 azioni bonus) | (a) registrare il solo TS con l'effetto nella nota: la console tira i TS e dice chi fallisce, e di quanto; (b) lasciarli al tavolo, come vuole la regola di oggi | **(a)**: sono tiri da fare per più bersagli, e l'effetto resta al tavolo |
+
+L'utente ha scelto **(a)** per tutte e due il 16/11, chiedendo per D12 una pill su chi fallisce. Com'è andata: §15.
+
+---
+
+## 15. D11 e D12: com'è andata (16/11)
+
+### 15.1 D12: il TS con un effetto che non è una condizione
+
+Un'azione con un TS, senza dadi di danno e senza una condizione del manuale («dazed», «subtract 1d4 from their next attack roll», «disadvantage on attack rolls…»), non resta più al tavolo:
+- l'adattatore la registra con il suo TS, la sua area e la sua ricarica, e mette in `onFail.effect` il testo dell'azione (fino a 400 caratteri), con la durata e il TS ripetuto che la frase del fallimento dice;
+- la scheda tiene la pill: `onFail.condition` è il nome dell'azione senza «(bonus action)», `onFail.effect` il testo;
+- la console, su chi fallisce, mette una pill con quel nome e il testo come descrizione, con la sua scadenza («fino all'inizio del prossimo turno del mostro»). La nota dell'area dice «chi fallisce prende «Horrific Screech» …». A chi supera non succede niente.
+
+La pill è una condizione personalizzata, come quelle che aggiunge il GM, non un effetto (`effectKind`): la card mostra gli effetti solo se vengono da un incantesimo, e una pill di un'azione di un mostro sarebbe sparita. Il testo è nel tooltip della vista compatta, nella nota della console e nello Statblock originale; nella vista estesa la pill mostra il nome. Il tooltip della vista estesa non l'ho toccato, perché vale anche per condizioni di incantesimi che oggi vanno bene.
+
+Resta al tavolo un TS con dadi di danno che il plugin non legge («When the object strikes something, … take 13 (3d8)»), perché registrare il solo TS farebbe sparire quel danno senza dirlo: è il caso dell'Hydroloth (Steal Memory) e del Banshee (Wail).
+
+Una lista di effetti sotto la frase con la CD, senza tiri propri (lo Sguardo di Demogorgon), resta una sola azione: prima il testo la divideva in voci senza CD.
+
+### 15.2 D11: l'azione che lancia un incantesimo
+
+Un'azione che lancia soltanto un incantesimo diventa un incantesimo innato della scheda (un'azione rapida ⚡):
+- gli usi vengono dal nome («(2/day)»), il livello da «at 3rd level», la CD e il bonus dal testo («(DC 15)», «(+8 to hit)») se la scheda non ne ha;
+- il rapporto dice «X: incantesimo innato y», più il danno in più della congrega («il danno in più (2d4 psichici) resta da aggiungere al tavolo»), la ricarica e «il resto del testo resta al tavolo» quando l'azione dice altro;
+- senza nessuna CD, né sulla scheda né nel testo, il rapporto chiede di scriverla in Statistiche;
+- la scheda trova l'incantesimo nei libri del plugin e nomina quelli che non trova (Crown of Madness, Phantasmal Force, Cause Fear, Ray of Sickness, Zephyr Strike, Wrath of Nature non sono nell'SRD).
+
+Restano al tavolo una scelta fra più incantesimi («longstrider, darkvision, or cordon of arrows», «a spell it knows»), un lancio con una condizione («If Ludmilla is concentrating on grease, she casts web») e un'azione con numeri propri che l'incantesimo non tirerebbe («casts thorn whip (+8 to hit), dealing 10 (3d6) piercing damage», «takes 18 (4d8) thunder damage instead»).
+
+Il danno in più della congrega non si somma: un incantesimo innato del plugin non porta un danno aggiunto. Il rapporto lo dice; sommarlo davvero è un lavoro a parte.
+
+### 15.3 La misura
+
+| | Prima di D11 e D12 | Dopo |
+|---|---|---|
+| PNG: azioni registrabili / al tavolo | 117 / 67 | 125 / 37, più 25 incantesimi innati |
+| Bestiary: azioni registrabili / al tavolo | 26 / 10 | 26 / 7, più 3 incantesimi innati |
+| Azioni bonus: registrate / al tavolo / innate | 38 / 46 / 0 | 45 / 28 / 11 |
+| 5eTools, quattro bestiari | | 48 azioni prima al tavolo ora registrate con la pill (soffi del rame, del bronzo e dell'oro, i raggi dei beholder, Sleep Gaze…); 2 «casts darkness» innati |
+| Oracolo | 814 / 1 / 0 | 814 / 1 / 0 |
+
+The Nightmare Three, tre megere in un solo statblock, arrivano a 9 azioni registrabili: la scheda ne tiene 8 e l'import lo dice («1 azioni oltre il limite di 8 attacchi»). Il limite non l'ho cambiato.
+
+Provato nel banco con il finto SDK, da una copia pulita: Anastrasya incollata come testo, Horrific Screech dalla console su Dars con il TS fallito. Su Dars c'è la pill «Horrific Screech (I)», che scade all'inizio del prossimo turno del mostro. La CI completa è verde su HEAD con i soli file di D11 e D12: 6226 test.
+
+Le prove in stanza sono in [PROVE_IN_STANZA.md](PROVE_IN_STANZA.md), sezione B26.

@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **192** |
+| **B. Console attacchi, mostri e capacità** | **197** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -61,6 +61,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B24. Incantesimi dei talenti | 5 |
 | B25. L'incantesimo scelto delle Contaminazioni | 4 |
 | B25. Statblock da testo: le schede di Strahd Reloaded | 6 |
+| B26. Statblock: pill dei TS e incantesimi delle azioni | 5 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -86,7 +87,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **555** |
+| **Totale** | **560** |
 
 ## A. Incantesimi
 
@@ -792,6 +793,16 @@ Fonte: [STUDIO_IMPORT_STATBLOCK_TESTO.md](STUDIO_IMPORT_STATBLOCK_TESTO.md), lot
 - [ ] **Metà danni al successo:** in una scheda con un'azione bonus che dice «A creature that succeeds on the saving throw takes half damage», chi supera il TS nella console prende metà danni, non zero.
 - [ ] **Werewolf Brawler:** dalla pagina Bestiary, importa il Werewolf Brawler. Nella scheda Attacchi della console c'è «Crushing Grip (bonus action)» con l'etichetta arancione **Azione bonus**, mentre le altre righe dicono Azione: TS di Costituzione CD 14, 3d6 contundenti, metà a chi lo supera. Da provare in vista compatta ed estesa.
 - [ ] **Da 5eTools:** importa **Mind Flayer** (MM): Extract Brain si registra con 10d10 perforanti. Importa **Fomorian** (MM): Evil Eye si registra con 6d8 psichici e senza area.
+
+### B26. Statblock: pill dei TS e incantesimi delle azioni
+
+Fonte: [STUDIO_IMPORT_STATBLOCK_TESTO.md](STUDIO_IMPORT_STATBLOCK_TESTO.md), decisioni D11 e D12 (§15). Le voci sono nuove: nessuna lista le aveva. Serve un PG e un nemico, e le schede dei PNG di Strahd Reloaded copiate dal browser.
+
+- [ ] **La pill di un TS:** importa **Anastrasya, Vampiric Abomination** dalla pagina dei PNG di Strahd Reloaded. Nella console, Horrific Screech su un PG con il TS fallito: sul PG compare la pill «Horrific Screech», che sparisce all'inizio del prossimo turno di Anastrasya; chi supera non prende niente. Nella vista compatta il tooltip della pill ha il testo dell'azione. Da provare in vista compatta ed estesa.
+- [ ] **Un soffio di 5eTools:** importa **Adult Copper Dragon** (MM): Slowing Breath si registra con il suo cono, e chi fallisce prende la pill «Slowing Breath».
+- [ ] **Incantesimi della congrega:** importa **The Bonegrinder Coven**: fra le azioni rapide ⚡ ci sono Blocca persone (3° livello) e Fulmine, con CD incantesimi 17. Il pannello Importa dice che il danno in più della congrega resta al tavolo e nomina fra i non trovati Crown of Madness, Phantasmal Force e Cause Fear.
+- [ ] **Usi e CD dal testo:** importa **Ludmilla, First Form**: Trama ipnotica 2/giorno, Porta dimensionale 1/giorno, Unto e Comando a volontà, CD incantesimi 15.
+- [ ] **Senza CD:** importa **Rahadin, the Corrupted**: Dito della morte 1/giorno, e il rapporto chiede di scrivere CD e bonus degli incantesimi in Statistiche.
 
 ## C. Tracker e UX
 

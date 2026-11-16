@@ -217,6 +217,8 @@ export function monsterSave2024(text) {
   return {
     ability: ABILITIES[head[1].toLowerCase()], dc: Number(head[2]), before: plain.slice(0, head.index).trim(),
     targets: (pieces[0] || "").replace(/^[,.]\s*/, "").replace(/\.$/, "").trim(),
+    // The failure's own text, for a failure that is neither damage nor a condition of the book (decision D12, lotto ST3).
+    failure,
     half, damage, conditions,
     duration: conditionSentence ? monsterActionDuration(conditionSentence) : null,
     repeat, immuneHours,

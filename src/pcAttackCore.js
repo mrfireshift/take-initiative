@@ -208,7 +208,8 @@ export function pcAttackHitEffectPlan({ attack, outcome = "", hitEffect = null, 
 // The failure in words, for the area note: "spaventato per 1 minuto, TS a fine turno".
 export function pcAttackMonsterFailureText(onFail) {
   if (!onFail?.condition) return "";
-  const names = [onFail.condition, ...(onFail.also || [])].map((name) => name.toLowerCase()).join(" e ");
+  // A pill of the action (decision D12 of STUDIO_IMPORT_STATBLOCK_TESTO.md) keeps its name as written.
+  const names = onFail.effect ? `«${onFail.condition}»` : [onFail.condition, ...(onFail.also || [])].map((name) => name.toLowerCase()).join(" e ");
   const timing = onFail.repeat ? `${onFail.rounds ? ` fino a ${ROUND_TEXT(onFail.rounds)}` : ""}, TS ${onFail.repeat === "turn-end" ? "a fine" : "a inizio"} turno`
     : onFail.until ? ` fino ${onFail.until === "turn-end" ? "alla fine" : "all'inizio"} del prossimo turno${onFail.anchor === "source" ? " del mostro" : ""}`
     : onFail.rounds ? ` per ${ROUND_TEXT(onFail.rounds)}` : "";
@@ -1079,7 +1080,7 @@ export function pcAttackMonsterAreaNote(attack, card = {}) {
   const onFail = attack.monster.onFail;
   const effects = [
     ...(attack.components.length ? [attack.monster.half ? "metà se superato" : "niente se superato"] : []),
-    ...(onFail ? [`chi fallisce è ${pcAttackMonsterFailureText(onFail)}`] : []),
+    ...(onFail ? [`chi fallisce ${onFail.effect ? "prende" : "è"} ${pcAttackMonsterFailureText(onFail)}`] : []),
     ...(attack.immuneHours ? [`chi supera è immune per ${attack.immuneHours} ore`] : []),
   ];
   return [where, pcAttackSaveLabel(attack, card), ...effects].filter(Boolean).join(" · ");
@@ -2296,9 +2297,12 @@ export function buildPcAttackAreaMutation({
           label: `Se supera il TS, termina ${name}${immunityOptions ? ` e diventa immune per ${attack.immuneHours} ore` : ""}.`,
           ...(immunityOptions ? { resolution: { success: { mode: "remove-effect", actions: [{ kind: "condition", action: "apply",
             name: immunityName, options: structuredClone(immunityOptions) }] } } } : {}) } : null;
+        // A failure that is no condition of the book (decision D12): a pill with the action's name, its text in the tooltip.
+        // A custom condition, as the GM's, never an effect (effectId/effectKind): the card shows an effect only for a spell.
+        const effect = onFail.effect ? { effectDetail: onFail.effect } : {};
         return { type: "condition:add", targetIds: [row.item.id], conditionName: name,
           instanceIds: { [row.item.id]: bossGroupConditionInstanceId(`${attackInstanceId}:monster`, name, row.item.id) },
-          options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", manualRemoval: timing.manualRemoval,
+          options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", ...effect, manualRemoval: timing.manualRemoval,
             expiry: timing.expiry, ...(reminder ? { saveReminder: reminder } : {}), ...(appliedAt ? { appliedAt } : {}) } };
       }))
     : rows.filter((row) => row.outcome === "failed" && !row.conditionImmune).map((row) => ({

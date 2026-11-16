@@ -343,3 +343,43 @@ test("le frasi del tiro salvezza, le aree e il colpo che comincia con «The targ
   const [mote] = fiveToolsActions({ name: "Mote of Frost", entries: ["{@atk rs} {@hit 8} to hit, range 90 feet, one target. {@h}13 ({@damage 3d8}) cold damage."] });
   assert.deepEqual([mote.status, mote.attack], ["full", { bonus: 8, type: "ranged", range: { normal: 90 } }]);
 });
+
+// Decisione D11 di STUDIO_IMPORT_STATBLOCK_TESTO.md: un'azione che lancia soltanto un incantesimo diventa un incantesimo
+// innato della scheda, con gli usi del nome, il livello e la CD del testo quando la scheda non ne ha una.
+test("un'azione che lancia un incantesimo diventa un incantesimo innato (D11)", () => {
+  const monster = invented({
+    action: [
+      { name: "Hold Person (2/Day)", entries: ["The witch casts hold person ({@dc 15}) at 3rd level."] },
+      { name: "Darkness", entries: ["The witch magically casts darkness without any components."] },
+      { name: "Choice", entries: ["The witch casts longstrider, darkvision, or cordon of arrows."] },
+      { name: "Thorns", entries: ["The witch casts thorn whip (+8 to hit), dealing 10 ({@damage 3d6}) piercing damage on a hit."] },
+      { name: "Web", entries: ["If the witch is concentrating on grease, she casts web without using concentration."] },
+    ],
+    bonus: [{ name: "Blight", entries: ["The witch casts blight. A target takes an additional 5 ({@damage 2d4}) necrotic damage if it fails the saving throw, or half damage on a success."] }],
+  });
+  const { block, report } = fiveToolsMonsterToStatblock(monster);
+  assert.deepEqual(block.innateSpells, [{ name: "hold person", perDay: 2, level: 3 }, { name: "darkness" }, { name: "blight" }]);
+  assert.equal(block.spellSaveDC, 15, "the DC of the text, the card having none");
+  assert.ok(report.includes("Hold Person: incantesimo innato hold person (2/giorno)"), report.join(" | "));
+  assert.ok(report.some((line) => /^Blight \(bonus action\): incantesimo innato blight; il danno in più \(2d4 necrotici\) resta da aggiungere al tavolo/.test(line)), report.join(" | "));
+  // A choice, numbers of its own, a cast on a condition: the table's.
+  for (const name of ["Choice", "Thorns", "Web"]) assert.ok(report.includes(`da gestire al tavolo: ${name}`), name);
+  // The sheet finds the spells in the plugin's books: quick actions with their uses and level.
+  const sheet = parseCharacterSheetImport(JSON.stringify(block));
+  assert.deepEqual(sheet.sections.innate.map((action) => [action.spellId, action.cost, action.uses ?? null, action.slotLevel ?? null]),
+    [["hold-person", "uses", 2, 3], ["darkness", "free", null, null], ["blight", "free", null, null]]);
+});
+
+test("senza CD sulla scheda né nel testo il rapporto chiede di scriverla (D11)", () => {
+  const { block, report } = fiveToolsMonsterToStatblock(invented({ action: [{ name: "Blur", entries: ["The witch casts blur."] }] }));
+  assert.deepEqual([block.innateSpells, block.spellSaveDC], [[{ name: "blur" }], undefined]);
+  assert.ok(report.includes("incantesimi delle azioni (blur): la scheda non dice CD né bonus, da scrivere in Statistiche"), report.join(" | "));
+});
+
+// Una lista senza tiri propri sotto la frase con la CD (lo Sguardo di Demogorgon) resta una sola azione.
+test("una lista di effetti sotto la CD dell'azione resta una sola azione (D12)", () => {
+  const [gaze] = fiveToolsActions({ name: "Gaze", entries: ["The witch gazes at one creature within 60 feet, which must make a {@dc 16} Wisdom saving throw. If the target fails the save, it suffers one of the following effects:",
+    { type: "list", items: [{ type: "item", name: "1. Sleep", entry: "The target is {@condition unconscious} for 1 minute." }, { type: "item", name: "2. Dread", entry: "The target is {@condition frightened} for 1 minute." }] }] });
+  assert.equal(gaze.name, "Gaze");
+  assert.deepEqual(gaze.save, { ability: "wis", dc: 16, half: false });
+});

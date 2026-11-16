@@ -45,6 +45,11 @@ const CONDITION_BY_KEY = new Map(Object.entries(CONDITION_ALIASES).flatMap(([nam
 export function monsterImportConditionName(value) {
   return CONDITION_BY_KEY.get(key(value)) || "";
 }
+
+// The pill of a failure that is no condition of the book (decision D12): the action's name, without its "(bonus action)".
+export function monsterEffectPillName(label) {
+  return String(label || "").replace(/\s*\((?:bonus action|azione bonus)\)\s*$/i, "").trim() || String(label || "");
+}
 const AREA_BY_KEY = new Map(Object.entries(AREA_ALIASES).flatMap(([shape, aliases]) => aliases.map((alias) => [key(alias), shape])));
 
 // "+7", 7, "7" -> 7; else null.
@@ -148,10 +153,15 @@ function monsterAttackDraft(entry, label, note, { resolveDamageType, resolveAbil
     const area = monsterArea(entry.area, where, unresolved);
     if (area) fields.area = area;
     const condition = text(entry.onFail?.condition ?? entry.seFallito?.condizione);
+    // A failure that is no condition of the book ("dazed", "subtract 1d4…", decision D12 of
+    // STUDIO_IMPORT_STATBLOCK_TESTO.md): a pill with the action's name, its text the pill's description.
+    const effect = text(entry.onFail?.effect ?? entry.seFallito?.effetto);
     if (condition) {
       const name = CONDITION_BY_KEY.get(key(condition));
       if (name) fields.onFail = { condition: name, ...monsterFailureTiming(entry.onFail, where, unresolved) };
       else unresolved.push(`${where}: condizione "${condition}"`);
+    } else if (effect) {
+      fields.onFail = { condition: monsterEffectPillName(label), effect: effect.slice(0, 400), ...monsterFailureTiming(entry.onFail, where, unresolved) };
     }
     const immuneHours = integer(entry.immuneHours);
     if (immuneHours !== null && immuneHours > 0) fields.immuneHours = immuneHours;

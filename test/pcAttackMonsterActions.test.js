@@ -423,3 +423,23 @@ test("la condizione al colpo: con la durata del mostro, senza tiro ripetuto; mai
     componentAmounts: {}, attackInstanceId: "blade-3" }).operations), []);
   assert.equal(pcAttackMonsterFailureText(assassinBlade.onHit.apply), "avvelenato fino all'inizio del prossimo turno del mostro");
 });
+
+// Decisione D12 di STUDIO_IMPORT_STATBLOCK_TESTO.md: un TS senza danni né condizioni del manuale si registra, e chi
+// fallisce prende una pill con il nome dell'azione e il suo testo nel tooltip.
+test("un TS con un effetto inventato mette una pill con il nome dell'azione a chi fallisce (D12)", () => {
+  const screech = sanitizeQuickAction({ id: "screech", label: "Horrific Screech (bonus action)", kind: "attack", components: [],
+    save: "con", saveDC: 14, area: { shape: "sphere", sizeFeet: 30 },
+    onFail: { condition: "Horrific Screech", effect: "Each creature must succeed on a DC 14 Constitution saving throw or be dazed.", until: "turn-start", anchor: "source" } });
+  assert.deepEqual(screech.onFail, { condition: "Horrific Screech", effect: "Each creature must succeed on a DC 14 Constitution saving throw or be dazed.", until: "turn-start", anchor: "source" });
+  const attack = pcAttackResolvedAction(screech);
+  assert.match(pcAttackMonsterAreaNote(attack), /chi fallisce prende «Horrific Screech» fino all'inizio del prossimo turno del mostro/);
+  const result = buildPcAttackAreaMutation({ action: screech, sourceItem: dragon([screech]),
+    members: [{ item: elf(), outcome: "failed" }, { item: orc(), outcome: "passed" }], attackInstanceId: "screech-1", expectedDefenses: {}, turnState: null });
+  const [operation] = result.operations.filter((entry) => entry.type === "condition:add");
+  assert.deepEqual([operation.targetIds, operation.conditionName], [["elf"], "Horrific Screech"]);
+  // A custom condition, as the GM's, with the text in its tooltip: never an effect, which the card shows only for a spell.
+  assert.deepEqual([operation.options.effectId, operation.options.effectKind, operation.options.effectDetail],
+    [undefined, undefined, "Each creature must succeed on a DC 14 Constitution saving throw or be dazed."]);
+  assert.equal(operation.options.expiry.mode, "turn-start");
+  assert.equal(result.operations.filter((entry) => entry.type === "condition:add").length, 1, "nothing on whoever passes");
+});

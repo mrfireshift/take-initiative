@@ -9,7 +9,7 @@ import { monsterImportConditionName } from "./monsterStatblockImportCore.js";
 import { damageTypeLabel, nonmagicalDefenseText } from "./damageDefensesCore.js";
 import { fiveToolsTokenPath } from "./fiveToolsArchiveCore.js";
 import { spellSlotMaximums } from "./spellSlotCore.js";
-import { FAILURE_SENTENCE, SAVE_HALF, fiveTools2024TagText, monsterActionAreaOrigin, monsterHitEffects, monsterSave2024, monsterSaveEffects } from "./monsterActionHeuristicsCore.js";
+import { FAILURE_SENTENCE, SAVE_HALF, fiveTools2024TagText, monsterActionAreaOrigin, monsterActionDuration, monsterHitEffects, monsterSave2024, monsterSaveEffects } from "./monsterActionHeuristicsCore.js";
 
 const ABILITY_BY_NAME = Object.freeze({ strength: "str", dexterity: "dex", constitution: "con", intelligence: "int", wisdom: "wis", charisma: "cha" });
 const SOURCES_2024 = new Set(["XMM", "XPHB", "XDMG"]);
@@ -246,17 +246,86 @@ function saveAction2024(name, text, extra) {
   const read = monsterSave2024(text);
   if (!read) return null;
   const condition = read.conditions[0] || "";
-  if (!read.damage.length && !condition) return [{ name, status: "manual", text }];
   const area = saveArea2024(read.targets);
   const { origin, choice } = area && !area.origin ? monsterActionAreaOrigin(read.targets, area.shape) : {};
-  const onFail = condition ? { condition, ...(read.conditions.length > 1 ? { also: read.conditions.slice(1) } : {}),
+  // Neither damage nor a condition of the book (decision D12 of STUDIO_IMPORT_STATBLOCK_TESTO.md): the save, and on a
+  // failure a pill with the action's name and its text.
+  const effect = !read.damage.length && !condition && !/{@damage /.test(text) ? failureEffect(text, monsterActionDuration(read.failure || ""), read.repeat) : null;
+  if (!read.damage.length && !condition && !effect) return [{ name, status: "manual", text }];
+  const onFail = effect || (condition ? { condition, ...(read.conditions.length > 1 ? { also: read.conditions.slice(1) } : {}),
     ...(read.duration ? { duration: read.duration } : {}), ...(read.repeat ? { repeat: read.repeat } : {}),
-    ...(read.endsOnDamage ? { endsOnDamage: true } : {}) } : null;
+    ...(read.endsOnDamage ? { endsOnDamage: true } : {}) } : null);
   const remainder = note([read.before, read.note].filter(Boolean).join(" "));
   return [{ name, save: { ability: read.ability, dc: read.dc, half: read.half },
     ...(area ? { area: { ...area, ...(origin ? { origin } : {}), ...(choice ? { choice: true } : {}) } } : {}), ...(onFail ? { onFail } : {}),
     ...(read.immuneHours ? { immuneHours: read.immuneHours } : {}),
     damage: read.damage, ...extra, ...(remainder ? { note: remainder } : {}), status: "full" }];
+}
+
+// An action that only casts a spell (decision D11 of STUDIO_IMPORT_STATBLOCK_TESTO.md): "Morgantha casts lightning bolt.",
+// "Ludmilla casts command (DC 15), targeting …", "Offalia casts cause fear at 2nd level.", "Van Richten uses his hat of
+// disguise to cast disguise self.": { spell: { name, perDay, level }, dc, hit, extra } for the card's innate spells, with
+// the uses of the action's name ("(2/day)"); the sheet's import finds the spell in the plugin's books and names those it
+// cannot. Never a choice ("longstrider, darkvision, or cordon of arrows", "a spell it knows"), a spell cast on a condition
+// ("If Ludmilla is concentrating on grease, she casts web"), nor numbers of its own the spell would not roll ("dealing 10
+// (3d6) piercing damage on a hit", "takes 18 (4d8) thunder damage instead"): those stay at the table. An extra damage
+// ("A target takes an additional 5 (2d4) psychic damage if it fails the saving throw") and a recharge are said in extra.
+const CAST_ACTION = new RegExp(String.raw`^(?:The [\w'’ -]+?|[A-Z][\w'’-]*(?: [A-Z][\w'’-]*){0,3}) (?:casts(?: or uses)?|uses (?:his|her|its|their) [\w'’ -]+? to cast) ([a-z][a-z'’ /-]{1,40}?)(?: \((?:\{@dc (\d+)\}|DC (\d+)|(?:\{@hit (\d+)\}|\+(\d+)) to hit)\))?(?: at (\d)(?:st|nd|rd|th) level)?(?=[.,;]|$| with | without | using | targeting | in a | on | as | from | requiring )`);
+function castSpellAction(action, entry) {
+  const text = fiveToolsPlainText(entriesText(action?.entries)).trim();
+  const tagged = entriesText(action?.entries);
+  const match = text.match(CAST_ACTION) || fiveToolsPlainText(tagged).match(CAST_ACTION);
+  if (!match) return null;
+  const name = match[1].trim();
+  // A choice, or a sentence that is not one spell: the table's.
+  const sentence = text.slice(match.index, text.indexOf(".", match.index + match[0].length) + 1 || undefined);
+  if (/^(?:a|an|one|the|any|some)\b/i.test(name) || /\bor\b/.test(name) || /,\s*[a-z][^.]*\bor\b/.test(sentence.slice(match[0].length))) return null;
+  // Numbers of its own the spell would not roll (an attack's damage, "instead"): the table's; an "additional" damage is said.
+  const damages = [...tagged.matchAll(/\{@damage ([^}]+)\}\)? ?(\w+)? damage/g)];
+  const additional = /\badditional \d+ \(\{@damage /.test(tagged);
+  if (damages.length && !additional) return null;
+  if (/\{@hit /.test(tagged) && !/\(\{@hit \d+\} to hit\)/.test(tagged)) return null;
+  const actionName = fiveToolsPlainText(String(action?.name || ""));
+  const perDay = Number(actionName.match(/\((\d+)\/day/i)?.[1]) || 0;
+  const level = Number(match[6]) || 0;
+  // What the action says beyond the cast ("targeting up to two creatures…", "A target that succeeds … is dazed instead"),
+  // but its extra damage, said apart.
+  const rest = `${text.slice(match.index + match[0].length).replace(/^[^.]*\./, "")}`.split(/(?<=\.)\s+/)
+    .filter((part) => part.trim() && !/\badditional \d+ \(\d+d\d+/.test(part));
+  const extra = [
+    ...(additional ? [`il danno in più (${damages.map((damage) => `${damage[1].replace(/\s+/g, "")}${damage[2] ? ` ${damageTypeLabel(damage[2]) || damage[2]}` : ""}`).join(", ")}) resta da aggiungere al tavolo`] : []),
+    ...(rest.length || /^[,;]| with | targeting | in a | on /.test(text.slice(match.index + match[0].length, match.index + match[0].length + 12)) ? ["il resto del testo resta al tavolo"] : []),
+    ...(/\{@recharge|\bRecharge\b/i.test(String(action?.name || "")) ? ["la ricarica resta da gestire al tavolo"] : []),
+  ];
+  return { spell: { name, ...(perDay ? { perDay } : {}), ...(level ? { level } : {}) }, dc: Number(match[2] || match[3]) || null,
+    hit: Number(match[4] || match[5]) || null, extra, entry: entry.name };
+}
+
+// The card's spellcasting with the spells its actions cast (decision D11): their innate spells after the card's own, and
+// the DC and bonus of the actions' text when the card has none.
+function withCastSpells(spellcasting, casts, report) {
+  if (!casts.length) return spellcasting;
+  const out = { ...spellcasting };
+  const known = new Set(asList(out.innateSpells).map((spell) => String(spell?.name || "").toLowerCase()));
+  out.innateSpells = [...asList(out.innateSpells), ...casts.map((cast) => cast.spell).filter((spell) => !known.has(spell.name.toLowerCase()) && known.add(spell.name.toLowerCase()))];
+  for (const cast of casts) {
+    if (cast.dc !== null && out.spellSaveDC === undefined) out.spellSaveDC = cast.dc;
+    else if (cast.dc !== null && cast.dc !== out.spellSaveDC) report.push(`${cast.entry}: CD ${cast.dc}, sulla scheda ${out.spellSaveDC}`);
+    if (cast.hit !== null && out.spellAttackBonus === undefined) out.spellAttackBonus = cast.hit;
+  }
+  // No DC on the card nor in the actions' text: the GM writes it in the sheet (CD incantesimi) before a spell with a save.
+  if (out.spellSaveDC === undefined) report.push(`incantesimi delle azioni (${casts.map((cast) => cast.spell.name).join(", ")}): la scheda non dice CD né bonus, da scrivere in Statistiche`);
+  return out;
+}
+
+// A failure the plugin cannot apply as damage or as a condition of the book: { effect, duration, repeat }, the action's
+// text for the pill the console puts on whoever fails (decision D12, lotto ST3), with the duration and the repeated save
+// its failure says.
+const FAILURE_EFFECT_LENGTH = 400;
+function failureEffect(text, duration, repeat) {
+  const plain = fiveToolsPlainText(text).trim();
+  const effect = plain.length > FAILURE_EFFECT_LENGTH ? `${plain.slice(0, FAILURE_EFFECT_LENGTH - 1).trimEnd()}…` : plain;
+  return { effect, ...(duration ? { duration } : {}), ...(repeat ? { repeat } : {}) };
 }
 
 function saveAction(name, text, extra) {
@@ -277,12 +346,15 @@ function saveAction(name, text, extra) {
     !(repeat?.ends && /\brepeat the saving throw at the (?:end|start) of each of/i.test(sentence))
     && !(immuneHours && /\bimmune to\b[^.]*\bfor the next \d+ hours/i.test(fiveToolsPlainText(sentence))))].filter(Boolean).join(" "));
   const condition = effects.conditions[0] || tagged?.[1] || "";
-  if (!components.length && !condition) return [{ name, status: "manual", text }];
   const area = saveArea(text);
   const { origin, choice } = area ? monsterActionAreaOrigin(text, area.shape) : {};
-  const onFail = condition ? { condition, ...(effects.conditions.length > 1 ? { also: effects.conditions.slice(1) } : {}),
+  // Neither damage nor a condition of the book (decision D12 of STUDIO_IMPORT_STATBLOCK_TESTO.md): the save, and on a
+  // failure a pill with the action's name and its text ("dazed", "subtract 1d4 from its next attack roll").
+  const effect = !components.length && !condition && !/{@damage /.test(text) ? failureEffect(text, monsterActionDuration(failure), effects.repeat) : null;
+  if (!components.length && !condition && !effect) return [{ name, status: "manual", text }];
+  const onFail = effect || (condition ? { condition, ...(effects.conditions.length > 1 ? { also: effects.conditions.slice(1) } : {}),
     ...(effects.duration ? { duration: effects.duration } : {}), ...(effects.repeat ? { repeat: effects.repeat } : {}),
-    ...(effects.endsOnDamage ? { endsOnDamage: true } : {}) } : null;
+    ...(effects.endsOnDamage ? { endsOnDamage: true } : {}) } : null);
   return [{ name, save: { ability: ABILITY_BY_NAME[dc[2].toLowerCase()], dc: Number(dc[1]), half: SAVE_HALF.test(text) },
     ...(area ? { area: { ...area, ...(origin ? { origin } : {}), ...(choice ? { choice: true } : {}) } } : {}), ...(onFail ? { onFail } : {}),
     ...(effects.immuneHours ? { immuneHours: effects.immuneHours } : {}),
@@ -298,9 +370,14 @@ export function fiveToolsActions(action, { suffix = "", magicWeapons = false } =
   const perDay = rawName.match(/\((\d+)\/Day(?:[^)]*)?\)/i);
   const name = `${fiveToolsPlainText(rawName.replace(/\{@recharge[^}]*\}/, "").replace(/\((\d+)\/Day[^)]*\)/i, "")).replace(/\s+/g, " ").trim()}${suffix}`;
   const extra = { ...(recharge ? { recharge: Number(recharge[1] || 6) } : {}), ...(perDay ? { uses: Number(perDay[1]) } : {}) };
-  const list = (Array.isArray(action?.entries) ? action.entries : []).find((entry) => entry?.type === "list" && entry.items?.every((item) => item?.name));
+  const entries = Array.isArray(action?.entries) ? action.entries : [];
+  const list = entries.find((entry) => entry?.type === "list" && entry.items?.every((item) => item?.name));
+  // A list whose items carry no save nor attack of their own, under a sentence with the DC (the Demogorgon's Gaze: "If the
+  // target fails the save, the target suffers one of the following effects"): one action, its items the failure's text.
+  const ownRoll = (item) => /\{@(?:dc|hit|atk) /.test(entriesText(item?.entry ?? item?.entries));
+  const sharedSave = list && !list.items.some(ownRoll) && entries.some((entry) => typeof entry === "string" && /\{@dc \d+\}/.test(entry));
   // "Breath Weapons": one action for each breath, the same recharge.
-  if (list) return list.items.flatMap((item) => fiveToolsActions({ name: item.name, entries: [entriesText(item.entry ?? item.entries)] }, { magicWeapons })
+  if (list && !sharedSave) return list.items.flatMap((item) => fiveToolsActions({ name: item.name, entries: [entriesText(item.entry ?? item.entries)] }, { magicWeapons })
     .map((entry) => ({ ...entry, ...extra })));
   const text = entriesText(action?.entries);
   return attackAction(name, text, extra, { magicWeapons }) || saveAction(name, text, extra) || [{ name, status: "manual", text }];
@@ -781,6 +858,7 @@ export function fiveToolsMonsterToStatblock(input, { pool = [], allow2024 = fals
   const report = [...(rules2024 ? ["regole 2024: condizioni e regole del tracker restano quelle del 2014"] : []), ...resolved.report];
   const actions = [];
   const counts = { full: 0, partial: 0, manual: 0 };
+  const casts = [];
   let multiattack = "";
   // "The pit fiend's weapon attacks are magical." (Magic Weapons, Angelic Weapons): its weapon attacks are marked so.
   const magicWeapons = (Array.isArray(monster.trait) ? monster.trait : []).some((trait) => /\bweapon attacks are magical\b/i.test(entriesText(trait?.entries)));
@@ -791,6 +869,13 @@ export function fiveToolsMonsterToStatblock(input, { pool = [], allow2024 = fals
         continue;
       }
       for (const entry of fiveToolsActions(action, { suffix, magicWeapons })) {
+        // An action that only casts a spell (decision D11): an innate spell of the card, never the table's.
+        const cast = entry.status === "manual" ? castSpellAction(action, entry) : null;
+        if (cast) {
+          casts.push(cast);
+          report.push(`${entry.name}: incantesimo innato ${cast.spell.name}${cast.spell.perDay ? ` (${cast.spell.perDay}/giorno)` : ""}${cast.extra.length ? `; ${cast.extra.join("; ")}` : ""}`);
+          continue;
+        }
         counts[entry.status] += 1;
         if (entry.status === "manual") report.push(`da gestire al tavolo: ${entry.name}`);
         else if (entry.status === "partial") report.push(`${entry.name}: il tiro salvezza o la condizione al colpo resta nella nota`);
@@ -824,7 +909,7 @@ export function fiveToolsMonsterToStatblock(input, { pool = [], allow2024 = fals
   // Traits, reactions and legendary actions are read in the console's Capacità tab (fase 4, lotto 5).
   if (traits.length) report.push(`tratti da leggere nella console (Capacità): ${traits.join(", ")}`);
   const legendary = fiveToolsLegendary(monster, report);
-  const spellcasting = fiveToolsSpellcasting(monster, report);
+  const spellcasting = withCastSpells(fiveToolsSpellcasting(monster, report), casts, report);
   if (Array.isArray(monster.reaction) && monster.reaction.length) report.push(`reazioni da leggere nella console (Capacità): ${monster.reaction.map((entry) => fiveToolsPlainText(entry?.name || "")).join(", ")}`);
   if (monster.hp && !Number.isFinite(monster.hp.average)) report.push(`punti ferita speciali: ${fiveToolsPlainText(monster.hp.special || "")}`);
   const portrait = fiveToolsTokenPath({ ...monster, name: input.name, source: input.source });

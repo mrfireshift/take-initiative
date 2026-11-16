@@ -198,7 +198,7 @@ Uno statblock completo:
 | `attack` | Attacco con tiro per colpire: `bonus`, `type` (`melee` o `ranged`), `reach` (portata) oppure `range: { normal, long }` (gittata). Bonus, portata e gittata si mostrano, non si controllano: i dadi si tirano al tavolo. |
 | `save` | Tiro salvezza al posto del tiro per colpire: `ability` (`str`… o il nome, anche in italiano), `dc`, `half: true` se chi supera subisce metà danni. Senza `area` vale per una creatura. |
 | `area` | `shape` (`cone`, `line`, `sphere`, `cube`, `cylinder` o `target`) e `size` in piedi (raggio per sfera e cilindro, lato per il cubo); `width` per la linea; per `target`, `targets` è il numero di creature. `origin`: `"self"` (un soffio, «each creature within 30 feet of the dragon») o `"point"` (una sfera su un punto); `"choice": true` per «each creature of its choice». La console disegna l'area alla sua misura, o propone da sola le creature attorno al mostro. |
-| `onFail` | La condizione di chi fallisce il TS (nome inglese o italiano): `condition`, `also` (fino a due condizioni in più), `duration` (`{ "rounds": 10 }` per un minuto, oppure `{ "until": "turn-end", "anchor": "target" }` per «fino alla fine del suo prossimo turno», `"source"` se è il turno del mostro) e `repeat` (`{ "timing": "turn-end", "ends": true }`: il tiro ripetuto che chiude l'effetto). Con una condizione l'azione può non avere danni. |
+| `onFail` | La condizione di chi fallisce il TS (nome inglese o italiano): `condition`, `also` (fino a due condizioni in più), `duration` (`{ "rounds": 10 }` per un minuto, oppure `{ "until": "turn-end", "anchor": "target" }` per «fino alla fine del suo prossimo turno», `"source"` se è il turno del mostro) e `repeat` (`{ "timing": "turn-end", "ends": true }`: il tiro ripetuto che chiude l'effetto). Con una condizione l'azione può non avere danni. Un effetto che non è una condizione del manuale («dazed», «−1d4 al prossimo tiro») va in `effect`, al posto di `condition`: il testo dell'effetto, fino a 400 caratteri. Chi fallisce prende una pill con il nome dell'azione e quel testo, con la `duration` e il `repeat` dati. Dal testo e da 5eTools arriva da sé, per i TS senza dadi di danno. |
 | `immuneHours` | Le ore di immunità a questa azione che dà un successo (`24` per la Presenza terrificante). |
 | `onHit` | Su un attacco: ciò che aggiunge il colpo. `save` (`ability`, `dc`, `half`, `damage` come sopra, `conditions` in inglese o italiano, `duration` e `repeat` come in `onFail`), `grapple` (`{ "escapeDC": 13, "conditions": ["restrained"] }` se resta anche trattenuto), `prone: true`, `pushFeet`, `conditions` e `duration` (fuori dal TS: le condizioni che il colpo dà da sé, con la loro durata, senza tiro ripetuto; per esempio `"conditions": ["poisoned"], "duration": { "until": "turn-start", "anchor": "source" }`). |
 | `magical` | `true` su un attacco con un'arma magica o con un incantesimo: supera le difese ai danni non magici (**✦ Magica** nella console, che la scheda ricorda). Da 5eTools arriva da sé sugli attacchi con arma di un mostro con «weapon attacks are magical» e su ogni attacco con incantesimo. |
@@ -274,6 +274,13 @@ una propria:
   («The mephit can innately cast sleep») ha gli usi del nome del blocco
   («Innate Spellcasting (1/Day)») o dell'intestazione («misty step up to
   three times per day»); se non li dice, è a volontà.
+  Dal testo e da 5eTools, un'azione che lancia soltanto un incantesimo
+  («Morgantha casts lightning bolt», «casts hold person (DC 15) at 3rd
+  level») diventa un innato: gli usi dal nome («(2/day)»), il livello dal
+  testo, e la CD o il bonus del testo se la scheda non ne ha. Una scelta fra
+  più incantesimi, un lancio con una condizione e un'azione con dadi propri
+  («dealing 10 (3d6) piercing damage») restano al tavolo; un danno in più
+  («an additional 5 (2d4) necrotic damage») e la ricarica li dice il rapporto.
   Le azioni rapide sono al massimo 12: quelle in più vanno in rosso.
 
 Uno statblock di un mostro importato sopra un altro sostituisce anche classe,

@@ -9,6 +9,7 @@ import { isStatblockEntryName, looksLikeStatblockText, MAX_STATBLOCK_TEXT, parse
 import { printedStatblockText } from "../test-support/statblockTextPrint.js";
 import { pcAttackMonsterTraitEntries } from "../src/pcAttackMonsterTraitsCore.js";
 import { monsterReactionsFromView } from "../src/monsterReactionParseCore.js";
+import { parseCharacterSheetImport } from "../src/characterSheetImportCore.js";
 
 const srd = JSON.parse(readFileSync(new URL("../test-support/fivetools-srd-monsters.json", import.meta.url), "utf8"));
 const withoutOrigin = ({ ref: _ref, source: _source, portrait: _portrait, ...block }) => block;
@@ -418,4 +419,25 @@ test("un sito homebrew (lotto ST3): la Spellcasting fra le azioni e il paragrafo
   assert.ok(view.sections.find((section) => section.title === "Actions").entries.some((entry) => entry.name === "Spellcasting"));
   assert.deepEqual(pcAttackMonsterTraitEntries(view).filter((entry) => entry.group === "monster-reaction").map((entry) => entry.label), ["Parry"]);
   assert.deepEqual(monsterReactionsFromView(view).map((reaction) => [reaction.name, reaction.amount]), [["Parry", 3]]);
+});
+
+// Decisione D12: un TS senza danni né condizioni del manuale («dazed») si registra, e la scheda tiene la pill dell'azione,
+// con il nome senza «(bonus action)» e il testo come descrizione. Con dadi di danno che il plugin non legge resta al tavolo.
+test("un TS con un effetto inventato arriva nella scheda con la sua pill (D12)", () => {
+  const text = homebrew.replace("\nReactions\n", [
+    "", "Bonus Actions", "",
+    "Witch Shriek. Each creature within 30 feet of the witch must succeed on a DC 14 Constitution saving throw or be dazed until the start of the witch's next turn. (A dazed creature can move or act on its turn, not both.)",
+    "",
+    "Hurl Cauldron. The witch flings her cauldron at one creature within 30 feet, which must make a DC 14 Dexterity saving throw. When the cauldron lands, the creature takes 7 (2d6) bludgeoning damage.",
+    "", "Reactions", ""].join("\n"));
+  const { monster, block } = read(text);
+  assert.deepEqual(monster.bonus.map((entry) => entry.name), ["Witch Shriek", "Hurl Cauldron"]);
+  const shriek = block.actions.find((entry) => entry.name === "Witch Shriek (bonus action)");
+  assert.deepEqual([shriek.save, shriek.damage, shriek.onFail.duration], [{ ability: "con", dc: 14, half: false }, [], { until: "turn-start", anchor: "source" }]);
+  assert.match(shriek.onFail.effect, /^Each creature within 30 feet of the witch must succeed .* or be dazed/);
+  assert.equal(block.actions.some((entry) => entry.name.startsWith("Hurl Cauldron")), false, "unread damage dice: at the table");
+  const sheet = parseCharacterSheetImport(JSON.stringify(block));
+  const quick = sheet.sections.attacks.find((entry) => entry.label === "Witch Shriek (bonus action)");
+  assert.deepEqual([quick.save, quick.saveDC, quick.onFail.condition, quick.onFail.until, quick.onFail.anchor], ["con", 14, "Witch Shriek", "turn-start", "source"]);
+  assert.match(quick.onFail.effect, /or be dazed/);
 });
