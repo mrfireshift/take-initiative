@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **318** |
+| **B. Console attacchi, mostri e capacità** | **322** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -91,6 +91,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B62. Costituzione Infernale e Veleno potente | 4 |
 | B63. Adepto Elementale e Maestria dei Veleni: la resistenza superata | 4 |
 | B64. Maestro delle Armature Pesanti | 4 |
+| B65. Carica, Maestro degli Scudi, Lottatore da Taverna, Appostato | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -116,7 +117,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **681** |
+| **Totale** | **685** |
 
 ## A. Incantesimi
 
@@ -1211,6 +1212,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F7-3 (decisioni D11, N4, N5
 - [ ] **La ✕:** un clic sulla riga la toglie («Arm. Pesanti · tolto»): 6 pieni. Con ✦ Magica accesa sull'arma la riga non c'è. Il registro e la Cronologia dicono il −3, o che è stato tolto.
 - [ ] **Prima della resistenza:** il guerriero in ira (resistente ai taglienti), 10 taglienti: 3 danni, non 5.
 - [ ] **La console Boss:** Rock di Auril sul guerriero, 12: «Arm. Pesanti: 12 → 9», 9 danni; tolta la riga, 12. Icekiss (arma magica) e i raggi (incantesimi) non hanno la riga.
+
+### B65. Carica, Maestro degli Scudi, Lottatore da Taverna, Appostato
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F8-1 (decisioni P1, P2, P5, P6). Le voci sono nuove: nessuna lista le aveva. Servono personaggi con Carica, Maestro degli Scudi, Lottatore da Taverna e Appostato, un ogre e Auril con un TS di Destrezza che dimezza. Ogni voce in vista compatta ed estesa.
+
+- [ ] **Carica:** nel suo turno, colpito l'ogre in mischia, fra le attivazioni c'è «Carica (+5)»; senza Azioni → Scatto in questo turno, l'avviso lo dice ma l'attivazione resta. Con l'arco, o fuori dal suo turno, no. Nella Spinta riuscita, la nota dice «fino a 3 m con la Carica».
+- [ ] **I seguiti:** dopo un attacco con l'arma, quello con Maestro degli Scudi legge «puoi spingere con lo scudo»; dopo un colpo senz'armi (o con un'arma improvvisata), quello con Lottatore da Taverna legge «puoi tentare di afferrare». Con un mancato, il secondo no.
+- [ ] **Il TS di Destrezza:** quando Auril fa tirare un TS di Destrezza che dimezza, accanto a chi ha Maestro degli Scudi c'è «0 se supera (Maestro degli Scudi)»: nella console Boss, nelle righe dell'area della console attacchi, nel pannello incantesimi e nel ⚡.
+- [ ] **Appostato:** nascosto, il personaggio con Appostato manca l'ogre con l'arco: Nascosto resta. Se lo colpisce, o manca in mischia, Nascosto finisce.
 
 ## C. Tracker e UX
 

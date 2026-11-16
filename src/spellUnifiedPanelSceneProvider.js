@@ -43,7 +43,7 @@ import { turbineSizeFromToken } from "./xanatharTurbineCore.js";
 import { magicMissileTargetGuard } from "./magicMissileCore.js";
 import { magicalDamageDefensesForItem } from "./spellDamageDefenseCore.js";
 import { evasionForItem, featResistanceBypassForItem } from "./damageDefensesCore.js";
-import { isDodging } from "./attackAdvantagePillsCore.js";
+import { isDodging, shieldMasterDexSave } from "./attackAdvantagePillsCore.js";
 import { blinkSemanticDetail } from "./blinkRules.js";
 import { transformationStashForMeta } from "./transformationHpCore.js";
 import { characterTotalLevel } from "./transformationFormsCore.js";
@@ -276,6 +276,8 @@ function targetCandidate(item, dpi = 150) {
     evasion: evasionForItem(item, `${ID}/meta`),
     // In Dodge: advantage on a Dexterity save, said on its row (lot T5 of docs/STUDIO_AZIONI_DI_TURNO.md).
     dodging: isDodging(item),
+    // Shield Master (lot F8-1 of docs/STUDIO_TALENTI.md): its reminder on a Dexterity save.
+    shieldMaster: shieldMasterDexSave(item, "dex"),
     // Trasformazioni (G35): in a form, its own HP, for the preview's return at 0 HP of the form.
     ...(transformationStashForMeta(meta) ? { transformationStash: transformationStashForMeta(meta) } : {}),
     // Trasformazioni, lotto W7: a character's level, the limit of Polymorph's form on it.

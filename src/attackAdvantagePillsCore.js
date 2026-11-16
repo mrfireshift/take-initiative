@@ -9,6 +9,7 @@
 //   of every panel that asks for a save (lot T5).
 // Not Versatile Trickster: its advantage lasts the whole turn. Pure: no SDK, DOM or runtime state.
 import { ID } from "./constants.js";
+import { sanitizeFeats } from "./featCatalog.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_FIELD = `${ID}/spells`;
@@ -75,6 +76,15 @@ export function consumedAdvantagePills({ attackerItem, targetItem, items = [] } 
 // A creature's Hidden pills.
 export function hiddenPills(item) {
   return activeInstances(item).filter((instance) => instance.condition === HIDDEN_CONDITION);
+}
+
+// Shield Master (lot F8-1 of docs/STUDIO_TALENTI.md, decision P2): on a Dexterity save against an effect that halves its
+// damage, with its reaction it takes none if it succeeds. A reminder beside Dodge's, in the same places; the GM takes the damage.
+export const SHIELD_MASTER_SAVE_NOTE = "0 se supera (Maestro degli Scudi)";
+export const SHIELD_MASTER_SAVE_TITLE = "Maestro degli Scudi: se supera un TS su Destrezza che dimezza i danni, con la reazione non ne subisce. Il danno lo togli tu.";
+export function shieldMasterDexSave(item, ability) {
+  return String(ability || "").trim().toLowerCase() === "dex"
+    && sanitizeFeats(item?.metadata?.[`${ID}/meta`]?.initiativeCard?.feats).some((entry) => entry.id === "maestro-degli-scudi");
 }
 
 // A creature in Dodge, and whether that gives it advantage on this save (an ability: "dex", "con"…).

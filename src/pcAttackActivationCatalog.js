@@ -207,6 +207,12 @@ const BASE_ACTIVATIONS = Object.freeze([
   // off the attacker's turn. The console cannot tell an opportunity attack from another reaction's: the GM ticks it.
   Object.freeze({ id: "talento-sentinella-velocita-zero", requires: Object.freeze({ range: "melee", reaction: true }),
     effect: Object.freeze({ pill: true }), hint: "Solo con un attacco di opportunità." }),
+  // Charger (lot F8-1 of docs/STUDIO_TALENTI.md, decision P1): +5 on a melee hit of its own turn, the bonus attack after a Dash
+  // taken with the action; the 3 m in a straight line stay at the table. Without a Dash of the console in this turn, a warning
+  // (dashWarning), not a block: the movement panel's Dash does not reach the console.
+  Object.freeze({ id: "talento-carica", label: "Carica (+5)", dice: Object.freeze({ fixed: "+5" }), type: "weapon",
+    requires: Object.freeze({ range: "melee", ownTurn: true }), dashWarning: true,
+    hint: "Azione bonus dopo lo Scatto con l'azione e almeno 3 m in linea retta." }),
   // Poisoner (lot F7-1, decision N3): the potent poison on a weapon's hit, ticked by the GM (the coating is not counted). A
   // Constitution save DC 14: on a failure 2d8 poison and Poisoned until the end of the attacker's next turn; on a success
   // nothing, not even the damage (damageOnFailedSave).

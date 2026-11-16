@@ -21,7 +21,7 @@ import {
   spellPanelDamageTypes,
 } from "./spellDamageDefenseCore.js";
 import { evasionFactor, RESISTANCE_VULNERABILITY, withResistanceBypass } from "./damageDefensesCore.js";
-import { DODGE_SAVE_NOTE } from "./attackAdvantagePillsCore.js";
+import { DODGE_SAVE_NOTE, SHIELD_MASTER_SAVE_NOTE } from "./attackAdvantagePillsCore.js";
 import { spellTargetMatchesFilters } from "./spellsPanelTargetPicker.js";
 import {
   spellTargetContextConditionMatches,
@@ -330,6 +330,7 @@ function normalizeTargetCandidates(
       ...(candidate?.damageDefenses ? { damageDefenses: clone(candidate.damageDefenses) } : {}),
       ...(candidate?.evasion === true ? { evasion: true } : {}),
       ...(candidate?.dodging === true ? { dodging: true } : {}),
+      ...(candidate?.shieldMaster === true ? { shieldMaster: true } : {}),
       ...(candidate?.transformationStash ? { transformationStash: clone(candidate.transformationStash) } : {}),
       turbineSize: asText(candidate?.turbineSize) || null,
       layer: asText(candidate?.layer) || null,
@@ -1355,7 +1356,9 @@ export function buildUnifiedPanelViewModel({
       hpPreview: preview,
       defenseChips: candidateDefenseChips({ candidate, presentation, session, spellId: contract?.spell?.id, damageInputVisible,
         count: preview?.defenseCount }),
-      ...(dexSave && candidate.dodging === true ? { saveNote: DODGE_SAVE_NOTE } : {}),
+      // Shield Master (lot F8-1 of docs/STUDIO_TALENTI.md) beside Dodge.
+      ...(dexSave && (candidate.dodging === true || candidate.shieldMaster === true) ? { saveNote: [
+        ...(candidate.dodging === true ? [DODGE_SAVE_NOTE] : []), ...(candidate.shieldMaster === true ? [SHIELD_MASTER_SAVE_NOTE] : [])].join(" · ") } : {}),
     };
   });
   const eligiblePassengerIds = new Set(

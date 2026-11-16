@@ -34,7 +34,7 @@ import { reactionTriggerEntry } from "./reactionTriggerCatalog.js";
 import { damageReactionAppliesTo, isDamageRollReaction } from "./damageReactionCore.js";
 import { loadMonsterReactions, loadReactionSceneGrid } from "./reactionSceneContext.js";
 import { hasReactionUsed } from "./reactionTrackerCore.js";
-import { DODGE_SAVE_NOTE, dodgeSaveAdvantage, isDodging } from "./attackAdvantagePillsCore.js";
+import { DODGE_SAVE_NOTE, dodgeSaveAdvantage, isDodging, SHIELD_MASTER_SAVE_NOTE, SHIELD_MASTER_SAVE_TITLE, shieldMasterDexSave } from "./attackAdvantagePillsCore.js";
 import { perfBootPage } from "./perfProbe.js";
 
 perfBootPage(OBR);
@@ -1720,6 +1720,12 @@ export function bootBossActions(documentRef=document, overrides={}) {
       if(item && dodgeSaveAdvantage(item,draft.action.execution.save?.ability)) {
         if(!chips){chips=node("span","","defense-chips");chips.dataset.defensesFor=id;}
         const badge=node("small",DODGE_SAVE_NOTE,"save-advantage-badge");badge.title="Schivata: vantaggio al TS su Destrezza.";
+        chips.appendChild(badge);
+      }
+      // Shield Master (lot F8-1 of docs/STUDIO_TALENTI.md): on a halving Dexterity save, no damage with its reaction if it succeeds.
+      if(item && draft.action.execution.success==="half" && shieldMasterDexSave(item,draft.action.execution.save?.ability)) {
+        if(!chips){chips=node("span","","defense-chips");chips.dataset.defensesFor=id;}
+        const badge=node("small",SHIELD_MASTER_SAVE_NOTE,"save-advantage-badge");badge.title=SHIELD_MASTER_SAVE_TITLE;
         chips.appendChild(badge);
       }
       row.appendChild(name);

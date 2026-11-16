@@ -5,7 +5,7 @@ import { createPcAttackRuntime, pcAttackSmiteSlotPlans, pcAttackSpellSlotPlan } 
 import { spellSlotStatus } from "./spellSlotCore.js";
 import { pcAttackAreaOutcomes, pcAttackTargetActionImmune, pcAttackTargetConditionImmune, pcAttackTargetEvasion, pcAttackTargetSaveBonus,
   pcAttackAllyCandidates, pcAttackFeetLabel, pcAttackGrappleEscapeAdvantage, pcAttackMonsterFailureText, pcAttackSave, pcAttackSaveLabel as hitSaveLabel } from "./pcAttackCore.js";
-import { DODGE_SAVE_NOTE, dodgeSaveAdvantage } from "./attackAdvantagePillsCore.js";
+import { DODGE_SAVE_NOTE, dodgeSaveAdvantage, SHIELD_MASTER_SAVE_NOTE, shieldMasterDexSave } from "./attackAdvantagePillsCore.js";
 import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint, pcAttackActivationOptions,
   pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction, pcAttackOutcomesFor, pcAttackSaveLabel, pcAttackDamageFactor,
   pcAttackCantripPillLabels, pcAttackWeaponCantripOptions, pcAttackActionWeaponCantripIds, pcAttackQuiveringPalm,
@@ -2794,7 +2794,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       if(!row) continue;
       const damage=pcAttackAreaRowDamage(view.rows.find(entry=>entry.id===item.id));
       row.querySelector('[data-area-field="amount"]').textContent=damage?.amount || "";
-      const notes=[...(dodgeSaveAdvantage(item,pcAttackSave(attack))?[DODGE_SAVE_NOTE]:[]),...(pcAttackTargetEvasion(attack,item)?["Elusione"]:[]),
+      // Shield Master (lot F8-1): on a Dexterity save of a damage, no damage with its reaction if it succeeds.
+      const notes=[...(dodgeSaveAdvantage(item,pcAttackSave(attack))?[DODGE_SAVE_NOTE]:[]),
+        ...(attack.components.length && shieldMasterDexSave(item,pcAttackSave(attack))?[SHIELD_MASTER_SAVE_NOTE]:[]),...(pcAttackTargetEvasion(attack,item)?["Elusione"]:[]),
         ...(condition && pcAttackTargetConditionImmune(item,condition)?[`immune a ${condition.toLowerCase()}`]:[]),
         ...(pcAttackTargetActionImmune(item,attack,sourceId)?[`immune a ${attack.label}`]:[]),...(damage?.reason?[damage.reason]:[])];
       const line=row.querySelector('[data-area-field="damage"]');

@@ -341,10 +341,14 @@ const DEFINITIONS = [
     plugin: "Nella console attacchi, sui colpi in mischia, il promemoria: una volta per turno ritiri i dadi dell'arma e tieni il totale che preferisci." }),
   feat("phb", 165, "Allerta", "Alert", {
     plugin: "Il +5 all'iniziativa lo somma chi la tira: il plugin non tira l'iniziativa e non gestisce la sorpresa." }),
-  feat("phb", 165, "Appostato", "Skulker", { prerequisite: "Destrezza 13" }),
+  // Lot F8-1 of docs/STUDIO_TALENTI.md (decision P5): a ranged weapon's miss leaves Nascosto (pcAttackCore.js, pcAttackLinkEnds).
+  feat("phb", 165, "Appostato", "Skulker", { prerequisite: "Destrezza 13",
+    plugin: "Nella console, mancare con un'arma a distanza non toglie Nascosto. La luce fioca e la Percezione restano al tavolo." }),
   feat("phb", 165, "Atleta", "Athlete", { abilities: ["str", "dex"], plugin: AT_TABLE }),
   feat("phb", 165, "Attore", "Actor", { abilities: ["cha"], plugin: AT_TABLE }),
-  feat("phb", 166, "Carica", "Charger"),
+  // Lot F8-1 (decision P1): «Carica (+5)» on a melee hit of its own turn (pcAttackActivationCatalog.js), the Shove's 3 m in its note.
+  feat("phb", 166, "Carica", "Charger",
+    { plugin: "Nella console, sul colpo in mischia nel tuo turno, «Carica (+5)»; nella Spinta, fino a 3 m. Lo Scatto e i 3 m in linea retta restano al tavolo." }),
   feat("phb", 166, "Cecchino Magico", "Spell Sniper", { prerequisite: "Saper lanciare almeno un incantesimo",
     plugin: "Il trucchetto scelto nel libro come «Talento», con la caratteristica della classe scelta. Sugli incantesimi con tiro per colpire la console ricorda la gittata doppia e, a distanza, la copertura ignorata.",
     spellAbility: "class", classChoices: CASTER_CLASSES, cantrips: 1, cantripIds: ATTACK_CANTRIP_IDS, cantripLabel: "Trucchetto con tiro per colpire" }),
@@ -391,11 +395,16 @@ const DEFINITIONS = [
   feat("phb", 168, "Linguista", "Linguist", { abilities: ["int"],
     plugin: "Le lingue vanno riportate nella scheda del personaggio." }),
   feat("phb", 168, "Lottatore", "Grappler", { prerequisite: "Forza 13", srdEntryId: "lottatore", srdText: GRAPPLER_SRD_TEXT }),
-  feat("phb", 168, "Lottatore da Taverna", "Tavern Brawler", { abilities: ["str", "con"] }),
+  // Lot F8-1 (decision P6): the reminder of the bonus grapple after an unarmed or improvised hit (pcAttackFollowUps).
+  feat("phb", 168, "Lottatore da Taverna", "Tavern Brawler", { abilities: ["str", "con"],
+    plugin: "Dopo un colpo senz'armi o con un'arma improvvisata, la console ricorda la Lotta come azione bonus. Il d4 e la competenza vanno nella scheda." }),
   feat("phb", 168, "Maestro d'Armi", "Weapon Master", { abilities: ["str", "dex"], plugin: ON_SHEET }),
   feat("phb", 168, "Maestro d'Armi Possenti", "Great Weapon Master", {
     plugin: "Nella console attacchi, in mischia: «−5/+10», −5 al tiro e +10 ai danni se colpisce, quando l'arma è pesante. Dopo un critico o un nemico a 0 PF, la console ricorda l'attacco bonus." }),
-  feat("phb", 169, "Maestro degli Scudi", "Shield Master"),
+  // Lot F8-1 (decisions P2, P6): the shove after an attack (pcAttackFollowUps) and the reminder on a halving Dexterity save
+  // (attackAdvantagePillsCore.js, shieldMasterDexSave), beside Dodge's.
+  feat("phb", 169, "Maestro degli Scudi", "Shield Master",
+    { plugin: "Dopo un attacco, la console ricorda la Spinta con lo scudo. Sui TS di Destrezza, «0 se supera»: con la reazione, il danno lo togli tu. Il +2 al tavolo." }),
   feat("phb", 169, "Maestro delle Armature Medie", "Medium Armor Master", { prerequisite: "Competenza nelle armature medie",
     plugin: "La CA va scritta nella scheda; il resto si gestisce al tavolo." }),
   // Lot F7-3 of docs/STUDIO_TALENTI.md (rule R3, decisions D11, N4, N5): −3 on a nonmagical weapon's bludgeoning, piercing

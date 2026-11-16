@@ -10,7 +10,7 @@ F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 approvate** (§7.15), **F6-
 il 16/11** (§7.16–§7.20): F6 è chiuso. **Il piano di F9 il 16/11** (§7.21),
 **F9-1…F9-4 il 16/11** (§7.22–§7.25): F9 è chiuso. **Il piano di F2 il 16/11,
 con M1–M6 approvate** (§7.26), **F2-1, F2-2 e F2-3 il 16/11** (§7.27–§7.29): F2 è
-chiuso. **Il piano dei PF di F7 il 16/11, con N1–N6 approvate** (§7.30), **F7-1, F7-2 e F7-3 il 16/11** (§7.31–§7.33): F7 è chiuso.
+chiuso. **Il piano dei PF di F7 il 16/11, con N1–N6 approvate** (§7.30), **F7-1, F7-2 e F7-3 il 16/11** (§7.31–§7.33): F7 è chiuso. **Il piano di F8 il 16/11, con P1–P7 approvate** (§7.34), **F8-1 il 16/11** (§7.35).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -2378,6 +2378,133 @@ con F7-1»).
   console Boss e il suo runtime.
 - **La riga «Nel plugin»** del talento lo dice.
 - **Documenti:** le prove in stanza sono in B64.
+
+### 7.34 F8, piano (16/11)
+
+**Azioni di turno.** Sei talenti, l'ultimo lotto dello studio. Le azioni di turno
+(T1–T6 di `STUDIO_AZIONI_DI_TURNO.md`) ci sono: Scatto, Schivata, Nascondersi e
+la presa della console. Solo Tempra Nanica scrive PF, una cura: come chiede
+AGENTS.md, qui c'è il suo piano esatto (§7.34.4). Le decisioni P1–P7 sono nuove
+(§7.34.6).
+
+#### 7.34.1 Che cosa fanno (PHB 2014, Xanathar)
+
+| Talento | Che cosa conta per il plugin |
+|---|---|
+| Carica | Con l'azione di Scatto, un attacco in mischia (o una Spinta) come azione bonus; dopo almeno 3 m in linea retta subito prima, +5 al danno se colpisce, o la Spinta fino a 3 m. |
+| Maestro degli Scudi | Dopo l'azione di Attacco, una Spinta con lo scudo come azione bonus. A un TS di Destrezza che dimezza i danni, se lo supera, con la reazione non subisce danni. Il +2 ai TS resta al tavolo. |
+| Lottatore | Vantaggio agli attacchi contro la creatura che afferra. Con l'azione, una nuova prova di Lotta per immobilizzarla: se riesce, lui e la creatura sono Trattenuti finché la presa non finisce. |
+| Lottatore da Taverna | Dopo un colpo senz'armi o con un'arma improvvisata, una Lotta come azione bonus. Il d4 e la competenza nelle armi improvvisate sono nella scheda. |
+| Appostato | Nascosto a una creatura, mancarla con un attacco con arma a distanza non lo rivela. La luce fioca resta al tavolo. |
+| Tempra Nanica | Con l'azione di Schivata in combattimento, può spendere un Dado Vita: recupera i PF del dado + Costituzione. |
+
+#### 7.34.2 Che cosa c'è già
+
+- **Lo Scatto della console** (Azioni → Scatto) resta nello stato della console
+  per il turno (`consoleDashCount`). Quello del riquadro Movimento no: vive
+  nello Speed Tracker e non arriva alla console.
+- **La Schivata** (Azioni → Schivata) mette la pill; il suo comando può già
+  scrivere PF (i PF temporanei di Scarica di Adrenalina, `planSpeciesHpTrait`).
+- **Nascosto** finisce quando l'attaccante tira per colpire
+  (`pcAttackLinkEnds`).
+- **La presa:** nella console, le righe «Tiene …» e «Afferrato da …» con
+  «Lascia andare», «Sfugge» e «Non sfugge» (`buildPcGrappleEndMutation`).
+- **I seguiti** dopo l'attacco (`pcAttackFollowUps`) e le note sul bersaglio
+  (`pcAttackTargetNotes`); il colpo senz'armi riconosciuto dall'etichetta.
+- **Il promemoria della Schivata** sui TS di Destrezza in quattro punti: righe
+  di gruppo della console Boss, righe dell'area della console, popup ⚡,
+  pannello incantesimi.
+- **I Dadi Vita** non sono contati dal plugin: si tirano al tavolo (anche nel
+  riposo di gruppo).
+
+#### 7.34.3 Sottolotti
+
+| Lotto | Contenuto | File | Scrive PF? |
+|---|---|---|---|
+| **F8-1** | Carica (P1), Lottatore da Taverna e Maestro degli Scudi (seguiti, P6; TS di Destrezza, P2), Appostato (P5). | `pcAttackActivationCatalog.js`, `pcAttackCore.js`, `pcAttackManeuverCore.js`, i quattro punti del promemoria | Sì, solo il +5 di Carica, con le strade delle attivazioni che ci sono |
+| **F8-2** | Lottatore: la nota del vantaggio; «Immobilizza» nella riga «Tiene …» (P3), Trattenuto su tutti e due, tolto quando la presa finisce. | `pcAttackTurnActionCore.js`, `pcAttackManeuverCore.js`, `pc-attack.js` | No |
+| **F8-3** | Tempra Nanica: la cura nella Schivata della console (P4). | `pcAttackTurnActionCore.js`, `pc-attack.js` | **Sì: una cura** (§7.34.4) |
+
+#### 7.34.4 Il piano dei PF di Tempra Nanica
+
+- **Dove:** nella Schivata della console (Azioni → Schivata), per chi ha il
+  talento, un campo facoltativo «Tempra Nanica: tiro del Dado Vita». Vuoto, la
+  Schivata è quella di oggi.
+- **Quanto:** il tiro scritto dal GM + il modificatore di Costituzione della
+  scheda, mai sotto 0, fino ai PF massimi. I PF temporanei non cambiano.
+- **Come:** un'operazione `hp:set` di cura nello stesso comando della
+  Schivata (`calculateQuickHPChange`, modo cura), come la cura di una
+  specie: una voce nella Cronologia, un Annulla che toglie pill e cura.
+- **Quando:** solo in combattimento (c'è un turno); fuori, il campo non c'è.
+- **Il Dado Vita speso** si conta al tavolo, come nel riposo.
+
+| Caso | PF |
+|---|---|
+| Nano a 20/45, Costituzione +3, tiro 7 | 20 → **30** |
+| Tiro 1, Costituzione −2 | **+0** (mai sotto 0) |
+| A 43/45, tiro 7, Costituzione +3 | 43 → **45** |
+| Campo vuoto | la Schivata di sempre |
+
+#### 7.34.5 Il resto, in breve
+
+- **Carica:** un'attivazione «Carica (+5)» sul colpo in mischia nel proprio
+  turno, +5 del tipo dell'arma. Nella Spinta del personaggio con il talento, la
+  nota dice «1,5 m, o 3 m con la Carica».
+- **Maestro degli Scudi:** il seguito «Spinta con lo scudo come azione bonus»
+  dopo un attacco; sui TS di Destrezza che dimezzano, il promemoria «se
+  supera, 0 danni con la reazione», accanto a quello della Schivata.
+- **Lottatore da Taverna:** il seguito «Lotta come azione bonus» dopo un colpo
+  senz'armi o con un'arma improvvisata (riconosciuti dall'etichetta).
+- **Appostato:** un attacco con arma a distanza mancato non toglie Nascosto.
+- **Lottatore:** fra le note sul bersaglio, «vantaggio (Lottatore): lo
+  afferri»; «Immobilizza» mette Trattenuto su tutti e due, e «Lascia andare» o
+  «Sfugge» li toglie con la presa.
+
+#### 7.34.6 Decisioni
+
+| # | Decisione | Possibilità | Raccomandazione |
+|---|---|---|---|
+| **P1** | Quando la Carica si offre | (a) su ogni colpo in mischia nel proprio turno, con l'avviso «nessuno Scatto dalla console in questo turno» quando manca; (b) solo dopo lo Scatto della console | **(a)**: lo Scatto del riquadro Movimento la console non lo vede, e bloccarla obbligherebbe il GM a segnarlo due volte. I 3 m in linea retta restano al tavolo. |
+| **P2** | Il TS di Destrezza di Maestro degli Scudi | (a) un promemoria sulla riga, come la Schivata; il GM toglie il danno a mano; (b) una reazione al danno nuova, «0 danni se supera», che spende la reazione, nelle quattro strade dei TS | **(a)**: (b) è un tipo nuovo di reazione in quattro conti, per un caso raro. |
+| **P3** | Immobilizza | (a) un pulsante nella riga «Tiene …» della presa, per la prova riuscita; (b) un'azione nuova della scheda Azioni | **(a)**: sta dove il GM vede già chi afferra chi. |
+| **P4** | Tempra Nanica | (a) il campo facoltativo nella Schivata della console, cura nello stesso comando; (b) un pulsante sulla card del talento, dopo la Schivata | **(a)**: una sola cosa da fare, un Annulla. |
+| **P5** | Appostato | (a) automatico: il colpo a distanza mancato lascia Nascosto; (b) un promemoria | **(a)**: è un'eccezione a una regola che il plugin applica già da solo. |
+| **P6** | I seguiti di Maestro degli Scudi e Lottatore da Taverna | (a) righe dei seguiti dopo l'attacco, che non contano l'azione bonus; (b) niente | **(a)**: ricordano senza contare (niente bookkeeping). |
+| **P7** | Ordine | F8-1 → F8-2 → F8-3, ognuno con commit, banco e prove in stanza | Come proposto: la cura per ultima, dal rischio minore. |
+
+#### 7.34.7 Rischi, come chiede AGENTS.md
+
+- **PF:** il +5 di Carica passa dal comando dell'attacco di sempre; la cura di
+  Tempra Nanica è una `hp:set` di cura nel comando della Schivata, con la sua
+  anteprima nella console. Le barre PF della mappa leggono `meta.hp`.
+- **Metadata:** nessuna chiave nuova; i Trattenuto di Immobilizza sono pill
+  unite come le altre.
+- **Turno attivo:** Carica e Tempra Nanica leggono il turno come le azioni di
+  turno, senza cambiarlo.
+- **Righe di altre sessioni:** si ricontrollano a ogni sottolotto.
+
+**Esito:** il 16/11 l'utente ha approvato P1–P7 come raccomandate («Approvo, vai
+con F8-1»).
+
+### 7.35 F8-1, fatto il 16/11
+
+**Carica, Maestro degli Scudi, Lottatore da Taverna, Appostato.**
+
+- **Carica (P1):** l'attivazione «Carica (+5)» (`talento-carica`) sul colpo in
+  mischia nel proprio turno, +5 del tipo dell'arma. Se la console non ha uno
+  Scatto in questo turno (`consoleDashCount`), l'avviso lo dice; non la
+  blocca. Nella Spinta riuscita, la nota dice «fino a 3 m con la Carica».
+- **I seguiti (P6):** dopo un attacco con l'arma, «Maestro degli Scudi: puoi
+  spingere con lo scudo»; dopo un colpo senz'armi o con un'arma improvvisata
+  (dall'etichetta), «Lottatore da Taverna: puoi tentare di afferrare». Non
+  contano l'azione bonus.
+- **Il TS di Destrezza di Maestro degli Scudi (P2):** «0 se supera (Maestro
+  degli Scudi)» accanto al promemoria della Schivata, nei suoi quattro punti
+  (`shieldMasterDexSave`). Il danno lo toglie il GM.
+- **Appostato (P5):** un attacco con arma a distanza mancato non toglie
+  Nascosto (`pcAttackLinkEnds`, `keepHidden`); la nota sul bersaglio lo dice.
+- **Le righe «Nel plugin»** dei quattro talenti lo dicono.
+- **Documenti:** le prove in stanza sono in B65.
 
 ---
 

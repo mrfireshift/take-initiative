@@ -273,7 +273,10 @@ export function pcAttackTargetNotes({ attack = null, targetItem = null, sourceIt
   const notes = [];
   if (hasActiveCondition(targetItem, DODGE_CONDITION)) notes.push("Schivata: svantaggio all'attacco, se il bersaglio vede chi attacca.");
   if (hiddenPills(targetItem).length) notes.push("Bersaglio nascosto: svantaggio all'attacco, se chi attacca non lo vede.");
-  if (sourceItem && hiddenPills(sourceItem).length) notes.push("Nascosto: vantaggio all'attacco; attaccando si rivela.");
+  // Skulker (lot F8-1 of docs/STUDIO_TALENTI.md): a ranged weapon's miss does not reveal it.
+  if (sourceItem && hiddenPills(sourceItem).length) notes.push(attack.range === "ranged" && !attack.cantrip && !attack.spell
+    && sanitizeFeats(sourceItem.metadata?.[META_KEY]?.initiativeCard?.[FEATS_FIELD]).some((entry) => entry.id === "appostato")
+    ? "Nascosto: vantaggio all'attacco; se manca, resta nascosto (Appostato)." : "Nascosto: vantaggio all'attacco; attaccando si rivela.");
   if (sourceItem) {
     for (const pill of consumedAdvantagePills({ attackerItem: sourceItem, targetItem, items })) {
       notes.push(`${pill.name}: vantaggio all'attacco; registrato, la pill si toglie.`);

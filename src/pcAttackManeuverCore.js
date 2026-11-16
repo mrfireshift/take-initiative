@@ -11,6 +11,7 @@ import { hasEffectiveCondition } from "./conditionRulesCore.js";
 import { isBossActionCreature, bossMetadataSnapshot, bossConditionAppliedAt, bossGroupConditionInstanceId } from "./bossActionExecutionCore.js";
 import { PC_ATTACK_HISTORY_KIND, PC_ATTACK_STATE_FIELD, PC_ATTACK_STATE_VERSION } from "./pcAttackCore.js";
 import { hiddenPills } from "./attackAdvantagePillsCore.js";
+import { featFeaturesForProfile } from "./featCatalog.js";
 
 const META_KEY = `${ID}/meta`;
 const GRAPPLED = "Afferrato";
@@ -127,7 +128,10 @@ export function buildPcManeuverMutation({ kind = "", sourceItem, targetItem, out
   const label = `${sourceName}: ${name} → ${targetName} (${success ? "riuscita" : "fallita"})`;
   const maneuver = { kind, outcome, contest: PC_MANEUVER_CONTEST, ...(kind === "shove" ? { effect } : {}), ...(condition ? { condition } : {}),
     // The push is moved by hand: the plugin never moves the token.
-    ...(success && kind === "shove" && effect === "push" ? { manual: `Sposta ${targetName} di 1,5 m lontano da ${sourceName} sulla mappa.` } : {}) };
+    // Charger (lot F8-1 of docs/STUDIO_TALENTI.md): after a Dash with the action and 3 m in a straight line, up to 3 m.
+    ...(success && kind === "shove" && effect === "push" ? { manual: `Sposta ${targetName} di 1,5 m lontano da ${sourceName} sulla mappa${
+      featFeaturesForProfile(sourceItem.metadata?.[META_KEY]?.initiativeCard || {}).some((feature) => feature.id === "talento-carica")
+        ? " (fino a 3 m con la Carica, dopo lo Scatto con l'azione e 3 m in linea retta)" : ""}.` } : {}) };
   const causality = {
     actor: { id: sourceItem.id, tokenId: sourceItem.id, name: sourceName, role: "attacker" },
     cause: { kind: PC_ATTACK_HISTORY_KIND, actionName: name, attackInstanceId, maneuver: kind },

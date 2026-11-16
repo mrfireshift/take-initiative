@@ -46,6 +46,8 @@ import { speciesNaturalWeaponActionId } from "./speciesNaturalWeaponCore.js";
 import { spellTargetRangeMeters } from "./spellAreaCatalog.js";
 import { consumedAdvantagePills, hiddenPills } from "./attackAdvantagePillsCore.js";
 import { isOffTurn, planReactionSpend, readiedSpellHold } from "./reactionTrackerCore.js";
+import { consoleDashCount } from "./pcAttackTurnDashCore.js";
+import { resolveSpeedCheckTurn } from "./speedCheckCore.js";
 import { NO_OPPORTUNITY_FROM_PREFIX, noOpportunityFromIds } from "./opportunityAttackCore.js";
 import { activeTransformation, transformedCardView } from "./transformationFormsCore.js";
 import { transformationPreviewReturn, transformationStashForMeta } from "./transformationHpCore.js";
@@ -1017,6 +1019,9 @@ function activationOptionsFor(attack, { sourceItem, targetItem = null, turnState
       effect, ...(activation.size ? { size: activation.size } : {}), ...(activation.note ? { note: activation.note } : {}),
       resources, limit: limit ? { ...limit } : null, available: !reason, reason,
       ...(limit && !turn ? { warning: "Fuori dal combattimento: il limite per turno non viene contato." } : {}),
+      // Charger (lot F8-1): said, not blocked, when the console has no Dash of this turn.
+      ...(activation.dashWarning && turn && !consoleDashCount(sourceItem, resolveSpeedCheckTurn(turnState).turnKey)
+        ? { warning: "Nessuno Scatto dalla console in questo turno: serve lo Scatto con l'azione." } : {}),
     };
   });
 }
@@ -1047,6 +1052,12 @@ export function pcAttackFollowUps(card = {}, riders = [], activationIds = [], { 
   if (weapon && attack.range === "melee" && enabled.has(POLEARM_MASTER_FEATURE_ID)
       && attack.id !== speciesNaturalWeaponActionId({ id: POLEARM_MASTER_FEATURE_ID }))
     notes.push("Maestro delle Armi su Asta: nel tuo turno, dopo l'azione di Attacco con falcione, alabarda, bastone ferrato o lancia, l'altra estremità come azione bonus (1d4 contundenti).");
+  // Lot F8-1 (decision P6): reminders of a bonus action, never counted.
+  if (weapon && enabled.has("talento-maestro-degli-scudi"))
+    notes.push("Maestro degli Scudi: con l'azione di Attacco, puoi spingere con lo scudo una creatura entro 1,5 m come azione bonus.");
+  if (attack && ATTACK_HITS.has(outcome) && enabled.has("talento-lottatore-da-taverna")
+      && (PC_ATTACK_UNARMED.test(attack.label || "") || PC_ATTACK_IMPROVISED.test(attack.label || "")))
+    notes.push("Lottatore da Taverna: nel tuo turno puoi tentare di afferrare il bersaglio come azione bonus.");
   return notes;
 }
 
@@ -1312,6 +1323,8 @@ export function pcAttackDefenseText(row) {
 // The features that make an actor's attacks magical: while ✦ Magica is off, the console reminds the one that may concern
 // this attack. Never switched by itself: which weapon is the pact's, a kensei's or an arrow made magical, the table knows.
 const PC_ATTACK_UNARMED = /senz['’ ]?armi|senza armi|pugn|calci|arti marziali|unarmed/iu;
+// An improvised weapon, by its label (Tavern Brawler, lot F8-1).
+const PC_ATTACK_IMPROVISED = /improvvisat|improvised/iu;
 const PC_ATTACK_NATURAL = /morso|artigl|coda|zanne|corna|bite|claw|tail/iu;
 const PC_ATTACK_MAGIC_FEATURES = Object.freeze([
   Object.freeze({ id: "monaco-colpi-ki-potenziati", hint: "Colpi Ki Potenziati: i colpi senz'armi sono magici", applies: (attack) => PC_ATTACK_UNARMED.test(attack.label) }),
@@ -1888,7 +1901,10 @@ export function buildPcAttackMutation({
   const activationPillOperations = Object.keys(activationPlan.instancesByTarget).length
     ? [{ type: "condition:add-instances", instancesByTarget: activationPlan.instancesByTarget }] : [];
   // CAP-LINK: Invisibility and Compelled Duel ended by this attack, in its own command (one Undo brings them back).
-  const linkEnds = pcAttackLinkEnds({ sourceItem, targetItem, linkItems, damaged: !!change?.changed && change.requested > 0,
+  // Skulker (lot F8-1): a ranged weapon's miss does not reveal the attacker.
+  const skulkerMiss = outcome === "miss" && attack.range === "ranged" && !attack.cantrip && !attack.spell
+    && getEnabledClassFeatureIds(sourceMeta.initiativeCard).has("talento-appostato");
+  const linkEnds = pcAttackLinkEnds({ sourceItem, targetItem, linkItems, keepHidden: skulkerMiss, damaged: !!change?.changed && change.requested > 0,
     attackRoll: !pcAttackSave(attack) && !attack.mode && attack.spell?.delivery !== "auto", saveForced: !!pcAttackSave(attack) });
   // A spell's pill spent by the hit (Absorb Elements' first melee hit) goes with it, its spell too, in the same command.
   for (const rider of chosenRiders) {
@@ -2010,7 +2026,9 @@ function attitudeSide(item) {
 // attackRoll (lot T2 of docs/STUDIO_AZIONI_DI_TURNO.md): an attack roll also ends its attacker's Hidden, and spends the
 // target's pill that gives it advantage (Help, Distracting Strike, Guiding Bolt: attackAdvantagePillsCore.js).
 // saveForced (lot T4c): the attack asks a saving throw (Psychic Veil ends on damage or on a save forced, not on a miss).
-export function pcAttackLinkEnds({ sourceItem, targetItem, linkItems = [], damaged = false, attackRoll = false, saveForced = false } = {}) {
+// keepHidden (Skulker, lot F8-1 of docs/STUDIO_TALENTI.md, decision P5): a ranged weapon's miss leaves Nascosto.
+export function pcAttackLinkEnds({ sourceItem, targetItem, linkItems = [], damaged = false, attackRoll = false, saveForced = false,
+  keepHidden = false } = {}) {
   const ends = linkedSpellPills(sourceItem, "invisibility").map((instance) => ({ itemId: sourceItem.id, instanceId: instance.id,
     spellId: "invisibility", reason: "Ha attaccato o lanciato un incantesimo." }));
   // Sanctuary (CAP-REACTION) ends when the warded creature attacks or casts a spell on an enemy.
@@ -2026,7 +2044,7 @@ export function pcAttackLinkEnds({ sourceItem, targetItem, linkItems = [], damag
   }
   const byId = new Map([...(Array.isArray(linkItems) ? linkItems : []), targetItem, sourceItem].filter((item) => item?.id).map((item) => [item.id, item]));
   if (attackRoll) {
-    ends.push(...hiddenPills(sourceItem).map((instance) => ({ itemId: sourceItem.id, instanceId: instance.id, condition: instance.condition,
+    if (!keepHidden) ends.push(...hiddenPills(sourceItem).map((instance) => ({ itemId: sourceItem.id, instanceId: instance.id, condition: instance.condition,
       reason: "Ha attaccato: non è più nascosto." })));
     ends.push(...consumedAdvantagePills({ attackerItem: sourceItem, targetItem, items: [...byId.values()] }).map(({ instance, name }) => ({
       itemId: targetItem.id, instanceId: instance.id, condition: instance.condition, reason: `Vantaggio usato: ${name}.` })));
