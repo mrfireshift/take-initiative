@@ -281,6 +281,17 @@
     .class-build-editor-row { display:grid; grid-template-columns:minmax(0,1fr) 72px minmax(0,1.25fr) auto; gap:6px; align-items:end; padding:9px; border:1px solid rgba(var(--faction-rgb),.23); border-radius:9px; background:rgba(0,0,0,.18); }
     .class-build-editor-row select { width:100%; min-height:32px; padding:5px 7px; border:1px solid rgba(var(--faction-rgb),.22); border-radius:8px; background:rgba(0,0,0,.35); color:#fff; font:inherit; }
     .class-build-remove { width:28px; min-height:28px; padding:0; border-radius:7px; }
+    /* Lotto F0 di docs/STUDIO_TALENTI.md: the Talenti box, one row per feat with its choices under it. */
+    .feat-editor-list { display:grid; gap:8px; margin-top:8px; }
+    .feat-editor-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px; align-items:end; padding:9px; border:1px solid rgba(var(--faction-rgb),.23); border-radius:9px; background:rgba(0,0,0,.18); }
+    .feat-editor-row select { width:100%; min-height:32px; padding:5px 7px; border:1px solid rgba(var(--faction-rgb),.22); border-radius:8px; background:rgba(0,0,0,.35); color:#fff; font:inherit; }
+    .feat-editor-row.unknown select[data-feat-field='id'] { border-color:#f87171; color:#fecaca; }
+    .feat-editor-choices { grid-column:1 / -1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+    .feat-editor-choices[hidden],.feat-editor-choices label[hidden],.feat-editor-warning[hidden] { display:none; }
+    .feat-editor-spells { grid-column:1 / -1; display:grid; gap:6px; }
+    .feat-editor-spells:empty { display:none; }
+    .feat-editor-warning { grid-column:1 / -1; color:#fbbf24; font-size:10px; line-height:1.35; }
+    .class-build-badge.feat { border-color:rgba(250,204,21,.38); background:rgba(250,204,21,.10); color:#fde68a; }
     .class-feature-editor-option { display:grid; grid-template-columns:auto minmax(0,1fr); gap:8px; align-items:start; padding:9px; border:1px solid rgba(var(--faction-rgb),.20); border-radius:9px; background:rgba(0,0,0,.15); cursor:pointer; }
     .class-feature-editor-subgroup { display:grid; gap:6px; margin-left:14px; padding-left:9px; border-left:2px solid rgba(var(--faction-rgb),.25); }
     .class-feature-editor-subgroup > small { color:rgba(255,255,255,.52); font-size:10px; }
@@ -313,7 +324,7 @@
     .quick-action-editor-tools { display:flex; flex-wrap:nowrap; gap:3px; }
     .quick-action-editor-tools button { width:26px; min-height:26px; padding:0; border-radius:7px; }
     .quick-action-editor-grid { min-width:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:9px 8px; }
-    .quick-action-editor-grid label { min-width:0; }
+    .quick-action-editor-grid label { min-width:0; align-content:start; }
     .quick-action-editor-grid label[hidden] { display:none !important; }
     .quick-action-editor-grid label.wide { grid-column:1 / -1; }
     .quick-action-editor-grid select { width:100%; min-height:32px; padding:6px 8px; border-radius:10px; border:1px solid rgba(var(--faction-rgb),.22); background:rgba(0,0,0,.35); color:#fff; font:inherit; }
@@ -332,6 +343,9 @@
     .quick-action-component-row select { width:100%; min-height:32px; padding:6px 8px; border-radius:10px; border:1px solid rgba(var(--faction-rgb),.22); background:rgba(0,0,0,.35); color:#fff; font:inherit; }
     .quick-action-icon-button { width:32px; min-height:32px; padding:0; border-radius:10px; font-size:16px; line-height:1; }
     .quick-action-section .quick-action-add { justify-self:start; }
+    /* Lotto BA3: the bonus to hit the sheet suggests, under the empty box of a weapon. */
+    .attack-bonus-suggestion { justify-self:start; max-width:100%; min-height:24px; padding:2px 8px; border-radius:8px; font-size:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-color:rgba(var(--faction-rgb),.38); background:rgba(var(--faction-rgb),.10); }
+    .attack-bonus-suggestion[hidden] { display:none; }
     .quick-action-add { min-height:26px; padding:3px 9px; border-radius:8px; border-color:rgba(var(--faction-rgb),.38); background:rgba(var(--faction-rgb),.10); }
     .quick-actions-heading-tools { display:flex; gap:4px; }
     .attack-import { display:grid; gap:6px; margin-top:8px; }
@@ -424,102 +438,113 @@
       .eyebrow { display:none; }
     }
   </style>
-  <script type="module" crossorigin src="/assets/initiativeCardModal-DNFARnxF.js"></script>
+  <script type="module" crossorigin src="/assets/initiativeCardModal-DXq_2fwZ.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
   <link rel="modulepreload" crossorigin href="/assets/index-Bb_Y0rOR.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDrag-DljkLkjb.js">
   <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
-  <link rel="modulepreload" crossorigin href="/assets/quickHpCore-B-UpYtUG.js">
-  <link rel="modulepreload" crossorigin href="/assets/sharedHpCore-DSNA-HTg.js">
+  <link rel="modulepreload" crossorigin href="/assets/maxHpModifierCore-BZ0RBpki.js">
+  <link rel="modulepreload" crossorigin href="/assets/transformationHpCore-DtSrffV9.js">
+  <link rel="modulepreload" crossorigin href="/assets/sharedHpCore-W2IWBeoB.js">
   <link rel="modulepreload" crossorigin href="/assets/bossLinkResistanceCore-BnYd3cot.js">
-  <link rel="modulepreload" crossorigin href="/assets/perfProbe-DY8Uujwi.js">
+  <link rel="modulepreload" crossorigin href="/assets/perfProbe-CtiLKMGj.js">
   <link rel="modulepreload" crossorigin href="/assets/roomMetadataBudget-Dhmti3v9.js">
-  <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-DvVJu8nW.js">
+  <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-CDLkc2ZZ.js">
   <link rel="modulepreload" crossorigin href="/assets/sceneEpoch-B8A8dIDk.js">
   <link rel="modulepreload" crossorigin href="/assets/sceneItemEvents-CiCl9ZLV.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3dCore-BOSJN9RO.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectSaveReminderCore-C9SPtLcs.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectSaveReminderCore-BQIgagJw.js">
   <link rel="modulepreload" crossorigin href="/assets/fiveToolsArchiveCore-tLcUxIcx.js">
   <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-DFHVk58p.js">
   <link rel="modulepreload" crossorigin href="/assets/optionsSelectors-B_kGsnBf.js">
-  <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-zobPowJg.js">
+  <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-Dc7CDWlf.js">
   <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-gGdnlg7u.js">
-  <link rel="modulepreload" crossorigin href="/assets/history-DNl6JXFp.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-BAWaLdxH.js">
+  <link rel="modulepreload" crossorigin href="/assets/history-DnNtBRS-.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-CZnRRjY1.js">
   <link rel="modulepreload" crossorigin href="/assets/effectLabelCore-BVOJN7Do.js">
-  <link rel="modulepreload" crossorigin href="/assets/conditions-8bihRE1K.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-N24hiiZg.js">
+  <link rel="modulepreload" crossorigin href="/assets/conditions-DlcOAcIR.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-qxhGSe1I.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-D9UI-Ijo.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeStyle-BBl-cwqV.js">
   <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-BtPRaIe-.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-DbzB9Q20.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellAreaRules-BE8ZYZ7L.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellAreaRules-DqO5pOZR.js">
   <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-D6mSkJ7O.js">
   <link rel="modulepreload" crossorigin href="/assets/customAuraCore-Cig87-uH.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-CH7rc5Rr.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-DKwALCYa.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-ChlxerFg.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-CKvigeTd.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3d-DX21TEhZ.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-D1e2GFGg.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-Cz75olLs.js">
   <link rel="modulepreload" crossorigin href="/assets/speedCheckCore-BCfPg9NS.js">
   <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-BzTu5VWf.js">
-  <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-YUCDRsll.js">
+  <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-CQFHLvK4.js">
   <link rel="modulepreload" crossorigin href="/assets/spellbookCore--eb2uiEm.js">
-  <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-naj-_iUJ.js">
+  <link rel="modulepreload" crossorigin href="/assets/monsterProfileCore-Btl2HMPQ.js">
+  <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-ChHVfE_6.js">
   <link rel="modulepreload" crossorigin href="/assets/bossActionProfileCore-_twrh-vn.js">
-  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-BVFsbN75.js">
-  <link rel="modulepreload" crossorigin href="/assets/spells-srd-VeHzMvvt.js">
+  <link rel="modulepreload" crossorigin href="/assets/transformationFormsCore-bclat2VU.js">
+  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-BWNggIGb.js">
+  <link rel="modulepreload" crossorigin href="/assets/spells-srd-KCpTN7so.js">
   <link rel="modulepreload" crossorigin href="/assets/spellExpiryCore-DbSfb06C.js">
-  <link rel="modulepreload" crossorigin href="/assets/combatLogCausalityCore-S8B1ofHe.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellCastRecordCore-CCqZ8NEn.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellbookCatalog-C2BYwoEk.js">
+  <link rel="modulepreload" crossorigin href="/assets/reactionTrackerCore-DElIrUFB.js">
+  <link rel="modulepreload" crossorigin href="/assets/spells-CT5r6AZv.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellbookCatalog-TBzABxvo.js">
   <link rel="modulepreload" crossorigin href="/assets/privatePackCore-BvP_zfiY.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureDescriptions-8-O96-Fm.js">
-  <link rel="modulepreload" crossorigin href="/assets/monsterStatblockTextCore-48GokuFr.js">
-  <link rel="modulepreload" crossorigin href="/assets/monsterActionContextCore-BqZFAS7-.js">
-  <link rel="modulepreload" crossorigin href="/assets/reactionTriggerCatalog-Cqu4qVX-.js">
-  <link rel="modulepreload" crossorigin href="/assets/damageReactionCore-DDypRfXP.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionExecutionCore-D65wF-Nz.js">
-  <link rel="modulepreload" crossorigin href="/assets/fiveToolsArchiveStore-Cj7qoUOG.js">
-  <link rel="modulepreload" crossorigin href="/assets/monsterStatblockTextLoader-OlsfyOre.js">
-  <link rel="modulepreload" crossorigin href="/assets/pcAttackMonsterTraitsCore-B0CYU6PI.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureDescriptions-DQfcob5M.js">
+  <link rel="modulepreload" crossorigin href="/assets/fiveToolsMonsterCore-DlevRwgB.js">
+  <link rel="modulepreload" crossorigin href="/assets/monsterActionContextCore-Bj2Q6JpO.js">
+  <link rel="modulepreload" crossorigin href="/assets/reactionTriggerCatalog-FD7PLnNQ.js">
+  <link rel="modulepreload" crossorigin href="/assets/damageReactionCore-DDCA5Xb4.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionExecutionCore-DAXjoDft.js">
+  <link rel="modulepreload" crossorigin href="/assets/tokenSizeCore-DhGjZZsQ.js">
+  <link rel="modulepreload" crossorigin href="/assets/monsterLegendaryCore-DzCUEguW.js">
+  <link rel="modulepreload" crossorigin href="/assets/characterSheetImportCore-C34xb8Qq.js">
+  <link rel="modulepreload" crossorigin href="/assets/fiveToolsArchiveStore-PLE8Pz-2.js">
+  <link rel="modulepreload" crossorigin href="/assets/tokenPortraitCore-CvXwX_u1.js">
+  <link rel="modulepreload" crossorigin href="/assets/monsterStatblockTextCore-CsDPhkpz.js">
+  <link rel="modulepreload" crossorigin href="/assets/monsterStatblockTextLoader-DVPJRXBT.js">
+  <link rel="modulepreload" crossorigin href="/assets/pcAttackMonsterTraitsCore-C3qtu6ne.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-C9ClnEcH.js">
   <link rel="modulepreload" crossorigin href="/assets/pcAttackLauncher-BBKgBM5o.js">
   <link rel="modulepreload" crossorigin href="/assets/pcAttackBreathId-zTioyCpa.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellCastPhaseCore-BiE5L-Ih.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-blUjeeXP.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellCastPhaseCore-Dx4jF0De.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-Cl1eB4dU.js">
   <link rel="modulepreload" crossorigin href="/assets/spellExecutionHistoryCore-CnIq3c04.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellAreaResolutionCommandCore-CT9Myt14.js">
-  <link rel="modulepreload" crossorigin href="/assets/reactionTrackerCore-BA9CNm44.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellsPanelViewCore-DwLQ6tYm.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedActiveAdapter-DmPFsP5z.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedAreaAdapter-Eb56hvwU.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-B40DWS-T.js">
-  <link rel="modulepreload" crossorigin href="/assets/conditionApplicationExecutor-YHoE_mam.js">
-  <link rel="modulepreload" crossorigin href="/assets/hpBranchSpellRules-D4Pdh2BU.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionValidation-Bbex93sR.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellDamageHealingCore-DB7ToBVu.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellAreaResolutionCommandCore-Csa6zmuq.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellsPanelViewCore-CXHvOpcM.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedActiveAdapter-BqRufv3p.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedAreaAdapter-CBM10XM_.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-BoPryDop.js">
+  <link rel="modulepreload" crossorigin href="/assets/conditionApplicationExecutor-POMT13YY.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellApplicationPlanCore-DhT3wARL.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionValidation-D-w03feW.js">
   <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementClient-BgQYp9Lz.js">
-  <link rel="modulepreload" crossorigin href="/assets/optionsProjection-D7OJ73dk.js">
-  <link rel="modulepreload" crossorigin href="/assets/playerAssignmentCore-BaNWJUpf.js">
-  <link rel="modulepreload" crossorigin href="/assets/reminderProjectionBroadcast-03WYHL5O.js">
-  <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-EB2dMc7b.js">
+  <link rel="modulepreload" crossorigin href="/assets/optionsProjection-Q6yiUnAv.js">
+  <link rel="modulepreload" crossorigin href="/assets/playerAssignmentCore-DomKoJ5X.js">
+  <link rel="modulepreload" crossorigin href="/assets/reminderProjectionBroadcast-C06qxEjM.js">
+  <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-CwN6-yRu.js">
   <link rel="modulepreload" crossorigin href="/assets/sceneMetadataDigest-1ZDVa8YH.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellStaticZone-DmGIS-u4.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellStaticZone-CvCcndZV.js">
+  <link rel="modulepreload" crossorigin href="/assets/combatLogCausalityCore-S8B1ofHe.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellCastRecordCore-SU4f-lYj.js">
   <link rel="modulepreload" crossorigin href="/assets/counterspellCore-Dov7qTRC.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellCastRecord-ZDv7x61a.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellApplicationExecutor-yFNm_8VY.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelSceneProvider-BXjqip3L.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellSlotSpendCore-D3Mbr8Qj.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellReactionCore-CFZD7xHd.js">
-  <link rel="modulepreload" crossorigin href="/assets/quickActionExecution-4exIcB_j.js">
-  <link rel="modulepreload" crossorigin href="/assets/counterspellLauncher-B6V9aj1v.js">
-  <link rel="modulepreload" crossorigin href="/assets/buffPresetCore-yGxrkEW-.js">
-  <link rel="modulepreload" crossorigin href="/assets/wildMagicSurgeCore-C0W0JCuX.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellCastRecord-COaCDDSn.js">
+  <link rel="modulepreload" crossorigin href="/assets/hpBranchSpellRules-Bb5SMEGu.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellApplicationExecutor-CaL9gbrO.js">
+  <link rel="modulepreload" crossorigin href="/assets/attackAdvantagePillsCore-CI0RE44Q.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelSceneProvider-oZLwSOMc.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellSlotSpendCore-CgNr_U6L.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellReactionCore-COnXEeA_.js">
+  <link rel="modulepreload" crossorigin href="/assets/quickActionExecution-BGeCeqF1.js">
+  <link rel="modulepreload" crossorigin href="/assets/counterspellLauncher-D5_g_2YA.js">
+  <link rel="modulepreload" crossorigin href="/assets/buffPresetCore-CCRJ42fG.js">
+  <link rel="modulepreload" crossorigin href="/assets/wildMagicSurgeCore-BTxE4g28.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenTrackerCore-D0Cq8Mgi.js">
-  <link rel="modulepreload" crossorigin href="/assets/speciesHpTraitCore-Pt9VYt-9.js">
-  <link rel="modulepreload" crossorigin href="/assets/speciesInnateSpellCore-Dt3Mzf51.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureRuntime-R_iLtnYF.js">
+  <link rel="modulepreload" crossorigin href="/assets/speciesHpTraitCore-Dzwcd68t.js">
+  <link rel="modulepreload" crossorigin href="/assets/speciesInnateSpellCore-Cpgkpkte.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureRuntime-nzunxth7.js">
   <link rel="modulepreload" crossorigin href="/assets/rulesTextView-Cgrjw5AW.js">
+  <link rel="modulepreload" crossorigin href="/assets/speciesNaturalWeaponCore-R2ibX2bI.js">
 </head>
 <body>
   <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/initiative-card-modal">
@@ -609,7 +634,7 @@
     <form id="form" autocomplete="off">
       <section id="sheetImport" class="sheet-import" hidden>
         <span class="section-title">Importa da una scheda</span>
-        <textarea id="sheetImportText" spellcheck="false" autocomplete="off" aria-label="JSON della scheda personaggio" placeholder="Incolla qui il JSON della scheda personaggio, di uno statblock o di 5eTools"></textarea>
+        <textarea id="sheetImportText" spellcheck="false" autocomplete="off" aria-label="JSON della scheda personaggio o testo di uno statblock" placeholder="Incolla qui il JSON della scheda personaggio, di uno statblock o di 5eTools, oppure il testo di uno statblock in inglese"></textarea>
         <div class="attack-import-actions">
           <button id="sheetImportClose" class="quick-action-add" type="button">Chiudi</button>
           <button id="sheetImportFileButton" class="quick-action-add" type="button" title="Un bestiario o un mostro di 5eTools (.json); più file insieme per i mostri derivati">Carica file</button>
@@ -659,7 +684,7 @@
         <div id="spellbookEditorList" class="spellbook-editor-list"></div>
         <div id="spellbookSuggestions" class="spellbook-suggestions" hidden></div>
         <p id="spellbookGrantedNote" class="class-feature-help" hidden></p>
-        <p class="class-feature-help">★ mette l'incantesimo tra i preferiti, in cima agli incantesimi della console attacchi (🗡️ sulla card). Gli incantesimi concessi da talenti, specie o oggetti restano nelle Azioni rapide.</p>
+        <p class="class-feature-help">★ mette l'incantesimo tra i preferiti, in cima agli incantesimi della console attacchi (🗡️ sulla card). Gli incantesimi propri dei talenti arrivano con il talento, tra le capacità; quelli a scelta dei talenti, di specie od oggetti restano nelle Azioni rapide.</p>
       </section>
       <section id="quickActionsEditPane" class="quick-actions-editor edit-pane" hidden>
         <div class="quick-actions-heading">
@@ -697,6 +722,12 @@
           <label id="speciesSpellAbilityRow" hidden>Caratteristica a scelta della specie<select id="speciesSpellAbilityInput"></select></label>
         </div>
         <p class="class-feature-help">Le resistenze della specie valgono per le Azioni boss; i tratti compaiono tra le capacità.</p>
+        <div class="class-feature-editor-head">
+          <span class="section-title">Talenti</span>
+          <button id="featAdd" class="quick-action-add" type="button">+ Talento</button>
+        </div>
+        <div id="featEditorList" class="feat-editor-list"></div>
+        <p class="class-feature-help">Dal Manuale del Giocatore, da Xanathar e da Tasha: compaiono tra le capacità. Il +1 dei mezzi talenti è già nei modificatori, le competenze restano nella scheda.</p>
         <div class="class-feature-editor-head">
           <span class="section-title">Classi e livelli</span>
           <button id="classBuildAdd" class="quick-action-add" type="button">+ Classe</button>

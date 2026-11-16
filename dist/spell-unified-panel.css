@@ -778,6 +778,15 @@ select:disabled {
   white-space: nowrap;
 }
 
+/* A reminder under the name: the advantage on a Dexterity save of a creature in Dodge. */
+.unified-target-row__note {
+  overflow: hidden;
+  color: var(--unified-muted);
+  font-size: var(--obrt-type-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .unified-target-row__hp-change {
   color: var(--unified-text);
   font-size: var(--obrt-type-caption);
@@ -1824,3 +1833,28 @@ select:disabled {
     transition: none !important;
   }
 }
+
+/* Trasformazioni, lotto W7: the «Forma» of a row (pcAttackTransformationField.js, the attack console's field). */
+.unified-target-context__grid > [data-context-field="form"] { grid-column: 1 / -1; }
+.unified-target-context .feature-transformation { display: grid; gap: 4px; min-width: 0; }
+.unified-target-context .feature-transformation .feature-field-label { color: var(--unified-muted); font-size: 12px; }
+.unified-target-context .feature-transformation select,
+.unified-target-context .feature-transformation textarea {
+  width: 100%; min-width: 0; min-height: 36px; padding: 6px 9px; border: 1px solid rgba(148, 163, 184, .28);
+  border-radius: 9px; background: var(--unified-surface-strong); color: var(--unified-text); font: inherit;
+}
+.unified-target-context .feature-transformation textarea { min-height: 64px; resize: vertical; }
+.unified-target-context .feature-transformation .feature-field-hint,
+.unified-target-context .feature-transformation .hint { margin: 0; color: var(--unified-muted); font-size: 12px; }
+.unified-target-context .feature-transformation-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.unified-target-context .feature-transformation-panel { display: grid; gap: 4px; padding: 6px; border: 1px solid var(--unified-line);
+  border-radius: 9px; }
+.unified-target-context .feature-transformation .mini-button { min-height: 28px; padding: 3px 9px; border: 1px solid var(--unified-line);
+  border-radius: 8px; background: var(--unified-surface-soft); color: var(--unified-text); cursor: pointer; }
+.unified-target-context .feature-transformation .mini-button:disabled { opacity: .5; cursor: default; }
+.unified-target-context .feature-transformation-portrait { display: flex; align-items: center; gap: 6px; color: var(--unified-muted);
+  font-size: 12px; cursor: pointer; }
+.unified-target-context .feature-transformation-portrait input { width: auto; min-height: 0; }
+.unified-target-context .feature-transformation-portrait-preview { width: 36px; height: 36px; object-fit: contain; border-radius: 50%; }
+.unified-target-context .feature-transformation-statblock { margin: 0; max-height: 240px; overflow-y: auto; padding: 6px; white-space: pre-line;
+  border: 1px solid var(--unified-line); border-radius: 9px; color: var(--unified-text); font-size: 12px; line-height: 1.4; }

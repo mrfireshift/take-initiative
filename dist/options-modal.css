@@ -103,3 +103,22 @@ input[type="checkbox"]:disabled { opacity: .45; cursor: not-allowed; }
 .reaction-muted-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; padding: 3px 4px 3px 8px; border: 1px solid var(--obrt-line); border-radius: 8px; background: rgba(15,23,42,.58); color: var(--obrt-text, #fff); font-size: var(--obrt-type-body); font-weight: var(--obrt-weight-medium); }
 .reaction-muted-row button { min-height: 26px; padding: 0 8px; }
 .reaction-muted-empty { margin: 0; color: var(--obrt-muted); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-regular); }
+.player-assignment > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; list-style: none; }
+.player-assignment > summary::-webkit-details-marker { display: none; }
+.player-assignment > summary::after { content: "▸"; color: var(--obrt-muted); font-size: var(--obrt-type-secondary); }
+.player-assignment[open] > summary::after { content: "▾"; }
+.player-assignment > summary h3 { flex: 1 1 auto; margin: 0; }
+.player-assignment-summary { color: var(--obrt-muted); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-regular); white-space: nowrap; }
+.player-assignment-help { margin: 4px 0 5px; color: var(--obrt-muted); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-regular); }
+.player-assignment-list { display: grid; gap: 2px; max-height: 236px; overflow-y: auto; padding-right: 2px; }
+.player-assignment-row { display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 1px 2px 1px 7px; border: 1px solid var(--obrt-line); border-radius: 7px; background: rgba(15,23,42,.58); color: var(--obrt-text, #fff); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-medium); }
+.player-assignment-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player-assignment-row select { flex: 0 0 46%; width: 46%; height: 24px; min-height: 24px; padding-top: 2px; padding-bottom: 2px; font-size: var(--obrt-type-secondary); }
+.player-assignment-row button { flex: 0 0 auto; min-height: 24px; height: 24px; padding: 0 7px; font-size: var(--obrt-type-secondary); }
+.player-assignment-row button[data-player-assignment-remove] { width: 24px; padding: 0; border-color: transparent; background: transparent; color: var(--obrt-muted); }
+.player-assignment-row button[data-player-assignment-remove]:hover { border-color: rgba(248,113,113,.55); color: #fca5a5; }
+.player-assignment-row.is-confirming { border-color: rgba(248,113,113,.55); }
+.player-assignment-others { display: grid; gap: 2px; margin-top: 2px; }
+.player-assignment-others > summary { cursor: pointer; padding: 2px 4px; color: var(--obrt-muted); font-size: var(--obrt-type-secondary); }
+.player-assignment-orphans { color: var(--obrt-muted); font-weight: var(--obrt-weight-regular); }
+.player-assignment-empty { margin: 0; color: var(--obrt-muted); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-regular); }

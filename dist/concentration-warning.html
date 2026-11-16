@@ -204,6 +204,20 @@
         font-size: 10px;
         font-weight: 800;
       }
+      /* Lot F4 of docs/STUDIO_TALENTI.md: «vantaggio» or «svantaggio» from the feats, next to the save. It gives way
+         before the save's name and total; the whole of it is in its tooltip. */
+      .save-hint {
+        flex: 0 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        color: var(--accent);
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: var(--obrt-type-micro, 10px);
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .warning-single .name { flex: none; }
       .spell-name {
         overflow: hidden;
         color: rgba(255, 255, 255, .50);
@@ -288,12 +302,12 @@
         .title { font-size: 14px; }
       }
     </style>
-    <script type="module" crossorigin src="/assets/concentrationWarning-Bp-xdd6G.js"></script>
+    <script type="module" crossorigin src="/assets/concentrationWarning-BCNbgExg.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
     <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
     <link rel="modulepreload" crossorigin href="/assets/index-Bb_Y0rOR.js">
     <link rel="modulepreload" crossorigin href="/assets/lazyModule-BEU7KMxf.js">
-    <link rel="modulepreload" crossorigin href="/assets/perfProbe-DY8Uujwi.js">
+    <link rel="modulepreload" crossorigin href="/assets/perfProbe-CtiLKMGj.js">
   </head>
   <body>
     <div id="app"></div>
