@@ -7,6 +7,7 @@
 import { abilityModifier, proficiencyBonusForLevel, totalCharacterLevel } from "./abilityModifiersCore.js";
 import { calculateQuickHPChange, QUICK_HP_MODES, quickHPStateOf } from "./quickHpCore.js";
 import { DEATH_SAVE_DEAD_CONDITION, readDeathSaves } from "./deathSaveCore.js";
+import { MONSTER_PROFILE_FIELD } from "./monsterProfileCore.js";
 
 export const SPECIES_HP_TRAIT_KINDS = Object.freeze({
   RELENTLESS: "relentless",
@@ -52,14 +53,29 @@ export function speciesHpTraitAmountLabel(amount) {
 // Whether a trait needs something from the table before its write: a roll (Healing Hands' d4s, a reduction,
 // Beasthide's d6) or the bite's outcome. The others resolve from the sheet alone.
 export function speciesHpTraitNeedsRoll(spec) {
-  return spec?.dice === "pb-d4" || spec?.kind === SPECIES_HP_TRAIT_KINDS.REDUCE || !!spec?.bonusDie || spec?.onHit === true;
+  return !!spec?.dice || spec?.kind === SPECIES_HP_TRAIT_KINDS.REDUCE || !!spec?.bonusDie || spec?.onHit === true;
 }
 
-// Healing Hands of Mostri del Multiverso: a number of d4s equal to the proficiency bonus, rolled at the table.
+// Healing Hands of Mostri del Multiverso: a number of d4s equal to the proficiency bonus, rolled at the table. Lot F5-2
+// of docs/STUDIO_TALENTI.md: or a fixed roll ("1d6": Healer's cure).
 export function speciesHealDice(spec, card = {}) {
-  if (spec?.dice !== "pb-d4") return null;
-  const count = cardProficiency(card);
-  return count === null ? null : { count, faces: 4, min: count, max: count * 4, label: `${count}d4` };
+  if (spec?.dice === "pb-d4") {
+    const count = cardProficiency(card);
+    return count === null ? null : { count, faces: 4, min: count, max: count * 4, label: `${count}d4` };
+  }
+  const [, count, faces] = /^(\d+)d(\d+)$/u.exec(String(spec?.dice || "")) || [];
+  return count ? { count: Number(count), faces: Number(faces), min: Number(count), max: Number(count) * Number(faces), label: `${count}d${faces}` } : null;
+}
+
+// Lot F5-2 (decision H5): a creature's maximum number of Hit Dice, for Healer's cure: a character's total level, an
+// imported monster's from the dice of its hit points' formula ("8d8+16": 8); null when its sheet has neither, and the GM
+// writes them.
+export function speciesTargetHitDice(targetMeta = {}) {
+  const card = targetMeta?.initiativeCard || {};
+  const level = totalCharacterLevel(card.characterBuild);
+  if (level > 0) return level;
+  const count = Number(/^(\d+)d\d+/u.exec(String(card[MONSTER_PROFILE_FIELD]?.hitPoints?.formula || ""))?.[1]);
+  return Number.isInteger(count) && count > 0 ? count : null;
 }
 
 // Stone's Endurance (1d12 + Constitution) and Hadozee Dodge (1d6 + proficiency): the hint shown with the roll.
@@ -127,8 +143,10 @@ function blocked(reason) {
 // The HP write of a trait. targetMeta is the token whose HP change (the character itself, or Healing Hands' target);
 // value is the roll entered at the table (Healing Hands of Mostri del Multiverso, the reduction, Beasthide's d6),
 // damage the damage being reduced, hit whether Hungry Jaws' bite hit. Returns { ok, change, amount, detail, warning }
-// or { ok: false, blocker }. A trait whose write changes nothing still spends its use (a missed bite).
-export function planSpeciesHpTrait({ feature, card = {}, targetMeta = {}, targetName = "", value = "", damage = "", hit = true } = {}) {
+// or { ok: false, blocker }. A trait whose write changes nothing still spends its use (a missed bite). hitDice: the
+// target's Hit Dice written by the GM, for a cure that adds them when its sheet has none (lot F5-2: Healer).
+export function planSpeciesHpTrait({ feature, card = {}, targetMeta = {}, targetName = "", value = "", damage = "", hit = true,
+  hitDice = "" } = {}) {
   const spec = feature?.hpTrait;
   const name = String(feature?.name || "Tratto");
   if (!spec) return blocked(`${name}: tratto senza effetto sui PF.`);
@@ -158,6 +176,14 @@ export function planSpeciesHpTrait({ feature, card = {}, targetMeta = {}, target
       amount = speciesHpTraitAmount(spec.amount, card);
       if (amount === null) return blocked(`${name}: manca il livello del personaggio sulla scheda.`);
       detail = `${amount} PF, ${speciesHpTraitAmountLabel(spec.amount)}`;
+    }
+    // Lot F5-2 (decision H5): Healer's cure adds 4 and the target's Hit Dice, from its sheet, else as the GM writes them.
+    if (spec.plus || spec.plusTargetHitDice) {
+      const targetHitDice = spec.plusTargetHitDice ? speciesTargetHitDice(targetMeta) ?? positiveInteger(hitDice) : 0;
+      if (targetHitDice === null) return blocked(`${name}: inserisci i Dadi Vita di ${who}: la sua scheda non li ha.`);
+      const plus = Math.max(0, Math.floor(Number(spec.plus) || 0));
+      amount += plus + targetHitDice;
+      detail = `${detail} + ${plus}${spec.plusTargetHitDice ? ` + ${targetHitDice} Dadi Vita` : ""} = ${amount} PF`;
     }
     if (hp >= hpMax) return blocked(`${name}: ${who} ha già tutti i PF.`);
     const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: amount, hp, hpMax, tempHp: targetMeta?.tempHp });

@@ -5,7 +5,7 @@ dall'utente il 15/11** (§9); **F0 fatto il 15/11** (§7.1), **F1 il 16/11**
 (§7.2), **la prima parte di F3 il 16/11** (§7.3); **il piano di F3b il 16/11,
 con S1–S9 approvate** (§7.4), **F3b-1, F3b-2, F3b-3, F3b-4 e F3b-5 il 16/11**
 (§7.5–§7.9): F3 è chiuso. **F4 il 16/11** (§7.10). **Il piano di F5 il 16/11,
-con H1–H7 approvate** (§7.11), **F5-1 il 16/11** (§7.12).
+con H1–H7 approvate** (§7.11), **F5-1 e F5-2 il 16/11** (§7.12, §7.13).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -1501,6 +1501,37 @@ approvo»).
 - **`classFeatureRuntime.js`** ha righe non committate di un'altra sessione: il
   commit prende HEAD + le sei righe di F5-1.
 - **Documenti:** le prove in stanza sono in B38 (B37 è delle trasformazioni).
+
+### 7.13 F5-2, fatto il 16/11
+
+**Guaritore: la cura con la borsa.** Come la §7.11 con H3 e H5.
+
+- **La voce** «Guaritore: cura con la borsa» è una seconda voce del talento,
+  come Mani guaritrici:
+  - la creatura toccata entro 1,5 m, il guaritore stesso se nessuno è
+    selezionato;
+  - nessun uso da spendere: gli usi della borsa restano al tavolo.
+- **Il percorso** è quello dei tratti che cambiano i PF
+  (`applySpeciesHpTraitResolved`): `hp:set` in un comando, con le aspettative
+  sui valori del momento, una voce di Cronologia e un Annulla. La cura non supera
+  i PF massimi; a PF pieni non parte.
+- **L'importo:** il d6 scritto dal GM + 4 + i Dadi Vita massimi del bersaglio
+  (`planSpeciesHpTrait`, `hpTrait: { kind: "heal", dice: "1d6", plus: 4,
+  plusTargetHitDice: true }`).
+- **I Dadi Vita** (H5) li dà `speciesTargetHitDice`:
+  - per un PG, il livello totale;
+  - per un mostro importato con i PF spuntati, i dadi della formula («7d10+21»:
+    7);
+  - altrimenti il campo «Dadi Vita del bersaglio» della card, o la domanda del
+    lancio dal menu. Senza quel numero la cura si ferma.
+  
+  La scheda viene prima del campo.
+- **Il resto non cambia:** `speciesHealDice` accetta un dado fisso («1d6») oltre
+  ai d4 di Mani guaritrici; `speciesHpTraitNeedsRoll` lo riconosce, e il menu
+  della card del tracker manda alla scheda come per gli altri tiri.
+- **`classFeatureRuntime.js`:** solo tre righe, il passaggio di `hitDice`; il
+  commit prende HEAD + quelle righe.
+- **Documenti:** le prove in stanza sono in B39.
 
 ---
 

@@ -344,7 +344,12 @@ const DEFINITIONS = [
   feat("phb", 167, "Fortunato", "Lucky", {
     plugin: "3 punti fortuna, che tornano con il riposo lungo: il pulsante spende un punto, il d20 in più si tira al tavolo.",
     pool: { key: "punti", name: "Punti fortuna", count: 3 } }),
-  feat("phb", 167, "Guaritore", "Healer"),
+  feat("phb", 167, "Guaritore", "Healer", {
+    plugin: "Dalla card «cura con la borsa»: il d6 scritto dal GM + 4 + i Dadi Vita della creatura toccata. Gli usi della borsa, il PF della stabilizzazione e «una volta per riposo» restano al tavolo.",
+    // Lot F5-2 (decisions H3, H5): the cure, as Healing Hands: the d6 written, 4 and the target's Hit Dice.
+    parts: [{ key: "cura", name: "Guaritore: cura con la borsa", activation: "azione",
+      description: "Con un uso della borsa del guaritore la creatura toccata recupera 1d6 + 4 PF, più i suoi Dadi Vita massimi. Seleziona la creatura (nessuna: tu), scrivi il d6, poi Cura.",
+      hpTrait: { kind: "heal", dice: "1d6", plus: 4, plusTargetHitDice: true } }] }),
   feat("phb", 168, "Incantatore da Guerra", "War Caster", { prerequisite: "Saper lanciare almeno un incantesimo" }),
   feat("phb", 168, "Incantatore Rituale", "Ritual Caster", { prerequisite: "Intelligenza o Saggezza 13",
     plugin: "I rituali scelti nel libro come «Talento», solo come rituali e senza slot, con la caratteristica della classe scelta. Oltre metà del livello del personaggio la scheda avvisa.",
@@ -631,8 +636,15 @@ function featRecord(entry) {
 // Lot F5-1: temporaryHp, the amount it gives to the creatures selected (classFeatureTemporaryHpAmount: Inspiring Leader's
 // level + Charisma, the Chef's proficiency bonus), within rangeMeters, maxTargets at most, the character included; the
 // feat's pool when it is the part's (pool.part). One command, no pill (resource-only).
+// Lot F5-2: hpTrait, a change of hit points as a species trait's (speciesHpTraitCore.js: Healer's cure, on the creature
+// touched as Healing Hands).
 function featPartRecord(entry, part) {
   const poolId = entry.pool?.part === part.key ? featPoolId(entry) : "";
+  const hpTrait = part.hpTrait ? {
+    automationLevel: "manuale", completenessStatus: "partial", runtimeSupport: RESOURCE_ONLY, targetMode: "selection",
+    targeting: Object.freeze({ mode: "single-target", rangeMeters: 1.5, maxTargets: 1, excludeSource: false }),
+    hpTrait: Object.freeze({ ...part.hpTrait }),
+  } : {};
   const temporaryHp = part.temporaryHp ? {
     automationLevel: "assistita", completenessStatus: "partial", runtimeSupport: RESOURCE_ONLY, targetMode: "selection",
     targeting: Object.freeze({ mode: "single-target", rangeMeters: part.rangeMeters ?? null, maxTargets: part.maxTargets ?? 1,
@@ -657,6 +669,7 @@ function featPartRecord(entry, part) {
     missingForExecution: Object.freeze([]),
     ...recordBehaviour({ effect: part.effect, poolId }),
     ...temporaryHp,
+    ...hpTrait,
     ...(part.activation ? { activation: Object.freeze({ primary: part.activation }) } : {}),
     ...(part.save ? { featSave: Object.freeze({ ...part.save }) } : {}),
     trackedResourcePoolIds: Object.freeze(poolId ? [poolId] : []),

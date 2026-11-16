@@ -615,6 +615,7 @@ async function applySpeciesHpTraitResolved({
   value = "",
   damage = "",
   hit = true,
+  hitDice = "",
   sceneEpoch = null,
 } = {}) {
   const originEpoch = Number.isInteger(sceneEpoch) ? sceneEpoch : currentSceneEpoch();
@@ -646,6 +647,8 @@ async function applySpeciesHpTraitResolved({
     value,
     damage: lastDamage ? lastDamage.amount : damage,
     hit,
+    // Lot F5-2 of docs/STUDIO_TALENTI.md: the target's Hit Dice written by the GM (Healer's cure).
+    hitDice,
   });
   if (!plan.ok) throw new Error(plan.blocker);
   const turnState = await currentTurnState();
@@ -842,11 +845,12 @@ export async function applySpeciesHpTrait({
   value = "",
   damage = "",
   hit = true,
+  hitDice = "",
   sceneEpoch = null,
 } = {}) {
   const feature = getClassFeatureDefinition(featureId);
   const { sourceItem, profile } = await loadEnabledClassFeatureSource(sourceId, feature);
-  return applySpeciesHpTraitResolved({ feature, sourceItem, profile, targetIds, value, damage, hit, sceneEpoch });
+  return applySpeciesHpTraitResolved({ feature, sourceItem, profile, targetIds, value, damage, hit, hitDice, sceneEpoch });
 }
 
 // The damage a reduction trait would give back now (read from the history), for the card's controls. Reads only.

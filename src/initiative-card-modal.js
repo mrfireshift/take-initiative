@@ -753,8 +753,11 @@ async function launchSpeciesHpTrait(feature, targetIds) {
   let value = "";
   let damage = "";
   let hit = true;
+  let hitDice = "";
   const dice = spec.kind === "heal" ? speciesHealDice(spec, profile) : null;
   if (dice) value = ask(`${feature.name}: totale di ${dice.label} (${dice.min}–${dice.max}).`);
+  // Lot F5-2 of docs/STUDIO_TALENTI.md: Healer's cure, the target's Hit Dice when its sheet has none.
+  if (spec.kind === "heal" && spec.plusTargetHitDice) hitDice = ask(`${feature.name}: Dadi Vita del bersaglio (vuoto se sono sulla sua scheda).`);
   if (spec.kind === "temp" && spec.onHit) {
     hit = !/^n/iu.test(ask(`${feature.name}: il morso ha colpito? (s/n; mancato spende comunque l'uso)`, "s").trim());
   }
@@ -763,7 +766,7 @@ async function launchSpeciesHpTrait(feature, targetIds) {
     const { lastDamage } = await previewSpeciesHpTrait({ sourceId: item.id, featureId: feature.id });
     if (!lastDamage) damage = ask(`${feature.name}: danni subiti (non trovati nella cronologia).`);
   }
-  await applySpeciesHpTrait({ sourceId: item.id, featureId: feature.id, targetIds, value, damage, hit });
+  await applySpeciesHpTrait({ sourceId: item.id, featureId: feature.id, targetIds, value, damage, hit, hitDice });
 }
 
 // The list a launch starts from and its status line: the spellbook, the quick actions or the attacks.
@@ -2358,11 +2361,16 @@ function buildSpeciesHpTraitControls(feature, state, active = []) {
     apply("Resta a 1 PF", "Riporta i PF da 0 a 1 e spende l'uso", () => ({}), `${feature.name}: resta a 1 PF.`, !(hp <= 0));
   } else if (spec.kind === "heal") {
     const dice = speciesHealDice(spec, profile);
+    // Lot F5-2 of docs/STUDIO_TALENTI.md: Healer's cure adds 4 and the target's Hit Dice, from its sheet or this field.
+    const extra = spec.plus || spec.plusTargetHitDice
+      ? ` + ${Number(spec.plus) || 0}${spec.plusTargetHitDice ? " + i Dadi Vita del bersaglio" : ""}` : "";
     note(dice
-      ? `Tira ${dice.label} al tavolo e inserisci il totale. Seleziona la creatura toccata (nessuna: il personaggio stesso).`
+      ? `Tira ${dice.label} al tavolo e inserisci il totale${extra ? `: cura ${dice.label}${extra}` : ""}. Seleziona la creatura toccata (nessuna: il personaggio stesso).`
       : `Cura ${amountText} PF (${speciesHpTraitAmountLabel(spec.amount)}). Seleziona la creatura toccata (nessuna: il personaggio stesso).`);
     const input = dice ? numberField(`Totale ${dice.label}`, { min: dice.min, max: dice.max, placeholder: `${dice.min}–${dice.max}` }) : null;
-    apply("Cura", "Cura la creatura selezionata entro 1,5 m e spende l'uso", () => ({ value: input?.value ?? "" }), `${feature.name} usata.`);
+    const hitDiceInput = spec.plusTargetHitDice ? numberField("Dadi Vita del bersaglio, se la sua scheda non li ha", { min: 1, max: 40 }) : null;
+    apply("Cura", `Cura la creatura selezionata entro 1,5 m${feature.resourceCosts?.length ? " e spende l'uso" : ""}`,
+      () => ({ value: input?.value ?? "", hitDice: hitDiceInput?.value ?? "" }), `${feature.name} usata.`);
   } else if (spec.kind === "temp" && spec.onHit) {
     note(`Se il morso colpisce: ${amountText} PF temporanei (${speciesHpTraitAmountLabel(spec.amount)}). L'uso si spende anche se manca.`);
     apply("Colpito", `Ottieni ${amountText} PF temporanei e spendi l'uso`, () => ({ hit: true }), `${feature.name}: PF temporanei applicati.`);

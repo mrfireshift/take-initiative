@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **229** |
+| **B. Console attacchi, mostri e capacità** | **233** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -69,6 +69,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B33. La spinta di Telecinesi | 3 |
 | B36. Concentrazione: Incantatore da Guerra e Sterminatore di Maghi | 5 |
 | B38. PF temporanei: Condottiero Ispiratore e le delizie del Cuoco | 4 |
+| B39. Guaritore: la cura con la borsa | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -94,7 +95,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **592** |
+| **Totale** | **596** |
 
 ## A. Incantesimi
 
@@ -877,6 +878,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F5-1 (decisioni H1–H4, H7
 - [ ] **Troppi o lontani:** con sette creature selezionate il comando si ferma con «Al massimo 6 bersagli: deseleziona quelli in più.»; con l'alleato oltre 9 m, con «fuori portata». Nessun PF cambia.
 - [ ] **Le delizie:** il Cuoco ha in Risorse «Delizie» 3/3. Selezionato un alleato, **Usa** su «Cuoco: dai una delizia» gli dà 3 PF temporanei e le delizie scendono a 2/3; senza selezione li prende il cuoco. **Riposo lungo** le rimette.
 - [ ] **Senza livello:** su una scheda senza classi la riga del discorso chiede livello e modificatori, e **Usa** dice che cosa manca, senza scrivere PF.
+
+### B39. Guaritore: la cura con la borsa
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F5-2 (decisioni H3, H5). Le voci sono nuove: nessuna lista le aveva. Serve un PG con Guaritore, un PG di 5° livello ferito accanto a lui, un mostro importato da 5eTools con i PF spuntati e un PNG senza classi.
+
+- [ ] **La cura:** in Capacità, «Guaritore: cura con la borsa» ha i campi «Totale 1d6» e «Dadi Vita del bersaglio, se la sua scheda non li ha». Selezionato il PG di 5° livello, con il d6 a 3, **Cura** gli rende 12 PF (3 + 4 + 5). Nella Cronologia c'è la cura, e il suo **Annulla** la toglie. Da provare in vista compatta ed estesa.
+- [ ] **Il mostro importato:** sul mostro con i PF spuntati all'import (la formula, per esempio 7d10 + 21), la cura somma i suoi Dadi Vita (7) senza chiederli.
+- [ ] **Senza Dadi Vita:** sul PNG senza classi né formula, **Cura** chiede i Dadi Vita; scritti nel campo, cura senza superare i PF massimi.
+- [ ] **I limiti:** un bersaglio a più di 1,5 m è rifiutato, e un PG a PF pieni non viene curato. Senza selezione si cura il guaritore stesso.
 
 ## C. Tracker e UX
 
