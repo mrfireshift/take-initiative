@@ -364,7 +364,10 @@ const DEFINITIONS = [
     parts: [{ key: "cura", name: "Guaritore: cura con la borsa", activation: "azione",
       description: "Con un uso della borsa del guaritore la creatura toccata recupera 1d6 + 4 PF, più i suoi Dadi Vita massimi. Seleziona la creatura (nessuna: tu), scrivi il d6, poi Cura.",
       hpTrait: { kind: "heal", dice: "1d6", plus: 4, plusTargetHitDice: true } }] }),
-  feat("phb", 168, "Incantatore da Guerra", "War Caster", { prerequisite: "Saper lanciare almeno un incantesimo" }),
+  // Lot F4 (the advantage in the concentration warning) and lot F6-4 (the spell instead of an opportunity attack, a line of
+  // its prompt: reactionPromptEffectText).
+  feat("phb", 168, "Incantatore da Guerra", "War Caster", { prerequisite: "Saper lanciare almeno un incantesimo",
+    plugin: "Il vantaggio è nell'avviso del TS di concentrazione. Negli avvisi di attacco di opportunità, la riga dell'incantesimo al posto dell'attacco. Le componenti somatiche restano al tavolo." }),
   feat("phb", 168, "Incantatore Rituale", "Ritual Caster", { prerequisite: "Intelligenza o Saggezza 13",
     plugin: "I rituali scelti nel libro come «Talento», solo come rituali e senza slot, con la caratteristica della classe scelta. Oltre metà del livello del personaggio la scheda avvisa.",
     spellAbility: "class", classChoices: CASTER_CLASSES, rituals: true }),
@@ -407,7 +410,10 @@ const DEFINITIONS = [
       description: "Quando colpisci una creatura con un attacco di opportunità, la sua velocità diventa 0 per il resto del turno. Nella console si spunta sul colpo in mischia fatto fuori turno.",
       effect: { conditionName: SENTINEL_SPEED_CONDITION, label: "Velocità 0 · Sentinella", movement: { setMeters: 0 },
         timing: UNTIL_TARGET_TURN_END, detail: "Velocità 0 per il resto del turno: l'ha colpito un attacco di opportunità di Sentinella." } }] }),
-  feat("phb", 170, "Sterminatore di Maghi", "Mage Slayer"),
+  // Lot F6-4 (decisions K4, K5): the strike when a creature within 1.5 m casts, a reaction prompt at the spell panel's
+  // cast (reactionTriggerCatalog.js); the disadvantage is lot F4's; the advantage on the saves stays at the table.
+  feat("phb", 170, "Sterminatore di Maghi", "Mage Slayer", { activation: "reazione",
+    plugin: "Avviso di reazione quando una creatura entro 1,5 m lancia dal pannello incantesimi: Usa apre la console. Lo svantaggio è nell'avviso di concentrazione; il vantaggio ai TS si tira al tavolo." }),
   // Lot F5-3 (decision H6): a note in the party's rest (groupRestCore.js).
   feat("phb", 170, "Tenace", "Durable", { abilities: ["con"],
     plugin: "Nel riposo di gruppo, sotto il personaggio, il minimo di PF per Dado Vita: 2 × Costituzione, almeno 2. Il totale recuperato lo scrive il GM." }),

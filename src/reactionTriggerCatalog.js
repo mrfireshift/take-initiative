@@ -19,6 +19,7 @@
 // reactor, on the attacker (Hexblade's Curse).
 // attackerRangeMeters: the attacker within this distance of the reactor (unknown distance: the reaction stays).
 // unlessProtectedHasFeature: the creature attacked keeps it out when it has one of the entry's features too (Sentinel).
+// opportunityAttack: an opportunity attack, which a reactor with War Caster may replace with a spell (lot F6-4).
 // filters: range ("melee" | "ranged"), attackRoll (an attack with a roll), critical, damageTypes (any of them).
 // flow: what Usa opens, an existing flow: "cast-spell" (castReactionSpell), "spell-panel" (openReactionSpellPanel),
 // "use-feature" (the Capacità tab's use: resource and reaction), "off-turn-attack" (the console off turn, with the
@@ -247,14 +248,19 @@ export const REACTION_TRIGGER_CATALOG = Object.freeze([
     triggers: ["spell-cast"], timing: "before", requiresSpellTarget: true, targetsCaster: true, lot: "R2b",
     effect: { kind: "counter", save: "spellcasting" }, short: "Ruba l'incantesimo",
     rule: "Bersaglio di un incantesimo: il caster tira un TS con la sua caratteristica da incantatore; se fallisce, l'effetto non ha effetto sul ladro, che ruba l'incantesimo." }),
+  // Lot F6-4 (decision K4): Mage Slayer, at the spell panel's cast as Counterspell; Usa opens the attack console off turn.
+  feature({ id: "mage-slayer", label: "Sterminatore di Maghi", featureIds: ["talento-sterminatore-di-maghi"],
+    triggers: ["spell-cast"], timing: "before", casterRangeMeters: 1.5, targetsCaster: true, flow: "off-turn-attack", lot: "F6",
+    effect: { kind: "attack" }, short: "Attacco in mischia",
+    rule: "Una creatura entro 1,5 m lancia un incantesimo: un attacco in mischia con arma contro di lei, con la reazione." }),
 
   // F. Movement (lot R5, off by default).
   entry({ id: "opportunity-attack", label: "Attacco di opportunità", source: "universal", triggers: ["move-leave"], timing: "after",
-    flow: "off-turn-attack", targetsMover: true, lot: "R5", effect: { kind: "attack" }, short: "Attacco in mischia",
+    flow: "off-turn-attack", targetsMover: true, lot: "R5", opportunityAttack: true, effect: { kind: "attack" }, short: "Attacco in mischia",
     rule: "Una creatura ostile esce dalla sua portata, se non si è disimpegnata: un attacco in mischia contro di lei." }),
   // Lot F6-3: Polearm Master, a hostile creature enters the reach (3 m when chosen on the sheet); the console off turn.
   feature({ id: "polearm-master-reach", label: "Maestro delle Armi su Asta", featureIds: ["talento-maestro-delle-armi-su-asta"],
-    triggers: ["move-enter-reach"], timing: "after", flow: "off-turn-attack", targetsMover: true, lot: "F6",
+    triggers: ["move-enter-reach"], timing: "after", flow: "off-turn-attack", targetsMover: true, lot: "F6", opportunityAttack: true,
     effect: { kind: "attack" }, short: "Attacco di opportunità",
     rule: "Una creatura ostile entra nella sua portata, con falcione, alabarda, picca, bastone ferrato o lancia: un attacco di opportunità contro di lei." }),
   feature({ id: "halo-of-spores", label: "Alone di Spore", featureIds: ["druido-circolo-delle-spore-alone-di-spore"],

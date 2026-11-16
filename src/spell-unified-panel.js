@@ -3288,6 +3288,16 @@ export function bootSpellUnifiedPanel(
     }
     const casterName = state.casters.find((item) => item.id === state.session?.casterId)?.name || "Il lanciatore";
     const spellName = castSpellName() || "l'incantesimo";
+    // Lot F6-4 of docs/STUDIO_TALENTI.md (decision K4): Mage Slayer's strike, in the attack console off turn for the
+    // reactor. The map's selection stays as it is (the panel's targets follow it): the GM picks the caster there. The
+    // cast waits for the button, which then counts as Ignora.
+    if (candidate?.flow === "off-turn-attack") {
+      const { openPcAttackConsoleForActor } = await import("./pcAttackLauncher.js");
+      await openPcAttackConsoleForActor(candidate.reactorId);
+      patchSession({ feedback: { state: "info", message: `${candidate.reactorName} · ${candidate.label}: nella console attacchi, fuori turno, `
+        + `scegli ${casterName} come bersaglio. Poi premi di nuovo il pulsante per lanciare ${spellName}.` } }, { clearFeedback: false });
+      return;
+    }
     const requestFor = (kind) => `${kind}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
     const reactor = { id: candidate?.reactorId || "", name: candidate?.reactorName || "", featureId: candidate?.featureId || "",
       reactionId: candidate?.reactionId || "", label: `${candidate?.label || "Reazione"} di ${candidate?.reactorName || ""}` };
@@ -3367,8 +3377,9 @@ export function bootSpellUnifiedPanel(
       return [{ ...event, trigger: "hit" }, event];
     });
   };
-  // What the panel can do with Usa: Counterspell, Magic-User's Nemesis, Spell Thief, a damage reaction, a feature.
-  const castPromptHandles = (candidate) => ["counterspell", "modifier", "activate-feature"].includes(candidate?.flow)
+  // What the panel can do with Usa: Counterspell, Magic-User's Nemesis, Spell Thief, a damage reaction, a feature, an
+  // attack in the console off turn (Mage Slayer, lot F6-4).
+  const castPromptHandles = (candidate) => ["counterspell", "modifier", "activate-feature", "off-turn-attack"].includes(candidate?.flow)
     || ["magic-users-nemesis", "spell-thief"].includes(candidate?.reactionId) || candidate?.source === "monster";
   const activeCastDamageReactions = () => {
     if (castDamageReactionsKey !== castReactionKey()) return [];

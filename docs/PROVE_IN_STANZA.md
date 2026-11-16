@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **248** |
+| **B. Console attacchi, mostri e capacità** | **252** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -74,6 +74,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B44. Reazioni dei talenti: Duellante Difensivo, Seconda Possibilità, Scomparire | 4 |
 | B46. Sentinella | 4 |
 | B47. Maestro delle Armi su Asta | 4 |
+| B48. Sterminatore di Maghi e Incantatore da Guerra | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -99,7 +100,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **611** |
+| **Totale** | **615** |
 
 ## A. Incantesimi
 
@@ -926,6 +927,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F6-3 (decisione K3). Le voc
 - [ ] **L'entrata:** con 3 m, il goblin arriva a 3 m dal PG nel suo turno: l'avviso del movimento dice «Goblin entra nella portata», con «Attacco di opportunità»; **Usa** apre la console del PG fuori turno, con il goblin selezionato. Con 1,5 m l'avviso arriva solo quando il goblin è accanto; dopo un Disimpegno non arriva.
 - [ ] **L'uscita:** con 3 m, il goblin che si allontana da 3 m a 4,5 m provoca l'attacco di opportunità.
 - [ ] **L'altra estremità:** dalla card del talento, «Altra estremità dell'arma» (1d4 contundenti + Forza) si aggiunge agli Attacchi; dopo un attacco in mischia la console ricorda l'azione bonus, ma non dopo l'altra estremità stessa.
+
+### B48. Sterminatore di Maghi e Incantatore da Guerra
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F6-4 (decisioni K4 e K5). Le voci sono nuove: nessuna lista le aveva. In combattimento: un PG con Sterminatore di Maghi accanto a un mostro nemico che lancia incantesimi dal pannello, e un PG con Incantatore da Guerra; per l'ultima voce, l'interruttore **Movimento** acceso nelle Opzioni.
+
+- [ ] **L'avviso al lancio:** il mostro accanto al PG lancia un incantesimo dal pannello: al clic del pulsante l'avviso offre «Sterminatore di Maghi · Attacco in mischia». A più di 1,5 m non c'è.
+- [ ] **Usa:** si apre la console attacchi del PG fuori turno, e il pannello dice di scegliere il mostro come bersaglio; i bersagli dell'incantesimo nel pannello non cambiano. Registrato l'attacco, un secondo clic sul pulsante lancia l'incantesimo.
+- [ ] **Ignora:** con l'avviso aperto, un secondo clic sul pulsante lancia senza reazione.
+- [ ] **Incantatore da Guerra:** un nemico esce dalla portata del PG: sotto «Attacco di opportunità» la card dice «…, o un incantesimo da 1 azione solo su di lei (Incantatore da Guerra)». Senza il talento la riga non c'è.
 
 ## C. Tracker e UX
 

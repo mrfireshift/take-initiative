@@ -7,7 +7,7 @@ con S1–S9 approvate** (§7.4), **F3b-1, F3b-2, F3b-3, F3b-4 e F3b-5 il 16/11**
 (§7.5–§7.9): F3 è chiuso. **F4 il 16/11** (§7.10). **Il piano di F5 il 16/11,
 con H1–H7 approvate** (§7.11), **F5-1, F5-2 e F5-3 il 16/11** (§7.12–§7.14):
 F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 approvate** (§7.15), **F6-1,
-F6-2 e F6-3 il 16/11** (§7.16–§7.18).
+F6-2, F6-3 e F6-4 il 16/11** (§7.16–§7.19).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -1809,6 +1809,37 @@ vai con F6-2»). F6-1 non ne dipende.
 - **`pcAttackCore.js`** ha righe non committate di un'altra sessione: il commit
   prende HEAD + le righe di F6-3.
 - **Documenti:** le prove in stanza sono in B47.
+
+### 7.19 F6-4, fatto il 16/11
+
+**Sterminatore di Maghi e Incantatore da Guerra.** Come la §7.15, con K4 e K5.
+
+- **Sterminatore di Maghi** (K4):
+  - voce `mage-slayer`: una creatura ostile entro 1,5 m lancia un incantesimo,
+    trucchetti compresi; avviso al clic del lancio nel pannello incantesimi,
+    come Controincantesimo;
+  - il pannello impara il flusso `off-turn-attack`: Usa apre la console attacchi
+    del reattore fuori turno, e il lancio parte al clic successivo;
+  - la selezione della mappa resta com'è, perché i bersagli del pannello la
+    seguono: selezionare il lanciatore cambierebbe i bersagli dell'incantesimo.
+    Il GM sceglie il lanciatore come bersaglio nella console, e il messaggio del
+    pannello lo dice. È l'unica differenza dal piano, che diceva «con il
+    lanciatore selezionato».
+  - il vantaggio ai TS contro gli incantesimi vicini resta nella riga «Nel
+    plugin» (K5).
+- **Incantatore da Guerra:**
+  - le voci degli attacchi di opportunità (`opportunity-attack`,
+    `polearm-master-reach`) hanno `opportunityAttack`;
+  - per un reattore con il talento la loro riga dice «…, o un incantesimo da 1
+    azione solo su di lei (Incantatore da Guerra)»; Usa apre la console fuori
+    turno, come per l'attacco;
+  - l'avviso del movimento mostra la riga sotto l'attacco di opportunità solo
+    quando dice più dell'attacco.
+- **Le righe «Nel plugin»** dei due talenti dicono dove sta ogni parte, anche
+  quelle di F4.
+- **`reactionPromptView.js` e `spell-unified-panel.js`** hanno righe non
+  committate di altre sessioni: il commit prende HEAD + le righe di F6-4.
+- **Documenti:** le prove in stanza sono in B48.
 
 ---
 

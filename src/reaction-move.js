@@ -52,11 +52,14 @@ function drawCards(prompt, itemsById) {
     }
     const copy = node("div", "", "reaction-card-copy");
     // Only what the GM needs at a glance: who moved, who reacts with what. The purple says "reaction"; an Opportunity
-    // Attack's "melee attack, unless it disengaged" stays in the card's tooltip (its rule).
+    // Attack's "melee attack, unless it disengaged" stays in the card's tooltip (its rule), unless its line says more
+    // (War Caster's spell, lot F6-4 of docs/STUDIO_TALENTI.md).
     copy.append(node("div", why.replace(/\.\s*$/u, ""), "reaction-card-eyebrow"),
       node("div", `${candidate.reactorName || ""} · ${candidate.label || ""}`, "reaction-card-title"));
     const effect = row.querySelector(".reaction-prompt-effect")?.textContent || "";
-    if (effect && candidate.reactionId !== "opportunity-attack") copy.append(node("div", effect, "reaction-card-subtitle"));
+    if (effect && (candidate.reactionId !== "opportunity-attack" || effect !== candidate.short)) {
+      copy.append(node("div", effect, "reaction-card-subtitle"));
+    }
     const answer = row.querySelector(".reaction-prompt-answer");
     if (answer) copy.append(answer);
     const actions = node("div", "", "reaction-card-actions");

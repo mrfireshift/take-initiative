@@ -10,12 +10,15 @@ import { reactionCandidates, reactionEventSignature, withReactionPromptMuted } f
 import { createReactionPromptOption } from "./reactionPromptOption.js";
 import { reactionTriggerEntry } from "./reactionTriggerCatalog.js";
 import { abilityModifier, proficiencyBonusForLevel, totalCharacterLevel } from "./abilityModifiersCore.js";
+import { featFeaturesForProfile } from "./featCatalog.js";
 import { reactionNoticeId } from "./reactionNoticeCore.js";
 
 const META_KEY = `${ID}/meta`;
 // The catalog's lots this build wires (reactionTriggerCatalog.js): the others stay in the catalog, unprompted.
 export const REACTION_PROMPT_LOTS = Object.freeze(["R1", "R2", "R2b", "R3a", "R3c", "R3b", "R4", "R5", "F6"]);
 export const REACTION_PROMPT_CONSOLE_HINT = "Registra senza usarla vale come Ignora.";
+// War Caster's record (featCatalog.js, lot F6-4).
+const WAR_CASTER_FEATURE_ID = "talento-incantatore-da-guerra";
 const DISMISSED_LIMIT = 64;
 
 // The candidates of one phase, with the lots wired. Pure.
@@ -71,6 +74,12 @@ export function reactionPromptEffectText(candidate, items = []) {
     return `TS di caratteristica da incantatore${Number.isInteger(dc) && dc > 0 ? ` CD ${dc}` : ""}: se lo fallisce, non ha effetto sul ladro, che lo ruba`;
   }
   if (effect.kind === "reduce-roll") return short;
+  // War Caster (lot F6-4 of docs/STUDIO_TALENTI.md): instead of an opportunity attack, a spell of one action on that
+  // creature only.
+  if (reactionTriggerEntry(candidate?.reactionId)?.opportunityAttack
+    && featFeaturesForProfile(cardOf(items, candidate.reactorId)).some((feature) => feature.id === WAR_CASTER_FEATURE_ID)) {
+    return `${short}, o un incantesimo da 1 azione solo su di lei (Incantatore da Guerra)`;
+  }
   // An attack with the reaction for another (Sentinel, lot F6-2 of docs/STUDIO_TALENTI.md): against the attacker, never
   // "on" the creature attacked.
   if (effect.kind === "attack" && onAlly) {
