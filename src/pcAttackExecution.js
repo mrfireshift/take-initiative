@@ -596,13 +596,14 @@ export function createPcAttackRuntime({
   // Undo. Help names the creature it helps (targetId) and how (mode); Hide may carry the Stealth total.
   async function executePcTurnAction(request={}) {
     const {sourceId,targetId}=request;
+    // via (lot T4a): the feature that grants the action as a bonus action, read on the live creature (its pool, Rage).
     return runManeuver(request,{kind:"turn-action",sourceId,turnAction:request.kind || "",targetId:targetId || "",mode:request.mode || "",
-      stealth:request.stealth ?? null},
+      stealth:request.stealth ?? null,via:request.via || ""},
       async(scope,attackInstanceId)=>{
         const [targetItem]=targetId?await api.scene.items.getItems([targetId]):[];
         if(targetId && !targetItem) throw new Error("La creatura scelta non è più presente nella scena.");
         return buildPcTurnActionMutation({kind:request.kind,sourceItem:scope.item,attackInstanceId,turnState:scope.turnState,
-          targetItem:targetItem || null,mode:request.mode || "",stealth:request.stealth ?? null});
+          targetItem:targetItem || null,mode:request.mode || "",stealth:request.stealth ?? null,via:request.via || ""});
       });
   }
   // Preparare → Un incantesimo (after lot T6e of docs/STUDIO_AZIONI_DI_TURNO.md): the hold in one command, read on the live

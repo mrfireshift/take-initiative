@@ -31,6 +31,7 @@ import { buildSpellApplicationIntent, buildSpellApplicationPlan } from "./spellA
 import { planSpellCastCost } from "./spellSlotSpendCore.js";
 import { buildSpellCausality } from "./combatLogCausalityCore.js";
 import { withSpellCastCost } from "./spellCastRecordCore.js";
+import { planPcTurnActionVia } from "./pcAttackTurnActionViaCore.js";
 
 const META_KEY = `${ID}/meta`;
 
@@ -101,12 +102,19 @@ function stealthTotal(value) {
 
 // Why the action cannot be registered now, or "". Only in combat, on the creature's own turn: the pills count turns,
 // and the dash belongs to the movement of the turn. Help needs the creature it helps (or the enemy) and its mode.
-export function pcTurnActionBlocker({ kind = "", sourceItem = null, turnState = null, targetItem = null, mode = "", stealth = null } = {}) {
-  if (!LABELS[kind]) return "Azione non valida.";
+// The checks every action shares: a creature, in combat, on its own turn (lot T4a: a feature's card says them too).
+export function pcTurnActionTurnBlocker({ sourceItem = null, turnState = null } = {}) {
   if (!sourceItem?.id) return "Nessuna creatura per questa azione.";
   const order = Array.isArray(turnState?.order) ? turnState.order.filter(Boolean) : [];
   if (!order.length) return "Solo in combattimento, con un ordine di iniziativa.";
   if (initiativeTurnCreatureId(turnState) !== sourceItem.id) return "Solo nel turno della creatura.";
+  return "";
+}
+
+export function pcTurnActionBlocker({ kind = "", sourceItem = null, turnState = null, targetItem = null, mode = "", stealth = null } = {}) {
+  if (!LABELS[kind]) return "Azione non valida.";
+  const turn = pcTurnActionTurnBlocker({ sourceItem, turnState });
+  if (turn) return turn;
   if (kind === "disengage" && hasActiveCondition(sourceItem, DISENGAGE_CONDITION)) return "Ha già il Disimpegno in questo turno.";
   if (kind === "dodge" && hasActiveCondition(sourceItem, DODGE_CONDITION)) return "È già in Schivata.";
   if (kind === "dash" && consoleDashCount(sourceItem, resolveSpeedCheckTurn(turnState).turnKey) >= MAX_TURN_DASHES)
@@ -162,11 +170,16 @@ function actionPill({ kind, sourceItem, targetItem, mode, stealth, sourceName })
 
 // One Dash, Disengage, Dodge, Help, Hide or Ready of the creature whose turn it is. targetItem and mode: Help's; stealth:
 // Hide's.
-export function buildPcTurnActionMutation({ kind = "", sourceItem, attackInstanceId, turnState = null, targetItem = null, mode = "", stealth = null } = {}) {
+// via (lot T4a): the feature that grants the action as a bonus action (pcAttackTurnActionViaCore.js), its cost and its
+// name in the same command; Adrenaline Rush's temporary hit points too.
+export function buildPcTurnActionMutation({ kind = "", sourceItem, attackInstanceId, turnState = null, targetItem = null, mode = "", stealth = null,
+  via = "" } = {}) {
   if (!attackInstanceId || typeof attackInstanceId !== "string") throw new Error("Identità dell'azione mancante.");
   const blocker = pcTurnActionBlocker({ kind, sourceItem, turnState, targetItem, mode, stealth });
   if (blocker) throw new Error(blocker);
+  const viaPlan = via ? planPcTurnActionVia({ featureId: via, kind, sourceItem, turnState, eventId: attackInstanceId }) : null;
   const name = LABELS[kind];
+  const viaText = viaPlan ? ` (${viaPlan.name})` : "";
   const sourceName = sourceItem.name || sourceItem.id;
   const appliedAt = bossConditionAppliedAt(turnState);
   const turn = appliedAt?.turnKey ? appliedAt : null;
@@ -177,21 +190,23 @@ export function buildPcTurnActionMutation({ kind = "", sourceItem, attackInstanc
   const instanceId = pill ? bossGroupConditionInstanceId(attackInstanceId, pill.condition, holder.id) : "";
   const speedTurnKey = resolveSpeedCheckTurn(turnState).turnKey;
   const dashes = kind === "dash" ? consoleDashCount(sourceItem, speedTurnKey) + 1 : 0;
-  const label = kind === "help" ? `${sourceName}: ${name} → ${holderName}` : `${sourceName}: ${name}`;
+  const label = kind === "help" ? `${sourceName}: ${name}${viaText} → ${holderName}` : `${sourceName}: ${name}${viaText}`;
   const causality = {
     actor: { id: sourceItem.id, tokenId: sourceItem.id, name: sourceName, role: "attacker" },
     cause: { kind: PC_ATTACK_HISTORY_KIND, actionName: name, attackInstanceId, turnAction: kind },
     action: { id: `turn-action:${kind}`, label: name },
     turnAction: { kind, ...(kind === "dash" ? { dashes } : { condition: pill.condition }), ...(kind === "help" ? { mode } : {}),
-      ...(total !== null && kind === "hide" ? { stealth: total } : {}) },
+      ...(total !== null && kind === "hide" ? { stealth: total } : {}),
+      ...(viaPlan ? { via: { featureId: viaPlan.featureId, name: viaPlan.name, ...(viaPlan.spent ? { spent: viaPlan.spent } : {}),
+        ...(viaPlan.tempHp ? { tempHp: viaPlan.tempHp } : {}), ...(viaPlan.warning ? { warning: viaPlan.warning } : {}) } } : {}) },
     ...(turn ? { turn } : {}),
     targets: [{ id: holder.id, name: holderName, ...(pill ? { conditions: [{ condition: pill.condition, instanceId }] } : {}) }],
   };
-  const operations = pill ? [{
+  const operations = [...(pill ? [{
     type: "condition:add", targetIds: [holder.id], conditionName: pill.condition, instanceIds: { [holder.id]: instanceId },
     options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", manualRemoval: true, ...pill.options,
       ...(appliedAt ? { appliedAt } : {}) },
-  }, { type: "condition:automate", subjectIds: [holder.id] }] : [];
+  }, { type: "condition:automate", subjectIds: [holder.id] }] : []), ...(viaPlan?.operations || [])];
   return {
     condition: pill?.condition || "", causality, manualText: "", labelTargetIds: pill ? [holder.id] : [],
     operations,

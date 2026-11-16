@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **269** |
+| **B. Console attacchi, mostri e capacità** | **274** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -79,6 +79,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B49. Fiamme di Flegesto | 4 |
 | B50. Rudimenti da Guerriero e Adepto Occulto | 4 |
 | B51. Adepto di Metamagia | 4 |
+| B52. Azioni bonus dalle capacità | 5 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -104,7 +105,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **632** |
+| **Totale** | **637** |
 
 ## A. Incantesimi
 
@@ -977,6 +978,16 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F9-2 (decisione D14). Le vo
 - [ ] **I punti:** **Incantesimo Rapido** spende 2 punti del talento; un secondo uso viene rifiutato; dopo un riposo lungo i punti tornano 2.
 - [ ] **Incantesimo Raddoppiato:** chiede il livello dell'incantesimo; con 1 spende 1 punto del talento, nella scheda e nella scheda Capacità della console. Scelto **Incantesimo Intensificato**, la scheda avvisa che costa 3 punti.
 - [ ] **Lo stregone:** con lo stesso talento, le card dello stregone spendono i punti stregoneria e quelle del talento i 2 punti suoi, separati.
+
+### B52. Azioni bonus dalle capacità
+
+Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T4a (decisione A1). Le voci sono nuove: nessuna lista le aveva. Servono un ladro (Azione Scaltra), un monaco di 2° livello (Passo del Vento), un orco del Multiverso (Scarica di adrenalina), un barbaro del Totem con lo Spirito dell'Aquila e un ladro Pianificatore, in combattimento e nel loro turno.
+
+- [ ] **Azione Scaltra:** console attacchi → **Capacità** → Azione Scaltra: la card dice «Scatto, Disimpegno o Nascondersi della scheda Azioni, come azione bonus» e ha il menu **Azione**. Con **Disimpegno** e **Usa** compare la pill «Disimpegno»; la Cronologia scrive «…: Disimpegno (Azione Scaltra)» e il suo Annulla la toglie. Con **Nascondersi** il totale di Furtività è facoltativo. Da provare in vista compatta ed estesa.
+- [ ] **Passo del Vento:** **Scatto** e **Usa** aggiungono uno scatto al riquadro Movimento e tolgono 1 punto ki (2 → 1); lo stato dice «(Passo del Vento · Punti Ki 1/2)». Annulla rende il ki e toglie lo scatto. A ki finiti, **Usa** è spento con «Nessun uso rimasto (Punti Ki)».
+- [ ] **Scarica di adrenalina:** **Usa** fa lo Scatto, spende un uso e dà PF temporanei pari al bonus di competenza, sul tracker e sulla barra della mappa. Con più PF temporanei di quelli, l'uso si spende e lo stato dice che non si sommano. Annulla toglie i PF temporanei e rende l'uso.
+- [ ] **L'Aquila e il turno:** senza Ira la card dello Spirito Totemico: Aquila dice «Solo in Ira» e **Usa** è spento; in Ira fa lo Scatto. Fuori dal turno della creatura, ogni card di queste capacità ha **Usa** spento con «Solo nel turno della creatura.».
+- [ ] **Maestro di Tattiche e Tecnica dell'Ubriaco:** selezionato un nemico sulla mappa, «Aiuta in» **Un attacco** e **Usa** mettono «Bersaglio dell'aiuto» sul nemico. Un monaco del Maestro Ubriaco con la pill «Tecnica dell'Ubriaco» esce dalla portata di un nemico senza avviso di attacco di opportunità; un nemico con Sentinella lo riceve lo stesso.
 
 ## C. Tracker e UX
 

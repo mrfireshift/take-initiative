@@ -52,8 +52,12 @@ function hasNoOpportunityPill(item) {
   return spells.some((pill) => text(pill?.spellId) === ZEPHYR_STRIKE_SPELL_ID || JSON.stringify(pill || {}).includes(NO_OPPORTUNITY_PILL))
     || activeConditions(item).some((entry) => text(entry?.condition, 80) === NO_OPPORTUNITY_PILL);
 }
+// Drunken Technique's pill (Way of the Drunken Master, put with Flurry of Blows): the benefit of the Disengage action
+// (lot T4a of docs/STUDIO_AZIONI_DI_TURNO.md), so Sentinel's exception holds against it too.
+export const DRUNKEN_TECHNIQUE_PILL = "Tecnica dell'Ubriaco";
 // The Disengage action's pill: no opportunity attack, except from a reactor with Sentinel.
-const hasDisengagePill = (item) => activeConditions(item).some((entry) => text(entry?.condition, 80) === DISENGAGE_PILL);
+const hasDisengagePill = (item) => activeConditions(item)
+  .some((entry) => [DISENGAGE_PILL, DRUNKEN_TECHNIQUE_PILL].includes(text(entry?.condition, 80)));
 // Sentinel's record (featCatalog.js), on the reactor's sheet.
 export const SENTINEL_FEATURE_ID = "talento-sentinella";
 const hasFeatRecord = (reactor, featureId) => featFeaturesForProfile(metaOf(reactor).initiativeCard || {})

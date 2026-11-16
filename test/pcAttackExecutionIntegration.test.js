@@ -841,3 +841,38 @@ test("Preparare → Un incantesimo: only on the caster's turn, only a spell cast
   const pill = (meta("aria").conditions?.instances || []).find((instance) => instance.condition === "Azione preparata");
   assert.deepEqual([pill.displayLabel, pill.mechanics?.gmOnly], ["Azione preparata · Dardo di fuoco", true], "an enemy's hold: the GM's (P10)");
 });
+
+// Lot T4a of docs/STUDIO_AZIONI_DI_TURNO.md (decision A1): an action granted by a feature, from its card in Capacità:
+// the Azioni tab's command with the feature's cost in it; one Undo gives everything back.
+test("Passo del Vento: the Dash and its ki in one History entry; one Undo gives back both", async () => {
+  meta("aria").initiativeCard = { characterBuild: [{ classId: "monaco", level: 2 }] };
+  const presentation = await runtime.getPcAttackPresentation("aria", "");
+  const result = await runtime.executePcTurnAction({ sourceId: "aria", kind: "dash", via: "monaco-ki-passo-del-vento",
+    attackInstanceId: "wind-1", sceneIdentity: presentation.sceneIdentity });
+  assert.deepEqual(result.turnAction.via, { featureId: "monaco-ki-passo-del-vento", name: "Passo del Vento", spent: "Punti Ki 1/2" });
+  assert.equal(meta("aria").classFeatureState.resources["monaco-punti-ki"].current, 1);
+  assert.equal(meta("aria").pcAttackState.turnActions.dashes, 1, "the movement panel's dash");
+  const entry = (await history.getHistoryEntries()).at(-1);
+  assert.equal(entry.label, "Aria: Scatto (Passo del Vento)");
+  await assert.rejects(runtime.executePcTurnAction({ sourceId: "aria", kind: "hide", via: "monaco-ki-passo-del-vento",
+    attackInstanceId: "wind-2", sceneIdentity: presentation.sceneIdentity }), /non dà questa azione/u);
+  await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(meta("aria").classFeatureState?.resources?.["monaco-punti-ki"]?.current ?? 2, 2, "the ki back");
+  assert.equal(meta("aria").pcAttackState?.turnActions?.dashes ?? 0, 0, "the dash gone");
+});
+
+test("Scarica di adrenalina: the Dash, its use and its temporary hit points in one entry; one Undo removes them", async () => {
+  meta("aria").initiativeCard = { characterBuild: [{ classId: "guerriero", level: 4 }], species: { id: "orco-multiverso" } };
+  const presentation = await runtime.getPcAttackPresentation("aria", "");
+  const result = await runtime.executePcTurnAction({ sourceId: "aria", kind: "dash", via: "specie-orco-multiverso-scarica-di-adrenalina",
+    attackInstanceId: "rush-1", sceneIdentity: presentation.sceneIdentity });
+  assert.deepEqual(result.turnAction.via.tempHp, { amount: 2, after: 2 });
+  assert.deepEqual([meta("aria").hp, meta("aria").hpMax, meta("aria").tempHp], [40, 40, 2], "PB 2, the HP untouched");
+  const pool = Object.entries(meta("aria").classFeatureState.resources).find(([id]) => id.includes("adrenalina"));
+  assert.equal(pool?.[1].current, 1, "one use of two spent");
+  const entry = (await history.getHistoryEntries()).at(-1);
+  assert.equal(entry.label, "Aria: Scatto (Scarica di adrenalina)");
+  await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(meta("aria").tempHp ?? 0, 0, "the temporary hit points gone");
+  assert.equal(meta("aria").classFeatureState?.resources?.[pool[0]]?.current ?? 2, 2, "the use back");
+});

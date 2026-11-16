@@ -233,11 +233,50 @@ rilasciano dal menu della card o dal ⚡, come i PG.
 
 Prove in `PROVE_IN_STANZA.md`, sezione B22.
 
+**Decisioni dell'audit del 16/11 (§10.9).** A1, A3 e A6 sono approvate come
+raccomandate. A2 è approvata con un cambio: la pill è «Movimento: no AdO», quella
+del Colpo dello Zefiro, e non «Disimpegno». Nel frattempo la Sentinella (lotto
+F6-2 di `STUDIO_TALENTI.md`) reagisce al Disimpegno, e queste capacità non sono un
+Disimpegno. Gioco di Gambe arriva con Mobilità (F2 dei talenti), che esclude gli
+attacchi di opportunità di una sola creatura come lui. A7 è superata: ora il
+plugin ha il catalogo dei talenti.
+
+**T4a fatto il 16/11:** le capacità che danno un'azione della scheda Azioni come
+azione bonus (A1).
+
+- Le dieci capacità sono in `pcAttackTurnActionViaCore.js`, con le azioni che
+  danno: Azione Scaltra, Passo del Vento, Passo Veloce, Svanire (le due
+  versioni), Maestro di Tattiche, Fuga agile (i due goblin), Scarica di
+  adrenalina, Aggressivo e Spirito Totemico: Aquila.
+- La loro card in Capacità ha il menu **Azione** quando ne danno più d'una, la
+  Furtività facoltativa per Nascondersi e il modo dell'Aiuto, con la creatura
+  selezionata sulla mappa. **Usa** fa il comando della scheda Azioni
+  (`buildPcTurnActionMutation` con `via`).
+- Nello stesso comando ci sono il costo della capacità (il ki di Passo del Vento,
+  l'uso della Scarica di adrenalina) e il suo nome nell'etichetta e nel log:
+  «Kai: Scatto (Passo del Vento)». Un solo Annulla.
+- La Scarica di adrenalina dà anche i PF temporanei del suo tratto, con lo
+  stesso calcolo e la stessa operazione `hp:set`; se la creatura ne ha già di
+  più, non si sommano e lo stato lo dice.
+- L'Aquila si usa solo mentre è attiva, cioè in Ira. Fuori dal turno della
+  creatura **Usa** è spento con il motivo accanto, come Registra nella scheda
+  Azioni.
+- Tecnica dell'Ubriaco non ha un pulsante: la sua pill vale come Disimpegno
+  negli avvisi di attacco di opportunità, e la Sentinella reagisce lo stesso.
+- Restano fuori:
+  - Dono fatato dell'hobgoblin, perché i suoi benefici dal 3° livello
+    (Ospitalità, Passaggio, Dispetto) vanno decisi insieme;
+  - i tratti dei mostri di 5eTools (Nimble Escape), per cui vale la scheda
+    Azioni.
+
+Prove in `PROVE_IN_STANZA.md`, sezione B52.
+
 Scritti lo stesso giorno, con decisioni nuove in attesa:
 
 - §9, l'incantesimo preparato: decisioni **P1–P12** (§9.8), approvate dall'utente
   il 15/11 come raccomandate;
-- §10, l'audit delle capacità: decisioni **A1–A7** (§10.9).
+- §10, l'audit delle capacità: decisioni **A1–A7** (§10.9), A1–A3 e A6
+  approvate il 16/11.
 
 Richiesta dell'utente (15/11), dopo la sessione del giorno prima:
 
@@ -967,3 +1006,8 @@ Aiuto, quello dei PF massimi, e le pill si riconoscono dal nome. Propongo:
 | A5 | Nomi delle pill di Aiuto | «Aiutato» sull'alleato, «Bersaglio dell'aiuto» sul nemico; Dono fatato si allinea |
 | A6 | Dati da correggere | lotto TD a sé |
 | A7 | Talenti (Mobile, Sentinella…) | fuori: il plugin non ha un catalogo dei talenti |
+
+Il 16/11 l'utente ha approvato A1, A3 e A6 come raccomandate e A2 con la pill
+«Movimento: no AdO» al posto di «Disimpegno» (vedi l'inizio del documento). A4 e
+A5 erano già applicate con T2. A7 è superata: i talenti hanno ora il loro studio
+(`STUDIO_TALENTI.md`).

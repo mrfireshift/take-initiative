@@ -42,7 +42,7 @@ import { spellGrantedActionsForItem } from "./spellGrantedActionsCore.js";
 import { PC_MANEUVER_CONTEST, PC_MANEUVER_NOTES, PC_MANEUVER_OUTCOMES, PC_MANEUVER_OUTCOME_LABELS, PC_SHOVE_EFFECTS, PC_SHOVE_EFFECT_LABELS,
   pcAttackManeuverEntries, pcGrappleHolds, pcGrapplesOn, pcManeuverBlocker, pcManeuverLabel } from "./pcAttackManeuverCore.js";
 import { PC_HELP_MODES, PC_HELP_MODE_LABELS, PC_READY_SPELL_NOTE, PC_TURN_ACTION_NOTES, pcAttackTargetNotes, pcAttackTurnActionEntries,
-  pcTurnActionBlocker, pcTurnActionLabel } from "./pcAttackTurnActionCore.js";
+  pcTurnActionBlocker, pcTurnActionLabel, pcTurnActionTurnBlocker } from "./pcAttackTurnActionCore.js";
 import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
 import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageShortNotice, mirrorImageState } from "./mirrorImageCore.js";
@@ -204,14 +204,18 @@ export function turnActionSummary(result,actor="") {
   const action=result?.turnAction || {};
   const name=pcTurnActionLabel(action.kind) || "Azione";
   const holder=result?.target?.name || "la creatura";
-  const self=action.kind==="help"?actor || "la creatura":holder;
-  if(action.kind==="dash") return `Registrato: ${name} di ${self}, uno scatto in più nel riquadro Movimento.`;
-  if(action.kind==="disengage") return `Registrato: ${name} di ${self}, niente attacchi di opportunità fino alla fine del turno.`;
+  // Lot T4a: the feature that granted it, with what it spent; Adrenaline Rush's temporary hit points after.
+  const via=action.via?.name?` (${action.via.name}${action.via.spent?` · ${action.via.spent}`:""})`:"";
+  const after=[...(action.via?.tempHp?[`${action.via.tempHp.amount} PF temporanei.`]:[]),...(action.via?.warning?[action.via.warning]:[])]
+    .map(text=>` ${text}`).join("");
+  const self=`${action.kind==="help"?actor || "la creatura":holder}${via}`;
+  if(action.kind==="dash") return `Registrato: ${name} di ${self}, uno scatto in più nel riquadro Movimento.${after}`;
+  if(action.kind==="disengage") return `Registrato: ${name} di ${self}, niente attacchi di opportunità fino alla fine del turno.${after}`;
   if(action.kind==="dodge") return `Registrato: ${name} di ${self}, fino all'inizio del suo prossimo turno.`;
   if(action.kind==="help") return action.mode==="attack"
-    ?`Registrato: ${name} di ${self} contro ${holder}, il primo attacco di un alleato ha vantaggio.`
-    :`Registrato: ${name} di ${self} a ${holder}, vantaggio alla prossima prova del compito.`;
-  if(action.kind==="hide") return `Registrato: ${name} di ${self}${Number.isFinite(action.stealth)?`, Furtività ${action.stealth}`:""}; attaccando si rivela.`;
+    ?`Registrato: ${name} di ${self} contro ${holder}, il primo attacco di un alleato ha vantaggio.${after}`
+    :`Registrato: ${name} di ${self} a ${holder}, vantaggio alla prossima prova del compito.${after}`;
+  if(action.kind==="hide") return `Registrato: ${name} di ${self}${Number.isFinite(action.stealth)?`, Furtività ${action.stealth}`:""}; attaccando si rivela.${after}`;
   if(action.kind==="ready") return `Registrato: ${name} di ${self}, fino all'inizio del suo prossimo turno; si innesca dal menu della card.`;
   return `Registrato: ${name}.`;
 }
@@ -1444,18 +1448,21 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const remaining=active[0]?.remainingRounds;
     const firstPool=(state.resources?.[entry.featureId] || [])[0];
     const spent=["activate","toggle"].includes(form.kind) && !active.length && firstPool && !firstPool.unlimited && firstPool.current===0;
+    // Lot T4a: an action of the Azioni tab granted by the feature, on the creature's own turn only, as Registra there.
+    const disabledReason=form.disabledReason
+      || (form.kind==="turn-action"?pcTurnActionTurnBlocker({sourceItem:presentation?.item,turnState:presentation?.turnState}):"");
     return {
       form,
       // Its cost is on its row: the card says it only when there is no row.
       tags:[...(entry.activation && !pickerNamesEntry?[[capitalized(entry.activation),""]]:[]),...(target?[[target,""]]:[]),
         ...(active.length?[[Number.isFinite(remaining)?`Attiva · ${remaining} r`:"Attiva",""]]:[]),...(entry.species?[["Specie",""]]:[])],
       detailText:resources.join(" · "),
-      notes:[...(form.note?[[form.note,""]]:[]),...(form.disabledReason?[[form.disabledReason,"warning"]]:[]),
-        ...(spent && !form.disabledReason?[["Nessun uso rimasto.","warning"]]:[]),
+      notes:[...(form.note?[[form.note,""]]:[]),...(disabledReason?[[disabledReason,"warning"]]:[]),
+        ...(spent && !disabledReason?[["Nessun uso rimasto.","warning"]]:[]),
         ...(!["reference","reaction"].includes(form.kind) && reactionAlreadyUsed(definition)?[["Reazione già usata in questo round.","warning"]]:[])],
-      blocked:!!form.disabledReason || spent,
+      blocked:!!disabledReason || spent,
       // Why Usa is off, beside it in the fixed row.
-      blockReason:form.disabledReason || (spent?"Nessun uso rimasto.":""),
+      blockReason:disabledReason || (spent?"Nessun uso rimasto.":""),
       target:featureTargetInfo(entry,form,definition),
     };
   }
@@ -1563,6 +1570,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     }
     const request=pcAttackFeatureRequest(definition,form,values,{sourceId,targetIds});
     if(request.error){setStatus(request.error,"error");return;}
+    // Lot T4a: a feature that grants an action of the Azioni tab does it with that tab's command.
+    if(request.turnAction) return runTurnActionVia(entry,request.turnAction);
     const name=definition?.name || entry.label;
     if(request.fn!=="deactivateClassFeature" && reactionAlreadyUsed(definition)
       && !confirmSwitch(`${presentation?.item?.name || "Il personaggio"} ha già usato la reazione in questo round.\n\nUsare comunque ${name}?`)) {
@@ -2049,6 +2058,25 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         markPendingReady();
         turnActionId=newAttackId();
         turnActionDraft=emptyTurnActionDraft("ready");
+        await refresh(operation);
+      } catch(error) {
+        // A definitive rejection needs a new identity; an uncertain acknowledgement keeps it for the retry.
+        if(["conflict","rejected"].includes(error?.status) && error.result?.committed!==true) turnActionId=newAttackId();
+        throw error;
+      }
+    },{commit:true});
+  }
+  // Lot T4a of docs/STUDIO_AZIONI_DI_TURNO.md: Dash, Disengage, Hide or Help granted by a feature (Azione Scaltra, Passo
+  // del Vento…), from its card in Capacità: the Azioni tab's command, the feature's cost and name in it, one Undo.
+  async function runTurnActionVia(entry,request) {
+    return perform(async operation=>{
+      try {
+        const result=await runtime.executePcTurnAction({sourceId,...request,attackInstanceId:turnActionId,sceneIdentity:presentation.sceneIdentity});
+        if(!lifecycle.isCurrent(operation)) return;
+        showUndo(result);
+        setStatus([turnActionSummary(result,actorName()),...(result.warnings || [])].join("\n"),"ok");
+        turnActionId=newAttackId();
+        rememberEntry(entry.key);
         await refresh(operation);
       } catch(error) {
         // A definitive rejection needs a new identity; an uncertain acknowledgement keeps it for the retry.

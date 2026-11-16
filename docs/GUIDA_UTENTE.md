@@ -709,6 +709,36 @@ mancato (un TS no):
 
 Prima di registrare, la console ricorda il vantaggio sotto il bersaglio.
 
+#### Azioni bonus dalle capacità
+
+Alcune capacità danno un'azione della scheda Azioni come azione bonus. La loro
+card nella scheda **Capacità** fa quell'azione con **Usa**, senza passare dalla
+scheda Azioni:
+
+- **Azione Scaltra** del ladro: Scatto, Disimpegno o Nascondersi;
+- **Passo del Vento** del monaco: Scatto o Disimpegno, con 1 punto ki;
+- **Passo Veloce** e **Svanire** del ranger: Scatto o Nascondersi;
+- **Maestro di Tattiche** del Pianificatore: Aiuto. Il nemico, in un attacco, può
+  essere fino a 9 m dal ladro;
+- **Fuga agile** dei goblin: Disimpegno o Nascondersi;
+- **Aggressivo** e **Scarica di adrenalina** degli orchi: Scatto. La Scarica
+  spende un suo uso e dà PF temporanei pari al bonus di competenza; non si
+  sommano a quelli che la creatura ha già;
+- **Spirito Totemico: Aquila** del barbaro: Scatto, solo in Ira.
+
+Quando una capacità dà più azioni, scegli quella giusta nel menu **Azione**.
+Nascondersi accetta il totale di Furtività, facoltativo. Per l'Aiuto si usano il
+modo e la creatura selezionata sulla mappa.
+
+Il comando è quello della scheda Azioni, con il costo della capacità e il suo
+nome: la Cronologia scrive per esempio «Kai: Scatto (Passo del Vento)», e un solo
+**Annulla** restituisce anche il ki o l'uso. Fuori dal turno della creatura **Usa**
+è spento.
+
+La pill di **Tecnica dell'Ubriaco** vale come un Disimpegno: chi si muove con
+quella pill non fa partire gli avvisi di attacco di opportunità, tranne quelli di
+chi ha Sentinella.
+
 ### Console attacchi fuori turno
 
 Quando sulla mappa è selezionata un'altra creatura, sotto l'intestazione della console attacchi compare **⇄ Agisci con…**: la console passa a quella creatura per un'azione fuori turno (un attacco di opportunità, una reazione). L'intestazione dice **Fuori turno** e, sulla stessa riga di **⇄ Agisci con…**, **⇄ Torna a…** riporta alla creatura di turno; se la creatura selezionata è proprio quella, il pulsante è uno solo. Un nome troppo lungo si taglia sul pulsante, e il suggerimento lo scrive intero. Un attacco fuori turno propone la casella **Usa la reazione (attacco di opportunità)**, già spuntata, che diventa **Usa la reazione (azione preparata)** quando la creatura ne ha una: togli la spunta se l'attacco non usa la reazione; se la reazione è già usata nel round la console lo dice e l'attacco non la segna. Se la console era già sulla creatura durante il suo turno e il turno passa, la casella parte spenta. Gli esiti di un attacco ad area non ancora registrati vengono chiesti prima di cambiare creatura.

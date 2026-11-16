@@ -19,6 +19,8 @@ import {
 } from "./classFeatureCore.js";
 import { getSpellDefinition } from "./spells-srd.js";
 import { isReactionClassFeature } from "./reactionTrackerCore.js";
+import { PC_TURN_ACTION_VIAS, pcTurnActionViaKinds, pcTurnActionViaNote } from "./pcAttackTurnActionViaCore.js";
+import { PC_HELP_MODES, PC_HELP_MODE_LABELS, pcTurnActionLabel } from "./pcAttackTurnActionCore.js";
 
 // A class feature or species trait in the attack console's Capacità tab: what the GM fills in and which runtime call it
 // makes, the same inputs the character sheet asks (initiative-card-modal.js, renderClassFeatures). The console runs the
@@ -91,9 +93,39 @@ function reactionForm(reaction = {}) {
 
 const adapterOf = (feature) => String(feature?.runtimeSupport?.adapter || "").trim();
 
-// Whether the console's Capacità tab lists it among the usable ones: the sheet's rule (not reference only, automated).
+// Whether the console's Capacità tab lists it among the usable ones: the sheet's rule (not reference only, automated);
+// a feature that grants an action of the Azioni tab too (lot T4a), which the console does itself.
 export function pcAttackFeatureUsable(feature) {
+  if (pcTurnActionViaKinds(feature?.id).length) return true;
   return !classFeatureIsReferenceOnly(feature) && classFeatureRuntimeSupport(feature).ready;
+}
+
+// Lot T4a of docs/STUDIO_AZIONI_DI_TURNO.md (decision A1): a feature that grants Dash, Disengage, Hide or Help as a bonus
+// action does it from its card, through the Azioni tab's command, its cost in it (pcAttackTurnActionViaCore.js). The
+// action to choose when it grants more than one; Hide's Stealth total, optional; Help's mode, the creature selected on the
+// map. Off while its pool is spent, or for the Eagle totem spirit without Rage.
+function turnActionViaForm(feature, kinds, state) {
+  const pool = (Array.isArray(state.resources?.[feature.id]) ? state.resources[feature.id] : [])[0] || null;
+  const amount = Math.max(1, Math.floor(Number(feature.resourceCosts?.[0]?.amount) || 1));
+  const spent = pool && !pool.unlimited && Number.isFinite(pool.current) && pool.current < amount;
+  const inactive = PC_TURN_ACTION_VIAS[feature.id]?.whileActive && !(state.activeFeatureIds || []).includes(feature.id);
+  const labels = kinds.map((kind) => pcTurnActionLabel(kind));
+  const listed = labels.length > 1 ? `${labels.slice(0, -1).join(", ")} o ${labels.at(-1)}` : labels[0];
+  return {
+    kind: "turn-action", label: "Usa", call: "turn-action", kinds: [...kinds], selectionTargets: kinds.includes("help"),
+    fields: [
+      ...(kinds.length > 1 ? [{ id: "action", type: "select", label: "Azione",
+        options: kinds.map((kind) => ({ value: kind, label: pcTurnActionLabel(kind) })) }] : []),
+      ...(kinds.includes("hide") ? [{ id: "stealth", type: "number", label: "Furtività (facoltativa)", min: 0, max: 60, value: "",
+        ...(kinds.length > 1 ? { showWhen: { field: "action", value: "hide" } } : {}) }] : []),
+      ...(kinds.includes("help") ? [{ id: "mode", type: "select", label: "Aiuta in",
+        options: PC_HELP_MODES.map((mode) => ({ value: mode, label: PC_HELP_MODE_LABELS[mode] })) }] : []),
+    ],
+    note: [`${listed} della scheda Azioni, come azione bonus${pool && !pool.unlimited ? ` (${pool.name} −${amount})` : ""}.`,
+      kinds.includes("help") ? "Seleziona sulla mappa l'alleato da aiutare o il nemico." : "", pcTurnActionViaNote(feature.id)]
+      .filter(Boolean).join(" "),
+    disabledReason: inactive ? `Solo in Ira: ${feature.name} arriva con l'Ira.` : spent ? `Nessun uso rimasto (${pool.name}).` : "",
+  };
 }
 
 // The state of the actor's features the console needs, as the sheet reads it: each feature's active instances, its
@@ -140,6 +172,8 @@ const SORCERY_SLOT_MIN_LEVEL = Object.freeze({ 1: 2, 2: 3, 3: 5, 4: 7, 5: 9 });
 // offered, as before.
 export function pcAttackFeatureForm(feature, state = {}, { characterBuild = [], reaction = {}, spellSlots } = {}) {
   if (!feature) return { kind: "reference", fields: [], label: "" };
+  const viaKinds = pcTurnActionViaKinds(feature.id);
+  if (viaKinds.length) return turnActionViaForm(feature, viaKinds, state);
   const runtime = classFeatureRuntimeSupport(feature);
   if (pcAttackFeatureSpendable(feature)) return spendForm(feature, state);
   if (pcAttackFeatureReactable(feature)) return reactionForm(reaction);
@@ -270,6 +304,19 @@ export function pcAttackFeatureForm(feature, state = {}, { characterBuild = [], 
 // message. targetIds: the map selection (when the feature takes one); spell: the target's spell chosen.
 export function pcAttackFeatureRequest(feature, form, values = {}, { sourceId = "", targetIds } = {}) {
   if (!feature || !form) return { error: "Capacità non disponibile." };
+  // Lot T4a: the Azioni tab's command, run by the console (pc-attack.js), with the feature that grants the action.
+  if (form.call === "turn-action") {
+    const kinds = Array.isArray(form.kinds) ? form.kinds : [];
+    const kind = kinds.length > 1 ? String(values.action || kinds[0]) : kinds[0];
+    if (!kinds.includes(kind)) return { error: "Scegli l'azione." };
+    if (kind === "help") {
+      const ids = (Array.isArray(targetIds) ? targetIds : []).filter((id) => id && id !== sourceId);
+      if (ids.length !== 1) return { error: "Seleziona sulla mappa una sola creatura: l'alleato da aiutare, o il nemico." };
+      return { turnAction: { kind, via: feature.id, targetId: ids[0], mode: PC_HELP_MODES.includes(values.mode) ? values.mode : PC_HELP_MODES[0] } };
+    }
+    const stealth = kind === "hide" ? String(values.stealth ?? "").trim() : "";
+    return { turnAction: { kind, via: feature.id, ...(stealth !== "" ? { stealth: Number(stealth) } : {}) } };
+  }
   if (form.call === "reaction") {
     return { fn: "useClassFeatureReaction", params: { sourceId, featureId: feature.id }, done: `Reazione segnata: ${feature.name}.` };
   }

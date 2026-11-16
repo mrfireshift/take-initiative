@@ -2519,3 +2519,31 @@ test("a readied Scorching Ray off its turn: the hold's slot, locked; the note sa
   assert.equal(own.$("pc-attack-spell-controls").querySelector('[aria-label="Slot"]').disabled, false);
   assert.match(own.$("pc-attack-cantrip-note").textContent, /il primo spende lo slot/);
 });
+
+// Lot T4a of docs/STUDIO_AZIONI_DI_TURNO.md (decision A1): a feature that grants an action of the Azioni tab does it from
+// its card in Capacità, with the Azioni tab's command; never through the sheet's feature runtime.
+test("Capacità → Azione Scaltra: the action chosen and Usa send the Azioni tab's command with the feature; off turn, Usa is off", async () => {
+  const rogueCard = { characterBuild: [{ classId: "ladro", level: 2 }], quickActions: [sword] };
+  const featureState = { enabledIds: ["ladro-azione-scaltra"], activeFeatureIds: [], active: {}, resources: {} };
+  const features = fakeFeatureRuntime();
+  const open = async (turnState) => {
+    const f = fixture({ card: rogueCard, attacker: { initiativeCard: rogueCard }, featureState, featureRuntime: features.runtime, turnState });
+    await f.controller.ready; await tick();
+    await [...pickerTabs(f)].find((button) => button.textContent === "Capacità").click(); await tick();
+    await pick(f, "feature::ladro-azione-scaltra");
+    return f;
+  };
+  const f = await open(ownTurn);
+  assert.match(textOf(f.$("pc-attack-launch")), /Scatto, Disimpegno o Nascondersi della scheda Azioni, come azione bonus\./u);
+  const select = f.$("pc-attack-launch").querySelectorAll("select")[0];
+  assert.deepEqual(select.children.map((option) => option.value), ["dash", "disengage", "hide"]);
+  assert.deepEqual([f.$("pc-attack-launch-button").textContent, f.$("pc-attack-launch-button").disabled], ["Usa", false]);
+  select.value = "disengage"; await select.emit("change"); await tick();
+  await f.$("pc-attack-launch-button").click(); await tick(); await tick();
+  const request = f.calls.find((entry) => entry.turnAction)?.turnAction;
+  assert.deepEqual([request.sourceId, request.kind, request.via], ["aria", "disengage", "ladro-azione-scaltra"]);
+  assert.deepEqual(features.calls, [], "the Azioni tab's command, not the sheet's feature runtime");
+  assert.match(f.$("pc-attack-status").textContent, /^Registrato: Disimpegno di Aria/u);
+  const off = await open({ ...ownTurn, current: 1 });
+  assert.deepEqual([off.$("pc-attack-launch-button").disabled, off.$("pc-attack-total").textContent], [true, "Solo nel turno della creatura."]);
+});
