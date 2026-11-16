@@ -26,7 +26,9 @@
 // effect: what the reaction does, for the prompt's text and, from lot R3, the modifier ("ac-bonus", "halve",
 // "reduce", "resistance", "downgrade-critical", "reroll", "retaliation", "attack", "counter", "other").
 // lot: the lot of the study that wires it. R2b: the spell fails and its caster loses the slot (Magic-User's Nemesis), or
-// it has no effect on the thief, who leaves its targets (Spell Thief).
+// it has no effect on the thief, who leaves its targets (Spell Thief). F6: the feats' reactions (docs/STUDIO_TALENTI.md
+// §7.15), records of featCatalog.js with the ids "talento-…"; an "ac-bonus" with proficiency adds the reactor's
+// proficiency bonus (Defensive Duelist).
 
 export const REACTION_TRIGGERS = Object.freeze(["hit", "damage", "miss", "spell-cast", "move-leave", "move-enter", "turn-end-near"]);
 export const REACTION_TIMINGS = Object.freeze(["before", "after"]);
@@ -94,6 +96,15 @@ export const REACTION_TRIGGER_CATALOG = Object.freeze([
     triggers: ["hit"], timing: "before", protects: "self-or-ally", rangeMeters: 18, filters: { attackRoll: true }, lot: "R3a",
     effect: { kind: "reroll" }, short: "L'attaccante ritira il d20",
     rule: "Una creatura entro 18 m colpita: l'attaccante ritira il d20 e usa il nuovo tiro." }),
+  // Lot F6-1, the feats: Defensive Duelist as Arcane Deflection, Second Chance as Runic Shield (its use and the reaction).
+  feature({ id: "defensive-duelist", label: "Duellante Difensivo", featureIds: ["talento-duellante-difensivo"],
+    triggers: ["hit"], timing: "before", filters: { range: "melee", attackRoll: true }, lot: "F6",
+    effect: { kind: "ac-bonus", proficiency: true }, short: "+ competenza alla CA",
+    rule: "Colpito in mischia mentre impugna un'arma accurata in cui è competente: + bonus di competenza alla CA contro questo attacco." }),
+  feature({ id: "second-chance", label: "Seconda Possibilità", featureIds: ["talento-seconda-possibilita"],
+    triggers: ["hit"], timing: "before", filters: { attackRoll: true }, lot: "F6",
+    effect: { kind: "reroll" }, short: "L'attaccante ritira il d20",
+    rule: "Colpito da un attacco con tiro di una creatura che vede: l'attaccante ritira il d20 e usa il nuovo tiro. Un uso fino all'iniziativa o al riposo breve o lungo." }),
 
   // B. Hit or damage, before the write: they change the damage.
   spell({ id: "absorb-elements", label: "Assorbire elementi", spellId: "xanathar-assorbire-elementi", slotLevel: 1,
@@ -181,6 +192,11 @@ export const REACTION_TRIGGER_CATALOG = Object.freeze([
     triggers: ["damage"], timing: "after", lot: "R3c",
     effect: { kind: "other" }, short: "Invisibile e 18 m",
     rule: "Subisce danni: diventa invisibile e si teletrasporta fino a 18 m." }),
+  // Lot F6-1: Fade Away's part puts its Invisible pill, with the feat's use and the reaction.
+  feature({ id: "fade-away", label: "Scomparire", featureIds: ["talento-scomparire-invisibile"],
+    triggers: ["damage"], timing: "after", flow: "activate-feature", lot: "F6",
+    effect: { kind: "other" }, short: "Invisibile fino al suo prossimo turno",
+    rule: "Subito dopo un danno: invisibile fino alla fine del suo prossimo turno, o finché non attacca, infligge danni o costringe a un tiro salvezza." }),
   feature({ id: "rebuke-the-violent", label: "Intimorire i Violenti",
     featureIds: ["paladino-giuramento-di-redenzione-incanalare-divinita-intimorire-i-violenti"],
     triggers: ["damage"], timing: "after", protects: "other", attackerRangeMeters: 9, targetsAttacker: true, lot: "R3c",

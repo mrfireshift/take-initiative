@@ -78,12 +78,16 @@ const ON_SHEET = "Le competenze vanno riportate nella scheda del personaggio.";
 // roll), cantripLabel the label of their menu.
 // Lot F3b-4: rituals: it keeps a ritual book (Ritual Caster), choice.ritualIds, in the book as "Talento" cast only as
 // rituals (decisions S6, S7).
+// Lot F6-1 (the reactions): activation, the feat card's own when it is not a pill's ("reazione": the reaction prompts of
+// reactionTriggerCatalog.js use it, with its pool if it has one); a part's effect may go on the character (self), with
+// the pill's label (label), a buff (kind), ending when the character attacks (endsOnAttack, as Hidden Step).
 const feat = (book, page, name, english, { prerequisite = "", abilities = [], choices = [], species = [], speciesOptions = [],
   repeatable = false, plugin = LATER, pool = null, srdEntryId = "", srdText = "", effect = null, parts = [], naturalWeapon = null,
   spells = [], spellAbility = "", chosenSpells = [], classChoices = [], cantrips = 0, cantripIds = null, cantripLabel = "",
-  rituals = false } = {}) => ({
+  rituals = false, activation = "" } = {}) => ({
   book, page, name, english, prerequisite, abilities, choices, species, speciesOptions, repeatable, plugin, pool, srdEntryId, srdText,
   effect, parts, naturalWeapon, spells, spellAbility, chosenSpells, classChoices, cantrips, cantripIds, cantripLabel, rituals,
+  activation,
 });
 // The six classes Magic Initiate, Spell Sniper and Ritual Caster draw from, with their casting ability (PHB 2014).
 const CASTER_CLASSES = ["bardo", "chierico", "druido", "stregone", "warlock", "mago"];
@@ -293,6 +297,8 @@ const RITUAL_SPELLS = [
 ];
 // Until the start of the attacker's next turn: Slasher's and Crusher's pills.
 const UNTIL_NEXT_TURN = "next-turn";
+// Until the end of the character's next turn: Fade Away's (lot F6-1).
+const UNTIL_NEXT_TURN_END = "next-turn-end";
 // The pills of the critical parts, which the attack console reminds about (pcAttackTargetNotes).
 export const CRUSHER_CRITICAL_CONDITION = "Martello Vivente";
 export const SLASHER_CRITICAL_CONDITION = "Bisturi da Battaglia: critico";
@@ -337,7 +343,9 @@ const DEFINITIONS = [
     abilities: ["str", "dex"], plugin: ON_SHEET }),
   feat("phb", 167, "Corazze Pesanti", "Heavily Armored", { prerequisite: "Competenza nelle armature medie",
     abilities: ["str"], plugin: ON_SHEET }),
-  feat("phb", 167, "Duellante Difensivo", "Defensive Duelist", { prerequisite: "Destrezza 13" }),
+  // Lot F6-1: the reaction prompts (reactionTriggerCatalog.js) offer it, and it only spends the reaction.
+  feat("phb", 167, "Duellante Difensivo", "Defensive Duelist", { prerequisite: "Destrezza 13", activation: "reazione",
+    plugin: "Avviso di reazione quando è colpito in mischia: + bonus di competenza alla CA, con i tiri che diventano Mancato. L'arma accurata la controlla il GM." }),
   feat("phb", 167, "Esperto di Balestre", "Crossbow Expert", {
     plugin: "Dopo un attacco con un'arma, la console ricorda l'attacco bonus con la balestra a mano, se l'arma era a una mano; il resto si gestisce al tavolo." }),
   feat("phb", 167, "Esperto di Dungeon", "Dungeon Delver", { plugin: AT_TABLE }),
@@ -421,9 +429,19 @@ const DEFINITIONS = [
     abilities: ["dex", "int", "wis", "cha"], plugin: "Si gestisce al tavolo, con i dadi." }),
   feat("xge", 75, "Prodigio", "Prodigy", { prerequisite: "Mezzelfo, mezzorco o umano", species: [...HALF_ELVES, "mezzorco", "umano"],
     plugin: ON_SHEET }),
-  feat("xge", 75, "Scomparire", "Fade Away", { prerequisite: "Gnomo", species: GNOMES, abilities: ["dex", "int"] }),
+  // Lot F6-1: the reaction after a damage puts the pill of the part, which spends the feat's use.
+  feat("xge", 75, "Scomparire", "Fade Away", { prerequisite: "Gnomo", species: GNOMES, abilities: ["dex", "int"],
+    plugin: "Avviso di reazione dopo un danno: Usa lo rende invisibile fino alla fine del suo prossimo turno; la pill finisce se attacca dalla console. Un uso, di nuovo col riposo breve o lungo.",
+    pool: { key: "uso", name: "Scomparire", count: 1, rest: "breve", part: "invisibile" },
+    parts: [{ key: "invisibile", name: "Scomparire: invisibile", activation: "reazione",
+      description: "Subito dopo aver subito danni, con la reazione: invisibile fino alla fine del tuo prossimo turno, o finché non attacchi, infliggi danni o costringi una creatura a un tiro salvezza.",
+      effect: { conditionName: "Invisibile", label: "Invisibile · Scomparire", kind: "buff", self: true, endsOnAttack: true,
+        timing: UNTIL_NEXT_TURN_END,
+        detail: "Invisibile fino alla fine del suo prossimo turno, o finché non attacca, infligge danni o costringe una creatura a un tiro salvezza." } }] }),
+  // Lot F6-1: the attacker's reroll, as Runic Shield; the use back at the initiative is the GM's ↺.
   feat("xge", 75, "Seconda Possibilità", "Second Chance", { prerequisite: "Halfling", species: HALFLINGS,
-    abilities: ["dex", "con", "cha"] }),
+    abilities: ["dex", "con", "cha"], activation: "reazione", pool: { key: "uso", name: "Seconda Possibilità", count: 1, rest: "breve" },
+    plugin: "Avviso di reazione quando un attacco con tiro lo colpisce: l'attaccante ritira il d20. Un uso, di nuovo col riposo breve o lungo; all'iniziativa lo rimette il GM con ↺." }),
   feat("xge", 75, "Teletrasporto Fatato", "Fey Teleportation", { prerequisite: "Elfo (alto)", species: ["elfo"],
     speciesOptions: ["alto"], abilities: ["int", "cha"],
     plugin: "Passo velato una volta per riposo breve o lungo, senza slot e con Intelligenza: si lancia dalla sua card. La lingua silvana va nella scheda.",
@@ -513,6 +531,7 @@ export const FEATS = Object.freeze(DEFINITIONS.map((definition) => {
     speciesOptionIds: Object.freeze([...definition.speciesOptions]),
     repeatable: definition.repeatable,
     plugin: definition.plugin,
+    activation: definition.activation,
     pool: definition.pool ? Object.freeze({ ...definition.pool }) : null,
     srdEntryId: definition.srdEntryId,
     srdText: definition.srdText,
@@ -588,8 +607,10 @@ function recordBehaviour({ effect, poolId }) {
   if (effect) {
     return {
       automationLevel: "assistita", completenessStatus: "partial", runtimeSupport: CONDITION_ADAPTER,
-      activation: Object.freeze({ primary: "innesco" }), targetMode: "selection", targeting: TARGET_TARGETING,
-      effectPlan: Object.freeze({ kind: "condition", conditionName: effect.conditionName, effectKind: effect.kind || "debuff",
+      activation: Object.freeze({ primary: "innesco" }), targetMode: effect.self ? "self" : "selection",
+      targeting: effect.self ? SELF_TARGETING : TARGET_TARGETING,
+      effectPlan: Object.freeze({ kind: "condition", conditionName: effect.conditionName, ...(effect.label ? { displayLabel: effect.label } : {}),
+        effectKind: effect.kind || "debuff",
         detail: effect.detail, ...(effect.movement ? { mechanics: Object.freeze({ movement: Object.freeze({ ...effect.movement }) }) } : {}) }),
       duration: Object.freeze({ rounds: null, timing: effect.timing }), trackingMode: "active",
     };
@@ -624,6 +645,8 @@ function featRecord(entry) {
     runtimeRequirements: Object.freeze([]),
     missingForExecution: Object.freeze([]),
     ...recordBehaviour({ effect: entry.effect, poolId }),
+    // Lot F6-1: a feat used with the reaction (Defensive Duelist, Second Chance).
+    ...(entry.activation ? { activation: Object.freeze({ primary: entry.activation }) } : {}),
     trackedResourcePoolIds: Object.freeze(poolId ? [poolId] : []),
     theme: FEAT_THEME,
     breaksConcentration: false,
@@ -674,6 +697,8 @@ function featPartRecord(entry, part) {
     ...hpTrait,
     ...(part.activation ? { activation: Object.freeze({ primary: part.activation }) } : {}),
     ...(part.save ? { featSave: Object.freeze({ ...part.save }) } : {}),
+    // Lot F6-1: the attack console ends the pill when the character attacks (Fade Away, as Hidden Step).
+    ...(part.effect?.endsOnAttack ? { endsOnAttack: true } : {}),
     trackedResourcePoolIds: Object.freeze(poolId ? [poolId] : []),
     theme: FEAT_THEME,
     breaksConcentration: false,

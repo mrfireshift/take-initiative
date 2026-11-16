@@ -9,12 +9,12 @@ import { ID } from "./constants.js";
 import { reactionCandidates, reactionEventSignature, withReactionPromptMuted } from "./reactionCandidatesCore.js";
 import { createReactionPromptOption } from "./reactionPromptOption.js";
 import { reactionTriggerEntry } from "./reactionTriggerCatalog.js";
-import { abilityModifier } from "./abilityModifiersCore.js";
+import { abilityModifier, proficiencyBonusForLevel, totalCharacterLevel } from "./abilityModifiersCore.js";
 import { reactionNoticeId } from "./reactionNoticeCore.js";
 
 const META_KEY = `${ID}/meta`;
 // The catalog's lots this build wires (reactionTriggerCatalog.js): the others stay in the catalog, unprompted.
-export const REACTION_PROMPT_LOTS = Object.freeze(["R1", "R2", "R2b", "R3a", "R3c", "R3b", "R4", "R5"]);
+export const REACTION_PROMPT_LOTS = Object.freeze(["R1", "R2", "R2b", "R3a", "R3c", "R3b", "R4", "R5", "F6"]);
 export const REACTION_PROMPT_CONSOLE_HINT = "Registra senza usarla vale come Ignora.";
 const DISMISSED_LIMIT = 64;
 
@@ -49,8 +49,10 @@ export function reactionPromptEffectText(candidate, items = []) {
   const onAlly = candidate?.protectedId && candidate.protectedId !== candidate.reactorId ? ` su ${candidate.protectedName}` : "";
   if (effect.kind === "ac-bonus") {
     const ac = Math.floor(Number(cardOf(items, candidate.protectedId || candidate.reactorId).armorClass));
+    // Defensive Duelist (lot F6-1 of docs/STUDIO_TALENTI.md): the reactor's proficiency bonus, from its level.
     const fixed = Number.isInteger(effect.amount) ? effect.amount : Number.isInteger(candidate?.amount) ? candidate.amount
-      : effect.ability ? abilityModifier(cardOf(items, candidate.reactorId).abilityModifiers, effect.ability) : null;
+      : effect.proficiency ? proficiencyBonusForLevel(totalCharacterLevel(cardOf(items, candidate.reactorId).characterBuild))
+        : effect.ability ? abilityModifier(cardOf(items, candidate.reactorId).abilityModifiers, effect.ability) : null;
     if (Number.isInteger(fixed) && fixed > 0) {
       if (!Number.isInteger(ac) || ac <= 0) return `${short}${onAlly}: se il tiro non arriva alla CA + ${fixed}, segna Mancato`;
       return `${short}${onAlly} · CA ${ac} → ${ac + fixed}: un tiro da ${ac} a ${ac + fixed - 1} diventa Mancato`;

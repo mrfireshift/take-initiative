@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **236** |
+| **B. Console attacchi, mostri e capacità** | **240** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -71,6 +71,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B38. PF temporanei: Condottiero Ispiratore e le delizie del Cuoco | 4 |
 | B39. Guaritore: la cura con la borsa | 4 |
 | B42. Riposo del gruppo: Tenace e il cibo del Cuoco | 3 |
+| B44. Reazioni dei talenti: Duellante Difensivo, Seconda Possibilità, Scomparire | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -96,7 +97,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **599** |
+| **Totale** | **603** |
 
 ## A. Incantesimi
 
@@ -896,6 +897,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F5-3 (decisione H6). Le voc
 - [ ] **Tenace:** in **Riposo del gruppo** sotto il PG con Tenace c'è «Tenace: almeno 6 PF per Dado Vita.»; il campo dei PF recuperati resta da scrivere a mano.
 - [ ] **Il cuoco:** con il PG con Cuoco fra quelli scelti, sotto l'elenco c'è «Cuoco (…): chi ha mangiato il suo cibo e spende Dadi Vita recupera 1d8 PF in più, fino a 7 creature.»; tolta la spunta al cuoco, la nota sparisce.
 - [ ] **Il riposo non cambia:** **Riposo breve** aggiunge i PF scritti a mano e **Riposo lungo** porta i PF al massimo, come prima.
+
+### B44. Reazioni dei talenti: Duellante Difensivo, Seconda Possibilità, Scomparire
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F6-1. Le voci sono nuove: nessuna lista le aveva. In combattimento servono un PG di 5° livello con CA 15 e Duellante Difensivo, un halfling con Seconda Possibilità, uno gnomo con Scomparire e un mostro che attacca dalla console Boss.
+
+- [ ] **Duellante Difensivo:** il mostro colpisce il PG in mischia: sopra Registra c'è «Duellante Difensivo», con «CA 15 → 18: un tiro da 15 a 17 diventa Mancato». **Usa** segna «Reazione usata»; con un attacco a distanza l'avviso non c'è.
+- [ ] **Seconda Possibilità:** il mostro colpisce l'halfling: l'avviso dice «L'attaccante ritira il d20». **Usa** spende l'uso e la reazione; al colpo dopo l'avviso non c'è più, e l'uso torna con un riposo breve.
+- [ ] **Scomparire:** il mostro danneggia lo gnomo; dopo **Registra** l'avviso dice «Invisibile fino al suo prossimo turno». **Usa** mette la pill «Invisibile · Scomparire» sullo gnomo e spende uso e reazione; alla fine del suo prossimo turno la pill se ne va.
+- [ ] **La fine con l'attacco:** con la pill ancora attiva, lo gnomo attacca dalla console attacchi: **Registra** toglie la pill.
 
 ## C. Tracker e UX
 

@@ -6,7 +6,8 @@ dall'utente il 15/11** (§9); **F0 fatto il 15/11** (§7.1), **F1 il 16/11**
 con S1–S9 approvate** (§7.4), **F3b-1, F3b-2, F3b-3, F3b-4 e F3b-5 il 16/11**
 (§7.5–§7.9): F3 è chiuso. **F4 il 16/11** (§7.10). **Il piano di F5 il 16/11,
 con H1–H7 approvate** (§7.11), **F5-1, F5-2 e F5-3 il 16/11** (§7.12–§7.14):
-F5 è chiuso.
+F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 in attesa** (§7.15), **F6-1
+il 16/11** (§7.16).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -1557,6 +1558,193 @@ nessuna scrittura di PF.
   lontano dalle loro; il commit prende HEAD + le sole righe di F5-3.
 - **Documenti:** le prove in stanza sono in B42 (B40 e B41 sono delle
   trasformazioni).
+
+### 7.15 F6, piano (16/11)
+
+**Reazioni.** Otto talenti in cinque sottolotti. F6-1 si fa subito: usa solo
+flussi che esistono e non ha scelte aperte. Gli altri aspettano le decisioni
+K1–K6 (§7.15.7).
+
+#### 7.15.1 Che cosa fanno (PHB 2014, Xanathar)
+
+| Talento | Che cosa conta per il plugin |
+|---|---|
+| Duellante Difensivo | Reazione quando lo colpiscono in mischia mentre impugna un'arma accurata: + bonus di competenza alla CA contro quell'attacco. |
+| Seconda Possibilità | Reazione quando un attacco con tiro di una creatura che vede lo colpisce: l'attaccante ritira. Un uso fino all'iniziativa o al riposo breve o lungo. |
+| Scomparire | Reazione subito dopo un danno: invisibile fino alla fine del suo prossimo turno, o finché non attacca, infligge danni o impone un TS. Un uso per riposo breve o lungo. |
+| Sentinella | L'attacco di opportunità che colpisce porta la velocità a 0 per il resto del turno. Il Disimpegno non salva dai suoi attacchi di opportunità. Se una creatura entro 1,5 m attacca un altro, che non ha il talento, attacco in mischia con la reazione. |
+| Maestro delle Armi su Asta | Dopo l'azione di Attacco con falcione, alabarda, bastone ferrato o lancia, l'altra estremità come azione bonus (1d4 contundenti). Con falcione, alabarda, picca, bastone ferrato o lancia, chi entra nella portata provoca un attacco di opportunità. |
+| Sterminatore di Maghi | Una creatura entro 1,5 m lancia un incantesimo: attacco in mischia con la reazione. Vantaggio ai TS contro gli incantesimi di chi è entro 1,5 m. Lo svantaggio sulla concentrazione è di F4. |
+| Incantatore da Guerra | Al posto di un attacco di opportunità, un incantesimo da 1 azione che ha come bersaglio solo quella creatura. Il vantaggio sulla concentrazione è di F4; le componenti somatiche restano al tavolo. |
+| Fiamme di Flegesto | Ritira gli 1 dei dadi di fuoco dei suoi incantesimi. Dopo un incantesimo con danni da fuoco, fiamme fino alla fine del suo prossimo turno: chi lo colpisce in mischia entro 1,5 m subisce 1d4 fuoco. |
+
+#### 7.15.2 Che cosa c'è già
+
+- **Gli avvisi di reazione** (`STUDIO_AVVISI_REAZIONE.md`):
+  - il catalogo, i candidati e i lotti attivi (`REACTION_PROMPT_LOTS`);
+  - i flussi: `use-feature` (risorsa e reazione in un comando),
+    `activate-feature` (Tomba di Levistus), `off-turn-attack` (la console fuori
+    turno), `note`.
+- **I record dei talenti sono già capacità** (D2): una voce
+  `source: "class-feature"` con `featureIds: ["talento-…"]` li trova con
+  `getEnabledClassFeatures`. Al record serve solo
+  `activation.primary = "reazione"`.
+- **Le pill su di sé che finiscono con un attacco:** Passo nascosto
+  (`endsOnAttack`, letto da `pcAttackLinkEnds`).
+- **Le scadenze delle pill delle capacità:** inizio e fine del prossimo turno di
+  chi usa la capacità, fine del suo turno. La fine del turno del bersaglio
+  esiste solo nel motore della console Boss (`actor: "target"`).
+- **Il movimento** (`opportunityAttackCore.js`):
+  - `movementReactionEvents`: l'uscita dalla portata e l'entrata nei 3 m
+    dell'Alone di Spore;
+  - `reactorReachMeters`: la portata letta dalle azioni rapide;
+  - il Disimpegno e il Colpo dello Zefiro tolgono ogni attacco di opportunità.
+- **Le ritorsioni sul colpo:** le pill con `mechanics.retaliation`, come Scudo di
+  fuoco. Il pulsante sotto il bersaglio applica il danno all'attaccante
+  (`applyRetaliationDamage`).
+- **La console attacchi:**
+  - attivazioni con `requires.reaction` (solo fuori dal proprio turno) ed
+    effetti con pill;
+  - le armi dei talenti (gli artigli di Pelle di Drago) e i seguiti
+    (`pcAttackFollowUps`).
+- **Il pannello incantesimi** ferma il lancio per Controincantesimo, Nemesi e
+  Ladro di incantesimi. Non sa aprire la console fuori turno.
+
+#### 7.15.3 Il piano, talento per talento
+
+- **Duellante Difensivo (F6-1):**
+  - voce `defensive-duelist`: colpito in mischia con tiro, prima del danno;
+  - `ac-bonus` pari al bonus di competenza;
+  - Usa segna la reazione.
+
+  L'arma accurata e «vede» restano al GM.
+- **Seconda Possibilità (F6-1):**
+  - voce `second-chance`: colpito da un attacco con tiro, prima, `reroll`;
+  - Usa spende l'uso e la reazione.
+
+  L'uso torna col riposo breve o lungo. Per i pool non c'è un evento «tiro
+  d'iniziativa»: all'iniziativa lo rimette il GM con ↺.
+- **Scomparire (F6-1):**
+  - una seconda voce del talento, con la pill «Invisibile · Scomparire» su di
+    sé fino alla fine del suo prossimo turno, `endsOnAttack` e l'uso del
+    talento;
+  - voce `fade-away`: danno, dopo, `activate-feature`.
+
+  I danni inflitti e i TS imposti senza un attacco dalla console restano al
+  GM, come per Passo nascosto.
+- **Sentinella (F6-2):**
+  - `movementReactionEvents`: il Disimpegno non toglie gli attacchi di
+    opportunità di un reattore con Sentinella; il Colpo dello Zefiro sì, perché
+    non è un Disimpegno;
+  - la velocità 0: un'attivazione della console, «Sentinella: velocità 0», sui
+    colpi in mischia fuori dal proprio turno (`requires.reaction`). La pill ha
+    `setMeters: 0` fino alla fine del turno del bersaglio (K1);
+  - l'attacco per un altro: voce `sentinel-strike`, colpito e mancato, dopo,
+    `protects: "other"` entro 1,5 m, console fuori turno. Niente se il
+    bersaglio attaccato ha Sentinella (K2).
+- **Maestro delle Armi su Asta (F6-3):**
+  - la portata: una scelta del talento, «arma con portata 3 m» (falcione,
+    alabarda, picca). `reactorReachMeters` la legge, e vale anche per l'uscita
+    (K3);
+  - l'entrata: un innesco nuovo, «entra nella portata», calcolato da
+    `movementReactionEvents` come l'uscita, con Disimpegno e Zefiro. La voce
+    apre la console fuori turno;
+  - l'altra estremità: un'arma del talento nella card (1d4 contundenti, Forza),
+    come gli artigli di Pelle di Drago, e il seguito nella console.
+- **Sterminatore di Maghi (F6-4):**
+  - voce `mage-slayer`: incantesimo lanciato entro 1,5 m, console fuori turno con
+    il lanciatore selezionato;
+  - il pannello impara il flusso: Usa apre la console del reattore e il lancio
+    aspetta, come per Controincantesimo (K4);
+  - il vantaggio ai TS resta nella riga «Nel plugin» (K5).
+- **Incantatore da Guerra (F6-4):** nell'avviso dell'attacco di opportunità, la
+  riga «o un incantesimo da 1 azione solo su di lei». Usa apre la console fuori
+  turno, come per l'attacco.
+- **Fiamme di Flegesto (F6-5):**
+  - una seconda voce del talento, «Fiamme di Flegesto: fiamme», con la pill su di
+    sé fino alla fine del suo prossimo turno;
+  - sulla pill la ritorsione 1d4 fuoco in mischia entro 1,5 m
+    (`mechanics.retaliation`, come Scudo di fuoco);
+  - il GM la usa dopo un incantesimo di fuoco (K6).
+
+  «Ritira gli 1» resta un promemoria nella riga.
+
+#### 7.15.4 Dove si scrive il codice
+
+- **I file:**
+  - `featCatalog.js`: record, scelte, righe;
+  - `reactionTriggerCatalog.js` e `reactionPromptView.js`: voci, lotto F6,
+    testi;
+  - `opportunityAttackCore.js` e `reactionCandidatesCore.js`: F6-2 e F6-3;
+  - `pcAttackActivationCatalog.js` e `classFeatureCore.js`: la velocità 0 e la
+    sua scadenza (F6-2);
+  - `pcAttackCore.js`: il seguito (F6-3);
+  - `reaction-move.js` e `spell-unified-panel.js`: F6-4.
+- **Le righe di altre sessioni:** `reactionPromptView.js` e
+  `spell-unified-panel.js` ne hanno di non committate. Il commit prende HEAD +
+  le righe del lotto.
+
+#### 7.15.5 Rischi, come chiede AGENTS.md
+
+| Area | Rischio | Come lo si evita |
+|---|---|---|
+| **PF** | Nessun lotto li scrive. | Fiamme di Flegesto usa il pulsante della ritorsione che c'è: un clic del GM, un comando, un Annulla. |
+| **Turno attivo, ordine, id virtuali** | Nessuno. | L'osservatore del movimento legge lo stato come oggi. |
+| **Metadata** | La scelta della portata in `feats[].choice`. | Unita alla scheda; pill e risorse dai flussi che esistono; nessuna chiave nuova. |
+| **Velocità** | La pill di Sentinella. | `setMeters: 0`, che lo Speed Tracker legge già. |
+| **Motore delle pill** | Una scadenza nuova: la fine del turno del bersaglio. | Il motore la conosce già dalla console Boss (`actor: "target"`); cambia solo il record della capacità. |
+| **`initiativeList.js`** | — | Non cambia. |
+
+#### 7.15.6 Sottolotti
+
+| Lotto | Contenuto | Scrive PF? |
+|---|---|---|
+| **F6-1** | Duellante Difensivo, Seconda Possibilità, Scomparire | No |
+| **F6-2** | Sentinella: Disimpegno, velocità 0, attacco per un altro | No |
+| **F6-3** | Maestro delle Armi su Asta: portata, entrata, altra estremità | No |
+| **F6-4** | Sterminatore di Maghi nel pannello; Incantatore da Guerra nell'avviso dell'attacco di opportunità | No |
+| **F6-5** | Fiamme di Flegesto | No: la ritorsione usa il pulsante che c'è |
+
+#### 7.15.7 Decisioni
+
+In attesa dell'utente. F6-1 non ne dipende.
+
+| # | Decisione | Possibilità | Raccomandazione |
+|---|---|---|---|
+| **K1** | La velocità 0 di Sentinella | (a) un'attivazione nella console sui colpi in mischia fuori turno, spuntata dal GM; (b) automatica su ogni colpo fuori turno; (c) un promemoria | **(a)**: la console non sa se l'attacco è di opportunità. L'attacco di Sentinella per un altro non lo è, e lo sa solo il GM. |
+| **K2** | L'attacco per un altro | (a) avviso dopo il colpo e dopo il mancato, con gli interruttori Colpito e Mancato; (b) solo dopo il colpo | **(a)**: il talento vale per ogni attacco, che colpisca o no. |
+| **K3** | La portata di Maestro delle Armi su Asta | (a) una scelta del talento nella scheda, che vale anche per l'uscita; (b) la portata scritta nelle azioni rapide | **(a)**: le azioni rapide dei PG non hanno il campo della portata. |
+| **K4** | Sterminatore di Maghi nel pannello | (a) al clic del lancio, come Controincantesimo: Usa apre la console e il lancio aspetta il secondo clic; (b) dopo il lancio | **(a)**: il pannello oggi si ferma solo lì. Il GM può registrare l'attacco dopo il lancio. |
+| **K5** | Il vantaggio ai TS di Sterminatore di Maghi | (a) nella riga «Nel plugin»; (b) una nota accanto al TS nel pannello | **(a)**: il pannello è in lavorazione in altre sessioni; (b) si può aggiungere dopo. |
+| **K6** | Le fiamme | (a) la card della seconda voce, usata dal GM dopo l'incantesimo; (b) un'offerta nel pannello dopo un incantesimo di fuoco | **(a)**: niente da cambiare nel pannello; dopo, la ritorsione compare da sola. |
+
+### 7.16 F6-1, fatto il 16/11
+
+**Tre reazioni con i flussi che esistono.** Come la §7.15.
+
+- **Duellante Difensivo:**
+  - voce `defensive-duelist`: colpito in mischia con tiro, prima del danno;
+  - il record del talento usa la reazione (`activation: "reazione"`);
+  - l'avviso conta la CA con il bonus di competenza del livello: «CA 15 → 18:
+    un tiro da 15 a 17 diventa Mancato»;
+  - Usa segna «Reazione usata».
+- **Seconda Possibilità:**
+  - voce `second-chance`: colpito da un attacco con tiro, prima, `reroll`;
+  - un uso (`talento-seconda-possibilita-uso-usi`), di nuovo col riposo breve o
+    lungo; senza uso l'avviso non c'è;
+  - Usa spende l'uso e la reazione in un comando.
+- **Scomparire:**
+  - la seconda voce `talento-scomparire-invisibile` usa la reazione e l'uso
+    del talento (`talento-scomparire-uso-usi`);
+  - la pill «Invisibile · Scomparire» sta su di sé fino alla fine del suo
+    prossimo turno, e finisce se attacca dalla console (`endsOnAttack`);
+  - voce `fade-away`: danno, dopo, `activate-feature`.
+- **Il catalogo dei talenti** impara `activation` della card e, per la pill di
+  una seconda voce, `self`, `label`, `kind` ed `endsOnAttack`.
+- **`REACTION_PROMPT_LOTS`** ha «F6».
+- **`reactionPromptView.js`** ha righe non committate delle trasformazioni (la
+  CA della forma): il commit prende HEAD + le righe di F6-1.
+- **Documenti:** le prove in stanza sono in B44 (B43 è delle trasformazioni).
 
 ---
 
