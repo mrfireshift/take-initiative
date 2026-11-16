@@ -4,7 +4,7 @@ import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { createPcAttackRuntime, pcAttackSmiteSlotPlans, pcAttackSpellSlotPlan } from "./pcAttackExecution.js";
 import { spellSlotStatus } from "./spellSlotCore.js";
 import { pcAttackAreaOutcomes, pcAttackTargetActionImmune, pcAttackTargetConditionImmune, pcAttackTargetEvasion, pcAttackTargetSaveBonus,
-  pcAttackFeetLabel, pcAttackGrappleEscapeAdvantage, pcAttackMonsterFailureText, pcAttackSave, pcAttackSaveLabel as hitSaveLabel } from "./pcAttackCore.js";
+  pcAttackAllyCandidates, pcAttackFeetLabel, pcAttackGrappleEscapeAdvantage, pcAttackMonsterFailureText, pcAttackSave, pcAttackSaveLabel as hitSaveLabel } from "./pcAttackCore.js";
 import { DODGE_SAVE_NOTE, dodgeSaveAdvantage } from "./attackAdvantagePillsCore.js";
 import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint, pcAttackActivationOptions,
   pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction, pcAttackOutcomesFor, pcAttackSaveLabel, pcAttackDamageFactor,
@@ -122,6 +122,7 @@ export function chosenActivations(draft) {
   return Object.entries(draft.activations || {}).filter(([,activation])=>activation.on).map(([id,activation])=>({id,
     ...(activation.type?{type:activation.type,amount:activation.amount}:{}),...(activation.saveOutcome?{saveOutcome:activation.saveOutcome}:{}),
     ...(activation.secondaryTargetId?{secondaryTargetId:activation.secondaryTargetId}:{}),...(activation.choice?{choice:activation.choice}:{}),
+    ...(activation.allyId?{allyId:activation.allyId}:{}),
     ...(Array.isArray(activation.tempHp)?{amount:activation.amount,tempHp:activation.tempHp.map(entry=>({targetId:entry.targetId,amount:entry.amount}))}:{}),
     ...(activation.burst?{burstTargetIds:[...activation.burst.ids]}:{})}));
 }
@@ -747,7 +748,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const options=activationOptions();
     activationsBox.dataset.activationIds=options.map(option=>option.id).join("|");
     activationsBox.replaceChildren(...options.map(option=>{
-      const state=draft.activations[option.id] ||= {on:false,type:option.types[0] || "",amount:"",saveOutcome:"",secondaryTargetId:"",choice:"",
+      const state=draft.activations[option.id] ||= {on:false,type:option.types[0] || "",amount:"",saveOutcome:"",secondaryTargetId:"",choice:"",allyId:"",
         ...(option.tempHp?{tempHp:[{targetId:"",amount:""}]}:{})};
       let tempHpList=null;
       const toggle=node("input");toggle.type="checkbox";toggle.dataset.activationField="on";toggle.setAttribute("aria-label",option.label);
@@ -792,6 +793,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         const second=node("select","","inline-select");second.dataset.activationField="secondary";second.setAttribute("aria-label",`Seconda creatura di ${option.label}`);
         second.addEventListener("change",()=>{state.secondaryTargetId=second.value;updateActivations();renderState();});
         extra.append(second);
+      }
+      // Maneuvering Attack (lot F2-3 of docs/STUDIO_TALENTI.md): the ally that moves with its reaction, optional.
+      if(option.ally) {
+        const ally=node("select","","inline-select");ally.dataset.activationField="ally";ally.setAttribute("aria-label",`Alleato di ${option.label}`);
+        ally.addEventListener("change",()=>{state.allyId=ally.value;updateActivations();renderState();});
+        extra.append(ally);
       }
       if(option.save || option.choices?.some(entry=>entry.save)) {
         const group=node("div","","segmented mini");group.setAttribute("role","group");group.setAttribute("aria-label",`Tiro salvezza contro ${option.label}`);
@@ -875,6 +882,15 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         if(state.secondaryTargetId && !others.some(item=>item.id===state.secondaryTargetId)) state.secondaryTargetId="";
         second.replaceChildren(...[["","Seconda creatura"],...others.map(item=>[item.id,bossTargetLabel(item)])].map(([value,label])=>{const entry=node("option",label);entry.value=value;return entry;}));
         second.value=state.secondaryTargetId;second.disabled=busy;
+      }
+      const ally=field("ally");
+      if(ally) {
+        const allies=pcAttackAllyCandidates({sourceItem:presentation.item,targetItem:targetById(draft.targetId),
+          items:[presentation.item,...presentation.targets]});
+        if(state.allyId && !allies.some(item=>item.id===state.allyId)) state.allyId="";
+        ally.replaceChildren(...[["","Alleato: nessuno"],...allies.map(item=>[item.id,bossTargetLabel(item)])].map(([value,label])=>{const entry=node("option",label);entry.value=value;return entry;}));
+        ally.value=state.allyId;ally.disabled=busy;
+        ally.title="L'alleato si muove fino a metà della sua velocità con la reazione: la pill «No AdO» e la reazione spesa arrivano con l'attacco.";
       }
       if(field("type")) field("type").disabled=busy;
       for(const outcome of ["failed","passed"]) {

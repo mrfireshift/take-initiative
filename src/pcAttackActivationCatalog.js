@@ -53,7 +53,9 @@ const BASE_ACTIVATIONS = Object.freeze([
   maneuver("attacco-sbilanciante", { save: "str", size: SIZE_NOTE, effect: Object.freeze({ condition: "Prono" }) }),
   maneuver("attacco-con-spinta", { save: "str", size: SIZE_NOTE, effect: Object.freeze({ note: "Spinto fino a 4,5 m lontano dal guerriero." }) }),
   maneuver("attacco-disarmante", { save: "str", effect: Object.freeze({ note: "Lascia cadere un oggetto impugnato scelto dal guerriero." }) }),
-  maneuver("attacco-con-manovra", { effect: Object.freeze({ note: "Un alleato può muoversi di metà velocità con la reazione senza provocare attacchi di opportunità dal bersaglio." }) }),
+  // Lot F2-3 of docs/STUDIO_TALENTI.md (decision M4): ally, the creature the fighter picks in the console; on a hit the
+  // command puts «No AdO: <target>» on it and spends its reaction (pcAttackCore.js).
+  maneuver("attacco-con-manovra", { ally: true, effect: Object.freeze({ note: "Un alleato può muoversi di metà velocità con la reazione senza provocare attacchi di opportunità dal bersaglio." }) }),
   maneuver("attacco-con-affondo", { requires: Object.freeze({ range: "melee", ownTurn: true }) }),
   maneuver("attacco-con-spazzata", { requires: Object.freeze({ range: "melee" }),
     secondary: Object.freeze({ targetDamage: false, note: "entro 1,5 m dal bersaglio, se il tiro per colpire la colpirebbe" }) }),

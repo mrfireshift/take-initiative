@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **302** |
+| **B. Console attacchi, mostri e capacità** | **306** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -87,6 +87,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B57. Dati corretti dall'audit delle azioni | 3 |
 | B59. Mobilità e Agilità Tarchiata | 4 |
 | B60. Mobilità e Gioco di Gambe: niente AdO dal bersaglio | 4 |
+| B61. Attacco con Manovra: l'alleato senza AdO | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -112,7 +113,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **665** |
+| **Totale** | **669** |
 
 ## A. Incantesimi
 
@@ -1171,6 +1172,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F2-2 (decisioni M1, M2, M5)
 - [ ] **Il movimento:** il guerriero si allontana da tutti e due i goblin: l'avviso dell'attacco di opportunità nomina solo il secondo. Se il primo ha Sentinella, nemmeno lui. Alla fine del turno la pill sparisce; l'**Annulla** dell'attacco la toglie.
 - [ ] **Gioco di Gambe:** il ladro, nel suo turno, attacca in mischia il goblin e si allontana: nessun avviso da quel goblin. Con un attacco in mischia fuori dal suo turno, la pill non c'è.
 - [ ] **A mano:** tolta la pill dal tracker, l'avviso del goblin torna.
+
+### B61. Attacco con Manovra: l'alleato senza AdO
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F2-3 (decisione M4). Le voci sono nuove: nessuna lista le aveva. Servono un guerriero Maestro di Battaglia con Attacco con Manovra, un alleato e due goblin vicini all'alleato, nell'ordine di iniziativa, con gli avvisi di reazione accesi. Ogni voce in vista compatta ed estesa.
+
+- [ ] **Il menu:** nella console, colpito il primo goblin, Attacco con Manovra ha il menu «Alleato: nessuno» con l'alleato, non i goblin né il guerriero.
+- [ ] **Il colpo:** scelto l'alleato, **Registra**: il dado si somma al danno; sull'alleato ci sono «No AdO: Goblin» e la reazione usata. L'alleato si allontana dai due goblin: l'avviso dell'attacco di opportunità nomina solo il secondo. A fine turno la pill sparisce; l'**Annulla** dell'attacco toglie pill e reazione.
+- [ ] **La reazione già usata:** se l'alleato ha già usato la reazione, la console lo dice e **Registra** resta spento; con «Alleato: nessuno» l'attacco si registra con il dado e la nota.
+- [ ] **Adepto Marziale:** un personaggio con Adepto Marziale e Attacco con Manovra fa lo stesso con il suo d6.
 
 ## C. Tracker e UX
 

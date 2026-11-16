@@ -43,7 +43,7 @@ import { featFeaturesForProfile, featSpellcastingAbility } from "./featCatalog.j
 import { speciesNaturalWeaponActionId } from "./speciesNaturalWeaponCore.js";
 import { spellTargetRangeMeters } from "./spellAreaCatalog.js";
 import { consumedAdvantagePills, hiddenPills } from "./attackAdvantagePillsCore.js";
-import { isOffTurn, readiedSpellHold } from "./reactionTrackerCore.js";
+import { isOffTurn, planReactionSpend, readiedSpellHold } from "./reactionTrackerCore.js";
 import { NO_OPPORTUNITY_FROM_PREFIX, noOpportunityFromIds } from "./opportunityAttackCore.js";
 import { activeTransformation, transformedCardView } from "./transformationFormsCore.js";
 import { transformationPreviewReturn, transformationStashForMeta } from "./transformationHpCore.js";
@@ -303,19 +303,47 @@ export function pcAttackNoOpportunityPlan({ attack, sourceItem, targetItem, turn
   const feature = features.find((entry) => entry.id === PC_ATTACK_MOBILE_FEATURE_ID)
     || (turn.actorId === sourceItem.id ? features.find((entry) => entry.id === PC_ATTACK_FANCY_FOOTWORK_FEATURE_ID) : null);
   if (!feature || noOpportunityFromIds(sourceItem).has(targetItem.id)) return null;
+  return noOpportunityPill({ moverItem: sourceItem, sourceItem, targetItem, feature, turn, key: `${attackInstanceId}:no-opportunity` });
+}
+
+// The pill «No AdO: <target>» on the creature that moves (the attacker, or Maneuvering Attack's ally), put by the attacker.
+function noOpportunityPill({ moverItem, sourceItem, targetItem, feature, turn, key }) {
   const sourceName = sourceItem.name || sourceItem.id;
+  const moverName = moverItem.name || moverItem.id;
   const targetName = targetItem.name || targetItem.id;
   const condition = `${NO_OPPORTUNITY_FROM_PREFIX}${targetName}`;
-  const instanceId = bossGroupConditionInstanceId(`${attackInstanceId}:no-opportunity`, condition, sourceItem.id);
+  const instanceId = bossGroupConditionInstanceId(key, condition, moverItem.id);
   return {
-    featureId: feature.id, featureName: feature.name, targetId: targetItem.id, condition, instanceId,
-    operation: { type: "condition:add", targetIds: [sourceItem.id], conditionName: condition, instanceIds: { [sourceItem.id]: instanceId },
+    featureId: feature.id, featureName: feature.name, moverId: moverItem.id, targetId: targetItem.id, condition, instanceId,
+    operation: { type: "condition:add", targetIds: [moverItem.id], conditionName: condition, instanceIds: { [moverItem.id]: instanceId },
       options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", manualRemoval: true, mapVisible: false,
         expiry: { mode: "turn-end", actor: "source", actorId: turn.actorId, remaining: 1 },
         mechanics: { noOpportunityFrom: [targetItem.id] },
-        effectDetail: `${feature.name}: ${targetName} non fa attacchi di opportunità a ${sourceName} fino alla fine del turno.`,
+        effectDetail: `${feature.name}: ${targetName} non fa attacchi di opportunità a ${moverName} fino alla fine del turno.`,
         appliedAt: turn } },
   };
+}
+
+// Lot F2-3 (decision M4): Maneuvering Attack's ally, chosen in the console (allyId), optional: another creature on the
+// fighter's side than the fighter and the target, its reaction not used this round. On a hit the command puts «No AdO:
+// <target>» on it and spends its reaction; how far it moves stays the table's (half its speed, off its turn). Out of
+// combat there is no turn to end the pill: nothing is marked.
+const sideOf = (item) => {
+  const attitude = String(item?.metadata?.[META_KEY]?.attitude || "").toLocaleLowerCase("it");
+  return attitude === "enemy" ? "enemy" : attitude === "pc" || attitude === "ally" ? "friendly" : "neutral";
+};
+export function pcAttackAllyCandidates({ sourceItem, targetItem = null, items = [] } = {}) {
+  const side = sideOf(sourceItem);
+  return (Array.isArray(items) ? items : []).filter((item) => isBossActionCreature(item) && item.id !== sourceItem?.id
+    && item.id !== targetItem?.id && sideOf(item) === side);
+}
+function allyBlocker(option, request, { sourceItem, targetItem, items, turnState }) {
+  if (!request?.allyId) return "";
+  const ally = pcAttackAllyCandidates({ sourceItem, targetItem, items }).find((item) => item.id === request.allyId);
+  if (!ally) return `${option.label}: scegli come alleato un'altra creatura dalla parte dell'attaccante.`;
+  const reaction = planReactionSpend({ casterId: ally.id, casterName: ally.name || ally.id, conditions: ally.metadata?.[META_KEY]?.conditions,
+    initiativeState: turnState });
+  return reaction.alreadyUsed ? `${option.label}: ${reaction.message}` : "";
 }
 
 // The breath's dice at the character's total level ("3d6" at 6th level for the PHB breath).
@@ -978,6 +1006,7 @@ function activationOptionsFor(attack, { sourceItem, targetItem = null, turnState
       }) } : {}),
       ...(activation.hint ? { hint: activation.hint } : {}),
       ...(activation.burst ? { burst: { radiusFeet: activation.burst.radiusFeet } } : {}),
+      ...(activation.ally ? { ally: true } : {}),
       types: !deals ? [] : activation.type === "weapon" ? weaponTypes : [activation.type],
       ...(deals && activation.secondary ? { secondary: { targetDamage: !!activation.secondary.targetDamage, note: activation.secondary.note } } : {}),
       ...(activation.preRoll ? { preRoll: true, ...(rollBonus ? { rollBonus } : {}) } : {}),
@@ -1433,6 +1462,10 @@ export function pcAttackPreview({
       const reason = burstBlocker(option, activation, { items: burstItems, targetItem, secondaryItem });
       if (reason) return reason;
     }
+    if (option.ally) {
+      const reason = allyBlocker(option, activation, { sourceItem, targetItem, items: tempHpItems, turnState });
+      if (reason) return reason;
+    }
     return (choice ? choice.save : option.save) && !PC_ATTACK_SAVE_OUTCOMES.includes(activation.saveOutcome)
       ? `${option.label}: scegli l'esito del tiro salvezza.` : "";
   }).find(Boolean) || "";
@@ -1782,6 +1815,17 @@ export function buildPcAttackMutation({
   const noOpportunity = pcAttackNoOpportunityPlan({ attack, sourceItem, targetItem, turn: appliedAt, attackInstanceId });
   if (noOpportunity) causality.noOpportunity = { featureId: noOpportunity.featureId, name: noOpportunity.featureName,
     targetId: noOpportunity.targetId, condition: noOpportunity.condition, instanceId: noOpportunity.instanceId };
+  // Maneuvering Attack (lot F2-3): the ally's pill and reaction, on a hit, in combat.
+  const ally = activationPlan.ally;
+  const allyPlan = ally && appliedAt && DAMAGING_OUTCOMES.has(outcome) ? {
+    pill: noOpportunityPill({ moverItem: ally.item, sourceItem, targetItem, feature: { id: ally.id, name: ally.option.label }, turn: appliedAt,
+      key: `${attackInstanceId}:ally-no-opportunity` }),
+    reaction: planReactionSpend({ casterId: ally.item.id, casterName: ally.item.name || ally.item.id,
+      conditions: ally.item.metadata?.[META_KEY]?.conditions, initiativeState: turnState }),
+  } : null;
+  if (allyPlan) causality.allyNoOpportunity = { featureId: ally.id, name: ally.option.label, allyId: ally.item.id,
+    allyName: ally.item.name || ally.item.id, targetId: targetItem.id, condition: allyPlan.pill.condition, instanceId: allyPlan.pill.instanceId,
+    reaction: allyPlan.reaction.operations.length > 0 };
   if (bite && biteDamage > 0) causality.vampiricBite = { mode: bite.effect.kind === "caster-heal" ? "heal" : "bonus", amount: biteDamage,
     ...(biteHeal > 0 && casterHealChange ? { before: casterHealChange.hp, after: casterHealChange.afterHP } : {}) };
   const activationPillOperations = Object.keys(activationPlan.instancesByTarget).length
@@ -1808,7 +1852,8 @@ export function buildPcAttackMutation({
     // Temporary hit points (Inspiring Smite): their own projections after the commit (no concentration warnings).
     tempHpChanges: activationPlan.tempHp.filter((row) => row.change.changed).map((row) => ({ item: row.item, change: row.change })),
     labelTargetIds: [...new Set([...pillTargetIds, ...(activationConditions.length ? [targetItem.id] : []),
-      ...(biteBonusOperations.length || readiedHold || noOpportunity ? [sourceItem.id] : []), ...hitPlan.labelTargetIds])],
+      ...(biteBonusOperations.length || readiedHold || noOpportunity ? [sourceItem.id] : []), ...(allyPlan ? [ally.item.id] : []),
+      ...hitPlan.labelTargetIds])],
     ...(secondaryItemUsed ? { secondaryChange, secondaryItem: secondaryItemUsed } : {}),
     // The creatures of Bursting Arrow: their own post-damage projections after the commit.
     burstChanges: burstRows.filter((row) => row.change.changed).map((row) => ({ item: row.item, change: row.change })),
@@ -1848,6 +1893,7 @@ export function buildPcAttackMutation({
     ] }] : []), ...conditionOperations, ...hitPlan.operations,
     ...(conditionOperations.length || hitPlan.operations.length ? [{ type: "condition:automate", subjectIds: [targetItem.id] }] : []), ...cantripOperations,
     ...activationPillOperations, ...biteBonusOperations, ...(noOpportunity ? [noOpportunity.operation] : []),
+    ...(allyPlan ? [allyPlan.pill.operation, ...allyPlan.reaction.operations] : []),
     ...(linkEnds.length ? [{ type: "condition:remove-instances", removals: linkEnds.map(({ itemId, instanceId }) => ({ itemId, instanceId })) }] : []),
     // The release ends the hold (lot T6d): its concentration broken by its instance takes its record and its pill, hit
     // or miss, as the spell panel's release does; one Undo brings the hold back.
@@ -1856,7 +1902,7 @@ export function buildPcAttackMutation({
       commandId: attackInstanceId, correlationId: attackInstanceId, sourceId: sourceItem.id,
       targetIds: [...new Set([targetItem.id, ...(secondaryItemUsed ? [secondaryItemUsed.id] : []), ...pillTargetIds,
         ...burstRows.map((row) => row.item.id), ...(casterHealChange?.changed || biteBonusOperations.length || readiedHold || noOpportunity
-          ? [sourceItem.id] : [])])],
+          ? [sourceItem.id] : []), ...(allyPlan ? [ally.item.id] : [])])],
       kind: PC_ATTACK_HISTORY_KIND, label,
       // The quick action read from the attacker's card, and the defenses read from the target's card,
       // must still be the ones at commit.
@@ -1948,7 +1994,7 @@ function planPcAttackActivations({ requests = [], attack, outcome, sourceItem, t
   secondaryItem = null, wovenSecondary = false, tempHpItems = [], burstItems = [], modeAmount = null, factor = "full" }) {
   const list = Array.isArray(requests) ? requests : [];
   const empty = { chosen: [], state: null, stateChanged: false, instancesByTarget: {}, pillFeatureIds: {}, conditions: [], notes: [], uses: [],
-    secondary: null, tempHp: [], burst: null };
+    secondary: null, tempHp: [], burst: null, ally: null };
   if (!list.length && !attack.mode) return empty;
   if (list.length && !ATTACK_ROLL_OUTCOMES.has(outcome)) throw new Error("Le attivazioni richiedono un tiro per colpire.");
   if (new Set(list.map((request) => request?.id)).size !== list.length) throw new Error("La stessa attivazione è indicata due volte.");
@@ -2011,6 +2057,13 @@ function planPcAttackActivations({ requests = [], attack, outcome, sourceItem, t
       if (!isBossActionCreature(secondaryItem) || [sourceItem.id, targetItem.id].includes(secondaryItem.id))
         throw new Error("Scegli come seconda creatura un'altra creatura.");
       result.secondary = { id: activation.id, option, item: secondaryItem, type: request.type, amount: damageAmount(request.amount) };
+    }
+    // Maneuvering Attack's ally (lot F2-3): its pill and its reaction, in the attack's command. The candidates are the
+    // creatures the console passes (tempHpItems: the attacker and the tracked creatures).
+    if (option.ally && request.allyId) {
+      const reason = allyBlocker(option, request, { sourceItem, targetItem, items: tempHpItems, turnState });
+      if (reason) throw new Error(`${reason} Riapri l'attacco.`);
+      result.ally = { id: activation.id, option, item: tempHpItems.find((item) => item.id === request.allyId) };
     }
     // The effect applies without a save or with a failed one; a passed save still spends the resource and adds the die.
     const applies = !save || request.saveOutcome === "failed";

@@ -9,7 +9,8 @@ con H1–H7 approvate** (§7.11), **F5-1, F5-2 e F5-3 il 16/11** (§7.12–§7.1
 F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 approvate** (§7.15), **F6-1…F6-5
 il 16/11** (§7.16–§7.20): F6 è chiuso. **Il piano di F9 il 16/11** (§7.21),
 **F9-1…F9-4 il 16/11** (§7.22–§7.25): F9 è chiuso. **Il piano di F2 il 16/11,
-con M1–M6 approvate** (§7.26), **F2-1 e F2-2 il 16/11** (§7.27, §7.28).
+con M1–M6 approvate** (§7.26), **F2-1, F2-2 e F2-3 il 16/11** (§7.27–§7.29): F2 è
+chiuso.
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -2144,6 +2145,32 @@ Gambe.**
   comando dell'attacco. Il catalogo delle capacità, con righe di altre
   sessioni, non si rigenera.
 - **Documenti:** le prove in stanza sono in B60.
+
+### 7.29 F2-3, fatto il 16/11
+
+**Attacco con Manovra: l'alleato si muove senza attacchi di opportunità dal
+bersaglio.** Con F2-3 il lotto F2 è chiuso.
+
+- **Il menu (M4):** nella console, la riga di Attacco con Manovra ha «Alleato:
+  nessuno» e le creature dalla parte del guerriero, senza lui e il bersaglio
+  (`pcAttackAllyCandidates`). Il campo `ally` della manovra vale anche per la
+  copia di Adepto Marziale.
+- **Il colpo:** con un alleato scelto, il comando dell'attacco mette
+  sull'alleato «No AdO: <bersaglio>» (la pill di F2-2, fino alla fine del turno,
+  posta dal guerriero) e la reazione usata. Il dado di superiorità si somma al
+  danno come prima. L'Annulla dell'attacco toglie pill e reazione. Il runtime
+  (`pcAttackExecution.js`) legge l'alleato dalla scena come il bersaglio.
+- **I controlli prima del commit:** un alleato che ha già usato la reazione, o
+  una creatura dell'altra parte, ferma l'attacco con il motivo. Senza alleato
+  restano il dado e la nota.
+- **Fuori dal combattimento** non c'è un turno che chiuda la pill: non si mette
+  niente.
+- **Al tavolo:** di quanto si muove l'alleato (fino a metà della sua velocità,
+  fuori dal suo turno).
+- **Righe di altre sessioni:** `pcAttackCore.js`, `pc-attack.js`,
+  `pcAttackActivationCatalog.js` e `pcAttackExecution.js` non ne avevano; il
+  commit li prende interi.
+- **Documenti:** le prove in stanza sono in B61.
 
 ---
 

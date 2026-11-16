@@ -249,9 +249,11 @@ export function createPcAttackRuntime({
       const [rawSecondaryItem]=secondaryId?await api.scene.items.getItems([secondaryId]):[];
       const secondaryItem=await withLinkDefenses(rawSecondaryItem,scope.turnState?.round);
       if(secondaryId && !secondaryItem) throw new Error("La seconda creatura non è più presente nella scena.");
-      // Inspiring Smite: the creatures that receive temporary hit points, read like the target.
+      // Inspiring Smite: the creatures that receive temporary hit points, read like the target. Maneuvering Attack's ally
+      // (lot F2-3 of docs/STUDIO_TALENTI.md) too: its pill and its reaction are in the command.
       const tempHpIds=[...new Set((Array.isArray(request.activations)?request.activations:[])
-        .flatMap(activation=>Array.isArray(activation?.tempHp)?activation.tempHp.map(entry=>entry?.targetId):[]).filter(Boolean))];
+        .flatMap(activation=>[...(Array.isArray(activation?.tempHp)?activation.tempHp.map(entry=>entry?.targetId):[]),
+          ...(activation?.allyId?[activation.allyId]:[])]).filter(Boolean))];
       const tempHpItems=tempHpIds.length?await api.scene.items.getItems(tempHpIds):[];
       // Bursting Arrow: the creatures around the target, read like the target.
       const burstIds=[...new Set((Array.isArray(request.activations)?request.activations:[])

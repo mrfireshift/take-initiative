@@ -477,6 +477,28 @@ test("Sweeping Attack: the target, the second creature and the die in one Histor
   assert.equal(meta("aria").classFeatureState?.resources?.["guerriero-dadi-superiorita"]?.current ?? 5, 5);
 });
 
+// Lot F2-3 of docs/STUDIO_TALENTI.md: Maneuvering Attack's ally is read from the scene like the target, its pill «No AdO»
+// and its reaction in the attack's entry; one Undo takes them away.
+test("Maneuvering Attack: the ally chosen gets «No AdO: <target>» and its reaction spent in the attack's entry; one Undo takes them away", async () => {
+  const MANEUVER = "guerriero-maestro-di-battaglia-manovre-attacco-con-manovra";
+  Object.assign(meta("aria"), { attitude: "pc" });
+  Object.assign(meta("ghoul"), { attitude: "enemy" });
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "guerriero", level: 3, subclassId: "guerriero-maestro-di-battaglia" }],
+    abilityModifiers: { str: 4, dex: 2, con: 3, int: 0, wis: 1, cha: 0 }, classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["guerriero-maestro-di-battaglia-superiorita-in-combattimento", MANEUVER] });
+  sceneItems.push({ id: "mira", name: "Mira", type: "IMAGE", layer: "CHARACTER", position: { x: 20, y: 20 },
+    metadata: { [META_KEY]: { hp: 20, hpMax: 20, attitude: "pc", inInitiative: true } } });
+  await attack({ attackInstanceId: "maneuvering", activations: [{ id: MANEUVER, type: "slashing", amount: 5, allyId: "mira" }] });
+  const pills = (id) => (meta(id).conditions?.instances || meta(id).conditions || []).map((instance) => instance.condition);
+  assert.deepEqual(pills("mira"), ["No AdO: Ghoul", "Reazione usata"]);
+  assert.equal(meta("ghoul").hp, 30 - 8 - 9 - 5);
+  const entries = (await history.getHistoryEntries()).filter((entry) => entry.kind === "pc-attack");
+  assert.equal(entries.length, 1);
+  await history.undoHistoryThrough(entries[0].id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual(pills("mira"), []);
+  assert.equal(meta("ghoul").hp, 30);
+});
+
 test("Inspiring Smite: damage and temporary hit points to the paladin and an ally in one entry, their own projections; one Undo restores them", async () => {
   const projected = [];
   runtime = createPcAttackRuntime({ api: sdk, emitVisual: async () => ({ sent: false }), postDamage: async () => [], postTempHp: async ({ rows }) => { projected.push(...rows.map((row) => row.item.id)); } });
