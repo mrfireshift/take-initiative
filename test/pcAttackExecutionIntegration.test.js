@@ -876,3 +876,23 @@ test("Scarica di adrenalina: the Dash, its use and its temporary hit points in o
   assert.equal(meta("aria").tempHp ?? 0, 0, "the temporary hit points gone");
   assert.equal(meta("aria").classFeatureState?.resources?.[pool[0]]?.current ?? 2, 2, "the use back");
 });
+
+// Lot T4b (decision A2): a movement without opportunity attacks granted by a feature, in one command.
+test("Schermagliatore in the ghoul's turn: «Movimento: no AdO» until that turn's end and the reaction, in one entry; one Undo", async () => {
+  meta("aria").initiativeCard = { characterBuild: [{ classId: "ladro", level: 3, subclassId: "ladro-esploratore" }] };
+  sceneMetadata["com.thebigpicture.initiative/state"] = { round: 2, order: ["aria", "ghoul"], current: 1 };
+  const presentation = await runtime.getPcAttackPresentation("aria", "");
+  const result = await runtime.executePcNoOpportunity({ sourceId: "aria", via: "ladro-esploratore-schermagliatore", targetIds: [],
+    attackInstanceId: "skirmish-1", sceneIdentity: presentation.sceneIdentity });
+  assert.deepEqual([result.turnAction.kind, result.turnAction.movers, result.turnAction.reaction], ["no-opportunity", ["Aria"], true]);
+  const pills = (meta("aria").conditions?.instances || []).filter((instance) => instance.active !== false);
+  const move = pills.find((instance) => instance.condition === "Movimento: no AdO");
+  assert.deepEqual([move.expiry.mode, move.expiry.actorId], ["turn-end", "ghoul"], "until the end of the ghoul's turn");
+  assert.ok(pills.some((instance) => instance.condition === "Reazione usata"));
+  const entry = (await history.getHistoryEntries()).at(-1);
+  assert.equal(entry.label, "Aria: Schermagliatore");
+  await assert.rejects(runtime.executePcNoOpportunity({ sourceId: "aria", via: "ladro-esploratore-schermagliatore", targetIds: [],
+    attackInstanceId: "skirmish-2", sceneIdentity: presentation.sceneIdentity }), /ha già usato la reazione/u);
+  await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual((meta("aria").conditions?.instances || []).filter((instance) => instance.active !== false).map((instance) => instance.condition), []);
+});

@@ -217,6 +217,12 @@ export function turnActionSummary(result,actor="") {
     :`Registrato: ${name} di ${self} a ${holder}, vantaggio alla prossima prova del compito.${after}`;
   if(action.kind==="hide") return `Registrato: ${name} di ${self}${Number.isFinite(action.stealth)?`, Furtività ${action.stealth}`:""}; attaccando si rivela.${after}`;
   if(action.kind==="ready") return `Registrato: ${name} di ${self}, fino all'inizio del suo prossimo turno; si innesca dal menu della card.`;
+  // Lot T4b: a movement without opportunity attacks granted by a feature, on the character or the creatures chosen.
+  if(action.kind==="no-opportunity") {
+    const movers=Array.isArray(action.movers) && action.movers.length?action.movers:[holder];
+    return `Registrato: ${action.via?.name || "Capacità"} di ${actor || holder}${action.via?.spent?` (${action.via.spent})`:""}: ${movers.join(", ")} ${
+      movers.length>1?"si muovono":"si muove"} senza attacchi di opportunità fino alla fine del turno.${action.reaction?" Reazione segnata.":""}`;
+  }
   return `Registrato: ${name}.`;
 }
 
@@ -1449,8 +1455,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const firstPool=(state.resources?.[entry.featureId] || [])[0];
     const spent=["activate","toggle"].includes(form.kind) && !active.length && firstPool && !firstPool.unlimited && firstPool.current===0;
     // Lot T4a: an action of the Azioni tab granted by the feature, on the creature's own turn only, as Registra there.
+    // Lot T4b: a movement without opportunity attacks, in combat; on the creature's own turn for an action or a bonus action.
     const disabledReason=form.disabledReason
-      || (form.kind==="turn-action"?pcTurnActionTurnBlocker({sourceItem:presentation?.item,turnState:presentation?.turnState}):"");
+      || (form.kind==="turn-action" || (form.kind==="no-opportunity" && form.ownTurn)
+        ?pcTurnActionTurnBlocker({sourceItem:presentation?.item,turnState:presentation?.turnState})
+        :form.kind==="no-opportunity" && !(presentation?.turnState?.order || []).filter(Boolean).length?"Solo in combattimento, con un ordine di iniziativa.":"");
     return {
       form,
       // Its cost is on its row: the card says it only when there is no row.
@@ -1572,6 +1581,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(request.error){setStatus(request.error,"error");return;}
     // Lot T4a: a feature that grants an action of the Azioni tab does it with that tab's command.
     if(request.turnAction) return runTurnActionVia(entry,request.turnAction);
+    // Lot T4b: a movement without opportunity attacks, the console's command too.
+    if(request.noOpportunity) return runTurnActionVia(entry,request.noOpportunity,"executePcNoOpportunity");
     const name=definition?.name || entry.label;
     if(request.fn!=="deactivateClassFeature" && reactionAlreadyUsed(definition)
       && !confirmSwitch(`${presentation?.item?.name || "Il personaggio"} ha già usato la reazione in questo round.\n\nUsare comunque ${name}?`)) {
@@ -2068,10 +2079,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   // Lot T4a of docs/STUDIO_AZIONI_DI_TURNO.md: Dash, Disengage, Hide or Help granted by a feature (Azione Scaltra, Passo
   // del Vento…), from its card in Capacità: the Azioni tab's command, the feature's cost and name in it, one Undo.
-  async function runTurnActionVia(entry,request) {
+  // Lot T4b: the same for a movement without opportunity attacks (method "executePcNoOpportunity").
+  async function runTurnActionVia(entry,request,method="executePcTurnAction") {
     return perform(async operation=>{
       try {
-        const result=await runtime.executePcTurnAction({sourceId,...request,attackInstanceId:turnActionId,sceneIdentity:presentation.sceneIdentity});
+        const result=await runtime[method]({sourceId,...request,attackInstanceId:turnActionId,sceneIdentity:presentation.sceneIdentity});
         if(!lifecycle.isCurrent(operation)) return;
         showUndo(result);
         setStatus([turnActionSummary(result,actorName()),...(result.warnings || [])].join("\n"),"ok");

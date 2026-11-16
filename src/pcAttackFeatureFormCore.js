@@ -19,7 +19,7 @@ import {
 } from "./classFeatureCore.js";
 import { getSpellDefinition } from "./spells-srd.js";
 import { isReactionClassFeature } from "./reactionTrackerCore.js";
-import { PC_TURN_ACTION_VIAS, pcTurnActionViaKinds, pcTurnActionViaNote } from "./pcAttackTurnActionViaCore.js";
+import { PC_TURN_ACTION_VIAS, pcNoOpportunitySpec, pcTurnActionViaKinds, pcTurnActionViaNote } from "./pcAttackTurnActionViaCore.js";
 import { PC_HELP_MODES, PC_HELP_MODE_LABELS, pcTurnActionLabel } from "./pcAttackTurnActionCore.js";
 
 // A class feature or species trait in the attack console's Capacità tab: what the GM fills in and which runtime call it
@@ -97,7 +97,27 @@ const adapterOf = (feature) => String(feature?.runtimeSupport?.adapter || "").tr
 // a feature that grants an action of the Azioni tab too (lot T4a), which the console does itself.
 export function pcAttackFeatureUsable(feature) {
   if (pcTurnActionViaKinds(feature?.id).length) return true;
+  // Lot T4b: a feature that lets a creature move without opportunity attacks (Swiftstride keeps its own rule: the sheet).
+  if (pcNoOpportunitySpec(feature?.id) && !pcNoOpportunitySpec(feature?.id).whileActive) return true;
   return !classFeatureIsReferenceOnly(feature) && classFeatureRuntimeSupport(feature).ready;
+}
+
+// Lot T4b of docs/STUDIO_AZIONI_DI_TURNO.md (decision A2): a feature that lets a creature move without provoking
+// opportunity attacks puts «Movimento: no AdO» from its card, on the character or on the creatures selected on the map
+// (Mantle of Inspiration), its cost and reaction in the same command (pcAttackTurnActionViaCore.js). Swiftstride's card
+// offers it only while shifted; otherwise its card stays the sheet's.
+function noOpportunityForm(feature, spec, state) {
+  const pool = (Array.isArray(state.resources?.[feature.id]) ? state.resources[feature.id] : [])[0] || null;
+  const amount = Math.max(1, Math.floor(Number(feature.resourceCosts?.[0]?.amount) || 1));
+  const spent = pool && !pool.unlimited && Number.isFinite(pool.current) && pool.current < amount;
+  const who = spec.subject === "selection" ? "Le creature selezionate sulla mappa si muovono" : "Si muove";
+  return {
+    kind: "no-opportunity", label: "Usa", call: "no-opportunity", fields: [], selectionTargets: spec.subject === "selection",
+    includeSource: spec.subject === "selection", ownTurn: !!spec.ownTurn, reaction: !!spec.reaction,
+    note: [`${who} senza provocare attacchi di opportunità fino alla fine del turno${pool && !pool.unlimited ? ` (${pool.name} −${amount})` : ""}${
+      spec.reaction ? ", con la reazione" : ""}.`, spec.note].join(" "),
+    disabledReason: spent ? `Nessun uso rimasto (${pool.name}).` : "",
+  };
 }
 
 // Lot T4a of docs/STUDIO_AZIONI_DI_TURNO.md (decision A1): a feature that grants Dash, Disengage, Hide or Help as a bonus
@@ -174,6 +194,10 @@ export function pcAttackFeatureForm(feature, state = {}, { characterBuild = [], 
   if (!feature) return { kind: "reference", fields: [], label: "" };
   const viaKinds = pcTurnActionViaKinds(feature.id);
   if (viaKinds.length) return turnActionViaForm(feature, viaKinds, state);
+  const noOpportunity = pcNoOpportunitySpec(feature.id);
+  if (noOpportunity && (!noOpportunity.whileActive || (state.activeFeatureIds || []).includes(feature.id))) {
+    return noOpportunityForm(feature, noOpportunity, state);
+  }
   const runtime = classFeatureRuntimeSupport(feature);
   if (pcAttackFeatureSpendable(feature)) return spendForm(feature, state);
   if (pcAttackFeatureReactable(feature)) return reactionForm(reaction);
@@ -316,6 +340,12 @@ export function pcAttackFeatureRequest(feature, form, values = {}, { sourceId = 
     }
     const stealth = kind === "hide" ? String(values.stealth ?? "").trim() : "";
     return { turnAction: { kind, via: feature.id, ...(stealth !== "" ? { stealth: Number(stealth) } : {}) } };
+  }
+  // Lot T4b: the console's command for a movement without opportunity attacks; the Mantle's creatures from the map.
+  if (form.call === "no-opportunity") {
+    const ids = [...new Set((Array.isArray(targetIds) ? targetIds : []).filter(Boolean))];
+    if (form.selectionTargets && !ids.length) return { error: "Seleziona sulla mappa le creature che si muovono." };
+    return { noOpportunity: { via: feature.id, targetIds: form.selectionTargets ? ids : [] } };
   }
   if (form.call === "reaction") {
     return { fn: "useClassFeatureReaction", params: { sourceId, featureId: feature.id }, done: `Reazione segnata: ${feature.name}.` };

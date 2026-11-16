@@ -271,6 +271,36 @@ azione bonus (A1).
 
 Prove in `PROVE_IN_STANZA.md`, sezione B52.
 
+**T4b fatto il 16/11:** le capacità che fanno muovere senza attacchi di
+opportunità (A2).
+
+- Le capacità sono sette, in `PC_NO_OPPORTUNITY_FEATURES`
+  (`pcAttackTurnActionViaCore.js`): Balsamo della Pace, Magia Tempestosa,
+  Salto del coniglio, Vendicatore Implacabile, Schermagliatore, Passo rapido
+  dello shifter (le due versioni) e Manto di Ispirazione.
+- La loro card in Capacità ha **Usa**: mette la pill «Movimento: no AdO» su chi
+  si muove, fino alla fine del turno in corso. Una reazione arriva nel turno di
+  un altro: la scadenza porta l'id della creatura di turno.
+- Nello stesso comando ci sono il costo (Incanalare Divinità, Ispirazione
+  Bardica, l'uso del Salto) e, per Schermagliatore e Passo rapido, la reazione.
+  Un solo Annulla.
+- Il Manto mette la pill sulle creature selezionate sulla mappa, al massimo il
+  modificatore di Carisma del bardo. Passo rapido si usa solo in mutazione: fuori
+  la card resta quella della scheda.
+- Azioni e azioni bonus si usano solo nel turno della creatura, le reazioni in
+  combattimento.
+- Restano a parte la cura del Balsamo della Pace e i PF temporanei del Manto.
+- Il registro scrive anche il nome della capacità nelle righe di T4a, per
+  esempio «Azione: Scatto (Passo del Vento · Punti Ki 1/2)».
+- **Attacco con Manovra resta fuori, in attesa dell'utente.** Il testo toglie
+  solo gli attacchi di opportunità del bersaglio, come Gioco di Gambe. La console
+  lo usa già come opzione dell'attacco, con il suo dado. Una pill
+  sull'alleato spegnerebbe gli avvisi di tutte le creature. Due strade: con
+  Mobilità (F2 dei talenti), che esclude una sola creatura, oppure con la pill
+  generica.
+
+Prove in `PROVE_IN_STANZA.md`, sezione B53.
+
 Scritti lo stesso giorno, con decisioni nuove in attesa:
 
 - §9, l'incantesimo preparato: decisioni **P1–P12** (§9.8), approvate dall'utente

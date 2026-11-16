@@ -13,12 +13,14 @@ mock.module("@owlbear-rodeo/sdk", {
 });
 
 const { buildPcTurnActionMutation } = await import("../src/pcAttackTurnActionCore.js");
-const { PC_TURN_ACTION_VIAS, pcTurnActionViaBlocker, pcTurnActionViaKinds, planPcTurnActionVia } = await import("../src/pcAttackTurnActionViaCore.js");
+const { PC_NO_OPPORTUNITY_FEATURES, PC_TURN_ACTION_VIAS, buildPcNoOpportunityMutation, pcNoOpportunityBlocker, pcTurnActionViaBlocker,
+  pcTurnActionViaKinds, planPcTurnActionVia } = await import("../src/pcAttackTurnActionViaCore.js");
 const { getClassFeatureDefinition } = await import("../src/classFeatureCatalog.js");
 const { pcAttackFeatureForm, pcAttackFeatureRequest, pcAttackFeatureState, pcAttackFeatureUsable } = await import("../src/pcAttackFeatureFormCore.js");
 const { pcAttackFeatureEntries } = await import("../src/pcAttackPickerCore.js");
 const { DRUNKEN_TECHNIQUE_PILL, movementReactionEvents } = await import("../src/opportunityAttackCore.js");
 const { turnActionSummary } = await import("../src/pc-attack.js");
+const { buildCombatLogPresentation } = await import("../src/combatLogPresentationCore.js");
 
 const META = "com.thebigpicture.initiative/meta";
 const CUNNING = "ladro-azione-scaltra";
@@ -153,4 +155,107 @@ test("Tecnica dell'Ubriaco: its pill is the Disengage for the opportunity attack
   assert.equal(DRUNKEN_TECHNIQUE_PILL, "Tecnica dell'Ubriaco");
   assert.deepEqual(leave(drunk([{ id: "dt-1", condition: DRUNKEN_TECHNIQUE_PILL, active: true }])),
     [{ trigger: "move-leave", moverId: "kai", reactorIds: ["guard"] }], "only Sentinel reacts, as to a Disengage");
+});
+
+// The Combat Log's lines of a command, as the turn actions' test reads them (test/pcAttackTurnActions.test.js).
+const logLines = (built) => {
+  const event = { id: "e-via", sessionId: "s", sequence: 1, version: 3, at: 1, source: "automatic", kind: "pc-attack", category: "attack",
+    action: "change", label: built.options.label, payload: built.options.history.payload, targets: [{ id: "kai", name: "Kai" }] };
+  return buildCombatLogPresentation({ id: "s" }, [event]).events[0].details.flatMap((section) => section.lines).join(" | ");
+};
+
+test("the Combat Log names the feature that granted the action, with what it spent (T4a)", () => {
+  assert.match(logLines(command(monk(), "dash", WIND)), /Azione: Scatto \(Passo del Vento · Punti Ki 1\/2\) · uno scatto in più/u);
+  assert.match(logLines(command(rogue(), "disengage", CUNNING)), /Azione: Disimpegno \(Azione Scaltra\) · niente attacchi/u);
+  assert.match(logLines(command(monk(), "disengage", "")), /Azione: Disimpegno · niente attacchi/u, "the Azioni tab's own, as before");
+});
+
+// Lot T4b (decision A2): the features that let a creature move without provoking opportunity attacks.
+const SKIRMISHER = "ladro-esploratore-schermagliatore";
+const BALM = "chierico-dominio-della-pace-incanalare-divinita-balsamo-della-pace";
+const MANTLE = "bardo-collegio-dell-incanto-manto-di-ispirazione";
+const SWIFTSTRIDE = "specie-shifter-multiverso-mutazione-passo-rapido";
+const scout = (meta = {}) => creature("vex", { characterBuild: [{ classId: "ladro", level: 3, subclassId: "ladro-esploratore" }] }, meta);
+const cleric = (meta = {}) => creature("ilo", { characterBuild: [{ classId: "chierico", level: 2, subclassId: "chierico-dominio-della-pace" }] }, meta);
+const bard = (meta = {}) => creature("lira", { characterBuild: [{ classId: "bardo", level: 3, subclassId: "bardo-collegio-dell-incanto" }],
+  abilityModifiers: { cha: 2 } }, meta);
+const shifter = (meta = {}) => creature("rek", { characterBuild: [{ classId: "guerriero", level: 3 }], species: { id: "shifter-multiverso", ancestryId: "passo-rapido" } }, meta);
+const goblinTurn = (id) => ({ round: 2, order: [id, "goblin"], current: 1 });
+const move = (item, featureId, extra = {}) => buildPcNoOpportunityMutation({ featureId, sourceItem: item, turnState: turnOf(item.id),
+  attackInstanceId: `move-${featureId}`, ...extra });
+
+test("the features of A2 are in the catalog; Fancy Footwork and Maneuvering Attack are not among them", () => {
+  assert.deepEqual(Object.keys(PC_NO_OPPORTUNITY_FEATURES).filter((id) => !getClassFeatureDefinition(id)), [], "no stale id");
+  assert.equal(PC_NO_OPPORTUNITY_FEATURES["guerriero-maestro-di-battaglia-manovre-attacco-con-manovra"], undefined);
+});
+
+test("Schermagliatore: in the enemy's turn, «Movimento: no AdO» on the rogue until the end of that turn, its reaction spent", () => {
+  const plan = move(scout(), SKIRMISHER, { turnState: goblinTurn("vex") });
+  assert.equal(plan.options.label, "Vex: Schermagliatore");
+  const [pill] = plan.operations;
+  assert.deepEqual([pill.type, pill.conditionName, pill.targetIds], ["condition:add", "Movimento: no AdO", ["vex"]]);
+  assert.deepEqual(pill.options.expiry, { mode: "turn-end", actor: "source", actorId: "goblin", remaining: 1 }, "the goblin's turn, not the rogue's");
+  assert.ok(plan.operations.some((operation) => operation.conditionName === "Reazione usata"), "its reaction");
+  assert.deepEqual([plan.causality.turnAction.kind, plan.causality.turnAction.reaction, plan.causality.turnAction.movers], ["no-opportunity", true, ["Vex"]]);
+  const used = scout({ conditions: { version: 2, instances: [{ id: "r-1", condition: "Reazione usata", active: true }] } });
+  assert.match(pcNoOpportunityBlocker({ featureId: SKIRMISHER, sourceItem: used, turnState: goblinTurn("vex") }), /ha già usato la reazione/u);
+  assert.match(pcNoOpportunityBlocker({ featureId: SKIRMISHER, sourceItem: scout(), turnState: { order: [] } }), /Solo in combattimento/u);
+});
+
+test("Balsamo della Pace: on the cleric's own turn, the pill until its end and the Channel Divinity spent", () => {
+  const plan = move(cleric(), BALM);
+  assert.deepEqual(plan.operations[0].options.expiry.actorId, "ilo");
+  const resource = plan.operations.find((operation) => operation.type === "class-feature:adjust-resource");
+  assert.deepEqual([resource.pool.id, resource.adjustment.delta], ["chierico-incanalare-divinita-usi", -1]);
+  assert.equal(plan.operations.some((operation) => operation.conditionName === "Reazione usata"), false, "an action: no reaction");
+  assert.match(pcNoOpportunityBlocker({ featureId: BALM, sourceItem: cleric(), turnState: goblinTurn("ilo") }), /Solo nel turno della creatura/u);
+});
+
+test("Manto di Ispirazione: the pill on the creatures selected, up to the Charisma modifier; the Bardic Inspiration spent", () => {
+  const mira = creature("mira");
+  const dars = creature("dars");
+  const plan = move(bard(), MANTLE, { targetItems: [mira, dars] });
+  assert.equal(plan.options.label, "Lira: Manto di Ispirazione → Mira, Dars");
+  assert.deepEqual(plan.operations[0].targetIds, ["mira", "dars"]);
+  assert.equal(plan.operations.find((operation) => operation.type === "class-feature:adjust-resource").pool.id, "bardo-ispirazione-bardica-usi");
+  assert.match(pcNoOpportunityBlocker({ featureId: MANTLE, sourceItem: bard(), turnState: turnOf("lira"), targetItems: [] }), /Seleziona sulla mappa/u);
+  assert.match(pcNoOpportunityBlocker({ featureId: MANTLE, sourceItem: bard(), turnState: turnOf("lira"), targetItems: [mira, dars, creature("bram")] }),
+    /al massimo 2 creature/u);
+});
+
+test("Passo rapido: only while shifted, with the reaction", () => {
+  assert.match(pcNoOpportunityBlocker({ featureId: SWIFTSTRIDE, sourceItem: shifter(), turnState: goblinTurn("rek") }), /solo mentre è attiva/u);
+  const shifted = shifter({ classFeatureState: { version: 1, resources: {}, instances: [
+    { instanceId: "shift-1", featureId: SWIFTSTRIDE, sourceId: "rek", targetIds: ["rek"], startedRound: 2 }] } });
+  const plan = move(shifted, SWIFTSTRIDE, { turnState: goblinTurn("rek") });
+  assert.ok(plan.operations.some((operation) => operation.conditionName === "Reazione usata"));
+});
+
+test("the cards in Capacità: Usa for the move, the Mantle on the map selection, Swiftstride only while shifted", () => {
+  const state = (active = []) => ({ activeFeatureIds: active, resources: {} });
+  const skirmisher = pcAttackFeatureForm(getClassFeatureDefinition(SKIRMISHER), state());
+  assert.deepEqual([skirmisher.kind, skirmisher.label, skirmisher.reaction, skirmisher.ownTurn], ["no-opportunity", "Usa", true, false]);
+  assert.equal(skirmisher.note, "Si muove senza provocare attacchi di opportunità fino alla fine del turno, con la reazione. "
+    + "Quando un nemico finisce il turno entro 1,5 m da lui: fino a metà velocità.");
+  assert.equal(pcAttackFeatureUsable(getClassFeatureDefinition(SKIRMISHER)), true);
+  const mantle = pcAttackFeatureForm(getClassFeatureDefinition(MANTLE), state());
+  assert.deepEqual([mantle.selectionTargets, mantle.includeSource, mantle.ownTurn], [true, true, true]);
+  assert.notEqual(pcAttackFeatureForm(getClassFeatureDefinition(SWIFTSTRIDE), state()).kind, "no-opportunity", "not shifted: the sheet's card");
+  assert.equal(pcAttackFeatureForm(getClassFeatureDefinition(SWIFTSTRIDE), state([SWIFTSTRIDE])).kind, "no-opportunity");
+  const request = (form, targetIds) => pcAttackFeatureRequest(getClassFeatureDefinition(MANTLE), form, {}, { sourceId: "lira", targetIds });
+  assert.match(request(mantle, []).error, /Seleziona sulla mappa/u);
+  assert.deepEqual(request(mantle, ["mira", "dars"]), { noOpportunity: { via: MANTLE, targetIds: ["mira", "dars"] } });
+  assert.deepEqual(pcAttackFeatureRequest(getClassFeatureDefinition(SKIRMISHER), skirmisher, {}, { sourceId: "vex" }),
+    { noOpportunity: { via: SKIRMISHER, targetIds: [] } });
+});
+
+test("the status and the Combat Log of a move without opportunity attacks", () => {
+  assert.equal(turnActionSummary({ turnAction: { kind: "no-opportunity", movers: ["Mira", "Dars"],
+    via: { name: "Manto di Ispirazione", spent: "Ispirazione Bardica 1/2" } }, target: { name: "Mira" } }, "Lira"),
+  "Registrato: Manto di Ispirazione di Lira (Ispirazione Bardica 1/2): Mira, Dars si muovono senza attacchi di opportunità fino alla fine del turno.");
+  assert.equal(turnActionSummary({ turnAction: { kind: "no-opportunity", movers: ["Vex"], reaction: true, via: { name: "Schermagliatore" } },
+    target: { name: "Vex" } }, "Vex"),
+  "Registrato: Schermagliatore di Vex: Vex si muove senza attacchi di opportunità fino alla fine del turno. Reazione segnata.");
+  assert.match(logLines(move(scout(), SKIRMISHER, { turnState: goblinTurn("vex") })),
+    /Schermagliatore · Vex: movimento senza attacchi di opportunità fino alla fine del turno · reazione usata/u);
 });

@@ -101,6 +101,12 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
         hold: { instanceId: "hold-1", spellId: request.spellId, name: "Benedizione", ...(request.slotLevel ? { slotLevel: request.slotLevel } : {}) },
         spent: request.castWithoutSlot ? "" : `slot di ${request.slotLevel}° livello` };
     },
+    // Lot T4b: a movement without opportunity attacks granted by a feature.
+    executePcNoOpportunity: async (request) => {
+      calls.push({ noOpportunity: request });
+      return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [], target: { id: request.sourceId, name: "Aria" },
+        turnAction: { kind: "no-opportunity", movers: ["Aria"], reaction: true, via: { featureId: request.via, name: "Schermagliatore" } } };
+    },
     executePcTurnAction: async (request) => {
       calls.push({ turnAction: request });
       // The pill's bearer: the creature helped, else the actor.
@@ -2520,6 +2526,13 @@ test("a readied Scorching Ray off its turn: the hold's slot, locked; the note sa
   assert.match(own.$("pc-attack-cantrip-note").textContent, /il primo spende lo slot/);
 });
 
+// The Capacità tab's row with that label, clicked (lots T4a, T4b).
+async function pickFeatureRow(f, label) {
+  const row = f.$("pc-attack-picker-list").querySelectorAll("button").find((button) => textOf(button).includes(label));
+  assert.ok(row, `the row of ${label}`);
+  await row.click(); await tick();
+}
+
 // Lot T4a of docs/STUDIO_AZIONI_DI_TURNO.md (decision A1): a feature that grants an action of the Azioni tab does it from
 // its card in Capacità, with the Azioni tab's command; never through the sheet's feature runtime.
 test("Capacità → Azione Scaltra: the action chosen and Usa send the Azioni tab's command with the feature; off turn, Usa is off", async () => {
@@ -2530,7 +2543,7 @@ test("Capacità → Azione Scaltra: the action chosen and Usa send the Azioni ta
     const f = fixture({ card: rogueCard, attacker: { initiativeCard: rogueCard }, featureState, featureRuntime: features.runtime, turnState });
     await f.controller.ready; await tick();
     await [...pickerTabs(f)].find((button) => button.textContent === "Capacità").click(); await tick();
-    await pick(f, "feature::ladro-azione-scaltra");
+    await pickFeatureRow(f, "Azione Scaltra");
     return f;
   };
   const f = await open(ownTurn);
@@ -2546,4 +2559,31 @@ test("Capacità → Azione Scaltra: the action chosen and Usa send the Azioni ta
   assert.match(f.$("pc-attack-status").textContent, /^Registrato: Disimpegno di Aria/u);
   const off = await open({ ...ownTurn, current: 1 });
   assert.deepEqual([off.$("pc-attack-launch-button").disabled, off.$("pc-attack-total").textContent], [true, "Solo nel turno della creatura."]);
+});
+
+// Lot T4b (decision A2): a feature that lets the creature move without opportunity attacks, from its card in Capacità.
+test("Capacità → Schermagliatore: Usa in the enemy's turn sends the move with the feature; Balm of Peace is off outside its turn", async () => {
+  const scoutCard = { characterBuild: [{ classId: "ladro", level: 3, subclassId: "ladro-esploratore" }], quickActions: [sword] };
+  const features = fakeFeatureRuntime();
+  const open = async (card, featureId, label, turnState) => {
+    const f = fixture({ card, attacker: { initiativeCard: card }, featureState: { enabledIds: [featureId], activeFeatureIds: [], active: {}, resources: {} },
+      featureRuntime: features.runtime, turnState });
+    await f.controller.ready; await tick();
+    await [...pickerTabs(f)].find((button) => button.textContent === "Capacità").click(); await tick();
+    await pickFeatureRow(f, label);
+    return f;
+  };
+  const enemyTurn = { ...ownTurn, current: 1 };
+  const f = await open(scoutCard, "ladro-esploratore-schermagliatore", "Schermagliatore", enemyTurn);
+  assert.match(textOf(f.$("pc-attack-launch")), /Si muove senza provocare attacchi di opportunità fino alla fine del turno, con la reazione\./u);
+  assert.deepEqual([f.$("pc-attack-launch-button").textContent, f.$("pc-attack-launch-button").disabled], ["Usa", false], "a reaction: off turn");
+  await f.$("pc-attack-launch-button").click(); await tick(); await tick();
+  const request = f.calls.find((entry) => entry.noOpportunity)?.noOpportunity;
+  assert.deepEqual([request.sourceId, request.via, request.targetIds], ["aria", "ladro-esploratore-schermagliatore", []]);
+  assert.deepEqual(features.calls, [], "the console's command, not the sheet's feature runtime");
+  assert.equal(f.$("pc-attack-status").textContent,
+    "Registrato: Schermagliatore di Aria: Aria si muove senza attacchi di opportunità fino alla fine del turno. Reazione segnata.");
+  const clericCardPeace = { characterBuild: [{ classId: "chierico", level: 2, subclassId: "chierico-dominio-della-pace" }], quickActions: [sword] };
+  const balm = await open(clericCardPeace, "chierico-dominio-della-pace-incanalare-divinita-balsamo-della-pace", "Balsamo della Pace", enemyTurn);
+  assert.deepEqual([balm.$("pc-attack-launch-button").disabled, balm.$("pc-attack-total").textContent], [true, "Solo nel turno della creatura."]);
 });

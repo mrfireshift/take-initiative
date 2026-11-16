@@ -739,6 +739,30 @@ La pill di **Tecnica dell'Ubriaco** vale come un Disimpegno: chi si muove con
 quella pill non fa partire gli avvisi di attacco di opportunità, tranne quelli di
 chi ha Sentinella.
 
+#### Movimento senza attacchi di opportunità
+
+Alcune capacità fanno muovere senza provocare attacchi di opportunità. Il loro
+**Usa**, nella scheda **Capacità**, mette la pill «Movimento: no AdO» su chi si
+muove, fino alla fine del turno in corso. È la stessa del Colpo dello Zefiro:
+gli avvisi di attacco di opportunità non partono, nemmeno per chi ha Sentinella,
+perché non è un Disimpegno.
+
+- **Balsamo della Pace** (chierico della Pace): spende l'Incanalare Divinità. La
+  cura a chi passa vicino si registra a parte.
+- **Magia Tempestosa** (stregone della Tempesta) e **Salto del coniglio**
+  (harengon, che spende un suo uso).
+- **Vendicatore Implacabile** (paladino della Vendetta): dopo un attacco di
+  opportunità a segno, con la stessa reazione.
+- **Schermagliatore** (ladro Esploratore) e **Passo rapido** dello shifter, solo
+  in mutazione: segnano anche la reazione.
+- **Manto di Ispirazione** (bardo dell'Incanto): seleziona sulla mappa le
+  creature che si muovono, al massimo quante il modificatore di Carisma; spende
+  un'Ispirazione Bardica. I PF temporanei si danno a parte.
+
+Azioni e azioni bonus si usano solo nel turno della creatura. Le reazioni si
+usano anche nel turno di un altro, e allora la pill finisce con quel turno. Un
+solo **Annulla** toglie la pill e rende l'uso o la reazione.
+
 ### Console attacchi fuori turno
 
 Quando sulla mappa è selezionata un'altra creatura, sotto l'intestazione della console attacchi compare **⇄ Agisci con…**: la console passa a quella creatura per un'azione fuori turno (un attacco di opportunità, una reazione). L'intestazione dice **Fuori turno** e, sulla stessa riga di **⇄ Agisci con…**, **⇄ Torna a…** riporta alla creatura di turno; se la creatura selezionata è proprio quella, il pulsante è uno solo. Un nome troppo lungo si taglia sul pulsante, e il suggerimento lo scrive intero. Un attacco fuori turno propone la casella **Usa la reazione (attacco di opportunità)**, già spuntata, che diventa **Usa la reazione (azione preparata)** quando la creatura ne ha una: togli la spunta se l'attacco non usa la reazione; se la reazione è già usata nel round la console lo dice e l'attacco non la segna. Se la console era già sulla creatura durante il suo turno e il turno passa, la casella parte spenta. Gli esiti di un attacco ad area non ancora registrati vengono chiesti prima di cambiare creatura.

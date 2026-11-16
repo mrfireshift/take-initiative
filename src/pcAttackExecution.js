@@ -16,6 +16,7 @@ import { isSpellbookAttackActionId } from "./spellbookCore.js";
 import { isSpellGrantActionId, spellGrantedActionForItem, spellGrantedActionsForItem } from "./spellGrantedActionsCore.js";
 import { buildPcGrappleEndMutation, buildPcManeuverMutation } from "./pcAttackManeuverCore.js";
 import { buildPcReadiedSpellMutation, buildPcTurnActionMutation } from "./pcAttackTurnActionCore.js";
+import { buildPcNoOpportunityMutation } from "./pcAttackTurnActionViaCore.js";
 import { bossFeetPerCell } from "./bossActionsViewCore.js";
 import { getEffectsMutationSceneContext, runEffectsMutation, requireAppliedEffectsMutation } from "./effectsMutations.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
@@ -606,6 +607,18 @@ export function createPcAttackRuntime({
           targetItem:targetItem || null,mode:request.mode || "",stealth:request.stealth ?? null,via:request.via || ""});
       });
   }
+  // Lot T4b of docs/STUDIO_AZIONI_DI_TURNO.md: a feature that lets a creature move without opportunity attacks
+  // (Skirmisher, Mantle of Inspiration…), its pill on whoever moves, its cost and reaction, in one command.
+  async function executePcNoOpportunity(request={}) {
+    const {sourceId}=request;
+    const targetIds=[...new Set((Array.isArray(request.targetIds)?request.targetIds:[]).filter(Boolean))];
+    return runManeuver(request,{kind:"no-opportunity",sourceId,via:request.via || "",targetIds},
+      async(scope,attackInstanceId)=>{
+        const targetItems=targetIds.length?await api.scene.items.getItems(targetIds):[];
+        if(targetItems.length!==targetIds.length) throw new Error("Una creatura scelta non è più presente nella scena.");
+        return buildPcNoOpportunityMutation({featureId:request.via || "",sourceItem:scope.item,turnState:scope.turnState,targetItems,attackInstanceId});
+      });
+  }
   // Preparare → Un incantesimo (after lot T6e of docs/STUDIO_AZIONI_DI_TURNO.md): the hold in one command, read on the live
   // caster (its turn, its readied action, its slots); a retry with the same identity returns the stored result.
   async function executePcReadiedSpell(request={}) {
@@ -680,7 +693,7 @@ export function createPcAttackRuntime({
     } finally {busy.delete(sourceId);}
   }
   return {getPcAttackPresentation,executePcAttack,endQuiveringPalm,executePcAttackArea,getPcAttackNearby,executePcManeuver,executePcTurnAction,endPcGrapple,
-    executePcAttackSpellTeleport,setPcAttackActionMagical,executePcReadiedSpell};
+    executePcAttackSpellTeleport,setPcAttackActionMagical,executePcReadiedSpell,executePcNoOpportunity};
 }
 const runtime=createPcAttackRuntime();
 export const getPcAttackPresentation=(...args)=>runtime.getPcAttackPresentation(...args);
@@ -692,3 +705,4 @@ export const executePcManeuver=(...args)=>runtime.executePcManeuver(...args);
 export const endPcGrapple=(...args)=>runtime.endPcGrapple(...args);
 export const executePcTurnAction=(...args)=>runtime.executePcTurnAction(...args);
 export const executePcReadiedSpell=(...args)=>runtime.executePcReadiedSpell(...args);
+export const executePcNoOpportunity=(...args)=>runtime.executePcNoOpportunity(...args);

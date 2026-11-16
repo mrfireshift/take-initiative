@@ -745,16 +745,25 @@ function maneuverLogLines(maneuver) {
 
 function turnActionLogLines(turnAction) {
   const dashes = finiteNumber(turnAction.dashes);
-  if (turnAction.kind === "dash") return [`Azione: Scatto · ${dashes > 1 ? `${numberText(dashes)} scatti` : "uno scatto"} in più nel movimento del turno`];
-  if (turnAction.kind === "disengage") return ["Azione: Disimpegno · niente attacchi di opportunità fino alla fine del turno"];
+  // Lots T4a and T4b of docs/STUDIO_AZIONI_DI_TURNO.md: the feature that granted it, with what it spent.
+  const viaName = stringValue(turnAction.via?.name);
+  const spent = stringValue(turnAction.via?.spent);
+  const via = viaName ? ` (${viaName}${spent ? ` · ${spent}` : ""})` : "";
+  if (turnAction.kind === "dash") return [`Azione: Scatto${via} · ${dashes > 1 ? `${numberText(dashes)} scatti` : "uno scatto"} in più nel movimento del turno`];
+  if (turnAction.kind === "disengage") return [`Azione: Disimpegno${via} · niente attacchi di opportunità fino alla fine del turno`];
   if (turnAction.kind === "dodge") return ["Azione: Schivata · fino all'inizio del suo prossimo turno"];
   // Help: the creature it is for is the entry's target, on the line below.
   if (turnAction.kind === "help") return [turnAction.mode === "attack"
-    ? "Azione: Aiuto in un attacco · vantaggio al primo attacco di un alleato contro la creatura, fino al suo prossimo turno"
-    : "Azione: Aiuto in una prova · vantaggio alla prossima prova del compito, fino al suo prossimo turno"];
+    ? `Azione: Aiuto in un attacco${via} · vantaggio al primo attacco di un alleato contro la creatura, fino al suo prossimo turno`
+    : `Azione: Aiuto in una prova${via} · vantaggio alla prossima prova del compito, fino al suo prossimo turno`];
   if (turnAction.kind === "hide") {
     const stealth = finiteNumber(turnAction.stealth);
-    return [`Azione: Nascondersi · ${stealth !== null ? `Furtività ${numberText(stealth)}` : "senza il totale di Furtività"}`];
+    return [`Azione: Nascondersi${via} · ${stealth !== null ? `Furtività ${numberText(stealth)}` : "senza il totale di Furtività"}`];
+  }
+  if (turnAction.kind === "no-opportunity") {
+    const movers = (Array.isArray(turnAction.movers) ? turnAction.movers : []).map((name) => stringValue(name)).filter(Boolean);
+    return [`${viaName || "Capacità"}${spent ? ` (${spent})` : ""} · ${movers.length ? `${movers.join(", ")}: ` : ""}movimento senza attacchi `
+      + `di opportunità fino alla fine del turno${turnAction.reaction ? " · reazione usata" : ""}`];
   }
   if (turnAction.kind === "ready") return ["Azione: Preparare · fino all'inizio del suo prossimo turno, si innesca con la reazione"];
   return [];
