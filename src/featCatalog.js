@@ -432,8 +432,17 @@ const DEFINITIONS = [
     ] }),
   feat("xge", 74, "Costituzione Infernale", "Infernal Constitution", { prerequisite: "Tiefling", species: TIEFLINGS,
     abilities: ["con"] }),
+  // Lot F6-5 (decision K6): the flames, a card the GM uses after a spell with fire damage; their pill carries the
+  // retaliation of a melee hit, which the consoles show under the target as Fire Shield's. Rerolling the 1s stays at
+  // the table.
   feat("xge", 74, "Fiamme di Flegesto", "Flames of Phlegethos", { prerequisite: "Tiefling", species: TIEFLINGS,
-    abilities: ["int", "cha"] }),
+    abilities: ["int", "cha"],
+    plugin: "Dopo un incantesimo con danni da fuoco, la card «fiamme» le accende fino alla fine del suo prossimo turno: chi lo colpisce in mischia subisce 1d4 fuoco (pulsante sotto il bersaglio). Gli 1 si ritirano al tavolo.",
+    parts: [{ key: "fiamme", name: "Fiamme di Flegesto: fiamme",
+      description: "Dopo aver lanciato un incantesimo con danni da fuoco: fiamme fino alla fine del tuo prossimo turno, con luce intensa per 9 m e fioca per altri 9 m. Chi ti colpisce con un attacco in mischia entro 1,5 m subisce 1d4 danni da fuoco.",
+      effect: { conditionName: "Fiamme di Flegesto", kind: "buff", self: true, timing: UNTIL_NEXT_TURN_END,
+        detail: "Avvolto dalle fiamme fino alla fine del suo prossimo turno: chi lo colpisce in mischia entro 1,5 m subisce 1d4 danni da fuoco.",
+        retaliation: { label: "Fiamme di Flegesto", dice: "1d4", type: "fire", meleeOnly: true, reachMeters: 1.5 } } }] }),
   feat("xge", 74, "Fortuna Generosa", "Bountiful Luck", { prerequisite: "Halfling", species: HALFLINGS,
     plugin: "Si gestisce al tavolo: gli avvisi di reazione non vedono i tiri." }),
   feat("xge", 74, "Furia Orchesca", "Orcish Fury", { prerequisite: "Mezzorco", species: ["mezzorco"], abilities: ["str", "con"],
@@ -636,7 +645,11 @@ function recordBehaviour({ effect, poolId }) {
       targeting: effect.self ? SELF_TARGETING : TARGET_TARGETING,
       effectPlan: Object.freeze({ kind: "condition", conditionName: effect.conditionName, ...(effect.label ? { displayLabel: effect.label } : {}),
         effectKind: effect.kind || "debuff",
-        detail: effect.detail, ...(effect.movement ? { mechanics: Object.freeze({ movement: Object.freeze({ ...effect.movement }) }) } : {}) }),
+        detail: effect.detail, ...(effect.movement || effect.retaliation ? { mechanics: Object.freeze({
+          ...(effect.movement ? { movement: Object.freeze({ ...effect.movement }) } : {}),
+          // Lot F6-5: the damage an attacker that hits takes, as Fire Shield's (attackReactionsCore.js).
+          ...(effect.retaliation ? { retaliation: Object.freeze({ ...effect.retaliation }) } : {}),
+        }) } : {}) }),
       duration: Object.freeze({ rounds: null, timing: effect.timing }), trackingMode: "active",
     };
   }

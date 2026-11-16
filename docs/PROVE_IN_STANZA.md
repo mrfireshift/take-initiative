@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **252** |
+| **B. Console attacchi, mostri e capacità** | **256** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -75,6 +75,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B46. Sentinella | 4 |
 | B47. Maestro delle Armi su Asta | 4 |
 | B48. Sterminatore di Maghi e Incantatore da Guerra | 4 |
+| B49. Fiamme di Flegesto | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -100,7 +101,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **615** |
+| **Totale** | **619** |
 
 ## A. Incantesimi
 
@@ -936,6 +937,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F6-4 (decisioni K4 e K5). L
 - [ ] **Usa:** si apre la console attacchi del PG fuori turno, e il pannello dice di scegliere il mostro come bersaglio; i bersagli dell'incantesimo nel pannello non cambiano. Registrato l'attacco, un secondo clic sul pulsante lancia l'incantesimo.
 - [ ] **Ignora:** con l'avviso aperto, un secondo clic sul pulsante lancia senza reazione.
 - [ ] **Incantatore da Guerra:** un nemico esce dalla portata del PG: sotto «Attacco di opportunità» la card dice «…, o un incantesimo da 1 azione solo su di lei (Incantatore da Guerra)». Senza il talento la riga non c'è.
+
+### B49. Fiamme di Flegesto
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F6-5 (decisione K6). Le voci sono nuove: nessuna lista le aveva. In combattimento: un tiefling con Fiamme di Flegesto e un mostro nemico accanto.
+
+- [ ] **Le fiamme:** dopo un incantesimo di fuoco, dal menu della card del tiefling (o dalla scheda Capacità della console) **Fiamme di Flegesto: fiamme** mette la pill «Fiamme di Flegesto» sul tiefling, senza spendere usi.
+- [ ] **La ritorsione:** il mostro colpisce il tiefling in mischia: sotto il bersaglio c'è «Fiamme di Flegesto · 1d4 fuoco»; scritto il d4, il pulsante toglie quei PF al mostro, e l'Annulla della Cronologia li rimette.
+- [ ] **Quando non c'è:** un colpo a distanza o un attacco mancato non mostrano la riga.
+- [ ] **La fine:** alla fine del prossimo turno del tiefling la pill sparisce.
 
 ## C. Tracker e UX
 
