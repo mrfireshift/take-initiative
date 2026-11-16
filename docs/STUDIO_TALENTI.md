@@ -10,7 +10,7 @@ F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 approvate** (§7.15), **F6-
 il 16/11** (§7.16–§7.20): F6 è chiuso. **Il piano di F9 il 16/11** (§7.21),
 **F9-1…F9-4 il 16/11** (§7.22–§7.25): F9 è chiuso. **Il piano di F2 il 16/11,
 con M1–M6 approvate** (§7.26), **F2-1, F2-2 e F2-3 il 16/11** (§7.27–§7.29): F2 è
-chiuso.
+chiuso. **Il piano dei PF di F7 il 16/11, con N1–N6 approvate** (§7.30), **F7-1 il 16/11** (§7.31).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -2171,6 +2171,152 @@ bersaglio.** Con F2-3 il lotto F2 è chiuso.
   `pcAttackActivationCatalog.js` e `pcAttackExecution.js` non ne avevano; il
   commit li prende interi.
 - **Documenti:** le prove in stanza sono in B61.
+
+### 7.30 F7, piano dei PF (16/11)
+
+**Difese.** Quattro talenti; tre cambiano il danno che si scrive in `meta.hp`.
+Come chiede AGENTS.md, qui sotto c'è il piano esatto: dove entra ogni regola,
+in che ordine e con quali numeri. Il codice parte solo dopo il via
+dell'utente. Le decisioni N1–N6 sono nuove (§7.30.6); D11 e D12 dicono già
+«automatico».
+
+#### 7.30.1 Che cosa fanno (PHB 2014, Xanathar, Tasha)
+
+| Talento | Che cosa conta per il plugin |
+|---|---|
+| Costituzione Infernale | Resistenza a freddo e veleno; vantaggio ai TS contro Avvelenato (promemoria). |
+| Adepto Elementale | Gli incantesimi del personaggio ignorano la resistenza al tipo scelto, non l'immunità. «Gli 1 contano 2» resta al tavolo. Si prende più volte, un tipo per volta. |
+| Maestria dei Veleni | I suoi tiri di danno ignorano la resistenza al veleno. Veleno potente: chi è colpito da un'arma spalmata fa un TS Costituzione CD 14; se fallisce, 2d8 veleno e Avvelenato fino alla fine del prossimo turno del personaggio. |
+| Maestro delle Armature Pesanti | Con l'armatura pesante, i danni contundenti, perforanti e taglienti delle armi non magiche che subisce calano di 3. |
+
+#### 7.30.2 Dove passa oggi il danno
+
+- **Console attacchi e console Boss:** `defendedComponents`
+  (`bossActionExecutionCore.js`) al commit, `bossDefendedDamage` e
+  `bossDefenseCounts` (`bossActionsViewCore.js`) nell'anteprima. Le difese
+  vengono da `damageDefensesForItem`; `ignoredTypes` sono quelle che il GM
+  toglie con la ✕ e quelle superate da un'arma magica
+  (`pcAttackMagicIgnoredDefenses`).
+- **Pannello incantesimi, aree, azioni ⚡, promemoria, Palla di fuoco
+  ritardata:** `magicalDamageDefensesForItem` e le righe di
+  `spellDamageDefenseCore.js`, in 16 punti (anteprima nel
+  `spellUnifiedPanelSceneProvider.js`, commit negli esecutori).
+- **I PF** si scrivono sempre con l'operazione `hp:set` del comando che c'è
+  già: una voce nella Cronologia, un Annulla. F7 non aggiunge strade che
+  scrivono PF; cambia solo il numero che quelle strade calcolano.
+
+#### 7.30.3 Le tre regole, in ordine
+
+**R1. Le difese di Costituzione Infernale** entrano nelle difese passive
+(`classFeaturePassiveProfile` legge anche i record dei talenti con
+`passiveMechanics.damageDefenses`). Sono resistenze come quella della specie:
+il calcolo non cambia, cambia l'elenco.
+
+**R2. Ignorare la resistenza (Adepto Elementale, Maestria dei Veleni).** Una
+funzione nuova di `damageDefensesCore.js` toglie dalle **resistenze** i tipi
+che l'attaccante supera e lascia stare **immunità** e **vulnerabilità**:
+
+- la usano `defendedComponents` e `bossDefendedDamage` (un'opzione accanto a
+  `marked`) e `magicalDamageDefensesForItem` (un'opzione `caster`), quindi
+  anteprima e commit contano con la stessa funzione;
+- quali tipi: per Adepto Elementale il tipo scelto, solo sul danno di un
+  incantesimo del personaggio; per Maestria dei Veleni il veleno, su ogni danno
+  del personaggio;
+- la difesa superata resta in vista, barrata, «superata (Adepto Elementale)»,
+  come «superata (arma magica)». Il GM la rimette con lo stesso chip (N1).
+
+**R3. Maestro delle Armature Pesanti.** Un aiuto nuovo, usato prima delle
+difese nelle strade degli attacchi con arma:
+
+1. vale se il bersaglio ha il talento, l'attacco è con un'arma (non un
+   incantesimo né un'area) e non è magico (✦ Magica spenta; per un boss,
+   `attack.type` «weapon»);
+2. somma i componenti contundenti, perforanti e taglienti **scritti dal GM**
+   (dopo il critico, che il GM ha già tirato) e toglie 3, mai sotto 0;
+   il taglio scende dal primo di quei componenti;
+3. poi vanno, come oggi, le reazioni (Schivata Prodigiosa, Parata), la
+   resistenza e la vulnerabilità: la resistenza dopo ogni altro modificatore,
+   come dice il PHB 2014.
+
+Nell'anteprima c'è la riga «Maestro delle Armature Pesanti −3» con la ✕, che
+la toglie per quell'attacco (armatura non indossata, arma magica non segnata).
+La Cronologia e il registro dicono il perché. Il commit controlla che il
+bersaglio abbia ancora il talento, come fa con le difese.
+
+#### 7.30.4 I numeri
+
+| Caso | Oggi | Con F7 |
+|---|---|---|
+| Palla di fuoco 28, bersaglio resistente al fuoco, mago con Adepto Elementale (fuoco) | 14 | **28** |
+| Lo stesso, TS superato | 7 | **14** |
+| Lo stesso, bersaglio immune al fuoco | 0 | **0** |
+| Lo stesso, resistente e vulnerabile al fuoco (Tomba di Levistus) | 28 | **56** (resta la vulnerabilità) |
+| Pugnale 5 perforanti + 7 veleno, bersaglio resistente al veleno, con Maestria dei Veleni | 5 + 3 = 8 | **5 + 7 = 12** |
+| Lo stesso, immune al veleno | 5 | **5** |
+| Scimitarra del goblin 6 taglienti su un guerriero con Maestro delle Armature Pesanti | 6 | **3** |
+| Critico 11 taglienti | 11 | **8** |
+| 2 taglienti | 2 | **0** |
+| 5 perforanti + 3 contundenti | 8 | **2 + 3 = 5** |
+| 6 taglienti + 4 veleno | 10 | **3 + 4 = 7** |
+| 10 taglienti su un barbaro in ira con il talento | 5 | **(10 − 3) / 2 = 3** |
+| Lo stesso con ✦ Magica, o la riga tolta con la ✕ | 5 | **5** |
+| Incantesimo d'attacco (Raggio rovente) o area | invariato | **invariato** |
+
+Gli arrotondamenti sono quelli di sempre (`scaledQuickHPAmount`, per
+difetto).
+
+#### 7.30.5 Sottolotti
+
+| Lotto | Contenuto | File | Scrive PF? |
+|---|---|---|---|
+| **F7-1** | Costituzione Infernale (R1). Veleno potente come attivazione al colpo nella console: TS Costituzione CD 14; se fallisce, 2d8 veleno e Avvelenato fino alla fine del prossimo turno dell'attaccante; se supera, niente (N3). | `featCatalog.js`, `damageDefensesCore.js`, `pcAttackActivationCatalog.js`, `pcAttackCore.js` | Sì: il danno del veleno, con le strade delle attivazioni che ci sono |
+| **F7-2** | Ignorare la resistenza (R2): console attacchi, pannello incantesimi, aree, ⚡, promemoria, Palla di fuoco ritardata. La console Boss no, perché i mostri non hanno talenti: le sue funzioni del danno, condivise con la console attacchi, prendono solo l'opzione nuova. | `damageDefensesCore.js`, `bossActionExecutionCore.js`, `bossActionsViewCore.js`, `spellDamageDefenseCore.js`, `pcAttackCore.js`, i 16 punti del pannello | Sì |
+| **F7-3** | Maestro delle Armature Pesanti (R3): console attacchi (armi dei personaggi e dei mostri), console Boss (attacchi con arma, anche di gruppo), con la riga ✕ e il perché. | `damageDefensesCore.js` o un modulo nuovo, `pcAttackCore.js`, `pc-attack.js`, `bossActionExecutionCore.js`, `boss-actions.js` | Sì |
+
+#### 7.30.6 Decisioni
+
+| # | Decisione | Possibilità | Raccomandazione |
+|---|---|---|---|
+| **N1** | Come si vede la resistenza superata | (a) barrata, «superata (Adepto Elementale)», con il chip per rimetterla, come l'arma magica; (b) tolta in silenzio, il perché solo nella Cronologia | **(a)**: il GM vede perché il numero è pieno e può correggere. |
+| **N2** | Dove vale Adepto Elementale | (a) ogni danno di un incantesimo del personaggio: console (incantesimi e trucchetti), pannello, aree, ⚡ delle sue zone, promemoria; (b) solo la console | **(a)**: è dove si tirano gli incantesimi; il caster è già noto in ognuno di quei punti. |
+| **N3** | Veleno potente | (a) un'attivazione al colpo spuntata dal GM, con TS, danno solo sul fallimento e Avvelenato con scadenza; niente conto del veleno spalmato; (b) promemoria | **(a)**: il veleno spalmato non si conta (niente bookkeeping), il colpo sì. |
+| **N4** | Dove vale Maestro delle Armature Pesanti | (a) gli attacchi con arma delle due console; non incantesimi, aree, effetti manuali; (b) anche le aree con arma (Freccia Perforante) | **(a)**: le aree con arma sono rare e di solito magiche; restano al GM con la Console effetti manuali. |
+| **N5** | L'armatura indossata | (a) data per indossata; la ✕ toglie la riga; (b) un interruttore nella scheda | **(a)**, come D11. |
+| **N6** | Ordine | F7-1 → F7-2 → F7-3, ognuno con commit, banco e prove in stanza | Come proposto: dal rischio minore. |
+
+#### 7.30.7 Rischi, come chiede AGENTS.md
+
+- **PF:** tutti e tre i sottolotti cambiano il numero scritto; nessuno cambia
+  come si scrive. Anteprima e commit usano la stessa funzione, e il commit
+  ricontrolla le difese e il talento del bersaglio come oggi.
+- **Barre PF della mappa:** leggono `meta.hp`, che resta l'unica fonte.
+- **Metadata:** nessuna chiave nuova; il veleno potente è una pill con
+  scadenza, unita come le altre.
+- **Righe di altre sessioni:** nessuna nei file di F7 al 16/11; si ricontrolla
+  a ogni sottolotto.
+
+**Esito:** il 16/11 l'utente ha approvato N1–N6 come raccomandate («Approvo, vai
+con F7-1»).
+
+### 7.31 F7-1, fatto il 16/11
+
+**Costituzione Infernale e Veleno potente.**
+
+- **Le difese (R1):** il talento dice `damageDefenses` e il suo record ha
+  `passiveMechanics.damageDefenses` (resistenza a freddo e veleno).
+  `classFeaturePassiveProfile` legge anche i record dei talenti, senza bisogno
+  di una classe. Il calcolo non cambia: un'ascia gelida da 9 toglie 4 PF.
+- **Veleno potente (N3):** un'attivazione della console sul colpo con un'arma
+  (`talento-maestria-dei-veleni-veleno-potente`, la parte del talento), con TS
+  Costituzione a CD fissa 14 e 2d8 veleno. Se il bersaglio fallisce, il danno
+  si somma e arriva Avvelenato fino alla fine del prossimo turno
+  dell'attaccante; se supera, il danno vale 0 (`damageOnFailedSave`) e la
+  console non lo chiede. Il veleno spalmato non si conta.
+- **I PF** passano dal comando dell'attacco di sempre: un'operazione `hp:set`,
+  una voce, un Annulla.
+- **Le righe «Nel plugin»** dei due talenti lo dicono. La resistenza al veleno
+  ignorata da Maestria dei Veleni arriva con F7-2.
+- **Documenti:** le prove in stanza sono in B62.
 
 ---
 

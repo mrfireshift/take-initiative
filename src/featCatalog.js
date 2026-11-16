@@ -88,10 +88,10 @@ const ON_SHEET = "Le competenze vanno riportate nella scheda del personaggio.";
 const feat = (book, page, name, english, { prerequisite = "", abilities = [], choices = [], species = [], speciesOptions = [],
   repeatable = false, plugin = LATER, pool = null, srdEntryId = "", srdText = "", effect = null, parts = [], naturalWeapon = null,
   spells = [], spellAbility = "", chosenSpells = [], classChoices = [], cantrips = 0, cantripIds = null, cantripLabel = "",
-  rituals = false, activation = "", borrowed = null, speedMeters = 0 } = {}) => ({
+  rituals = false, activation = "", borrowed = null, speedMeters = 0, damageDefenses = null } = {}) => ({
   book, page, name, english, prerequisite, abilities, choices, species, speciesOptions, repeatable, plugin, pool, srdEntryId, srdText,
   effect, parts, naturalWeapon, spells, spellAbility, chosenSpells, classChoices, cantrips, cantripIds, cantripLabel, rituals,
-  activation, borrowed, speedMeters,
+  activation, borrowed, speedMeters, damageDefenses,
 });
 // The six classes Magic Initiate, Spell Sniper and Ritual Caster draw from, with their casting ability (PHB 2014).
 const CASTER_CLASSES = ["bardo", "chierico", "druido", "stregone", "warlock", "mago"];
@@ -446,8 +446,11 @@ const DEFINITIONS = [
       { key: "levitazione", spellId: "levitate", name: "Levitazione", uses: "lungo" },
       { key: "dissolvi-magie", spellId: "dispel-magic", name: "Dissolvi magie", uses: "lungo" },
     ] }),
+  // Lot F7-1 of docs/STUDIO_TALENTI.md: resistance to cold and poison, read as a class feature's passive defenses; the
+  // advantage on the saves against being poisoned stays at the table.
   feat("xge", 74, "Costituzione Infernale", "Infernal Constitution", { prerequisite: "Tiefling", species: TIEFLINGS,
-    abilities: ["con"] }),
+    abilities: ["con"], damageDefenses: { resistances: ["cold", "poison"] },
+    plugin: "Resistenza a freddo e veleno nelle difese, senza scriverla nella scheda. Il vantaggio ai TS contro Avvelenato si tira al tavolo." }),
   // Lot F6-5 (decision K6): the flames, a card the GM uses after a spell with fire damage; their pill carries the
   // retaliation of a melee hit, which the consoles show under the target as Fire Shield's. Rerolling the 1s stays at
   // the table.
@@ -536,7 +539,12 @@ const DEFINITIONS = [
     parts: [{ key: "delizia", name: "Cuoco: dai una delizia", activation: "azione_bonus",
       description: "Chi mangia una delizia, con un'azione bonus, ottiene PF temporanei pari al tuo bonus di competenza. Seleziona chi la mangia (nessuno: tu), poi Usa.",
       temporaryHp: { proficiency: true }, maxTargets: 1 }] }),
-  feat("tce", 80, "Maestria dei Veleni", "Poisoner"),
+  // Lot F7-1 (decision N3): the potent poison, an activation of the attack console on a weapon's hit (pcAttackActivationCatalog.js);
+  // the coating is not counted. Ignoring the resistance to poison comes with lot F7-2.
+  feat("tce", 80, "Maestria dei Veleni", "Poisoner", {
+    plugin: "Nella console attacchi, sul colpo con un'arma, «Veleno potente»: TS Costituzione CD 14; se fallisce, 2d8 veleno e Avvelenato fino alla fine del tuo prossimo turno.",
+    parts: [{ key: "veleno-potente", name: "Maestria dei Veleni: Veleno potente",
+      description: "Sul colpo con un'arma spalmata di veleno potente: TS Costituzione CD 14; se fallisce, 2d8 veleno e Avvelenato fino alla fine del tuo prossimo turno. Si spunta nella console attacchi." }] }),
   feat("tce", 80, "Martello Vivente", "Crusher", { abilities: ["str", "con"],
     plugin: "Nella console attacchi, una volta per turno su un colpo contundente: la nota «spostalo di 1,5 m»; al critico, gli attacchi contro il bersaglio hanno vantaggio fino all'inizio del tuo prossimo turno.",
     parts: [{ key: "critico", name: "Martello Vivente: critico",
@@ -597,6 +605,7 @@ export const FEATS = Object.freeze(DEFINITIONS.map((definition) => {
     plugin: definition.plugin,
     activation: definition.activation,
     speedMeters: definition.speedMeters,
+    damageDefenses: definition.damageDefenses ? Object.freeze({ ...definition.damageDefenses }) : null,
     borrowed: definition.borrowed ? Object.freeze({ ...definition.borrowed }) : null,
     pool: definition.pool ? Object.freeze({ ...definition.pool }) : null,
     srdEntryId: definition.srdEntryId,
@@ -723,9 +732,13 @@ function featRecord(entry) {
     breaksConcentration: false,
     resourceCosts: Object.freeze(poolId ? [Object.freeze({ poolId, amount: 1 })] : []),
     ...(entry.naturalWeapon ? { naturalWeapon: entry.naturalWeapon } : {}),
-    // Lot F2-1: a passive speed, as Fast Movement's (speedCheck.js reads it from getEnabledClassFeatures).
-    ...(entry.speedMeters ? { passiveMechanics: Object.freeze({ movement: Object.freeze({ addMeters: entry.speedMeters,
-      label: `${entry.name} (+${String(entry.speedMeters).replace(".", ",")} m)` }) }) } : {}),
+    // Lot F2-1: a passive speed, as Fast Movement's (speedCheck.js reads it from getEnabledClassFeatures). Lot F7-1: passive
+    // defenses, as a class feature's (damageDefensesCore.js, classFeaturePassiveProfile).
+    ...(entry.speedMeters || entry.damageDefenses ? { passiveMechanics: Object.freeze({
+      ...(entry.speedMeters ? { movement: Object.freeze({ addMeters: entry.speedMeters,
+        label: `${entry.name} (+${String(entry.speedMeters).replace(".", ",")} m)` }) } : {}),
+      ...(entry.damageDefenses ? { damageDefenses: Object.freeze({ ...entry.damageDefenses }) } : {}),
+    }) } : {}),
   });
 }
 

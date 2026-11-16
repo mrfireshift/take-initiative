@@ -870,7 +870,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       field("options").hidden=!state.on;
       // On a miss only the activations used on the roll itself are listed.
       row.hidden=draft.outcome==="miss" && !option.preRoll;
-      field("amount").hidden=!state.on || !(option.damage || option.secondary || option.tempHp);field("amount").disabled=busy;
+      // Poisoner's potent poison (lot F7-1): no damage to write on a passed save.
+      field("amount").hidden=!state.on || !(option.damage || option.secondary || option.tempHp)
+        || (option.damageOnFailedSave && state.saveOutcome==="passed");field("amount").disabled=busy;
       field("amount").placeholder=option.tempHp?"":amountHint(critical(option.dice)?.split(" · critico ").at(-1));
       if(field("choice")){field("choice").value=state.choice;field("choice").disabled=busy;}
       if(field("save")) field("save").hidden=!save;

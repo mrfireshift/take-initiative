@@ -207,6 +207,12 @@ const BASE_ACTIVATIONS = Object.freeze([
   // off the attacker's turn. The console cannot tell an opportunity attack from another reaction's: the GM ticks it.
   Object.freeze({ id: "talento-sentinella-velocita-zero", requires: Object.freeze({ range: "melee", reaction: true }),
     effect: Object.freeze({ pill: true }), hint: "Solo con un attacco di opportunità." }),
+  // Poisoner (lot F7-1, decision N3): the potent poison on a weapon's hit, ticked by the GM (the coating is not counted). A
+  // Constitution save DC 14: on a failure 2d8 poison and Poisoned until the end of the attacker's next turn; on a success
+  // nothing, not even the damage (damageOnFailedSave).
+  Object.freeze({ id: "talento-maestria-dei-veleni-veleno-potente", label: "Veleno potente", dice: Object.freeze({ fixed: "2d8" }),
+    type: "poison", save: "con", dc: 14, damageOnFailedSave: true,
+    effect: Object.freeze({ condition: "Avvelenato", expiry: NEXT_ACTOR_TURN_END }) }),
 ]);
 
 // Martial Adept (lot F9-3 of docs/STUDIO_TALENTI.md, decision D14): each maneuver again for the feat's card,
@@ -338,6 +344,8 @@ export function pcAttackActivationRollBonus(activation, card = {}) {
 // Dexterity), or null when the Actor Profile lacks the level or the modifier. save: a choice's save.
 export function pcAttackActivationSaveDC(activation, card = {}, save = activation?.save) {
   if (!save) return null;
+  // A fixed DC (Poisoner's potent poison: 14).
+  if (Number.isInteger(activation.dc)) return activation.dc;
   if (activation.dc === "str-or-dex") {
     const values = ["str", "dex"].map((ability) => abilitySaveDC(card, ability)).filter(Number.isFinite);
     return values.length ? Math.max(...values) : null;

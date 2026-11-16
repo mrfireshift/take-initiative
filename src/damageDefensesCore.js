@@ -3,6 +3,7 @@
 import { scaledQuickHPAmount } from "./quickHpCore.js";
 import { classFeatureEffectPlan, sanitizeCharacterBuild } from "./classFeatureCore.js";
 import { CLASS_FEATURE_BY_ID, CLASS_FEATURES, classFeatureAvailableForBuild, getEnabledClassFeatures } from "./classFeatureCatalog.js";
+import { featFeaturesForProfile } from "./featCatalog.js";
 import { SPECIES_FIELD, speciesDamageDefenses } from "./speciesTraitCore.js";
 import { speciesConditionImmunities } from "./speciesConditionImmunityCore.js";
 
@@ -96,13 +97,17 @@ export function componentDamageAfterDefense(inputAmount, outcomeFactor, defense)
 const PASSIVE_DEFENSE_FIELDS = Object.freeze(["damageDefenses", "damageDefensesByOption", "nonmagicalDamageDefenses", "spellDamageResistance",
   "conditionImmunities", "evasion"]);
 let passiveDefenseFeatures = null;
+// A feat's passive defenses (Infernal Constitution, lot F7-1 of docs/STUDIO_TALENTI.md) count as a class feature's, the feat
+// on the card being enough.
+const hasPassiveDefense = (feature) => PASSIVE_DEFENSE_FIELDS.some((field) => feature.passiveMechanics?.[field]);
 function classFeaturePassiveProfile(card) {
   const build = sanitizeCharacterBuild(card?.characterBuild);
-  if (!build.length) return null;
-  passiveDefenseFeatures ??= CLASS_FEATURES.filter((feature) => PASSIVE_DEFENSE_FIELDS.some((field) => feature.passiveMechanics?.[field]));
-  if (!passiveDefenseFeatures.some((feature) => classFeatureAvailableForBuild(feature, build))) return null;
-  const enabled = new Set(getEnabledClassFeatures(card).map((feature) => feature.id));
-  const features = passiveDefenseFeatures.filter((feature) => enabled.has(feature.id));
+  const feats = featFeaturesForProfile(card).filter(hasPassiveDefense);
+  passiveDefenseFeatures ??= CLASS_FEATURES.filter(hasPassiveDefense);
+  const classes = build.length > 0 && passiveDefenseFeatures.some((feature) => classFeatureAvailableForBuild(feature, build));
+  if (!classes && !feats.length) return null;
+  const enabled = classes ? new Set(getEnabledClassFeatures(card).map((feature) => feature.id)) : new Set();
+  const features = [...passiveDefenseFeatures.filter((feature) => enabled.has(feature.id)), ...feats];
   return {
     defenses: mergeDamageDefenses(...features.flatMap((feature) => [
       feature.passiveMechanics.damageDefenses,

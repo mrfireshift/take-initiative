@@ -48,9 +48,9 @@ test("the catalog holds the 72 feats of the three manuals, 34 of them half feats
   // (lot F5-3), Defensive Duelist, Fade Away and Second Chance (lot F6-1), Sentinel (lot F6-2), Polearm Master (lot F6-3),
   // Mage Slayer and War Caster (lot F6-4), Flames of Phlegethos (lot F6-5), Fighting Initiate and Eldritch Adept (lot
   // F9-1), Metamagic Adept (lot F9-2), Martial Adept (lot F9-3), Dragon Fear (lot F9-4), Mobile and Squat Nimbleness (lot
-  // F2-1) have a line of their own; the others wait for their lot.
+  // F2-1), Infernal Constitution and Poisoner (lot F7-1) have a line of their own; the others wait for their lot.
   assert.equal(FEATS.filter((entry) => !entry.plugin.startsWith("Per ora solo riferimento")).length,
-    23 + 9 + 7 + 2 + 1 + 1 + 2 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 2 + 1 + 1 + 1 + 2);
+    23 + 9 + 7 + 2 + 1 + 1 + 2 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 2 + 1 + 1 + 1 + 2 + 2);
 });
 
 test("feats resolve by id like the species traits, but stay out of the class catalog", () => {
@@ -60,12 +60,12 @@ test("feats resolve by id like the species traits, but stay out of the class cat
   // (lot F3b-5, test/featTelekineticShove.test.js); Inspiring Leader's speech and the Chef's treat (lot F5-1,
   // test/featTemporaryHp.test.js); Healer's cure (lot F5-2, test/featHealer.test.js); Fade Away's pill (lot F6-1,
   // test/featReactions.test.js); Sentinel's speed 0 (lot F6-2, test/featSentinel.test.js); the flames of Phlegethos (lot
-  // F6-5, test/featFlames.test.js).
-  assert.equal(FEAT_FEATURES.length, 72 + 2 + 10 + 19 + 8 + 73 + 73 + 1 + 2 + 1 + 1 + 1 + 1);
+  // F6-5, test/featFlames.test.js); Poisoner's potent poison (lot F7-1, test/featInfernalPoisoner.test.js).
+  assert.equal(FEAT_FEATURES.length, 72 + 2 + 10 + 19 + 8 + 73 + 73 + 1 + 2 + 1 + 1 + 1 + 1 + 1);
   assert.deepEqual(FEAT_FEATURES.filter((record) => record.featPart && !record.innateSpell).map((record) => record.id),
     ["talento-condottiero-ispiratore-discorso", "talento-guaritore-cura", "talento-sentinella-velocita-zero", "talento-fiamme-di-flegesto-fiamme",
       "talento-scomparire-invisibile", "talento-bisturi-da-battaglia-critico",
-      "talento-cuoco-delizia", "talento-martello-vivente-critico", "talento-telecinesi-spinta"]);
+      "talento-cuoco-delizia", "talento-maestria-dei-veleni-veleno-potente", "talento-martello-vivente-critico", "talento-telecinesi-spinta"]);
   for (const record of FEAT_FEATURES) {
     assert.ok(record.featPart ? record.id.startsWith(`talento-${record.featId}-`) : record.id === `talento-${record.featId}`, record.id);
     assert.equal(record.collection, "talenti");

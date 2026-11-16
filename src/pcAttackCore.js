@@ -1007,6 +1007,7 @@ function activationOptionsFor(attack, { sourceItem, targetItem = null, turnState
       ...(activation.hint ? { hint: activation.hint } : {}),
       ...(activation.burst ? { burst: { radiusFeet: activation.burst.radiusFeet } } : {}),
       ...(activation.ally ? { ally: true } : {}),
+      ...(activation.damageOnFailedSave ? { damageOnFailedSave: true } : {}),
       types: !deals ? [] : activation.type === "weapon" ? weaponTypes : [activation.type],
       ...(deals && activation.secondary ? { secondary: { targetDamage: !!activation.secondary.targetDamage, note: activation.secondary.note } } : {}),
       ...(activation.preRoll ? { preRoll: true, ...(rollBonus ? { rollBonus } : {}) } : {}),
@@ -1358,7 +1359,8 @@ export function pcAttackPreview({
     ? activationOptionsFor(attack, { sourceItem, targetItem, turnState, outcome, riderIds: chosenRiders.map((rider) => rider.id),
       damageTypes: [...chosenRiders, ...chosenExtras].map((entry) => entry.type).filter(Boolean) }) : [];
   const chosenActivations = ATTACK_ROLL_OUTCOMES.has(outcome)
-    ? activations.map((request) => ({ ...request, option: activationOptions.find((entry) => entry.id === request.id) || null })) : [];
+    ? activations.map((request) => passedSaveNoDamage({ ...request, option: activationOptions.find((entry) => entry.id === request.id) || null }))
+    : [];
   // The arrow that replaces the attack roll: its extra die is one more component, halved with the rest on a success.
   const modeOption = attack.mode && sourceItem ? modeOptionFor(getPcAttackActivation(attack.mode.id), { sourceItem, turnState }) : null;
   if (modeOption && outcome && factor !== "zero") chosenActivations.push({ id: modeOption.id, type: modeOption.types[0], amount: modeAmount, option: { ...modeOption, save: null } });
@@ -1990,6 +1992,16 @@ export function pcAttackLinkEnds({ sourceItem, targetItem, linkItems = [], damag
 // Phase 3A: the activations chosen for this attack, checked against the live attacker, target and turn, and planned
 // with the class feature's own pure functions. Returns the damage rows, the new classFeatureState (resources spent,
 // active instances), the pills by creature, the standard conditions, the notes and the per-turn uses.
+// Poisoner's potent poison (lot F7-1): no damage when the target passes the save; the amount counts as 0 (no number
+// asked), in the preview and the commit alike. strip: drop the option again (the commit keeps the request's own shape).
+function passedSaveNoDamage(request, strip = false) {
+  const zero = request?.option?.damageOnFailedSave && request.saveOutcome === "passed";
+  const { option, ...rest } = request || {};
+  const next = zero ? { ...request, amount: 0 } : request;
+  if (!strip) return next;
+  return zero ? { ...rest, amount: 0 } : rest;
+}
+
 function planPcAttackActivations({ requests = [], attack, outcome, sourceItem, targetItem, turnState, turn, attackInstanceId, chosenRiders, chosenExtras,
   secondaryItem = null, wovenSecondary = false, tempHpItems = [], burstItems = [], modeAmount = null, factor = "full" }) {
   const list = Array.isArray(requests) ? requests : [];
@@ -2018,9 +2030,10 @@ function planPcAttackActivations({ requests = [], attack, outcome, sourceItem, t
     result.chosen.push({ id: spend.option.id, option: { ...spend.option, damage: deals }, applies: true, spent: spend.spent, save: null, effect: null,
       choice: null, saveOutcome: null, mode: true, ...(deals ? { type: spend.option.types[0], amount: damageAmount(modeAmount) } : {}) });
   }
-  for (const request of list) {
+  for (const original of list) {
+    const option = options.find((entry) => entry.id === original?.id);
+    const request = passedSaveNoDamage({ ...original, option }, true);
     const activation = getPcAttackActivation(request?.id);
-    const option = options.find((entry) => entry.id === request?.id);
     if (!activation || !option) throw new Error("Attivazione non disponibile per questo attaccante: riapri l'attacco.");
     if (!option.available) throw new Error(`${option.label}: ${option.reason} Riapri l'attacco.`);
     if (option.group && groups.has(option.group)) throw new Error(`${option.label}: ${option.groupLabel}.`);

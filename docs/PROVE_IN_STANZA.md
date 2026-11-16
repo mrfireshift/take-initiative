@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **306** |
+| **B. Console attacchi, mostri e capacità** | **310** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -88,6 +88,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B59. Mobilità e Agilità Tarchiata | 4 |
 | B60. Mobilità e Gioco di Gambe: niente AdO dal bersaglio | 4 |
 | B61. Attacco con Manovra: l'alleato senza AdO | 4 |
+| B62. Costituzione Infernale e Veleno potente | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -113,7 +114,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **669** |
+| **Totale** | **673** |
 
 ## A. Incantesimi
 
@@ -1181,6 +1182,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F2-3 (decisione M4). Le voc
 - [ ] **Il colpo:** scelto l'alleato, **Registra**: il dado si somma al danno; sull'alleato ci sono «No AdO: Goblin» e la reazione usata. L'alleato si allontana dai due goblin: l'avviso dell'attacco di opportunità nomina solo il secondo. A fine turno la pill sparisce; l'**Annulla** dell'attacco toglie pill e reazione.
 - [ ] **La reazione già usata:** se l'alleato ha già usato la reazione, la console lo dice e **Registra** resta spento; con «Alleato: nessuno» l'attacco si registra con il dado e la nota.
 - [ ] **Adepto Marziale:** un personaggio con Adepto Marziale e Attacco con Manovra fa lo stesso con il suo d6.
+
+### B62. Costituzione Infernale e Veleno potente
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F7-1 (decisione N3). Le voci sono nuove: nessuna lista le aveva. Servono un tiefling con Costituzione Infernale, un ladro con Maestria dei Veleni e un pugnale, e un ogre. Ogni voce in vista compatta ed estesa, guardando anche la barra PF sulla mappa.
+
+- [ ] **Le resistenze:** nella scheda del tiefling le difese dicono freddo, fuoco e veleno, senza che il GM le scriva. Un attacco da 9 di freddo gli toglie 4 PF, non 9; il registro dice la resistenza.
+- [ ] **Veleno potente, TS fallito:** il ladro colpisce l'ogre con il pugnale; fra le attivazioni c'è «Veleno potente» con TS Costituzione CD 14 e 2d8. Fallito, 7 di veleno: 5 + 7 = 12 danni, e l'ogre è Avvelenato fino alla fine del prossimo turno del ladro.
+- [ ] **TS superato:** il campo del danno sparisce; **Registra** fa solo i 5 del pugnale, senza Avvelenato.
+- [ ] **Annulla:** l'Annulla della console rimette i PF dell'ogre e toglie Avvelenato.
 
 ## C. Tracker e UX
 
