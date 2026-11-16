@@ -46,9 +46,10 @@ test("the catalog holds the 72 feats of the three manuals, 34 of them half feats
   // The 23 feats of lot F0, the 9 of lot F1, the 7 of lot F3a, Magic Initiate and Artificer Initiate (lot F3b-2), Spell
   // Sniper (lot F3b-3), Ritual Caster (lot F3b-4), Inspiring Leader and Chef (lot F5-1), Healer (lot F5-2), Durable
   // (lot F5-3), Defensive Duelist, Fade Away and Second Chance (lot F6-1), Sentinel (lot F6-2), Polearm Master (lot F6-3),
-  // Mage Slayer and War Caster (lot F6-4), Flames of Phlegethos (lot F6-5) have a line of their own; the others wait for
-  // their lot.
-  assert.equal(FEATS.filter((entry) => !entry.plugin.startsWith("Per ora solo riferimento")).length, 23 + 9 + 7 + 2 + 1 + 1 + 2 + 1 + 1 + 3 + 1 + 1 + 2 + 1);
+  // Mage Slayer and War Caster (lot F6-4), Flames of Phlegethos (lot F6-5), Fighting Initiate and Eldritch Adept (lot
+  // F9-1) have a line of their own; the others wait for their lot.
+  assert.equal(FEATS.filter((entry) => !entry.plugin.startsWith("Per ora solo riferimento")).length,
+    23 + 9 + 7 + 2 + 1 + 1 + 2 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 2);
 });
 
 test("feats resolve by id like the species traits, but stay out of the class catalog", () => {

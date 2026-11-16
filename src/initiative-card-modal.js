@@ -112,6 +112,8 @@ import {
   getAdditionalSubclassSpellEntries,
   getClassFeatureSubclasses,
   getEnabledClassFeatures,
+  featBorrowedCandidates,
+  featBorrowedWarnings,
 } from "./classFeatureCatalog.js";
 import {
   MAX_CHARACTER_CLASSES,
@@ -5229,7 +5231,7 @@ function buildFeatEditorRow(entry = {}) {
     return makeLabel(`Rituale ${index + 1}`, select);
   };
   const syncChoices = ({ ability: chosenAbility = "", damageType = "", spellIds = [], classId = "", cantripIds = [], ritualIds = [],
-    reachMeters = null } = {}) => {
+    reachMeters = null, optionIds = [] } = {}) => {
     const feat = getFeat(select.value);
     const abilities = feat?.abilityChoices.length > 1 ? feat.abilityChoices : [];
     ability.replaceChildren(new Option("Da scegliere", ""), ...abilities.map((key) => new Option(FEAT_ABILITY_LABELS[key], key)));
@@ -5259,7 +5261,23 @@ function buildFeatEditorRow(entry = {}) {
       cantrip.addEventListener("change", syncFeatWarnings);
       return makeLabel(feat.cantripLabel || (feat.cantrips > 1 ? `Trucchetto ${index + 1}` : "Trucchetto"), cantrip);
     });
-    spellLabels.replaceChildren(...cantripMenus, ...featChoiceSlots(feat?.id).map((slot, index) => {
+    // Lot F9: the options the feat borrows from a class (a fighting style, an invocation), one menu each with the class's
+    // records; an invocation's warlock level beside its name. One outside them (an import, a newer client) stays.
+    const borrowed = feat?.borrowed;
+    const borrowedCandidates = borrowed ? featBorrowedCandidates(feat.id) : [];
+    const optionMenus = Array.from({ length: borrowed?.count || 0 }, (_, index) => {
+      const option = document.createElement("select");
+      option.dataset.featField = "option";
+      const current = String((Array.isArray(optionIds) ? optionIds : [])[index] || "");
+      option.replaceChildren(new Option("Da scegliere", ""),
+        ...borrowedCandidates.map((candidate) => new Option(candidate.minimumLevel > 2 ? `${candidate.name} · ${candidate.minimumLevel}°` : candidate.name,
+          candidate.slug)),
+        ...(current && !borrowedCandidates.some((candidate) => candidate.slug === current) ? [new Option(`Fuori lista: ${current}`, current)] : []));
+      option.value = current;
+      option.addEventListener("change", syncFeatWarnings);
+      return makeLabel(borrowed.count > 1 ? `${borrowed.label} ${index + 1}` : borrowed.label, option);
+    });
+    spellLabels.replaceChildren(...optionMenus, ...cantripMenus, ...featChoiceSlots(feat?.id).map((slot, index) => {
       const spell = document.createElement("select");
       spell.dataset.featField = "spell";
       const current = String((Array.isArray(spellIds) ? spellIds : [])[index] || "");
@@ -5293,7 +5311,7 @@ function buildFeatEditorRow(entry = {}) {
   };
   syncChoices({ ability: entry?.ability, damageType: entry?.choice?.damageType, spellIds: entry?.choice?.spellIds,
     classId: entry?.choice?.classId, cantripIds: entry?.choice?.cantripIds, ritualIds: entry?.choice?.ritualIds,
-    reachMeters: entry?.choice?.reachMeters });
+    reachMeters: entry?.choice?.reachMeters, optionIds: entry?.choice?.optionIds });
   select.addEventListener("change", () => {
     syncChoices();
     syncFeatWarnings();
@@ -5320,7 +5338,7 @@ function syncFeatWarnings() {
   const entries = rows.map((row) => ({
     id: row.querySelector("[data-feat-field='id']").value,
     choice: { damageType: row.querySelector("[data-feat-field='damageType']").value, spellIds: featRowSpellIds(row),
-      cantripIds: featRowCantripIds(row), ritualIds: featRowRitualIds(row) },
+      cantripIds: featRowCantripIds(row), ritualIds: featRowRitualIds(row), optionIds: featRowOptionIds(row) },
   }));
   // A granted spell also among the quick actions (decision D7): the editor's rows, or the saved ones while a row is incomplete.
   let quickActions = [];
@@ -5340,8 +5358,10 @@ function syncFeatWarnings() {
   rows.forEach((row, index) => {
     const id = entries[index].id;
     const unknown = id && !getFeat(id) ? ["Questa versione del plugin non conosce il talento: resta com'è."] : [];
+    // Lot F9: an invocation above the character's warlock level (decision D8).
+    const borrowed = featBorrowedWarnings(entries[index], characterBuild);
     const line = row.querySelector("[data-feat-warning='1']");
-    line.textContent = [...unknown, ...(warnings[index] || [])].join(" ");
+    line.textContent = [...unknown, ...(warnings[index] || []), ...borrowed].join(" ");
     line.hidden = !line.textContent;
   });
 }
@@ -5383,9 +5403,12 @@ function collectFeats() {
     // The rituals of Ritual Caster's book (lot F3b-4): the chosen ones, each once.
     const ritualIds = feat.ritualCandidates.length ? [...new Set(featRowRitualIds(row).filter(Boolean))] : null;
     if (ritualIds) delete kept.ritualIds;
+    // The options it borrows from a class (lot F9): the chosen ones, each once.
+    const optionIds = feat.borrowed ? [...new Set(featRowOptionIds(row).filter(Boolean))] : null;
+    if (optionIds) delete kept.optionIds;
     const choice = { ...kept, ...(damageType ? { damageType } : {}), ...(reachMeters ? { reachMeters } : {}), ...(classId ? { classId } : {}),
       ...(cantripIds?.some(Boolean) ? { cantripIds } : {}), ...(spellIds?.some(Boolean) ? { spellIds } : {}),
-      ...(ritualIds?.length ? { ritualIds } : {}) };
+      ...(ritualIds?.length ? { ritualIds } : {}), ...(optionIds?.length ? { optionIds } : {}) };
     return { id, ...(ability ? { ability } : {}), ...(Object.keys(choice).length ? { choice } : {}) };
   }));
 }
@@ -5393,6 +5416,11 @@ function collectFeats() {
 // The spells chosen in a Talenti row, one per menu in order ("" for one still to choose).
 function featRowSpellIds(row) {
   return Array.from(row.querySelectorAll("[data-feat-field='spell']")).map((select) => select.value);
+}
+
+// The options it borrows from a class, the same way (lot F9).
+function featRowOptionIds(row) {
+  return Array.from(row.querySelectorAll("[data-feat-field='option']")).map((select) => select.value);
 }
 
 // Its cantrips, the same way (lot F3b-2).

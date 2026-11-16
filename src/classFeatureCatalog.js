@@ -14,7 +14,8 @@ import {
   classFeatureResourceCostUsesActiveParent,
 } from "./classFeatureCore.js";
 import { SPECIES_FEATURES, SPECIES_RESOURCE_POOLS, speciesFeaturesForProfile } from "./speciesTraitCore.js";
-import { FEAT_FEATURES, FEAT_RESOURCE_POOLS, featFeaturesForProfile } from "./featCatalog.js";
+import { FEATS, FEATS_FIELD, FEAT_FEATURES, FEAT_RESOURCE_POOLS, FEAT_THEME, featChosenOptionIds, featFeaturesForProfile,
+  sanitizeFeats } from "./featCatalog.js";
 import { SPELL_SLOT_RESOURCE_POOLS } from "./spellSlotCore.js";
 
 export { classFeatureIsReferenceOnly, classFeatureRuntimeSupport };
@@ -33,12 +34,88 @@ export const CLASS_FEATURE_RESOURCE_POOLS = Object.freeze(
   (Array.isArray(catalog.resourcePools) ? catalog.resourcePools : []).map(Object.freeze)
 );
 
+// Lot F9 of docs/STUDIO_TALENTI.md: the options a feat borrows from a class (a fighting style, an invocation), each a
+// card of the feat, "talento-<feat>-<option>", copied from the class's record: its name, manual, page and use; its text
+// is the option's (sourceFeatureId, classFeatureDescriptions.js). Built here: the feat catalog does not load the class
+// catalog. Reference cards, as the class's are today.
+const NOT_AUTOMATED = Object.freeze({ status: "not-automated", adapter: null, reason: "adapter-not-implemented" });
+const SELF_TARGETING = Object.freeze({ mode: "self", rangeMeters: null, maxTargets: 1, excludeSource: false });
+function featOptionRecord(feat, slot, source) {
+  const slug = source.id.slice(slot.parentFeatureId.length + 1);
+  return Object.freeze({
+    id: `talento-${feat.id}-${slug}`,
+    name: `${feat.name}: ${source.name}`,
+    description: "",
+    classId: "",
+    subclassId: "",
+    featId: feat.id,
+    featOption: Object.freeze({ key: slot.key, slug }),
+    sourceFeatureId: source.id,
+    minimumLevel: 1,
+    source: source.source,
+    sourceLabel: source.sourceLabel,
+    page: source.page,
+    collection: "talenti",
+    defaultEnabled: true,
+    runtimeRequirements: Object.freeze([]),
+    missingForExecution: Object.freeze([]),
+    automationLevel: "riferimento",
+    completenessStatus: "reference",
+    runtimeSupport: NOT_AUTOMATED,
+    activation: source.activation,
+    targetMode: "self",
+    targeting: SELF_TARGETING,
+    effectPlan: null,
+    duration: Object.freeze({ rounds: null }),
+    trackingMode: "instant",
+    trackedResourcePoolIds: Object.freeze([]),
+    theme: FEAT_THEME,
+    breaksConcentration: false,
+    resourceCosts: Object.freeze([]),
+  });
+}
+const FEAT_OPTIONS_BY_FEAT = new Map(FEATS.filter((feat) => feat.borrowed).map((feat) => [feat.id, Object.freeze(CLASS_FEATURES
+  .filter((source) => source.parentFeatureId === feat.borrowed.parentFeatureId && source.id.startsWith(`${feat.borrowed.parentFeatureId}-`))
+  .map((source) => featOptionRecord(feat, feat.borrowed, source)))]));
+export const FEAT_OPTION_FEATURES = Object.freeze([...FEAT_OPTIONS_BY_FEAT.values()].flat());
+
 // Species traits share the class-feature record shape: they resolve by id like class features,
 // but stay out of CLASS_FEATURES so the class editor and the catalog audits never list them. The feats
-// (featCatalog.js, docs/STUDIO_TALENTI.md) do the same.
+// (featCatalog.js, docs/STUDIO_TALENTI.md) do the same, and so do the options they borrow (lot F9).
 export const CLASS_FEATURE_BY_ID = new Map(
-  [...CLASS_FEATURES, ...SPECIES_FEATURES, ...FEAT_FEATURES].map((feature) => [feature.id, feature])
+  [...CLASS_FEATURES, ...SPECIES_FEATURES, ...FEAT_FEATURES, ...FEAT_OPTION_FEATURES].map((feature) => [feature.id, feature])
 );
+
+// The options a feat lets choose (lot F9), for the sheet's menus and the import: { slug, name, minimumLevel, featureId },
+// the class's own level (an invocation's warlock level) kept for the warnings.
+export function featBorrowedCandidates(featId) {
+  return (FEAT_OPTIONS_BY_FEAT.get(String(featId || "")) || []).map((record) => ({ slug: record.featOption.slug,
+    name: record.name.slice(record.name.indexOf(": ") + 2), featureId: record.id,
+    minimumLevel: CLASS_FEATURES.find((source) => source.id === record.sourceFeatureId)?.minimumLevel || 1 }));
+}
+
+// The warnings of a chosen option (decision D8, never a block): an invocation above the character's warlock level (the
+// 2nd is when a warlock gets them, no prerequisite).
+export function featBorrowedWarnings(entry, characterBuild = []) {
+  const candidates = featBorrowedCandidates(entry?.id);
+  const warlock = (Array.isArray(characterBuild) ? characterBuild : []).find((row) => row?.classId === "warlock");
+  const level = Number.isInteger(warlock?.level) ? warlock.level : 0;
+  return featChosenOptionIds(entry).map((slug) => candidates.find((candidate) => candidate.slug === slug))
+    .filter((candidate) => candidate && candidate.minimumLevel > 2 && entry.id === "adepto-occulto" && level < candidate.minimumLevel)
+    .map((candidate) => `${candidate.name} chiede un warlock di ${candidate.minimumLevel}° livello: i prerequisiti li controlla il GM.`);
+}
+
+// The cards of the options chosen on the sheet, in the feats' order.
+function featOptionFeaturesForProfile(profile) {
+  const result = [];
+  for (const entry of sanitizeFeats(profile?.[FEATS_FIELD])) {
+    for (const slug of featChosenOptionIds(entry)) {
+      const record = CLASS_FEATURE_BY_ID.get(`talento-${entry.id}-${slug}`);
+      if (record?.featOption && !result.includes(record)) result.push(record);
+    }
+  }
+  return result;
+}
 // Spell slot pools resolve by id too, for the state operations and the resource reset; like the species
 // and feat pools they stay out of CLASS_FEATURE_RESOURCE_POOLS and its audits.
 export const CLASS_FEATURE_RESOURCE_POOL_BY_ID = new Map(
@@ -154,9 +231,9 @@ export function getSpeciesFeatures(profile) {
   return speciesFeaturesForProfile(profile, totalLevel);
 }
 
-// The feats of the sheet are always enabled, like the species traits.
+// The feats of the sheet are always enabled, like the species traits, with the options they borrow (lot F9).
 export function getFeatFeatures(profile) {
-  return featFeaturesForProfile(profile);
+  return [...featFeaturesForProfile(profile), ...featOptionFeaturesForProfile(profile)];
 }
 
 export function classFeatureTargetMode(feature, characterBuild = []) {

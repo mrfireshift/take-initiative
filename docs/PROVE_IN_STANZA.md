@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **261** |
+| **B. Console attacchi, mostri e capacità** | **265** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -77,6 +77,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B47. Maestro delle Armi su Asta | 4 |
 | B48. Sterminatore di Maghi e Incantatore da Guerra | 4 |
 | B49. Fiamme di Flegesto | 4 |
+| B50. Rudimenti da Guerriero e Adepto Occulto | 4 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -102,7 +103,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **624** |
+| **Totale** | **628** |
 
 ## A. Incantesimi
 
@@ -957,6 +958,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F6-5 (decisione K6). Le voc
 - [ ] **La ritorsione:** il mostro colpisce il tiefling in mischia: sotto il bersaglio c'è «Fiamme di Flegesto · 1d4 fuoco»; scritto il d4, il pulsante toglie quei PF al mostro, e l'Annulla della Cronologia li rimette.
 - [ ] **Quando non c'è:** un colpo a distanza o un attacco mancato non mostrano la riga.
 - [ ] **La fine:** alla fine del prossimo turno del tiefling la pill sparisce.
+
+### B50. Rudimenti da Guerriero e Adepto Occulto
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F9-1. Le voci sono nuove: nessuna lista le aveva. Serve un PG di 3° livello non warlock; il pacchetto del Manuale del Giocatore importato per i testi.
+
+- [ ] **Lo stile:** nella scheda, Talenti, **Rudimenti da Guerriero** ha il menu «Stile di combattimento» con i sei stili; scelto **Protezione** e salvato, fra le capacità c'è la card «Rudimenti da Guerriero: Protezione» con il testo dello stile.
+- [ ] **La reazione:** nella console attacchi, scheda Capacità, la card di Protezione ha «Usa reazione», che segna la reazione.
+- [ ] **La supplica:** **Adepto Occulto** ha il menu «Supplica occulta»; scelta **Vista del Diavolo**, la card «Adepto Occulto: Vista del Diavolo» ha il suo testo. Scelta **Fardello Mentale** (5°), sotto la riga c'è l'avviso del livello da warlock, e il salvataggio resta possibile.
+- [ ] **L'import:** `{ "name": "Adepto Occulto", "invocation": "Vista del Diavolo" }` nel blocco JSON della scheda sceglie la supplica; un nome che non esiste viene segnalato.
 
 ## C. Tracker e UX
 

@@ -81,13 +81,17 @@ const ON_SHEET = "Le competenze vanno riportate nella scheda del personaggio.";
 // Lot F6-1 (the reactions): activation, the feat card's own when it is not a pill's ("reazione": the reaction prompts of
 // reactionTriggerCatalog.js use it, with its pool if it has one); a part's effect may go on the character (self), with
 // the pill's label (label), a buff (kind), ending when the character attacks (endsOnAttack, as Hidden Step).
+// Lot F9 (the options a feat borrows from a class): borrowed, { key, label, count, parentFeatureId }: the class records
+// under parentFeatureId are the options, count of them chosen on the sheet (choice.optionIds, the last part of their
+// ids); classFeatureCatalog.js turns each into a card of the feat (featOptionFeatures), this module not importing the
+// class catalog.
 const feat = (book, page, name, english, { prerequisite = "", abilities = [], choices = [], species = [], speciesOptions = [],
   repeatable = false, plugin = LATER, pool = null, srdEntryId = "", srdText = "", effect = null, parts = [], naturalWeapon = null,
   spells = [], spellAbility = "", chosenSpells = [], classChoices = [], cantrips = 0, cantripIds = null, cantripLabel = "",
-  rituals = false, activation = "" } = {}) => ({
+  rituals = false, activation = "", borrowed = null } = {}) => ({
   book, page, name, english, prerequisite, abilities, choices, species, speciesOptions, repeatable, plugin, pool, srdEntryId, srdText,
   effect, parts, naturalWeapon, spells, spellAbility, chosenSpells, classChoices, cantrips, cantripIds, cantripLabel, rituals,
-  activation,
+  activation, borrowed,
 });
 // The six classes Magic Initiate, Spell Sniper and Ritual Caster draw from, with their casting ability (PHB 2014).
 const CASTER_CLASSES = ["bardo", "chierico", "druido", "stregone", "warlock", "mago"];
@@ -485,7 +489,11 @@ const DEFINITIONS = [
   // Calderone Omnicomprensivo di Tasha, capitolo 1, pp. 79–81.
   feat("tce", 79, "Abilità Impeccabile", "Skill Expert", { abilities: ALL_ABILITIES, plugin: ON_SHEET }),
   feat("tce", 79, "Adepto di Metamagia", "Metamagic Adept", { prerequisite: "Lanciare Incantesimi o Magia del Patto" }),
-  feat("tce", 79, "Adepto Occulto", "Eldritch Adept", { prerequisite: "Lanciare Incantesimi o Magia del Patto" }),
+  // Lot F9-1: the invocation chosen, a card of the feat with its text (classFeatureCatalog.js, featOptionFeatures); one
+  // beyond the character's warlock level is warned about (decision D8).
+  feat("tce", 79, "Adepto Occulto", "Eldritch Adept", { prerequisite: "Lanciare Incantesimi o Magia del Patto",
+    plugin: "La supplica scelta nei Talenti della scheda è una card di questo talento, con il suo testo. I prerequisiti li controlla il GM: la scheda avvisa per il livello da warlock.",
+    borrowed: { key: "supplica", label: "Supplica occulta", count: 1, parentFeatureId: "warlock-suppliche-occulte" } }),
   feat("tce", 79, "Bisturi da Battaglia", "Slasher", { abilities: ["str", "dex"],
     plugin: "Nella console attacchi, una volta per turno su un colpo tagliente: −3 m di velocità al bersaglio fino all'inizio del tuo prossimo turno; al critico, svantaggio ai suoi tiri per colpire.",
     effect: { conditionName: "Bisturi da Battaglia", timing: UNTIL_NEXT_TURN, movement: { addMeters: -3 },
@@ -521,7 +529,10 @@ const DEFINITIONS = [
     plugin: "Il trucchetto nel libro come «Talento»; l'incantesimo di 1° livello una volta per riposo lungo senza slot, o con i tuoi slot, dalla sua card. Tutti con Intelligenza; gli strumenti vanno nella scheda.",
     spellAbility: "int", cantrips: 1,
     chosenSpells: [{ key: "incantesimo", label: "Incantesimo di 1° livello", candidates: FIRST_LEVEL_SPELLS, uses: "lungo", slots: true }] }),
-  feat("tce", 81, "Rudimenti da Guerriero", "Fighting Initiate", { prerequisite: "Competenza in un'arma da guerra" }),
+  // Lot F9-1: the fighting style chosen, a card of the feat with its text (the six of the Player's Handbook in the catalog).
+  feat("tce", 81, "Rudimenti da Guerriero", "Fighting Initiate", { prerequisite: "Competenza in un'arma da guerra",
+    plugin: "Lo stile di combattimento scelto nei Talenti della scheda è una card di questo talento, con il suo testo; i bonus vanno nella scheda.",
+    borrowed: { key: "stile", label: "Stile di combattimento", count: 1, parentFeatureId: "guerriero-stile-di-combattimento" } }),
   feat("tce", 81, "Stile Penetrante", "Piercer", { abilities: ["str", "dex"],
     plugin: "Nella console attacchi: al critico con danni perforanti, un dado di danno in più; sui colpi perforanti il promemoria di ritirare un dado, una volta per turno." }),
   feat("tce", 81, "Telecinesi", "Telekinetic", { abilities: ["int", "wis", "cha"],
@@ -566,6 +577,7 @@ export const FEATS = Object.freeze(DEFINITIONS.map((definition) => {
     repeatable: definition.repeatable,
     plugin: definition.plugin,
     activation: definition.activation,
+    borrowed: definition.borrowed ? Object.freeze({ ...definition.borrowed }) : null,
     pool: definition.pool ? Object.freeze({ ...definition.pool }) : null,
     srdEntryId: definition.srdEntryId,
     srdText: definition.srdText,
@@ -843,6 +855,19 @@ export function sanitizeFeats(value) {
   return (Array.isArray(value) ? value : []).map(sanitizeFeatEntry).filter(Boolean).slice(0, MAX_FEATS);
 }
 
+// The options a feat borrows from a class (lot F9): { key, label, count, parentFeatureId }, or null.
+export function featBorrowedSlot(featId) {
+  return getFeat(featId)?.borrowed || null;
+}
+
+// The options chosen on a sheet's entry, at most the feat's count, each once: the last part of the class records' ids.
+const OPTION_SLUG = /^[a-z0-9][a-z0-9-]{0,47}$/u;
+export function featChosenOptionIds(entry) {
+  const slot = featBorrowedSlot(entry?.id);
+  const chosen = Array.isArray(entry?.choice?.optionIds) ? entry.choice.optionIds : [];
+  return slot ? [...new Set(chosen.filter((slug) => OPTION_SLUG.test(String(slug))))].slice(0, slot.count) : [];
+}
+
 export function hasFeats(value) {
   return sanitizeFeats(value).length > 0;
 }
@@ -1014,7 +1039,8 @@ export function featPluginLine(feature, profile = null) {
   if (save) return save.dc !== null ? `${save.label}: chi lo fallisce si sposta di 1,5 m; il token si sposta a mano.`
     : `${save.label}: per la CD servono il livello e i modificatori nella scheda; il token si sposta a mano.`;
   // A second effect's card (Slasher's critical) shows its own line as its text: the feat's card has the plugin's.
-  if (!definition || feature?.featPart) return "";
+  // An option borrowed from a class (lot F9) shows the option's text: the feat's card has the plugin's line.
+  if (!definition || feature?.featPart || feature?.featOption) return "";
   const level = totalCharacterLevel(profile);
   const line = definition.id === "robusto" && level
     ? `+${2 * level} PF massimi al ${level}° livello (2 per livello), da comprendere nei PF massimi della scheda: il plugin non li scrive.`

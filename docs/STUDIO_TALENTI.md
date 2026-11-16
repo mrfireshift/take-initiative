@@ -7,7 +7,8 @@ con S1–S9 approvate** (§7.4), **F3b-1, F3b-2, F3b-3, F3b-4 e F3b-5 il 16/11**
 (§7.5–§7.9): F3 è chiuso. **F4 il 16/11** (§7.10). **Il piano di F5 il 16/11,
 con H1–H7 approvate** (§7.11), **F5-1, F5-2 e F5-3 il 16/11** (§7.12–§7.14):
 F5 è chiuso. **Il piano di F6 il 16/11, con K1–K6 approvate** (§7.15), **F6-1…F6-5
-il 16/11** (§7.16–§7.20): F6 è chiuso.
+il 16/11** (§7.16–§7.20): F6 è chiuso. **Il piano di F9 il 16/11** (§7.21),
+**F9-1 il 16/11** (§7.22).
 Base dello studio: `main` locale a `12fb9bb3` (T1 delle azioni di turno), tre
 commit davanti a `origin/main` (`09adef5d`); F0 è provato su `8641fd03`.
 
@@ -1861,6 +1862,85 @@ vai con F6-2»). F6-1 non ne dipende.
 - **Al tavolo:** ritirare gli 1 dei dadi di fuoco e la luce delle fiamme.
 - **La riga «Nel plugin»** lo dice.
 - **Documenti:** le prove in stanza sono in B49.
+
+### 7.21 F9, piano (16/11)
+
+**Capacità prese in prestito.** Cinque talenti in quattro sottolotti. Nessuna
+decisione nuova: la §5.5 dice già come; per i prerequisiti vale D8 (avvisi,
+mai blocchi), per i pool D14 (quelli del talento, separati da quelli della
+classe).
+
+#### 7.21.1 Che cosa fanno (PHB 2014, Xanathar, Tasha)
+
+| Talento | Che cosa conta per il plugin |
+|---|---|
+| Adepto Marziale | Due manovre del Maestro di Battaglia e un dado di superiorità d6, di nuovo col riposo breve o lungo; la CD dei TS è 8 + competenza + Forza o Destrezza. |
+| Adepto di Metamagia | Due opzioni di metamagia e 2 punti stregoneria solo per la metamagia, di nuovo col riposo lungo. |
+| Adepto Occulto | Una supplica occulta; una con prerequisiti solo per un warlock che li soddisfa. |
+| Rudimenti da Guerriero | Uno stile di combattimento del guerriero. |
+| Paura Draconica | Al posto del soffio, il ruggito: le creature scelte entro 9 m tirano un TS Saggezza (CD 8 + competenza + Carisma) o sono spaventate per 1 minuto, e ripetono il TS quando subiscono danni. Spende l'uso del soffio. |
+
+#### 7.21.2 Il meccanismo comune: le opzioni prese in prestito
+
+- **Il talento dice da dove prende le opzioni:** il record padre della classe
+  (lo stile del guerriero, le suppliche, la metamagia, le manovre) e quante.
+- **La scheda salva le scelte corte:** la parte finale dell'id, in
+  `choice.optionIds` (`["difesa"]`), per il budget del registro della stanza.
+- **Ogni opzione diventa una card del talento,** per esempio «Rudimenti da
+  Guerriero: Difesa» (`talento-rudimenti-da-guerriero-difesa`):
+  - nome, manuale, pagina e attivazione vengono dal record della classe;
+  - il testo è quello dell'opzione (`sourceFeatureId`);
+  - nella scheda ci sono solo le opzioni scelte.
+- **La costruzione sta in `classFeatureCatalog.js`:** il catalogo dei talenti
+  non importa quello delle classi (1,4 MB), che arriverebbe nei moduli leggeri.
+- **Nella scheda** un menu per opzione; **nell'import** una chiave per nome.
+
+#### 7.21.3 Sottolotti
+
+| Lotto | Contenuto | Scrive PF? |
+|---|---|---|
+| **F9-1** | Il meccanismo; Rudimenti da Guerriero (i sei stili del catalogo) e Adepto Occulto (le 46 suppliche), card di riferimento; Protezione con «Usa reazione». L'avviso (D8) per una supplica oltre il livello da warlock. | No |
+| **F9-2** | Adepto di Metamagia: le due opzioni come card che spendono i 2 punti del talento, con i costi dello stregone (D14). | No |
+| **F9-3** | Adepto Marziale: le due manovre con il d6 del talento, nella console sul colpo, negli avvisi (Parata, Replica) e come card per le altre; CD con Forza o Destrezza. | No |
+| **F9-4** | Paura Draconica: il ruggito come opzione del soffio nella console, creature scelte a mano, Spaventato per 1 minuto con il TS ripetuto quando subisce danni; spende l'uso del soffio. | No |
+
+#### 7.21.4 Rischi, come chiede AGENTS.md
+
+- **PF:** nessun sottolotto li scrive.
+- **Metadata:** `choice.optionIds`, corti, uniti alla scheda; nessuna chiave
+  nuova.
+- **Il catalogo delle classi** resta com'è: le card del talento sono record
+  nuovi, `talento-…`.
+- **Gli stili di Tasha** non sono nel catalogo: Rudimenti da Guerriero offre i
+  sei del Manuale del Giocatore.
+- **Righe di altre sessioni:** `classFeatureCatalog.js`, `pcAttackCore.js`,
+  `pcAttackExecution.js` e `pcAttackPickerCore.js` ne hanno di non
+  committate. Il commit prende HEAD + le righe del sottolotto.
+
+### 7.22 F9-1, fatto il 16/11
+
+**Rudimenti da Guerriero e Adepto Occulto.** Come la §7.21.
+
+- **Il meccanismo:**
+  - nel catalogo dei talenti, `borrowed`: il record padre della classe e quante
+    opzioni; nella scheda, `choice.optionIds`;
+  - in `classFeatureCatalog.js`, le card del talento (`FEAT_OPTION_FEATURES`:
+    52, sei stili e 46 suppliche), copiate dai record della classe, con
+    `featOption` e `sourceFeatureId`;
+  - `getFeatFeatures` aggiunge solo quelle scelte.
+- **Il testo** della card è quello dell'opzione, dall'SRD o dal pacchetto
+  (`classFeatureDescription`), come per la classe.
+- **La scheda:**
+  - nei Talenti, il menu «Stile di combattimento» o «Supplica occulta»; accanto
+    alle suppliche dal 5° livello in su c'è il livello;
+  - l'avviso (D8) quando la supplica chiede un livello da warlock più alto.
+- **L'import:** `style`/`stile` e `invocation`/`supplica` (o `options`), per
+  nome italiano. `IMPORT_SCHEDA.md` lo dice.
+- **Le card sono di riferimento,** come quelle della classe. Protezione usa la
+  reazione: «Usa reazione» nella console.
+- **`classFeatureCatalog.js`** ha righe non committate delle trasformazioni: il
+  commit prende HEAD + le righe di F9-1.
+- **Documenti:** le prove in stanza sono in B50.
 
 ---
 

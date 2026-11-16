@@ -48,6 +48,8 @@ export function loadClassFeatureDescriptions() {
 // shown apart.
 export function classFeatureDescription(feature) {
   if (feature?.rulesEntryId) return privateRules.get(feature.rulesEntryId) || feature.srdText || "";
+  // An option a feat borrows from a class (lot F9 of docs/STUDIO_TALENTI.md): the option's own text.
+  if (feature?.sourceFeatureId) return descriptions?.[feature.sourceFeatureId] || privateTexts.get(feature.sourceFeatureId) || "";
   return descriptions?.[feature?.id] || privateTexts.get(feature?.id) || feature?.description || "";
 }
 

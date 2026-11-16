@@ -4,7 +4,7 @@
 // recognised is reported, never guessed. HP stay out: they live in the token's canonical metadata.
 // Loads the spell and class catalogs: import it only from the character sheet.
 import { getSpellDefinition } from "./spells-srd.js";
-import { CLASS_FEATURE_CLASSES, getClassFeatureSubclasses } from "./classFeatureCatalog.js";
+import { CLASS_FEATURE_CLASSES, featBorrowedCandidates, getClassFeatureSubclasses } from "./classFeatureCatalog.js";
 import { MAX_CHARACTER_CLASSES, sanitizeCharacterBuild } from "./classFeatureCore.js";
 import { SPECIES, SUPERNATURAL_GIFTS, speciesDisplayName, supernaturalGiftDisplayName } from "./speciesTraitCore.js";
 import { FEATS, FEAT_CANTRIPS, FEAT_DAMAGE_TYPES, FEAT_LONG_REACH_METERS, MAX_FEATS, MAX_FEAT_RITUALS, featChoiceSlots, featDisplayName,
@@ -369,6 +369,19 @@ function importedFeats(data, unresolved) {
         : ritual ? ` (oltre il limite di ${MAX_FEAT_RITUALS})` : spell ? " (non è un rituale)" : ""}`);
     }
     if (ritualIds.length) entry.choice = { ...(entry.choice || {}), ritualIds };
+    // The options a feat borrows from a class (lot F9): a fighting style, an invocation, by name. A name outside the
+    // feat's options, or one more than it lets choose, is reported.
+    const optionNames = [source.options ?? source.opzioni ?? source.style ?? source.stile ?? source.invocation ?? source.supplica]
+      .flat().map(text).filter(Boolean);
+    const candidates = featBorrowedCandidates(feat.id);
+    const optionIds = [];
+    for (const optionName of optionNames) {
+      const option = candidates.find((candidate) => lookupKey(candidate.name) === lookupKey(optionName) || candidate.slug === lookupKey(optionName));
+      if (option && !optionIds.includes(option.slug) && optionIds.length < (feat.borrowed?.count || 0)) optionIds.push(option.slug);
+      else if (!option || !optionIds.includes(option.slug)) unresolved.push(`opzione "${optionName}" per ${feat.name}${!feat.borrowed ? ": il talento non ne fa scegliere"
+        : option ? ` (ne fa scegliere ${feat.borrowed.count})` : ""}`);
+    }
+    if (optionIds.length) entry.choice = { ...(entry.choice || {}), optionIds };
     // The same feat written twice counts once; Elemental Adept twice only with two types.
     if (feats.some((other) => other.id === entry.id && (!feat.repeatable || other.choice?.damageType === entry.choice?.damageType))) continue;
     feats.push(entry);
