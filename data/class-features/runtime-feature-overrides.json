@@ -1950,6 +1950,7 @@
     "ranger-revised-nascondersi-in-piena-vista": {
       "include": true,
       "status": "implemented",
+      "adapter": "condition",
       "automationLevel": "assistita",
       "defaultEnabled": true,
       "quickActionEligible": false,
@@ -2000,6 +2001,7 @@
     "ranger-revised-conclave-della-bestia-compagno-animale": {
       "include": true,
       "status": "implemented",
+      "adapter": "condition",
       "automationLevel": "assistita",
       "defaultEnabled": true,
       "quickActionEligible": false,
@@ -9543,6 +9545,7 @@
     },
     "ranger-nascondersi-in-piena-vista": {
       "include": true,
+      "activation": { "primary": "un_minuto" },
       "status": "not-automated",
       "automationLevel": "riferimento",
       "defaultEnabled": true,
@@ -11243,6 +11246,7 @@
     },
     "warlock-suppliche-occulte-tutt-uno-con-le-ombre": {
       "include": true,
+      "activation": { "primary": "azione" },
       "status": "not-automated",
       "automationLevel": "riferimento",
       "defaultEnabled": false,

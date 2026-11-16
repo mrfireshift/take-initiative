@@ -24677,8 +24677,8 @@
       "resourceCosts": []
     },
     {
-      "id": "ladro-indagatore-occhio-infallibile",
-      "name": "Occhio Infallibile",
+      "id": "ladro-indagatore-occhio-di-lince",
+      "name": "Occhio di Lince",
       "classId": "ladro",
       "subclassId": "ladro-indagatore",
       "minimumLevel": 9,
@@ -24699,7 +24699,7 @@
         "reason": "adapter-not-implemented"
       },
       "activation": {
-        "primary": "azione"
+        "primary": "passiva_o_non_specificata"
       },
       "quickActionEligible": false,
       "targetMode": "self",
@@ -25257,8 +25257,8 @@
       "resourceCosts": []
     },
     {
-      "id": "ladro-indagatore-occhio-di-lince",
-      "name": "Occhio di Lince",
+      "id": "ladro-indagatore-occhio-infallibile",
+      "name": "Occhio Infallibile",
       "classId": "ladro",
       "subclassId": "ladro-indagatore",
       "minimumLevel": 13,
@@ -25279,7 +25279,7 @@
         "reason": "adapter-not-implemented"
       },
       "activation": {
-        "primary": "passiva_o_non_specificata"
+        "primary": "azione"
       },
       "quickActionEligible": false,
       "targetMode": "self",
@@ -38825,7 +38825,7 @@
         "reason": "adapter-not-implemented"
       },
       "activation": {
-        "primary": "reazione"
+        "primary": "un_minuto"
       },
       "quickActionEligible": false,
       "targetMode": "self",
@@ -40327,7 +40327,7 @@
       "missingForExecution": [],
       "runtimeSupport": {
         "status": "implemented",
-        "adapter": null,
+        "adapter": "condition",
         "reason": null
       },
       "activation": {
@@ -41386,7 +41386,7 @@
       "missingForExecution": [],
       "runtimeSupport": {
         "status": "implemented",
-        "adapter": null,
+        "adapter": "condition",
         "reason": null
       },
       "activation": {
@@ -48170,7 +48170,7 @@
         "reason": "adapter-not-implemented"
       },
       "activation": {
-        "primary": "reazione"
+        "primary": "azione"
       },
       "quickActionEligible": false,
       "targetMode": "self",

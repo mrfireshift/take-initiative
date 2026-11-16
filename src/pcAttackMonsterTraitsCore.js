@@ -2,10 +2,12 @@
 // 5): entries to read, with their text, from the full stat block kept in the GM's browser (monsterStatblockTextLoader.js).
 // Nothing here is spent or written (decision D9): the legendary actions' pips stay on the tracker. Pure.
 
-const GROUPS = Object.freeze({ "": "monster-trait", Reactions: "monster-reaction", "Legendary Actions": "monster-legendary",
-  "Mythic Actions": "monster-legendary" });
-export const PC_ATTACK_MONSTER_GROUP_TITLES = Object.freeze({ "monster-trait": "Tratti", "monster-reaction": "Reazioni",
-  "monster-legendary": "Azioni leggendarie" });
+// Bonus Actions (lot TD of docs/STUDIO_AZIONI_DI_TURNO.md): the 2024 stat blocks' own section (the goblin's Nimble
+// Escape), between the traits and the reactions.
+const GROUPS = Object.freeze({ "": "monster-trait", "Bonus Actions": "monster-bonus", Reactions: "monster-reaction",
+  "Legendary Actions": "monster-legendary", "Mythic Actions": "monster-legendary" });
+export const PC_ATTACK_MONSTER_GROUP_TITLES = Object.freeze({ "monster-trait": "Tratti", "monster-bonus": "Azioni bonus",
+  "monster-reaction": "Reazioni", "monster-legendary": "Azioni leggendarie" });
 
 // The cost of a legendary action: "Wing Attack (Costs 2 Actions)" → 2, else 1.
 export function legendaryActionCost(name) {
@@ -26,7 +28,8 @@ export function pcAttackMonsterTraitEntries(view) {
       const cost = group === "monster-legendary" ? legendaryActionCost(label) : 0;
       entries.push({ key: `monster::${entries.length}`, tab: "features", actionId: "", spellId: "", featureId: "", label,
         mode: "monster", group, text: entry.text,
-        activation: group === "monster-reaction" ? "reazione" : group === "monster-legendary" ? (cost > 1 ? `leggendaria (${cost})` : "leggendaria") : "",
+        activation: group === "monster-reaction" ? "reazione" : group === "monster-bonus" ? "azione bonus"
+          : group === "monster-legendary" ? (cost > 1 ? `leggendaria (${cost})` : "leggendaria") : "",
         species: false, level: null, concentration: false, ritual: false, recordOnly: false, pinned: false });
     });
   }

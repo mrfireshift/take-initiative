@@ -862,8 +862,10 @@ Al turno del mostro la console mostra:
 - il **multiattacco** sopra gli attacchi e, sotto i danni, «Da risolvere al
   tavolo» con la parte dell'azione che il plugin non automatizza (per esempio
   una malattia o un trascinamento);
-- nella scheda **Capacità**, tratti, reazioni e azioni leggendarie del mostro
-  da leggere, con il costo delle leggendarie (i diamanti restano sul tracker).
+- nella scheda **Capacità**, tratti, azioni bonus, reazioni e azioni
+  leggendarie del mostro da leggere, con il costo delle leggendarie (i diamanti
+  restano sul tracker). Le **Azioni bonus** sono quelle degli statblock che le
+  hanno in una sezione propria, come la Fuga agile dei goblin del Multiverso.
 
 Le **difese** dello statblock valgono quando il mostro è il bersaglio, nella
 console attacchi e nella console boss: il danno di quel tipo si dimezza o si

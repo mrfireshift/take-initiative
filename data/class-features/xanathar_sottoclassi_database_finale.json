@@ -527,8 +527,8 @@
         "ladro-indagatore-orecchio-per-l-inganno",
         "ladro-indagatore-occhio-per-i-dettagli",
         "ladro-indagatore-combattimento-intuitivo",
-        "ladro-indagatore-occhio-infallibile",
         "ladro-indagatore-occhio-di-lince",
+        "ladro-indagatore-occhio-infallibile",
         "ladro-indagatore-individuare-il-punto-debole"
       ],
       "fonte_descrizione": "manuale_verificato",
@@ -539,10 +539,10 @@
           "ladro-indagatore-combattimento-intuitivo"
         ],
         "9": [
-          "ladro-indagatore-occhio-infallibile"
+          "ladro-indagatore-occhio-di-lince"
         ],
         "13": [
-          "ladro-indagatore-occhio-di-lince"
+          "ladro-indagatore-occhio-infallibile"
         ],
         "17": [
           "ladro-indagatore-individuare-il-punto-debole"
@@ -2173,7 +2173,7 @@
       "classe_id": "ladro",
       "sottoclasse_id": "ladro-indagatore",
       "livelli": [
-        9
+        13
       ],
       "pagina": 34,
       "pagina_pdf": 35,
@@ -2186,7 +2186,7 @@
       "classe_id": "ladro",
       "sottoclasse_id": "ladro-indagatore",
       "livelli": [
-        13
+        9
       ],
       "pagina": 34,
       "pagina_pdf": 35,

@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **286** |
+| **B. Console attacchi, mostri e capacità** | **289** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -83,6 +83,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B53. Adepto Marziale | 4 |
 | B53. Movimento senza attacchi di opportunità | 5 |
 | B54. Invisibilità delle classi che finisce attaccando | 3 |
+| B55. Dati corretti dall'audit delle azioni | 3 |
 | **C. Tracker e UX** | **21** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -108,7 +109,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **649** |
+| **Totale** | **652** |
 
 ## A. Incantesimi
 
@@ -1017,6 +1018,15 @@ Fonte: [STUDIO_AZIONI_DI_TURNO.md](STUDIO_AZIONI_DI_TURNO.md), lotto T4c (decisi
 - [ ] **Manto di Ombre:** il chierico usa Incanalare Divinità: Manto di Ombre e ha la pill «Invisibile · Manto di Ombre»; un attacco registrato dalla console, anche mancato, la toglie nello stesso comando, e il suo Annulla la rimette. Da provare in vista compatta ed estesa.
 - [ ] **Velo Psichico:** con «Invisibile · Velo Psichico», un attacco **mancato** lascia la pill; un attacco **a segno** con danni la toglie.
 - [ ] **Corpo Vuoto:** il monaco con «Invisibile · Corpo Vuoto» attacca e colpisce: la pill resta.
+
+### B55. Adepto Marziale
+
+Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F9-3 (decisione D14). Le voci sono nuove: nessuna lista le aveva. Serve un ladro di 4° livello con Adepto Marziale e Forza +3, e un mostro nemico.
+
+- [ ] **Le manovre:** nei Talenti della scheda ci sono due menu «Manovra»; scelte **Attacco Minaccioso** e **Parata** e salvato, ci sono le due card e il contatore del dado (1).
+- [ ] **Sul colpo:** nella console, colpito il mostro in mischia, fra gli extra c'è «Adepto Marziale: Attacco Minaccioso» con 1d6 e TS Saggezza CD 13; **Registra** aggiunge il d6 scritto, spende il dado e, con il TS fallito, mette Spaventato. Il dado torna con un riposo breve.
+- [ ] **Parata:** il mostro colpisce il ladro in mischia: l'avviso offre Parata; la riduzione si scrive sotto il danno e **Registra** spende dado e reazione.
+- [ ] **Il Maestro di Battaglia:** un guerriero Maestro di Battaglia con lo stesso talento vede le sue manovre con il d8 della classe e quelle del talento con il d6, ciascuna sul suo pool.
 
 ## C. Tracker e UX
 

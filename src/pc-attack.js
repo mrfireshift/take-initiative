@@ -1874,7 +1874,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // A monster's trait, reaction or legendary action (fase 4, lotto 5): its text to read, no button (decision D9).
   function renderMonsterTrait(entry) {
     $("pc-attack-title").textContent=actorName();
-    const kind={"monster-trait":"Tratto","monster-reaction":"Reazione","monster-legendary":"Azione leggendaria"}[entry.group] || "";
+    const kind={"monster-trait":"Tratto","monster-reaction":"Reazione","monster-legendary":"Azione leggendaria","monster-bonus":"Azione bonus"}[entry.group] || "";
     $("pc-attack-subtitle").textContent=pickerNamesEntry?"":[plainLabel(entry.label),kind].filter(Boolean).join(" · ");
     if(applyRow) applyRow.hidden=true;
     apply.hidden=true;

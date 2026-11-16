@@ -318,6 +318,24 @@ Prove in `PROVE_IN_STANZA.md`, sezione B53.
 
 Prove in `PROVE_IN_STANZA.md`, sezione B54.
 
+**TD fatto il 16/11:** i dati del §10.7 (A6).
+
+- **Indagatore:** nel database di Xanathar Occhio di Lince, la passiva, passa al
+  9° livello e Occhio Infallibile, l'azione, al 13°.
+- **Attivazioni:** Nascondersi in Piena Vista del ranger si prepara in un minuto
+  (attivazione «un minuto», non più «reazione»). Tutt'Uno con le Ombre è
+  un'azione.
+- **Ranger rivisto:** Nascondersi in Piena Vista e Compagno Animale mettevano già
+  la loro pill, perché il motore legge il piano dell'effetto e non l'adattatore.
+  Ora hanno l'adattatore «condition» come le altre 134 capacità con una pill.
+- **Mostri:** la scheda Capacità della console mostra anche le Azioni bonus
+  dello statblock, tra i tratti e le reazioni (la Fuga agile dei goblin del
+  Multiverso). Quelli del 2024 il plugin li legge solo con l'opzione dei
+  manuali 2024.
+- Il catalogo generato è rifatto con `npm run generate:class-features`.
+
+Prove in `PROVE_IN_STANZA.md`, sezione B55.
+
 Scritti lo stesso giorno, con decisioni nuove in attesa:
 
 - §9, l'incantesimo preparato: decisioni **P1–P12** (§9.8), approvate dall'utente
