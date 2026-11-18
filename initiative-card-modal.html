@@ -409,7 +409,7 @@
     .purifying-spell-list { display:grid; gap:6px; overflow-y:auto; max-height:220px; padding:2px; margin:0; outline:none; }
     .purifying-spell-card {
       display:grid; gap:3px; padding:9px 11px; border:1px solid rgba(var(--faction-rgb),.25); border-radius:8px;
-      background:rgba(0,0,0,.28); cursor:pointer; transition:border-color .15s ease, background .15s ease, box-shadow .15s ease; text-align:left;
+      background:rgba(0,0,0,.28); cursor:pointer; transition:border-color var(--obrt-motion-fast, 120ms) ease, background var(--obrt-motion-fast, 120ms) ease, box-shadow var(--obrt-motion-fast, 120ms) ease; text-align:left;
     }
     .purifying-spell-card:hover { border-color:rgba(var(--faction-rgb),.60); background:rgba(var(--faction-rgb),.14); }
     .purifying-spell-card[aria-selected="true"] {

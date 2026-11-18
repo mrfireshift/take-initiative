@@ -40,7 +40,7 @@ function mountResizeStyle() {
       border-radius: 999px;
       background: rgba(148, 163, 184, .22);
       transform: translate(-50%, -50%);
-      transition: background-color .12s ease, box-shadow .12s ease;
+      transition: background-color var(--obrt-motion-fast, 120ms) ease, box-shadow var(--obrt-motion-fast, 120ms) ease;
     }
     .tbp-compact-resize-handle:hover::after,
     .tbp-compact-resize-handle:focus-visible::after,

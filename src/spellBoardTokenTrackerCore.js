@@ -281,7 +281,7 @@ export function buildSpellBoardTokenCompanionCard(
     borderRadius: "6px",
     background: factionBackground,
     color: "#fff",
-    fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    fontFamily: 'var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif)',
     fontSize: compact ? "8px" : "9px",
     fontWeight: "700",
     lineHeight: "1",

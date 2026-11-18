@@ -17,7 +17,16 @@ import {
   bindGroupHPDeltaEditor,
   enableClassicCardRename,
 } from "./initiativeEditors.js";
-import { compactStatusBadge, writeHPBarTempSegment } from "./initiativeCardCompact.js";
+import {
+  buildDeathSavePips,
+  buildVitalStateBadge,
+  compactStatusBadge,
+  DEAD_CARD_FILTER,
+  groupDeckRoom,
+  groupDeckShadow,
+  KNOCKED_OUT_CARD_FILTER,
+  writeHPBarTempSegment,
+} from "./initiativeCardCompact.js";
 import { quickHPBarSegments } from "./quickHpCore.js";
 import { canOpenInitiativeCardSheet, initiativeCardSheetLabel, showsReactionIndicator } from "./initiativeCardSheetAccessCore.js";
 import { cardPlayerAssignmentTitle, playerPillColors } from "./playerAssignmentCore.js";
@@ -115,6 +124,8 @@ export function buildClassicTrackerCard(e, context) {
       tempHp: CLASSIC_TEMP_HP,
       hpVisible: CLASSIC_HP_VISIBLE,
       knockedOut: KNOCKED_OUT,
+      dead: DEAD,
+      deathSaves: DEATH_SAVES,
       playerCardHasHP: PLAYER_CARD_HAS_HP,
       playerBossVerticalOffset: PLAYER_BOSS_VERTICAL_OFFSET,
       hasCardEffects: HAS_CARD_EFFECTS,
@@ -289,10 +300,21 @@ if (isActive && !IS_GM) {
       inset 0 0 0 1px rgba(255,255,255,.28)`;
   }
 
-  if (KNOCKED_OUT) {
-    card.style.filter = "saturate(.42) brightness(.72)";
-    card.style.opacity = ".84";
+  // A collapsed group is a deck (choice B of 18/11): two edges behind the card, after its own glow, with room under it.
+  if (e.__groupCollapsed && e.__groupCount > 1) {
+    card.style.boxShadow = [card.style.boxShadow, groupDeckShadow(c.border, { rgba, step: 4 })].filter(Boolean).join(", ");
+    card.style.marginBottom = `${groupDeckRoom(4)}px`;
+    card.dataset.groupDeck = "1";
   }
+
+  if (KNOCKED_OUT) {
+    // Lot L4: KO keeps some colour, a dead creature turns grey.
+    card.style.filter = DEAD ? DEAD_CARD_FILTER : KNOCKED_OUT_CARD_FILTER;
+    card.style.opacity = DEAD ? ".8" : ".84";
+  }
+  // What syncTrackerHPNow draws when the HP fall to 0 between renders, and the condition Morto (lot L4).
+  card.dataset.vitalAtZero = e.vitalStateAtZero || "down";
+  card.dataset.deadByCondition = e.deadByCondition ? "1" : "0";
 
   // --- header: avatar + name + badge (tutto in riga)
 
@@ -345,7 +367,7 @@ Object.assign(avatarWrap.style, {
     0 0 0 4px black,
     0 0 10px ${c.glow}
   `,
-  transition: "width .15s ease, height .15s ease, left .15s ease"
+  transition: "width var(--obrt-motion-fast, 120ms) ease, height var(--obrt-motion-fast, 120ms) ease, left var(--obrt-motion-fast, 120ms) ease"
 });
 
 let avatarInner;
@@ -388,8 +410,11 @@ let knockedOutBadge = null;
 card.dataset.koBadgeLeft = `${AVATAR_LEFT + AVA - 17}px`;
 card.dataset.koBadgeTop = IS_BOSS ? "2px" : "1px";
 if (KNOCKED_OUT) {
-  knockedOutBadge = compactStatusBadge("KO", `Fuori combattimento: 0 / ${CLASSIC_HP_MAX}`);
-  knockedOutBadge.dataset.cardKoBadge = "1";
+  // Lot L4: KO, or the skull of a dead creature; the HP in the title only where the card shows them.
+  const exactHP = (e.hpDisclosure?.mode || "exact") === "exact";
+  knockedOutBadge = buildVitalStateBadge(DEAD ? "dead" : "down", {
+    title: exactHP ? `Fuori combattimento: 0 / ${CLASSIC_HP_MAX}` : "Fuori combattimento",
+  });
   Object.assign(knockedOutBadge.style, {
     position: "absolute",
     left: `${AVATAR_LEFT + AVA - 17}px`,
@@ -444,9 +469,10 @@ if (HAS_LEG && !e.__groupCollapsed) {
 }
 
 const nameLabel = document.createElement("span");
-nameLabel.textContent = e.__groupCollapsed ? `${e.__groupBase} (Gruppo)` : e.name;
+// A collapsed group (choice B of 18/11): its name whole, the count in a pill right after it, the deck behind the card.
+nameLabel.textContent = e.__groupCollapsed ? e.__groupBase : e.name;
 Object.assign(nameLabel.style, {
-  flex: "1 1 auto",
+  flex: e.__groupCollapsed ? "0 1 auto" : "1 1 auto",
   minWidth: "0",
   textAlign: "left",
   fontSize: "15px",
@@ -510,25 +536,31 @@ if (e.assignedPlayer && !e.__groupCollapsed) {
   playerPillOverhang = 6;
 }
 name.appendChild(nameLabel);
+if (e.__groupCollapsed && e.__groupCount > 1) {
+  const groupCount = document.createElement("span");
+  groupCount.dataset.groupCount = "1";
+  groupCount.textContent = `×${e.__groupCount}`;
+  Object.assign(groupCount.style, {
+    flex: "0 0 auto",
+    padding: "1px 6px",
+    borderRadius: "999px",
+    background: "rgba(0,0,0,.55)",
+    border: "1px solid rgba(255,255,255,.28)",
+    fontSize: "12px",
+    fontWeight: "800",
+    lineHeight: "1.2",
+  });
+  name.appendChild(groupCount);
+}
 
 
 let cardToolsDock = null;
 let placeCardToolInRadialSlot = null;
 if (IS_GM && !isLairId(e.id) && !isEpicActionId(e.id)) {
   cardToolsDock = document.createElement("div");
-  if (e.__groupCollapsed) {
-    Object.assign(cardToolsDock.style, {
-      position: "absolute",
-      top: "calc(50% + 9px)",
-      left: `${AVA - OVER + 18}px`,
-      right: "auto",
-      display: "flex",
-      alignItems: "center",
-      gap: "4px",
-      zIndex: "12",
-      pointerEvents: "auto",
-    });
-  } else {
+  // A collapsed group's ± sits on the portrait's ring as the GM's tools of a single card (18/11): under the name, alone
+  // on its row, it left the card's middle empty; on the name's row it cut the name.
+  {
     Object.assign(cardToolsDock.style, {
       position: "absolute",
       left: `-${OVER}px`,
@@ -572,9 +604,6 @@ if (cardToolsDock && e.__groupCollapsed) {
   groupDeltaButton.setAttribute("aria-label", groupDeltaButton.title);
   Object.assign(groupDeltaButton.style, {
     flex: "0 0 auto",
-    minWidth: "24px",
-    width: "24px",
-    height: "20px",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -583,12 +612,14 @@ if (cardToolsDock && e.__groupCollapsed) {
     border: "1px solid rgba(255,255,255,.22)",
     background: "rgba(0,0,0,.52)",
     color: "#fff",
-    fontSize: "15px",
+    fontSize: "14px",
     fontWeight: "700",
     lineHeight: "1",
     cursor: "pointer",
     boxShadow: "0 1px 3px rgba(0,0,0,.35)",
   });
+  // The ring's left slot (180°), clear of the arrow at the portrait's lower right.
+  placeCardToolInRadialSlot(groupDeltaButton, 1);
   extendHitArea(groupDeltaButton);
   bindGroupHPDeltaEditor({
     button: groupDeltaButton,
@@ -675,34 +706,8 @@ if (epicTagDocks.length) {
 }
 // The player pill overhangs it the same way.
 if (playerPillOverhang && !epicTagDocks.length) card.style.marginTop = `${playerPillOverhang}px`;
-// --- CHIP ×N SULL'AVATAR (solo se collassato) ---
-if (e.__groupCollapsed && e.__groupCount > 1) {
-  const CHIP = 32;            // diametro chip (regola qui)
-  const OFFSET = 7;           // quanto rientra dall'angolo
-
-  const cnt = document.createElement("div");
-  cnt.textContent = `×${e.__groupCount}`;
-  Object.assign(cnt.style, {
-    position: "absolute",
-    left:  (AVA - OVER - (CHIP / 2)) + "px",               // AVA - OVER - CHIP/2
-    top:   `calc(50% + ${(AVA / 2) - (CHIP / 2) - OFFSET}px)`, // 50% + AVA/2 - CHIP/2 - offset
-    width:  CHIP + "px",
-    height: CHIP + "px",
-    borderRadius: "999px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "12px",
-    fontWeight: "700",
-    color: "#fff",
-    background: "rgba(0,0,0,.85)",
-    border: "1px solid rgba(255,255,255,.22)",
-    boxShadow: "0 2px 6px rgba(0,0,0,.55)",
-    zIndex: "6",
-    pointerEvents: "none",
-  });
-  header.appendChild(cnt);
-}
+// The count of a collapsed group is a pill after its name (choice B of 18/11): the ×N on the portrait overhung the card
+// below.
 
   Object.assign(name.style, {
     position: "absolute",
@@ -892,7 +897,9 @@ if (e.__groupCollapsed) {
   chev.textContent = "▸";
   Object.assign(chev.style, {
     position: "absolute",
-    left: "2px",                   // ← a sinistra del badge ⚔ (che sta a ~24px)
+    // The same place as the open group's ▾ (choice B of 18/11): the arrow no longer jumps 22px, and stays clear of the
+    // GM's quick actions on the portrait's left edge.
+    left: "24px",
     top: "50%",
     transform: "translateY(30%)",  // stessa verticale del badge ⚔
     width: "22px",                 // stessa taglia del badge ⚔
@@ -1112,12 +1119,26 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   hpFill.dataset.itemId = e.id;
   hpFill.style.width = (hpBar.hpRatio * 100) + "%";
   hpFill.style.height = "100%";
+  // The map bars' colours (hpbar-items.js), as hpColorByPct in initiativeList.js (lot L2).
   hpFill.style.background = KNOCKED_OUT
     ? "#475569"
-    : initPct > 0.66 ? "#16a34a" : initPct > 0.33 ? "#facc15" : "#dc2626";
+    : initPct > 0.66 ? "#22c55e" : initPct > 0.33 ? "#f59e0b" : "#ef4444";
 
   hpBarWrap.appendChild(hpFill);
   writeHPBarTempSegment(hpBarWrap, hpBar, { documentRef: document });
+  // Lot L4 of the tracker UI study: a PC's death saves in the place of its empty bar.
+  const deathSavePips = DEATH_SAVES ? buildDeathSavePips(DEATH_SAVES, { size: 7, documentRef: document }) : null;
+  if (deathSavePips) {
+    Object.assign(deathSavePips.style, {
+      position: "absolute",
+      left: "0",
+      bottom: hpBarWrap.style.bottom,
+      height: "7px",
+      justifyContent: "flex-start",
+      zIndex: "3",
+    });
+  }
+  const hpBarSlot = deathSavePips || hpBarWrap;
 
   let hpDeltaButton = null;
   const setHPDeltaButtonActive = (active) => {
@@ -1242,15 +1263,15 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     hpCaption.style.fontSize = "9px";
     hpCaption.style.lineHeight = "11px";
     legendaryHPRow.append(hpCaption, pill, ...hpRowIcons);
-    hpControlsRow.appendChild(hpBarWrap);
+    hpControlsRow.appendChild(hpBarSlot);
   } else if (bossTopRow) {
     hpCaption.style.fontSize = "9px";
     hpCaption.style.lineHeight = "11px";
     bossTopRow.append(hpCaption, pill, ...hpRowIcons);
-    hpControlsRow.appendChild(hpBarWrap);
+    hpControlsRow.appendChild(hpBarSlot);
   } else {
     hpControlsRow.append(hpCaption, pill, ...hpRowIcons);
-    hpControlsRow.appendChild(hpBarWrap);
+    hpControlsRow.appendChild(hpBarSlot);
   }
   card.appendChild(hpControlsRow);
 

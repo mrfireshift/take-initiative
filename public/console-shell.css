@@ -28,7 +28,7 @@ button, input, select { font: inherit; color: inherit; }
 .header-text { min-width: 0; flex: 1 1 auto; display: grid; gap: 1px; }
 .title { min-width: 0; margin: 0; overflow: hidden; font-size: var(--obrt-type-card-title); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-tight); line-height: var(--obrt-leading-snug); text-overflow: ellipsis; white-space: nowrap; }
 .subtitle { min-width: 0; overflow: hidden; color: var(--muted); font-size: var(--obrt-type-secondary); text-overflow: ellipsis; white-space: nowrap; }
-.icon-button { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: var(--obrt-h-control-sm); height: var(--obrt-h-control-sm); padding: 0; border: 1px solid transparent; border-radius: var(--obrt-radius-md); background: transparent; font-size: 18px; line-height: 1; cursor: pointer; transition: background-color .12s ease; }
+.icon-button { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: var(--obrt-h-control-sm); height: var(--obrt-h-control-sm); padding: 0; border: 1px solid transparent; border-radius: var(--obrt-radius-md); background: transparent; font-size: 18px; line-height: 1; cursor: pointer; transition: background-color var(--obrt-motion-fast, 120ms) ease; }
 .icon-button:hover { background: var(--obrt-hover); }
 button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 
@@ -46,7 +46,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .segmented button[aria-pressed="true"][data-outcome=miss], .segmented button[aria-pressed="true"][data-outcome=passed] { color: #bbf7d0; background: rgba(21, 128, 61, .38); }
 
 /* The main button (red: it registers damage), the small ones, the total beside them. */
-.apply { min-width: 112px; min-height: var(--obrt-h-control-lg); padding: 7px 14px; border: 1px solid rgba(255, 255, 255, .18); border-radius: var(--obrt-radius-md); background: var(--obrt-danger); font-weight: var(--obrt-weight-bold); cursor: pointer; transition: background-color .12s ease; }
+.apply { min-width: 112px; min-height: var(--obrt-h-control-lg); padding: 7px 14px; border: 1px solid rgba(255, 255, 255, .18); border-radius: var(--obrt-radius-md); background: var(--obrt-danger); font-weight: var(--obrt-weight-bold); cursor: pointer; transition: background-color var(--obrt-motion-fast, 120ms) ease; }
 .small { min-height: 27px; padding: 4px 9px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); cursor: pointer; }
 .small:hover { background: var(--obrt-hover); }
 .apply:disabled, .small:disabled { opacity: .48; cursor: default; background: var(--disabled); color: rgba(255, 255, 255, .62); }

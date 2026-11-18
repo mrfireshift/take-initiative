@@ -4,6 +4,7 @@
 // and the cards after it move right. Which drawers are open is remembered for the session, per caster and spells.
 import { appendCompactSideDock } from "./initiativeCardCompact.js";
 import { buildSpellBoardTokenCompanionCard } from "./spellBoardTokenTrackerCore.js";
+import { smoothScrollBehavior } from "./motionPreference.js";
 
 const openDrawers = new Set();
 
@@ -184,7 +185,7 @@ export function appendCompactCompanionDrawer(
     apply();
     onLayoutChange?.();
     // The strip scrolls so the opened drawer shows whole.
-    if (openDrawers.has(key)) panel.scrollIntoView?.({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    if (openDrawers.has(key)) panel.scrollIntoView?.({ block: "nearest", inline: "nearest", behavior: smoothScrollBehavior() });
   });
   apply();
   return dockElement;

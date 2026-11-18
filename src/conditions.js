@@ -608,6 +608,19 @@ const COND_BORDER = Object.freeze({
   "Morto":           "#2c3e50",
 });
 
+// Lot L3 of the tracker UI study (docs/STUDIO_UI_TRACKER_BG3.md): in the compact card's row a condition of the catalog
+// (and Ira, Santuario del Crepuscolo) shows its emoji alone, in a square of its pill's colour. The emoji is the label's
+// own (the theme's, as formatConditionName prefers it); "" for a name outside the catalog, which keeps its label.
+export function conditionIconEmoji(instance) {
+  const name = String(instance?.condition ?? "").trim();
+  return CONDITION_EMOJI[name] ? String(instance?.theme?.emoji || CONDITION_EMOJI[name]).trim() : "";
+}
+
+// Lot L3: a condition's colour (the border of its pill), for its square in the compact row. Null for a name without one.
+export function conditionAccentColor(name) {
+  return COND_BORDER[String(name ?? "").trim()] || null;
+}
+
 // Compatibilità per vecchi import: il watcher vive nel coordinatore effetti
 // persistente e questo entry point non deve creare un secondo writer.
 export function mountConditionsLabelWatcher() {

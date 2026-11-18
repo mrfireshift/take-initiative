@@ -2,9 +2,11 @@
 // bossLinkNoticeCard: tone, eyebrow, title, lines, badge, the boss's name and portrait.
 import OBR from "@owlbear-rodeo/sdk";
 import { BOSS_LINK_NOTICE_POPOVER_ID } from "./bossLinkNoticeHost.js";
+import { leaveNoticeThen } from "./noticeLeave.js";
 
 const AUTO_CLOSE_MS = 8000;
 let hideTimer = 0;
+let leaveTimer = 0;
 
 type Line = { strong: string; text: string };
 type Card = { tone: "active" | "broken"; eyebrow: string; title: string; lines: Line[]; badge: { label: string; value: string }; name: string; portrait: string };
@@ -31,9 +33,14 @@ function cardFromURL(): Card | null {
   }
 }
 
+// Lot M2 of the animations study: the notice fades, then the popup closes; a new notice cancels the closing.
 function closePopover() {
   window.clearTimeout(hideTimer);
-  void OBR.popover.close(BOSS_LINK_NOTICE_POPOVER_ID).catch(() => {});
+  if (leaveTimer) return;
+  leaveTimer = leaveNoticeThen(document.querySelectorAll("#app .warning"), () => {
+    leaveTimer = 0;
+    void OBR.popover.close(BOSS_LINK_NOTICE_POPOVER_ID).catch(() => {});
+  });
 }
 
 function node(tag: string, className: string, text = "") {
@@ -82,6 +89,8 @@ function renderCard(card: Card | null) {
   badge.append(node("span", "", card.badge.label), node("strong", "", card.badge.value));
 
   panel.append(portrait, copy, detail, badge, node("div", "timer"));
+  window.clearTimeout(leaveTimer);
+  leaveTimer = 0;
   app.replaceChildren(panel);
   hideTimer = window.setTimeout(closePopover, AUTO_CLOSE_MS);
 }

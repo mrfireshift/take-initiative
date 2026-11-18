@@ -134,12 +134,15 @@ function projectBoss(entry, visibility) {
   };
 }
 
+// deathSaves false (lot L4): a PC's death saves leave the players' card, as their notices (Opzioni, Promemoria). The
+// entry's vitalState passes as it is: it says that a creature is down, never its HP (trackerVitalStateCore.js).
 export function projectTrackerEntry(entry, {
   role = "PLAYER",
   surface = "trackerClassic",
   hpPolicy = {},
   effectsPolicy = {},
   bossDetails = "full",
+  deathSaves = true,
 } = {}) {
   if (!entry || typeof entry !== "object" || role === "GM") return entry;
   const attitude = attitudeOf(entry.attitude);
@@ -156,14 +159,15 @@ export function projectTrackerEntry(entry, {
   };
   next = projectEntryEffects(next, effectsPolicy);
   next = projectBoss(next, bossDetails);
+  if (deathSaves === false && next.deathSaves) next.deathSaves = null;
   if (Array.isArray(entry.__groupMembers)) {
     next.__groupMembers = entry.__groupMembers.map((member) => projectTrackerEntry(member, {
-      role, surface, hpPolicy, effectsPolicy, bossDetails,
+      role, surface, hpPolicy, effectsPolicy, bossDetails, deathSaves,
     }));
   }
   if (Array.isArray(entry.sharedHpChildren)) {
     next.sharedHpChildren = entry.sharedHpTrackerVisibility === "all"
-      ? entry.sharedHpChildren.map(child => projectTrackerEntry(child, { role, surface, hpPolicy, effectsPolicy, bossDetails }))
+      ? entry.sharedHpChildren.map(child => projectTrackerEntry(child, { role, surface, hpPolicy, effectsPolicy, bossDetails, deathSaves }))
       : [];
     if (entry.sharedHpTrackerVisibility !== "all") next.sharedHpMemberCount = 0;
   }

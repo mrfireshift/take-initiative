@@ -97,7 +97,7 @@ input {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background .14s ease;
+  transition: background var(--obrt-motion-fast, 120ms) ease;
   flex: 0 0 auto;
 }
 
@@ -139,7 +139,7 @@ input {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  transition: all .14s ease;
+  transition: all var(--obrt-motion-fast, 120ms) ease;
 }
 
 .history-tab-btn[aria-selected="true"] {
@@ -374,7 +374,7 @@ input {
   border: 1px solid var(--obrt-line);
   border-radius: 7px;
   background: var(--obrt-surface-row);
-  transition: all .12s ease;
+  transition: all var(--obrt-motion-fast, 120ms) ease;
   user-select: none;
 }
 

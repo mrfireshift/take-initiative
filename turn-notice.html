@@ -13,7 +13,7 @@
         position: relative;
         overflow: hidden;
         color: #fff;
-        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         pointer-events: none;
       }
       #notice-stack {
@@ -66,7 +66,7 @@
         opacity: 0;
         transform: translate(0, -8px);
         transform-origin: top center;
-        transition: opacity 180ms ease, transform 220ms ease;
+        transition: opacity var(--obrt-motion-base, 180ms) ease, transform 220ms ease;
         will-change: opacity, transform;
       }
       .notice.is-visible { opacity: 1; transform: translate(0, 0); }
@@ -270,7 +270,9 @@
           inset 0 -18px 30px rgba(0,0,0,.22);
         transform: none;
         transform-origin: top center;
+        transition: opacity var(--obrt-motion-base, 180ms) ease, transform var(--obrt-motion-base, 180ms) ease;
       }
+      .zone-notice.is-leaving { opacity: 0; transform: translate(0, 5px); }
       .zone-notice::before {
         position: absolute;
         inset: 4px 6px;
@@ -319,7 +321,7 @@
       .zone-eyebrow {
         margin-bottom: 2px;
         color: var(--accent);
-        font-family: system-ui, -apple-system, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         font-size: var(--obrt-type-micro, 10px);
         font-weight: 800;
         letter-spacing: .6px;
@@ -358,7 +360,7 @@
         border: 1px solid rgba(255, 255, 255, .18);
         background: rgba(255, 255, 255, .08);
         color: rgba(255, 255, 255, .70);
-        font-family: system-ui, -apple-system, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         font-size: var(--obrt-type-micro, 10px);
         font-weight: 700;
         line-height: 1.2;
@@ -417,7 +419,7 @@
         display: inline-flex;
         align-items: center;
         color: rgba(255, 255, 255, .82);
-        font-family: system-ui, -apple-system, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         font-size: var(--obrt-type-micro, 10px);
         font-weight: 700;
         line-height: 1.2;
@@ -477,7 +479,7 @@
         border-radius: 4px;
         background: rgba(4, 8, 13, .82);
         color: #fff;
-        font: 700 10px/1 system-ui, sans-serif;
+        font: 700 10px/1 var(--obrt-font-ui);
         pointer-events: auto;
       }
       .zone-resolution button {

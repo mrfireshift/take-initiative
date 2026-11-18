@@ -32,7 +32,7 @@
         opacity: 0;
         transform: translateY(-4px) scale(.985);
         transform-origin: top center;
-        transition: opacity 120ms ease-out, transform 140ms cubic-bezier(.2,.8,.2,1);
+        transition: opacity var(--obrt-motion-fast, 120ms) ease-out, transform var(--obrt-motion-fast, 120ms) cubic-bezier(.2,.8,.2,1);
         will-change: opacity, transform;
       }
       .glass-shell.is-open { opacity: 1; transform: translateY(0) scale(1); }

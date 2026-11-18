@@ -94,7 +94,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B65. Carica, Maestro degli Scudi, Lottatore da Taverna, Appostato | 4 |
 | B66. Lottatore: vantaggio e Immobilizza | 4 |
 | B67. Tempra Nanica | 4 |
-| **C. Tracker e UX** | **27** |
+| **C. Tracker e UX** | **42** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
 | C3. Riposo del gruppo (U6′) | 3 |
@@ -102,6 +102,8 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | C5. PF e console (U1, U3, U4) | 5 |
 | C6. Menu della card (U2) | 2 |
 | C7. Riquadro del movimento compresso | 6 |
+| C8. Interfaccia del tracker (studio contro Baldur's Gate 3) | 7 |
+| C9. Animazioni | 8 |
 | **D. Avvisi, registro e gioco online** | **24** |
 | D1. Avvisi di reazione | 13 |
 | D2. Registro delle schede nella stanza | 3 |
@@ -120,7 +122,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **699** |
+| **Totale** | **714** |
 
 ## A. Incantesimi
 
@@ -1339,6 +1341,31 @@ Fonte: decisioni D1–D4 del 14/11 (riquadro del movimento del tracker esteso), 
 - [ ] **Il cambio di turno:** passando al turno dopo, il riquadro resta aperto con gli ultimi numeri finché arriva il turno nuovo, e la lista sotto non salta. Si chiude nei turni senza movimento (Azioni Epiche, creature senza velocità, nemici per i giocatori), al più tardi dopo 2 s.
 - [ ] **La vista compatta:** la linguetta compatta del movimento è quella di prima.
 
+### C8. Interfaccia del tracker (studio contro Baldur's Gate 3)
+
+Fonte: [STUDIO_UI_TRACKER_BG3.md](STUDIO_UI_TRACKER_BG3.md), lotti L1–L4 e L7, il riquadro del movimento e i gruppi chiusi (18/11); memoria `tracker-ui-bg3-study`. Le voci sono nuove: nessuna lista le aveva. Servono un PG a 0 PF, un mostro a 0 PF, un gruppo di omonimi e un mostro con due o tre condizioni.
+
+- [ ] **La scala del tavolo (L1):** nelle Opzioni porta «Dimensione tracker» a 125%, 150% e 200%. Nella finestra del tavolo, in tutte e due le viste, niente spazio vuoto sopra le card e niente card tagliate sotto; nell'estesa si scorre fino all'ultima card e alla barra ▲ ▼.
+- [ ] **Le rifiniture (L2):** le barre dei PF hanno i colori di quelle sulla mappa (verde, ambra, rosso); nella compatta il badge «EP» non è coperto e un nome con la virgola mostra la parte prima della virgola.
+- [ ] **Le condizioni nella compatta (L3):** ogni condizione del catalogo è un'emoji in un quadratino col bordo del suo colore, con i round in un dischetto; un effetto senza emoji resta etichetta se ci sta, il resto va in «+N»; un clic sui quadratini apre il cassetto coi nomi. Estesa e mappa come prima.
+- [ ] **Lo stato vitale (L4):** un PG a 0 PF ha le tacche dei tiri contro la morte al posto della barra, un mostro a 0 PF il teschio (il KO se è «Privo di sensi»). Il KO si vede anche sullo schermo del tavolo, che non vede i PF; con i promemoria dei tiri contro la morte nascosti ai giocatori, le tacche spariscono dalla loro card.
+- [ ] **I caratteri (L7):** i titoli degli avvisi sono in Vollkorn, il resto dell'interfaccia in Figtree, in tutte e due le finestre; nella compatta «Incantesimi» si legge intero sotto la sua icona. Le etichette sulla mappa sono quelle di prima (le disegna OBR).
+- [ ] **Il riquadro del movimento (estesa):** per il GM, il nome con i metri sopra, poi la modalità con il lucchetto e ↺, poi Scatto e Bonus, e la barra in fondo; tutti i comandi alti uguali. Sullo schermo del tavolo la modalità è un testo allineato all'inizio della barra. *Cambia la disposizione descritta in C7: i comandi fanno ciò che facevano.*
+- [ ] **I gruppi chiusi, a mazzo:** niente «(Gruppo)»; dietro la card si vedono due bordi, come un mazzo; nell'estesa «×N» segue il nome intero e la freccia ▸ è allineata alla ▾; il «±» del gruppo sta sull'anello del ritratto e non copre il nome.
+
+### C9. Animazioni
+
+Fonte: [STUDIO_ANIMAZIONI.md](STUDIO_ANIMAZIONI.md), lotti M1–M5 e le correzioni dei gruppi del 18/11; memoria `animations-study`. Le voci sono nuove: nessuna lista le aveva. Serve un gruppo di omonimi che venga subito dopo un'altra creatura nell'ordine, con Focus token acceso. Al banco tutto è misurato fotogramma per fotogramma; qui si guarda a occhio, nelle due viste e nelle due finestre.
+
+- [ ] **Il gruppo con la freccia:** apri e chiudi un gruppo. I membri escono dai bordi del mazzo e ci rientrano; il testo del gruppo e quello del primo membro si scambiano senza sovrapporsi; alla fine nessuno scatto, né di posizione né di colore.
+- [ ] **Il gruppo che prende il turno:** passa il turno alla creatura prima del gruppo, poi al gruppo. Il gruppo si apre e la nuova card attiva cresce piano; la card che perde il turno si rimpicciolisce e sfuma al suo posto, senza un doppione spostato sopra le altre; alla fine la nuova card attiva ha ancora l'alone bianco della selezione e l'alone colorato non riparte da capo.
+- [ ] **Il gruppo che perde il turno:** dall'ultimo membro passa il turno. Il membro rientra nel mazzo rimpicciolendo e perdendo l'alone; la card del gruppo, alla fine, non ha l'alone bianco della selezione.
+- [ ] **Il cambio di turno (M1):** fuori dai gruppi la nuova card attiva cresce in circa mezzo secondo e la vecchia torna piccola e perde l'alone con lo stesso passo, nelle due viste e sullo schermo del tavolo.
+- [ ] **Gli avvisi (M2):** l'avviso di turno, alla fine, sfuma prima che la finestra si chiuda; lo stesso i promemoria di zona e gli avvisi di velocità, concentrazione e boss, chiusi a tempo, col clic o con Esc. Annota quanto tarda l'avviso di turno a comparire dopo il clic (al banco circa mezzo secondo, gonfiato dalla build di sviluppo).
+- [ ] **Le barre dei PF (M5):** danno e cura su un mostro: la barra della card scorre al nuovo valore, nelle due viste, e arriva alla stessa misura di quella sulla mappa.
+- [ ] **Il movimento ridotto (M3):** in Windows, Impostazioni → Accessibilità → Effetti visivi → Effetti animazione spenti, poi ricarica le finestre. Gruppi, cambio di turno, avvisi e barre dei PF cambiano subito, senza animazione; le barre di scadenza degli avvisi scorrono ancora. Alla fine riaccendi gli effetti.
+- [ ] **Le durate comuni (M4):** pulsanti, menu e pannelli (Effetti, Aure, Opzioni, Cronologia, Orologi) reagiscono al passaggio del mouse come prima, un po' più svelti dove erano più lenti; nessuno ha perso la sua transizione.
+
 ## D. Avvisi, registro e gioco online
 
 Fonte: [STUDIO_AVVISI_REAZIONE.md](STUDIO_AVVISI_REAZIONE.md), [STUDIO_REGISTRO_SCHEDE_STANZA.md](STUDIO_REGISTRO_SCHEDE_STANZA.md), [AUDIT_GIOCO_ONLINE.md](AUDIT_GIOCO_ONLINE.md) e [PIANO_DADI_ONLINE.md](PIANO_DADI_ONLINE.md). Nessuna di queste funzioni aveva una lista: le voci sono nuove, scritte da ciò che i documenti dicono.
@@ -1547,6 +1574,7 @@ Fonte: [GIRO-OBR-1.5.0.md](audits/GIRO-OBR-1.5.0.md), parte B.
   - la barra è intera sullo schermo del tavolo;
   - niente testo tagliato;
   - il badge "LOCALE" non copre i pulsanti.
+  - *Il difetto (il tracker esce dalla finestra sopra il 100%) è corretto con L1 dello studio UI del tracker il 18/11: si prova con C8, anche nell'estesa.*
 - [ ] **B2** *(da 5.3)* Avvisi compatti di zona e di tiro salvezza: il testo, ora a 10px minimo, non allunga troppo le schede e non viene tagliato.
   - Prova una zona con trigger di ingresso e una spell con TS a fine turno, per esempio Blocca Persone.
 - [ ] **B3** *(da 0b, 5.3)* Il popover degli effetti non esiste più: al suo posto c'è il cassetto. Controlla che niente esca dallo schermo, con la barra vicina al bordo destro e al bordo basso.

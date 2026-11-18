@@ -16,7 +16,8 @@ test("U13: lo scorrimento si ripristina di nuovo nel fotogramma in cui parte la 
 });
 
 test("U13: chiudendo, i membri svaniscono insieme alla vecchia card del gruppo", () => {
-  assert.match(transition, /for \(const moving of record\.movingRecords\) \{\n\s+play\(moving\.card, \[\{ opacity: 0 \}\], \{\n\s+duration: GROUP_CARD_SWAP_FADE_MS,\n\s+delay: fadeDelay,/);
+  // 18/11: on the deck's edges, in the half in which the group's card comes in over them.
+  assert.match(transition, /for \(const moving of record\.movingRecords\) \{\n\s+play\(moving\.card, \[\{ opacity: 0 \}\], \{\n\s+duration: GROUP_CARD_SWAP_HALF_MS,\n\s+delay: fadeDelay \+ GROUP_CARD_SWAP_HALF_MS,/);
 });
 
 test("U13: nella vista compatta le posizioni vengono dal layout, non dal rettangolo della card attiva ingrandita", () => {

@@ -1,6 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID, REMINDER_HISTORY_REARM_CHANNEL, RUNTIME_CACHE_CLEANUP_CHANNEL } from "./constants.js";
 import { historyReminderReplayWithdrawal } from "./historyReminderReplayCore.js";
+import { leaveNoticeThen } from "./noticeLeave.js";
 import {
   SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED,
   pendingSpellZoneTriggerActivations,
@@ -328,10 +329,14 @@ function hideCurrent() {
   if (!currentPanel) return;
   const leaving = currentPanel;
   currentPanel = null;
-  announceNoticeLayout();
   leaving.classList.remove("is-visible");
   leaving.classList.add("is-leaving");
-  window.setTimeout(() => leaving.remove(), FADE_MS);
+  // Lot M2 of the animations study: the layout is told after the fade. Told before, the host closed the popup at once
+  // and the notice went at full opacity (measured: still whole at 4.86s, gone the next frame).
+  window.setTimeout(() => {
+    leaving.remove();
+    announceNoticeLayout();
+  }, FADE_MS);
 }
 
 
@@ -1403,7 +1408,12 @@ function renderSaveReminderBatch(batch: any) {
         currentZoneTurnKey = "";
         currentSaveReminderBatch = null;
         zoneHideTimer = 0;
-        announceNoticeLayout();
+        // Lot M2: it fades like the turn notice, and the layout is told once it is gone.
+        leaveNoticeThen([panel], () => {
+          panel.remove();
+          announceNoticeLayout();
+        });
+        return;
       }
       panel.remove();
     }, ZONE_AUTO_CLOSE_MS);

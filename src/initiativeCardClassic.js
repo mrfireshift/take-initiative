@@ -1,5 +1,6 @@
 import { quickHPStateOf } from "./quickHpCore.js";
 import { spellEffectStandsAlone } from "./effectLabelCore.js";
+import { trackerDeathSaves, VITAL_STATE } from "./trackerVitalStateCore.js";
 
 function classicDocument(documentRef) {
   if (!documentRef?.createElement) {
@@ -94,12 +95,14 @@ export function deriveClassicCardPresentation(
   const hpVisible = isGM || (disclosure
     ? disclosure.mode !== "hidden"
     : ["ally", "pc"].includes(attitude));
-  const knockedOut = hpVisible
-    && !entry?.__groupCollapsed
-    && !isLair
-    && !isEpicAction
-    && hpMax > 0
-    && hpValue <= 0;
+  // Lot L4 of the tracker UI study: the state the tracker built from the real HP (entry.vitalState), for every viewer
+  // whatever the HP disclosure (D3a); without it (older callers, the tests) the KO of the visible HP, as before.
+  const vitalState = entry?.__groupCollapsed || isLair || isEpicAction
+    ? VITAL_STATE.ALIVE
+    : entry?.vitalState || (hpVisible && hpMax > 0 && hpValue <= 0 ? VITAL_STATE.DOWN : VITAL_STATE.ALIVE);
+  const knockedOut = vitalState !== VITAL_STATE.ALIVE;
+  const dead = vitalState === VITAL_STATE.DEAD;
+  const deathSaves = trackerDeathSaves({ attitude, vitalState, conditions: entry?.conditions, deathSaves: entry?.deathSaves });
   const playerCardHasHP = !isGM && !entry?.__groupCollapsed && hpVisible && hpMax > 0;
   const playerBossVerticalOffset = isBoss && !isGM && !playerCardHasHP
     ? (hasLegendary ? 16 : 7)
@@ -123,6 +126,8 @@ export function deriveClassicCardPresentation(
     tempHp,
     hpVisible,
     knockedOut,
+    dead,
+    deathSaves,
     playerCardHasHP,
     playerBossVerticalOffset,
     hasCardEffects,

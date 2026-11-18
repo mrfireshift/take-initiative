@@ -217,7 +217,9 @@ export function selectOptionsRevision(options) {
 
 export function selectTrackerProjectionPolicy(options) {
   const value = resolved(options).shared.playerView;
-  return clone({ hp: value.hp, effects: value.effects, bossDetails: value.bossDetails });
+  // Lot L4 of the tracker UI study: the death saves on a PC's card follow the players' death-save notices.
+  const deathSaves = value.reminders?.visibility !== "hidden" && value.reminders?.showDeathSaves !== false;
+  return clone({ hp: value.hp, effects: value.effects, bossDetails: value.bossDetails, deathSaves });
 }
 
 export function selectReminderProjectionPolicy(options) {

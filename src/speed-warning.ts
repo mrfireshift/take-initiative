@@ -1,5 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { leaveNoticeThen } from "./noticeLeave.js";
 
 const POPOVER_ID = ID + "/speed-warning-modal";
 const AUTO_CLOSE_MS = 5000;
@@ -16,6 +17,7 @@ type Warning = {
 };
 
 let hideTimer = 0;
+let leaveTimer = 0;
 
 function warningFromURL() {
   try {
@@ -26,9 +28,14 @@ function warningFromURL() {
   }
 }
 
+// Lot M2 of the animations study: the warning fades, then the popup closes; a new warning cancels the closing.
 function closePopover() {
   window.clearTimeout(hideTimer);
-  void OBR.popover.close(POPOVER_ID).catch(() => {});
+  if (leaveTimer) return;
+  leaveTimer = leaveNoticeThen(document.querySelectorAll("#app .warning"), () => {
+    leaveTimer = 0;
+    void OBR.popover.close(POPOVER_ID).catch(() => {});
+  });
 }
 
 function normalizeWarning(value: any): Warning | null {
@@ -108,6 +115,8 @@ function renderWarning(value: any) {
   const timer = document.createElement("div");
   timer.className = "timer";
   panel.append(portrait, copy, detail, badge, timer);
+  window.clearTimeout(leaveTimer);
+  leaveTimer = 0;
   app.replaceChildren(panel);
   hideTimer = window.setTimeout(closePopover, AUTO_CLOSE_MS);
 }

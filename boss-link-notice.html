@@ -13,7 +13,7 @@
         position: relative;
         overflow: hidden;
         color: #fff;
-        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         pointer-events: none;
       }
       .warning {
@@ -43,6 +43,9 @@
         --accent-soft: rgba(249, 115, 22, .42);
         --accent-deep: rgba(96, 40, 10, .94);
       }
+      /* Lot M2 of the animations study: it fades before the popup closes (src/noticeLeave.js). */
+      .warning { transition: opacity var(--obrt-motion-base, 180ms) ease, transform var(--obrt-motion-base, 180ms) ease; }
+      .warning.is-leaving { opacity: 0; transform: translate(0, 5px); }
       .warning::before {
         position: absolute;
         inset: 6px 8px;

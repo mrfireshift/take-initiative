@@ -289,7 +289,8 @@ export function applyToolbarLayoutPresentation(
       caption.style.fontSize = classic ? "7.5px" : "var(--obrt-type-micro, 10px)";
       caption.style.fontWeight = classic ? "600" : "500";
       caption.style.lineHeight = "1";
-      caption.style.letterSpacing = "-.02em";
+      // Lot L7 of the tracker UI study: in Figtree "Incantesimi" misses the compact square by a pixel at -.02em.
+      caption.style.letterSpacing = classic ? "-.02em" : "-.04em";
       caption.style.whiteSpace = "nowrap";
       caption.style.overflow = "hidden";
       caption.style.textOverflow = "ellipsis";

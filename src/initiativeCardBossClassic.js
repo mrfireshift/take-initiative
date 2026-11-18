@@ -79,7 +79,7 @@ export function buildLegendaryResourcePips(
         : "none",
       opacity: "1",
       cursor: isGM ? "pointer" : "default",
-      transition: "transform .12s ease, opacity .12s ease, box-shadow .12s ease, filter .12s ease, background-color .12s ease",
+      transition: "transform var(--obrt-motion-fast, 120ms) ease, opacity var(--obrt-motion-fast, 120ms) ease, box-shadow var(--obrt-motion-fast, 120ms) ease, filter var(--obrt-motion-fast, 120ms) ease, background-color var(--obrt-motion-fast, 120ms) ease",
     });
     if (index <= current) {
       pip.style.background = activeStyle.background;
@@ -483,7 +483,7 @@ export function buildClassicParagonDock(
       padding: "0",
       cursor: "pointer",
       boxShadow: "0 1px 3px rgba(0,0,0,.4)",
-      transition: "transform .12s ease, background-color .12s ease, border-color .12s ease",
+      transition: "transform var(--obrt-motion-fast, 120ms) ease, background-color var(--obrt-motion-fast, 120ms) ease, border-color var(--obrt-motion-fast, 120ms) ease",
     });
     button.textContent = text;
     button.addEventListener("mouseenter", () => {

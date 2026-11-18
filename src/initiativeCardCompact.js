@@ -18,7 +18,13 @@ import { cardPlayerAssignmentTitle } from "./playerAssignmentCore.js";
 import { HIT_AREA_MIN_SIZE, extendHitArea } from "./hitAreaCore.js";
 import { CARD_ICON_BUTTON_SIZE, buildCardIconGlyph, markHiddenTokenPortrait, styleCardIconButton } from "./cardIconButton.js";
 import { canOpenInitiativeCardSheet, initiativeCardSheetLabel } from "./initiativeCardSheetAccessCore.js";
+import { trackerDeathSaves, VITAL_STATE } from "./trackerVitalStateCore.js";
 import { quickHPBarSegments, quickHPStateOf, TEMP_HP_COLOR } from "./quickHpCore.js";
+
+// Lot L4 of the tracker UI study: a creature at 0 HP. KO keeps some colour; a dead one turns grey. The classic card
+// and syncTrackerHPNow use the same filters.
+export const KNOCKED_OUT_CARD_FILTER = "saturate(.42) brightness(.72)";
+export const DEAD_CARD_FILTER = "grayscale(.92) brightness(.6)";
 
 // CAP-TEMP: the colour of the temporary hit points beside the HP (quickHpCore.js), for the cards built from here.
 export { TEMP_HP_COLOR };
@@ -88,6 +94,19 @@ export function __compactConditionPillLabel(
   return label;
 }
 
+// Lot L3 of the tracker UI study: the number on a condition's square in the compact row. Rounds left, as the label
+// shows them (up to the visible limit), or the level of Indebolimento; 0 for none.
+export function compactConditionIconCount(instance) {
+  if (String(instance?.condition || "").trim() === "Indebolimento") {
+    return Math.max(1, Math.floor(Number(instance?.level) || 1));
+  }
+  const expiry = instance?.expiry || {};
+  const remaining = Math.max(0, Math.floor(Number(expiry.remaining) || 0));
+  return expiry.mode === "rounds" && remaining && remaining <= CLASS_FEATURE_MAX_VISIBLE_DURATION_ROUNDS ? remaining : 0;
+}
+
+// formatting.conditionEmoji(instance) and formatting.conditionAccent(name) (lot L3, conditions.js): the emoji a condition
+// shows alone in the compact row, and the colour of its square.
 export function __compactEffectItems(
   conditionInstances,
   spells,
@@ -115,9 +134,22 @@ export function __compactEffectItems(
     const standaloneKind = instance?.effectKind === "buff" || instance?.effectKind === "debuff"
       ? instance.effectKind
       : "";
+    // Lot L3 of the tracker UI study: a condition of the catalog (or Ira, Santuario del Crepuscolo) carries its emoji,
+    // drawn alone in the compact row with the number of its rounds (or the level of Indebolimento).
+    const icon = !standaloneKind && !spellEffectStandsAlone(instance, spellInstanceIds)
+      && typeof formatting.conditionEmoji === "function"
+      ? String(formatting.conditionEmoji(instance) || "").trim()
+      : "";
     return {
       kind: instance?.type === "class-feature" ? "class-feature" : standaloneKind || "condition",
       instanceId: String(instance?.id || ""),
+      ...(icon
+        ? {
+          icon,
+          iconCount: compactConditionIconCount(instance),
+          iconColor: typeof formatting.conditionAccent === "function" ? formatting.conditionAccent(instance?.condition) : null,
+        }
+        : {}),
       ...(standaloneKind && instance.theme && typeof instance.theme === "object" ? { theme: { ...instance.theme } } : {}),
       label: __compactConditionPillLabel(instance, spellEffectStandsAlone(instance, spellInstanceIds)
         ? { ...formatting, formatConditionName: spellEffectPillLabel }
@@ -453,6 +485,7 @@ export function buildCompactCardShell(
     canSeeHP,
     showHP,
     knockedOut,
+    dead = false,
     hasExpandableEffects,
     groupKey,
     selectionItemIds,
@@ -505,14 +538,23 @@ export function buildCompactCardShell(
       ? `0 0 0 2px ${rgba(faction.border, .92)}, 0 0 16px 3px ${rgba(faction.border, .48)}, inset 0 1px 0 rgba(255,255,255,.18)`
       : `0 4px 10px rgba(0,0,0,.28), inset 0 0 0 1px ${rgba(faction.border, .12)}`,
     cursor: selectionItemIds.length ? "pointer" : "default",
-    filter: knockedOut ? "saturate(.42) brightness(.72)" : active ? "brightness(1.13)" : "none",
-    opacity: knockedOut ? ".84" : "1",
+    filter: dead
+      ? DEAD_CARD_FILTER
+      : knockedOut ? KNOCKED_OUT_CARD_FILTER : active ? "brightness(1.13)" : "none",
+    opacity: dead ? ".8" : knockedOut ? ".84" : "1",
     transform: "translateZ(0)",
     scale: active ? String(zoomScale) : "1",
     transformOrigin: "50% 50%",
-    transition: "scale 160ms ease, filter 160ms ease, box-shadow 160ms ease, border-color 160ms ease",
+    // Lot M1 of the animations study: the active card's growth and glow with the expanded view's timing (380ms, ease).
+    transition: "scale var(--obrt-motion-move, 380ms) cubic-bezier(.25,.1,.25,1), filter var(--obrt-motion-fast, 120ms) ease, box-shadow var(--obrt-motion-move, 380ms) cubic-bezier(.25,.1,.25,1), border-color var(--obrt-motion-fast, 120ms) ease",
     zIndex: active ? "5" : boss ? "3" : "1",
   });
+  // A collapsed group is a deck (choice B): two edges behind the card, with room kept beside and under it.
+  if (entry.__groupCollapsed) {
+    card.style.boxShadow = [card.style.boxShadow, groupDeckShadow(faction.border, { rgba, step: 3 })].filter(Boolean).join(", ");
+    card.style.marginRight = `${groupDeckRoom(3)}px`;
+    card.dataset.groupDeck = "1";
+  }
   card.__selectionBaseShadow = card.style.boxShadow;
   return card;
 }
@@ -741,6 +783,52 @@ export function buildCompactCardPortrait(
   return { portrait, bossFrame };
 }
 
+// The width a compact card gives its name: 92px, less 5px of padding and 1px of border a side.
+const COMPACT_NAME_WIDTH = 80;
+let compactNameCanvas = null;
+
+// True when the name fits the compact card at its weight (11px, the UI font). Without a canvas (tests) it counts the
+// characters, about as many as fit.
+function compactNameFits(text, { bold = false } = {}) {
+  try {
+    compactNameCanvas ??= globalThis.document?.createElement?.("canvas") || null;
+    const context = compactNameCanvas?.getContext?.("2d");
+    if (context) {
+      // The interface's font (--obrt-font-ui, public/ui-typography.css: Figtree since lot L7), as the name is drawn.
+      context.font = `${bold ? 700 : 600} 11px "Figtree", "Helvetica Neue", Helvetica, Arial, sans-serif`;
+      return context.measureText(String(text)).width <= COMPACT_NAME_WIDTH;
+    }
+  } catch {}
+  return String(text).length <= 13;
+}
+
+// Lot L2 of the tracker UI study: a name with an epithet after a comma ("Auril, Vergine del Gelo") that does not fit
+// the compact card shows the part before the comma ("Auril"), not "Auril, Vergin…". The whole name stays in the
+// card's title and in the classic card. fits(text, { bold }) answers whether a text fits (injected by the tests).
+export function compactCardDisplayName(name, { bold = false, fits = compactNameFits } = {}) {
+  const full = String(name ?? "");
+  const comma = full.indexOf(",");
+  if (comma <= 0 || fits(full, { bold })) return full;
+  return full.slice(0, comma).trim() || full;
+}
+
+// A collapsed group as a deck (18/11, the user's choice B): two cards' edges behind it, offset down and to the right by
+// `step` and twice `step`, in the faction's border colour. Drawn as box-shadows, under the card and never over its
+// content; the card keeps `step * 2` px of room for them (groupDeckRoom).
+export function groupDeckShadow(border, { rgba, step = 4 } = {}) {
+  const fill = "rgba(14,19,28,.96)";
+  return [
+    `${step}px ${step}px 0 -1.5px ${fill}`,
+    `${step}px ${step}px 0 0 ${rgba(border, .62)}`,
+    `${step * 2}px ${step * 2}px 0 -1.5px ${fill}`,
+    `${step * 2}px ${step * 2}px 0 0 ${rgba(border, .38)}`,
+  ].join(", ");
+}
+
+export function groupDeckRoom(step = 4) {
+  return step * 2;
+}
+
 export function buildCompactCardName(
   entry,
   {
@@ -750,9 +838,10 @@ export function buildCompactCardName(
   },
 ) {
   const name = compactDocument(documentRef).createElement("div");
+  // A collapsed group says only its name: the deck behind the card and the xN badge tell it is a group (choice B).
   name.textContent = entry.__groupCollapsed
-    ? `${entry.__groupBase} (Gruppo)`
-    : entry.name;
+    ? compactCardDisplayName(entry.__groupBase, { bold: !!active })
+    : compactCardDisplayName(entry.name, { bold: !!active });
   name.title = entry.__groupCollapsed
     ? `${entry.__groupBase} (x${entry.__groupCount})`
     : entry.name;
@@ -802,7 +891,8 @@ export function buildCompactVirtualTurnLabel(
   Object.assign(label.style, {
     maxWidth: "100%",
     marginTop: "4px",
-    padding: "2px 8px",
+    // 6px a side: with 8px "Azione Epica" missed its last letters by less than a pixel (lot L2).
+    padding: "2px 6px",
     boxSizing: "border-box",
     overflow: "hidden",
     border: `1px dashed ${rgba(faction.border, .7)}`,
@@ -1059,6 +1149,90 @@ export function compactKnockedOutBadgeStyle(portraitSize = 49) {
   };
 }
 
+// Lot L4 of the tracker UI study: the badge of a creature at 0 HP, on the compact and the classic card and from
+// syncTrackerHPNow. "down": KO; "dead": the skull of boss.svg (the Boss console's icon), titled "Morto".
+export function buildVitalStateBadge(kind, { title = "Fuori combattimento", documentRef = globalThis.document } = {}) {
+  const dead = kind === VITAL_STATE.DEAD;
+  const badge = compactStatusBadge(dead ? "" : "KO", dead ? "Morto" : title, "neutral", { documentRef });
+  badge.dataset.cardKoBadge = "1";
+  badge.dataset.vitalState = dead ? VITAL_STATE.DEAD : VITAL_STATE.DOWN;
+  if (dead) {
+    badge.setAttribute("aria-label", "Morto");
+    const icon = compactDocument(documentRef).createElement("span");
+    icon.setAttribute("aria-hidden", "true");
+    const mask = `url("${import.meta.env?.BASE_URL || "/"}boss.svg") center / contain no-repeat`;
+    Object.assign(icon.style, {
+      display: "block",
+      width: "12px",
+      height: "12px",
+      backgroundColor: "#e5e7eb",
+      mask,
+      WebkitMask: mask,
+      // The skull is drawn left of the file's centre, as in the Boss console's circle (trackerQuickActions.js).
+      transform: "translateX(0.6px)",
+    });
+    badge.appendChild(icon);
+  }
+  return badge;
+}
+
+// Lot L4: a PC's death saves where its empty HP bar was, three successes and three failures, as BG3 shows them on the
+// portrait. tally: { successes, failures }, 0 to 3 each (trackerDeathSaves). size: the side of a mark.
+export function buildDeathSavePips(tally, { size = 7, documentRef = globalThis.document } = {}) {
+  if (!tally) return null;
+  const document = compactDocument(documentRef);
+  const successes = Math.max(0, Math.min(3, Math.floor(Number(tally.successes) || 0)));
+  const failures = Math.max(0, Math.min(3, Math.floor(Number(tally.failures) || 0)));
+  const row = document.createElement("div");
+  row.dataset.deathSaves = "1";
+  row.title = `Tiri contro la morte: ${successes} ${successes === 1 ? "successo" : "successi"}, `
+    + `${failures} ${failures === 1 ? "fallimento" : "fallimenti"}`;
+  row.setAttribute("aria-label", row.title);
+  Object.assign(row.style, {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "3px",
+    height: `${size + 2}px`,
+    pointerEvents: "auto",
+  });
+  const mark = (filled, color) => {
+    const pip = document.createElement("span");
+    Object.assign(pip.style, {
+      width: `${size}px`,
+      height: `${size}px`,
+      borderRadius: "50%",
+      boxSizing: "border-box",
+      border: `1px solid ${color}`,
+      background: filled ? color : "rgba(0,0,0,.55)",
+      flex: "0 0 auto",
+    });
+    return pip;
+  };
+  for (let index = 0; index < 3; index += 1) row.appendChild(mark(index < successes, "#22c55e"));
+  const divider = document.createElement("span");
+  Object.assign(divider.style, { width: "1px", height: `${size + 2}px`, margin: "0 2px", background: "rgba(255,255,255,.28)" });
+  row.appendChild(divider);
+  for (let index = 0; index < 3; index += 1) row.appendChild(mark(index < failures, "#ef4444"));
+  return row;
+}
+
+// Lot L4: concentration always in view on the compact card, a C where the KO would sit, even with its spell in the
+// effects drawer. A creature at 0 HP shows its KO there instead.
+export function buildCompactConcentrationBadge(portraitSize = 49, { title = "Concentrazione", documentRef = globalThis.document } = {}) {
+  const badge = compactStatusBadge("C", title, "concentration", { documentRef });
+  badge.dataset.cardConcentrationBadge = "1";
+  Object.assign(badge.style, {
+    ...compactKnockedOutBadgeStyle(portraitSize),
+    minWidth: `${COMPACT_KO_BADGE_HEIGHT}px`,
+    width: `${COMPACT_KO_BADGE_HEIGHT}px`,
+    padding: "0",
+    borderRadius: "50%",
+    pointerEvents: "none",
+  });
+  return badge;
+}
+
 export function buildCompactCardHP(
   entry,
   {
@@ -1067,6 +1241,7 @@ export function buildCompactCardHP(
     hpMax,
     hpPercent,
     knockedOut,
+    dead = false,
     hpColorByPct,
     portraitSize = 49,
     documentRef = globalThis.document,
@@ -1078,7 +1253,8 @@ export function buildCompactCardHP(
   const disclosure = entry?.hpDisclosure;
   const hpMode = disclosure?.mode || "exact";
   const statusLabels = {
-    down: "Fuori combattimento",
+    // The compact card's 80px hold "A terra", not "Fuori combattimento" (lot L2); the classic card keeps the long form.
+    down: "A terra",
     critical: "Critico",
     bloodied: "Ferito",
     hurt: "Provato",
@@ -1139,13 +1315,8 @@ export function buildCompactCardHP(
     const knockedOutTitle = hpMode === "exact"
       ? `Fuori combattimento: 0 / ${hpMax}`
       : "Fuori combattimento";
-    knockedOutBadge = compactStatusBadge(
-      "KO",
-      knockedOutTitle,
-      "neutral",
-      { documentRef },
-    );
-    knockedOutBadge.dataset.cardKoBadge = "1";
+    // Lot L4: KO, or the skull of a dead creature.
+    knockedOutBadge = buildVitalStateBadge(dead ? VITAL_STATE.DEAD : VITAL_STATE.DOWN, { title: knockedOutTitle, documentRef });
     Object.assign(knockedOutBadge.style, compactKnockedOutBadgeStyle(portraitSize));
   }
 
@@ -1157,32 +1328,48 @@ export function buildCompactCardHP(
   };
 }
 
+// hiddenCount: the effects "+N" stands for, every one but the label's. Without a label (previewPill null, lot L2) it
+// counts them all and stays in view when the drawer is open, as "−": it is then the only way to close it.
+// iconStrip (lot L3): the row of conditions, which opens the drawer too; with it, "+N" may be missing (every effect in
+// view) and hides while the drawer is open, as with the label.
 export function syncCompactEffectsToggleState({
   previewPill,
   moreEffectsButton,
+  iconStrip = null,
   effectsCount,
   opened,
+  hiddenCount = effectsCount - 1,
 }) {
   const expanded = opened ? "true" : "false";
-  const label = opened
-    ? "Nascondi gli altri effetti"
-    : `Mostra altri ${effectsCount - 1} effetti`;
+  const otherToggle = previewPill || iconStrip;
+  const label = previewPill && !iconStrip
+    ? (opened ? "Nascondi gli altri effetti" : `Mostra altri ${hiddenCount} effetti`)
+    : iconStrip
+      ? (opened ? "Nascondi gli effetti" : "Mostra gli effetti")
+      : (opened ? "Nascondi gli effetti" : `Mostra ${hiddenCount === 1 ? "1 effetto" : `${hiddenCount} effetti`}`);
 
-  moreEffectsButton.textContent = `+${effectsCount - 1}`;
-  // Writing the text drops the children: the clickable square goes back in.
-  if (moreEffectsButton.__hitArea) moreEffectsButton.appendChild(moreEffectsButton.__hitArea);
-  moreEffectsButton.style.display = opened ? "none" : "inline-flex";
-  moreEffectsButton.setAttribute("aria-expanded", expanded);
-  moreEffectsButton.setAttribute("aria-label", label);
-  moreEffectsButton.title = label;
-  previewPill.setAttribute("aria-expanded", expanded);
-  previewPill.setAttribute("aria-label", label);
+  if (moreEffectsButton) {
+    moreEffectsButton.textContent = otherToggle || !opened ? `+${hiddenCount}` : "−";
+    // Writing the text drops the children: the clickable square goes back in.
+    if (moreEffectsButton.__hitArea) moreEffectsButton.appendChild(moreEffectsButton.__hitArea);
+    moreEffectsButton.style.display = opened && otherToggle ? "none" : "inline-flex";
+    moreEffectsButton.setAttribute("aria-expanded", expanded);
+    moreEffectsButton.setAttribute("aria-label", label);
+    moreEffectsButton.title = label;
+  }
+  for (const toggle of [previewPill, iconStrip]) {
+    if (!toggle) continue;
+    toggle.setAttribute("aria-expanded", expanded);
+    toggle.setAttribute("aria-label", label);
+  }
 }
 
 export function bindCompactEffectsToggle({
   previewPill,
   moreEffectsButton,
+  iconStrip = null,
   effectsCount,
+  hiddenCount = effectsCount - 1,
   requestToggle,
 }) {
   const handleToggle = async (event) => {
@@ -1192,19 +1379,26 @@ export function bindCompactEffectsToggle({
     syncCompactEffectsToggleState({
       previewPill,
       moreEffectsButton,
+      iconStrip,
       effectsCount,
       opened,
+      hiddenCount,
     });
   };
 
-  moreEffectsButton.addEventListener("pointerdown", (event) => event.stopPropagation());
-  moreEffectsButton.addEventListener("click", handleToggle);
-  previewPill.addEventListener("pointerdown", (event) => event.stopPropagation());
-  previewPill.addEventListener("click", handleToggle);
-  previewPill.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    void handleToggle(event);
-  });
+  if (moreEffectsButton) {
+    moreEffectsButton.addEventListener("pointerdown", (event) => event.stopPropagation());
+    moreEffectsButton.addEventListener("click", handleToggle);
+  }
+  for (const toggle of [previewPill, iconStrip]) {
+    if (!toggle) continue;
+    toggle.addEventListener("pointerdown", (event) => event.stopPropagation());
+    toggle.addEventListener("click", handleToggle);
+    toggle.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      void handleToggle(event);
+    });
+  }
 
   return handleToggle;
 }
@@ -1252,7 +1446,7 @@ export function enableCompactCardRename({
     },
     saveName,
     restoreName: (displayedName) => {
-      name.textContent = displayedName;
+      name.textContent = compactCardDisplayName(displayedName);
       name.title = displayedName;
     },
     onError,
@@ -1282,10 +1476,121 @@ export function buildCompactLegendaryResourcePips(
   return pips;
 }
 
+// The status row of a compact card is 80px wide (92px, less padding and border). Lot L2 of the tracker UI study: the
+// legendary pips share it with the first effect's label (7px diamonds and, for the resistances, 8px shields, 1px apart,
+// 2px between the row's parts). Below COMPACT_PREVIEW_PILL_MIN_WIDTH the label would show two letters ("Sc…"): it is
+// then not drawn, and "+N" counts every effect. pipSize: the diamonds' side (LEG_PIPS_CFG.size in initiativeList.js);
+// the shields are one pixel larger (initiativeCardBossClassic.js).
+const COMPACT_STATUS_ROW_WIDTH = 80;
+export const COMPACT_PREVIEW_PILL_MIN_WIDTH = 34;
+
+// The status row's room left by the legendary pips, in px.
+function compactStatusRoom({ legendaryMax = 0, resistanceMax = 0, pipSize = 7 } = {}) {
+  const group = (count, size) => {
+    const pips = Math.max(0, Math.floor(Number(count) || 0));
+    return pips ? pips * size + (pips - 1) + 2 : 0;
+  };
+  const size = Math.max(0, Number(pipSize) || 0);
+  return COMPACT_STATUS_ROW_WIDTH - group(legendaryMax, size) - group(resistanceMax, size + 1);
+}
+
+export function compactPreviewPillFits({ legendaryMax = 0, resistanceMax = 0, pipSize = 7 } = {}) {
+  return compactStatusRoom({ legendaryMax, resistanceMax, pipSize }) >= COMPACT_PREVIEW_PILL_MIN_WIDTH;
+}
+
+// Lot L3 of the tracker UI study: the status row of a compact card. The effects with an emoji of their own (the
+// conditions, Ira…) come first, as 16px squares 2px apart, as many as fit; in the room left, the first effect without
+// one as a label, if it keeps four letters; "+N" counts the rest, and the drawer lists every effect with its name. With
+// no condition the row is the one of lot L2: the first effect as a label (none when the legendary pips leave it two
+// letters), the rest in the drawer. Returns { icons, preview, hiddenCount, drawer }.
+const COMPACT_ICON_CHIP_SIZE = 16;
+const COMPACT_ICON_CHIP_GAP = 2;
+
+export function compactStatusLayout(effects, { legendaryMax = 0, resistanceMax = 0, pipSize = 7 } = {}) {
+  const list = Array.isArray(effects) ? effects.filter(Boolean) : [];
+  const room = compactStatusRoom({ legendaryMax, resistanceMax, pipSize });
+  const iconEffects = list.filter((effect) => effect.icon);
+  if (!iconEffects.length) {
+    const preview = list.length && room >= COMPACT_PREVIEW_PILL_MIN_WIDTH ? list[0] : null;
+    return { icons: [], preview, hiddenCount: list.length - (preview ? 1 : 0), drawer: list.slice(preview ? 1 : 0) };
+  }
+  const step = COMPACT_ICON_CHIP_SIZE + COMPACT_ICON_CHIP_GAP;
+  const icons = iconEffects.slice(0, Math.max(1, Math.floor((room + COMPACT_ICON_CHIP_GAP) / step)));
+  const plain = list.filter((effect) => !effect.icon);
+  const left = room - icons.length * step;
+  const preview = plain.length && left >= COMPACT_PREVIEW_PILL_MIN_WIDTH ? plain[0] : null;
+  return { icons, preview, hiddenCount: list.length - icons.length - (preview ? 1 : 0), drawer: list };
+}
+
+// Lot L3: a condition of the compact row, its emoji in a square of its colour (iconColor, the border of its pill), with
+// its rounds or level in a small white disc. Its name is in the title and in the drawer.
+export function buildCompactConditionIconChip(effect, { documentRef = globalThis.document } = {}) {
+  const document = compactDocument(documentRef);
+  const chip = document.createElement("span");
+  chip.dataset.compactConditionIcon = "1";
+  if (effect.instanceId) chip.dataset.conditionInstanceId = effect.instanceId;
+  chip.title = effect.title || effect.label;
+  const color = /^#[0-9a-f]{6}$/iu.test(String(effect.iconColor || "")) ? effect.iconColor : "#e5e7eb";
+  Object.assign(chip.style, {
+    position: "relative",
+    width: `${COMPACT_ICON_CHIP_SIZE}px`,
+    height: `${COMPACT_ICON_CHIP_SIZE}px`,
+    flex: "0 0 auto",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxSizing: "border-box",
+    border: `1px solid ${color}`,
+    borderRadius: "5px",
+    background: "rgba(7,11,18,.92)",
+    boxShadow: "0 1px 4px rgba(0,0,0,.45)",
+  });
+  const emoji = document.createElement("span");
+  emoji.dataset.compactConditionEmoji = "1";
+  emoji.setAttribute("aria-hidden", "true");
+  emoji.textContent = effect.icon;
+  Object.assign(emoji.style, {
+    fontSize: "10px",
+    lineHeight: "1",
+    pointerEvents: "none",
+  });
+  chip.appendChild(emoji);
+  const count = Math.max(0, Math.floor(Number(effect.iconCount) || 0));
+  if (count) {
+    const badge = document.createElement("span");
+    badge.dataset.compactConditionIconCount = "1";
+    badge.textContent = String(count);
+    Object.assign(badge.style, {
+      position: "absolute",
+      right: "-4px",
+      bottom: "-4px",
+      minWidth: "10px",
+      height: "10px",
+      padding: "0 2px",
+      boxSizing: "border-box",
+      borderRadius: "5px",
+      background: "#f8fafc",
+      color: "#0b1220",
+      fontFamily: "var(--obrt-font-ui)",
+      fontSize: "8px",
+      fontWeight: "800",
+      lineHeight: "10px",
+      textAlign: "center",
+      pointerEvents: "none",
+    });
+    chip.appendChild(badge);
+  }
+  return chip;
+}
+
 export function buildCompactCardStatus(
   compactEffects,
   {
-    hasExpandableEffects = compactEffects.length > 1,
+    // compactStatusLayout's answer. With conditions the row is drawn from it (buildCompactIconStatusRow, lot L3);
+    // without, its label decides showPreview (lot L2).
+    layout = null,
+    showPreview = layout && !layout.icons?.length ? !!layout.preview || !compactEffects.length : true,
+    hasExpandableEffects = compactEffects.length > (showPreview ? 1 : 0),
     effectsPopoverOpen = false,
     spellColor = null,
     onTerminateClassFeature = null,
@@ -1320,7 +1625,16 @@ export function buildCompactCardStatus(
     background: "transparent",
     fontFamily: "inherit",
   });
-
+  if (layout?.icons?.length) {
+    return buildCompactIconStatusRow(status, compactEffects, layout, {
+      hasExpandableEffects,
+      effectsPopoverOpen,
+      spellColor,
+      onTerminateClassFeature,
+      onSpellActions,
+      document,
+    });
+  }
   let previewPill = null;
   let effectSlot = null;
   if (compactEffects.length) {
@@ -1328,13 +1642,17 @@ export function buildCompactCardStatus(
     Object.assign(effectSlot.style, {
       position: "relative",
       minWidth: "0",
-      flex: "1 1 auto",
+      // Without the label (lot L2) the slot holds only "+N", at its own width.
+      flex: showPreview ? "1 1 auto" : "0 0 auto",
       height: "14px",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
       overflow: "visible",
     });
+    status.appendChild(effectSlot);
+  }
+  if (compactEffects.length && showPreview) {
     previewPill = __buildCompactEffectPill(previewEffect, true, {
       spellColor,
       onTerminateClassFeature,
@@ -1369,45 +1687,22 @@ export function buildCompactCardStatus(
       effectSlot.appendChild(pillHitArea);
     }
     effectSlot.appendChild(previewPill);
-    status.appendChild(effectSlot);
   }
 
   let moreEffectsButton = null;
   if (hasExpandableEffects) {
-    moreEffectsButton = document.createElement("button");
-    moreEffectsButton.type = "button";
-    moreEffectsButton.dataset.cardSelectionIgnore = "1";
-    // "+N" counts the hidden effects (the label is set by syncCompactEffectsToggleState), so it never reads as "add".
-    Object.assign(moreEffectsButton.style, {
-      position: "absolute",
-      top: "calc(100% + 1px)",
-      left: "50%",
-      minWidth: "16px",
-      height: "16px",
-      padding: "0 4px",
-      boxSizing: "border-box",
-      alignItems: "center",
-      justifyContent: "center",
-      border: "1px solid rgba(255,255,255,.34)",
-      borderRadius: "999px",
-      background: "rgba(8,12,21,.92)",
-      color: "#fff",
-      fontFamily: "inherit",
-      fontSize: "var(--obrt-type-micro, 10px)",
-      fontWeight: "800",
-      lineHeight: "1",
-      cursor: "pointer",
-      boxShadow: "0 1px 4px rgba(0,0,0,.45)",
-      transform: "translateX(-50%)",
-      zIndex: "22",
-    });
-    moreEffectsButton.__hitArea = extendHitArea(moreEffectsButton, { documentRef: document });
+    moreEffectsButton = createCompactMoreEffectsButton(document);
+    // Without the label (lot L2) "+N" takes its place in the row instead of hanging below it.
+    if (!previewPill) {
+      Object.assign(moreEffectsButton.style, { position: "relative", top: "auto", left: "auto", transform: "none" });
+    }
     effectSlot.appendChild(moreEffectsButton);
     syncCompactEffectsToggleState({
       previewPill,
       moreEffectsButton,
       effectsCount: compactEffects.length,
       opened: effectsPopoverOpen,
+      hiddenCount: compactEffects.length - (previewPill ? 1 : 0),
     });
   }
 
@@ -1416,7 +1711,121 @@ export function buildCompactCardStatus(
     effectSlot,
     previewPill,
     moreEffectsButton,
+    iconStrip: null,
   };
+}
+
+// "+N" under the status row: it counts the hidden effects (the label is set by syncCompactEffectsToggleState), so it
+// never reads as "add".
+function createCompactMoreEffectsButton(document) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.cardSelectionIgnore = "1";
+  Object.assign(button.style, {
+    position: "absolute",
+    top: "calc(100% + 1px)",
+    left: "50%",
+    minWidth: "16px",
+    height: "16px",
+    padding: "0 4px",
+    boxSizing: "border-box",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "1px solid rgba(255,255,255,.34)",
+    borderRadius: "999px",
+    background: "rgba(8,12,21,.92)",
+    color: "#fff",
+    fontFamily: "inherit",
+    fontSize: "var(--obrt-type-micro, 10px)",
+    fontWeight: "800",
+    lineHeight: "1",
+    cursor: "pointer",
+    boxShadow: "0 1px 4px rgba(0,0,0,.45)",
+    transform: "translateX(-50%)",
+    zIndex: "22",
+  });
+  button.__hitArea = extendHitArea(button, { documentRef: document });
+  return button;
+}
+
+// Lot L3: the status row with conditions (compactStatusLayout): their squares, the first effect without one as a label
+// when it fits, "+N" under the row for the rest. The squares, the label and "+N" all open the drawer, which has every
+// name.
+function buildCompactIconStatusRow(status, compactEffects, layout, {
+  hasExpandableEffects,
+  effectsPopoverOpen,
+  spellColor,
+  onTerminateClassFeature,
+  onSpellActions,
+  document,
+}) {
+  status.style.position = "relative";
+  const iconStrip = document.createElement("span");
+  iconStrip.dataset.compactConditionIcons = "1";
+  iconStrip.dataset.cardSelectionIgnore = "1";
+  Object.assign(iconStrip.style, {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: `${COMPACT_ICON_CHIP_GAP}px`,
+    flex: "0 0 auto",
+    height: `${COMPACT_ICON_CHIP_SIZE}px`,
+    cursor: hasExpandableEffects ? "pointer" : "default",
+    pointerEvents: "auto",
+  });
+  for (const effect of layout.icons) iconStrip.appendChild(buildCompactConditionIconChip(effect, { documentRef: document }));
+  if (hasExpandableEffects) {
+    iconStrip.setAttribute("role", "button");
+    iconStrip.setAttribute("tabindex", "0");
+  }
+  status.appendChild(iconStrip);
+
+  let effectSlot = null;
+  let previewPill = null;
+  if (layout.preview) {
+    effectSlot = document.createElement("div");
+    Object.assign(effectSlot.style, {
+      position: "relative",
+      minWidth: "0",
+      flex: "1 1 auto",
+      height: "14px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      overflow: "visible",
+    });
+    const previewEffect = Array.isArray(layout.preview.summaryParts)
+      ? { ...layout.preview, summaryParts: [] }
+      : layout.preview;
+    previewPill = __buildCompactEffectPill(previewEffect, true, {
+      spellColor,
+      onTerminateClassFeature,
+      onSpellActions,
+      documentRef: document,
+    });
+    previewPill.style.flex = "1 1 100%";
+    if (hasExpandableEffects) {
+      previewPill.setAttribute("role", "button");
+      previewPill.setAttribute("tabindex", "0");
+      previewPill.style.cursor = "pointer";
+    }
+    effectSlot.appendChild(previewPill);
+    status.appendChild(effectSlot);
+  }
+
+  let moreEffectsButton = null;
+  if (layout.hiddenCount > 0) {
+    moreEffectsButton = createCompactMoreEffectsButton(document);
+    status.appendChild(moreEffectsButton);
+  }
+  syncCompactEffectsToggleState({
+    previewPill,
+    moreEffectsButton,
+    iconStrip,
+    effectsCount: compactEffects.length,
+    opened: effectsPopoverOpen,
+    hiddenCount: layout.hiddenCount,
+  });
+  return { status, effectSlot, previewPill, moreEffectsButton, iconStrip };
 }
 
 export function deriveCompactCardPresentation(
@@ -1451,7 +1860,14 @@ export function deriveCompactCardPresentation(
     ? (disclosure && disclosure.mode !== "exact" ? Math.max(0, hp) : quickHPStateOf({ hp, hpMax }).hp)
     : 0;
   const hpPercent = hasHP ? Math.max(0, Math.min(1, safeHP / hpMax)) : 0;
-  const knockedOut = showHP && !entry?.__groupCollapsed && safeHP <= 0;
+  // Lot L4 of the tracker UI study: the state the tracker built from the real HP (entry.vitalState), for every viewer
+  // whatever the HP disclosure (D3a); without it (older callers, the tests) the KO of the visible HP, as before.
+  const vitalState = virtual || entry?.__groupCollapsed
+    ? VITAL_STATE.ALIVE
+    : entry?.vitalState || (showHP && safeHP <= 0 ? VITAL_STATE.DOWN : VITAL_STATE.ALIVE);
+  const knockedOut = vitalState !== VITAL_STATE.ALIVE;
+  const dead = vitalState === VITAL_STATE.DEAD;
+  const deathSaves = trackerDeathSaves({ attitude, vitalState, conditions: entry?.conditions, deathSaves: entry?.deathSaves });
   const effectMembers = entry?.__groupCollapsed ? [] : members;
 
   return {
@@ -1470,6 +1886,8 @@ export function deriveCompactCardPresentation(
     safeHP,
     hpPercent,
     knockedOut,
+    dead,
+    deathSaves,
     effectMembers,
   };
 }

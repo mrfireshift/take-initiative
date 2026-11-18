@@ -24,7 +24,7 @@ import {
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill, syncHPBatchToMemory } from "./hpMemory.js";
 import { isSharedHpInitiativeExcluded, sharedHpScopeIds, planSharedHpMutation } from "./sharedHpCore.js";
 import { sharedHpTrackerChildren, refreshSharedHpTrackerChildren } from "./sharedHpTrackerCore.js";
-import { refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, CONDITION_EMOJI, formatConditionName, formatConditionInstance, getConditionInstances, getEffectiveConditionInstances } from "./conditions";
+import { refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, CONDITION_EMOJI, conditionAccentColor, conditionIconEmoji, formatConditionName, formatConditionInstance, getConditionInstances, getEffectiveConditionInstances } from "./conditions";
 import { isQuickCondition, quickConditionMenuEntries, quickConditionToggleTargets } from "./quickConditionsCore.js";
 import { buildSpellChips, getVisibleSpellsFromItem, adjustSpellsForItems } from "./spells.js";
 import {
@@ -278,7 +278,12 @@ import {
   buildCompactCardStatus,
   buildCompactLegendaryResourcePips,
   buildCompactVirtualTurnLabel,
-  compactStatusBadge,
+  buildCompactConcentrationBadge,
+  buildDeathSavePips,
+  buildVitalStateBadge,
+  DEAD_CARD_FILTER,
+  KNOCKED_OUT_CARD_FILTER,
+  compactStatusLayout,
   deriveCompactCardPresentation,
   enableCompactCardRename,
   appendCompactEffectsDrawer,
@@ -291,6 +296,7 @@ import {
   writeHPBarTempSegment,
 } from "./initiativeCardCompact.js";
 import { quickHPBarSegments, quickHPStateOf } from "./quickHpCore.js";
+import { isDeadByCondition, trackerVitalState, trackerVitalStateAtZero } from "./trackerVitalStateCore.js";
 import { compactScrollFadeEdges } from "./compactScrollFadeCore.js";
 import {
   compactTrackerGroupProgress,
@@ -339,6 +345,8 @@ import { appendCompactCompanionDrawer } from "./compactCompanionDrawer.js";
 import { turnShortcutDirection } from "./turnShortcutCore.js";
 import { buildTieReorderHandle, realTieInitiatives, showsTieReorderHandle } from "./tieReorderCore.js";
 import { canOpenInitiativeCardSheet } from "./initiativeCardSheetAccessCore.js";
+import { installHPBarSlide } from "./hpBarSlide.js";
+import { smoothScrollBehavior } from "./motionPreference.js";
 
   // Configurazione condizioni per tag card
 export const CONDITIONS = [
@@ -1080,16 +1088,19 @@ const BOSS_PORTRAIT_FRAME_SCALE_COMPACT = 1.3;
 const BOSS_PORTRAIT_FRAME_MASK = "radial-gradient(circle at 50% 50%, transparent 0 43%, #000 44%)";
 
 // --- ZOOM CONFIG GLOBALE ---
+// Lot M1 of the animations study (docs/STUDIO_ANIMAZIONI.md): the active card grows in 380ms with the "ease" curve in
+// both views (it was 500ms here and 160ms in the compact view), the same timing as the groups; the card that loses
+// the turn leaves the active look with the same timing (__fadeOutPreviousActiveCard).
 const ZOOM_CFG = {
   scale: 1.035,                                   // enfasi attiva senza invadere le card adiacenti
-  dur:   500,                                      // ms
-  ease:  "cubic-bezier(.16,.84,.22,1)"             // easing morbido
+  dur:   380,                                      // ms
+  ease:  "cubic-bezier(.25,.1,.25,1)"
 };
 
 function __applyZoomTransition(el) {
   const dur = ZOOM_CFG.dur;
   // NB: box-shadow un filo più corto, height come prima
-  el.style.transition = `transform ${dur}ms ${ZOOM_CFG.ease}, scale ${dur}ms ${ZOOM_CFG.ease}, box-shadow ${Math.max(120, dur - 40)}ms ease, height .15s ease`;
+  el.style.transition = `transform ${dur}ms ${ZOOM_CFG.ease}, scale ${dur}ms ${ZOOM_CFG.ease}, box-shadow ${Math.max(120, dur - 40)}ms ease, height var(--obrt-motion-fast, 120ms) ease`;
 }
 
 // Applica una transform senza animazione, poi ripristina la transition desiderata
@@ -2472,8 +2483,8 @@ Object.assign(movementReadout.style, {
   boxSizing: "border-box",
   display: "none",
   flexDirection: "column",
-  gap: "6px",
-  padding: "8px 10px",
+  gap: "5px",
+  padding: "6px 8px",
   border: "1px solid rgba(148,163,184,.22)",
   borderRadius: "14px",
   background: "linear-gradient(180deg, rgba(16,21,31,.78), rgba(7,11,18,.72))",
@@ -2487,16 +2498,18 @@ Object.assign(movementReadoutLine.style, {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  gap: "6px",
-  fontSize: "11px",
+  gap: "5px",
+  fontSize: "10px",
 });
-// The name is the only part of the line that gives way when it is short: the mode and the numbers keep their width.
+// The name, on the first row with the metres (layout X): it gives way before them, with an ellipsis. The panel's texts
+// are one step smaller than before, never below 10px.
 const movementReadoutValue = document.createElement("strong");
 Object.assign(movementReadoutValue.style, {
-  flex: "0 1 auto",
+  flex: "1 1 auto",
   minWidth: "0",
   overflow: "hidden",
-  fontSize: "13px",
+  fontSize: "12px",
+  lineHeight: "1.15",
   fontWeight: "700",
   fontVariantNumeric: "tabular-nums",
   textOverflow: "ellipsis",
@@ -2566,7 +2579,7 @@ Object.assign(movementReadoutMeta.style, {
 const movementReadoutMeters = document.createElement("span");
 Object.assign(movementReadoutMeters.style, {
   color: "#fff",
-  fontSize: "12px",
+  fontSize: "11px",
   fontWeight: "700",
 });
 const movementReadoutCells = document.createElement("span");
@@ -2583,7 +2596,7 @@ Object.assign(movementReadoutBar.style, {
   height: "100%",
   borderRadius: "inherit",
   background: "#3b82f6",
-  transition: "width 80ms linear, background-color 120ms ease",
+  transition: "width 80ms linear, background-color var(--obrt-motion-fast, 120ms) ease",
 });
 movementReadoutTrack.appendChild(movementReadoutBar);
 const movementCompactLimitControl = document.createElement("label");
@@ -2611,21 +2624,21 @@ movementCompactLimitControl.appendChild(movementCompactLimitCheckbox);
 // The mode and its speed beside the name. A tile with the menu when the GM can choose among several modes, plain text
 // otherwise (syncMovementModeSelect); the base speed and the conditions are in the tooltip.
 const movementModeChip = document.createElement("span");
-// It keeps its width: with a long name, the name gives way, never the speed.
+// It takes the row's width beside the lock and the reset, at their height (layout X).
 Object.assign(movementModeChip.style, {
   position: "relative",
-  flex: "0 0 auto",
+  flex: "1 1 auto",
   minWidth: "0",
-  height: "20px",
+  height: "26px",
   display: "inline-flex",
   alignItems: "center",
   boxSizing: "border-box",
   padding: "0",
   border: "1px solid transparent",
-  borderRadius: "7px",
+  borderRadius: "8px",
   background: "transparent",
   color: "rgba(203,213,225,.88)",
-  fontSize: "11px",
+  fontSize: "10px",
   fontWeight: "600",
   whiteSpace: "nowrap",
 });
@@ -2646,15 +2659,15 @@ const movementLimitControl = document.createElement("label");
 movementLimitControl.title = "Limita movimento: chi va oltre il residuo torna indietro";
 Object.assign(movementLimitControl.style, {
   position: "relative",
-  flex: "0 0 22px",
-  width: "22px",
-  height: "22px",
+  flex: "0 0 26px",
+  width: "26px",
+  height: "26px",
   display: "none",
   alignItems: "center",
   justifyContent: "center",
   boxSizing: "border-box",
   border: "1px solid rgba(148,163,184,.24)",
-  borderRadius: "7px",
+  borderRadius: "8px",
   color: "#fff",
   cursor: "pointer",
 });
@@ -2689,20 +2702,31 @@ movementLimitCheckbox.addEventListener("blur", () => {
   movementLimitControl.style.outline = "";
 });
 
+// Layout X of the movement panel (18/11): the name and the metres on the first row; the mode (the whole row's width),
+// the lock and the reset on the second; Scatto and Bonus on the third; the bar last. Every control is 26px tall.
+// For the players the mode is plain text, at the left edge like the bar under it.
+const movementReadoutHead = document.createElement("div");
+Object.assign(movementReadoutHead.style, {
+  display: "flex",
+  alignItems: "center",
+  gap: "6px",
+  minWidth: "0",
+  // The squares after the metres ("· 3/10") at the panel's 10px; the name and the metres set their own.
+  fontSize: "10px",
+});
+movementReadoutHead.append(movementReadoutValue, movementReadoutMeta);
 movementReadoutLine.append(
-  movementReadoutValue,
   movementModeChip,
-  movementReadoutMeta,
   movementCompactLimitControl,
   movementLimitControl,
 );
-// The second row: the allowance (Scatto, Bonus) and, apart, the reset that brings the token back. Always open for the
-// GM, with no click to show it; the players never see it (syncMovementControlsAccess).
+// The third row: the allowance (Scatto, Bonus). Always open for the GM, with no click to show it; the players never see
+// it (syncMovementControlsAccess).
 const movementDetails = document.createElement("div");
 Object.assign(movementDetails.style, {
   display: "none",
   alignItems: "center",
-  gap: "6px",
+  gap: "5px",
 });
 const movementDashStepper = makeMovementStepper(
   "Scatto ×0",
@@ -2719,16 +2743,12 @@ const movementBonusStepper = makeMovementStepper(
 for (const stepper of [movementDashStepper, movementBonusStepper]) {
   stepper.wrap.style.flex = "1 1 0";
   stepper.wrap.style.minWidth = "0";
+  // One step smaller, as the rest of the panel; the − + buttons keep their size. The tile is 26px tall (2px of padding
+  // and 1px of border around the 20px buttons), with the radius of the lock and the reset.
+  stepper.value.style.fontSize = "10px";
+  stepper.wrap.style.borderRadius = "8px";
 }
-const movementResetDivider = document.createElement("span");
-movementResetDivider.setAttribute("aria-hidden", "true");
-Object.assign(movementResetDivider.style, {
-  flex: "0 0 1px",
-  width: "1px",
-  height: "18px",
-  background: "rgba(148,163,184,.24)",
-});
-// It also moves the token back to where the turn started: the same ↺ as Reset round, set apart from the "+".
+// It also moves the token back to where the turn started: the same ↺ as Reset round, beside the lock on the mode's row.
 const movementResetButton = document.createElement("button");
 movementResetButton.type = "button";
 movementResetButton.textContent = "↺";
@@ -2754,13 +2774,9 @@ Object.assign(movementResetButton.style, {
   lineHeight: "1",
   cursor: "pointer",
 });
-movementDetails.append(
-  movementDashStepper.wrap,
-  movementBonusStepper.wrap,
-  movementResetDivider,
-  movementResetButton,
-);
-movementReadout.append(movementReadoutLine, movementReadoutTrack, movementDetails);
+movementReadoutLine.append(movementResetButton);
+movementDetails.append(movementDashStepper.wrap, movementBonusStepper.wrap);
+movementReadout.append(movementReadoutHead, movementReadoutLine, movementDetails, movementReadoutTrack);
 topRow.appendChild(movementReadout);
 
 // The controls act on the movement state, which lives in the GM's tracker: the players get the summary alone. The
@@ -2768,6 +2784,7 @@ topRow.appendChild(movementReadout);
 function syncMovementControlsAccess() {
   movementDetails.style.display = IS_GM && !isCompactTrackerLayout() ? "flex" : "none";
   movementLimitControl.style.display = IS_GM ? "inline-flex" : "none";
+  movementResetButton.style.display = IS_GM && !isCompactTrackerLayout() ? "inline-flex" : "none";
 }
 
 // The expanded tracker writes the metres in bold and the squares beside them; the compact text stays as it was.
@@ -2868,6 +2885,10 @@ function syncMovementModeSelect(snapshot) {
     Object.assign(movementSpeedCell.style, {
       cursor: selectable ? "pointer" : "default",
       padding: selectable ? "0 18px 0 6px" : "0",
+      // As plain text (the players, or a single mode) it has no frame: its first letter lines up with the bar's start.
+      borderWidth: selectable ? "1px" : "0",
+      // A control's height only with the menu; as text the row is as tall as the lock and the reset beside it, if any.
+      height: selectable ? "26px" : "auto",
       background: selectable ? "rgba(255,255,255,.05)" : "transparent",
       borderColor: selectable && focused ? "rgba(96,165,250,.75)" : movementModeRestingBorder(),
     });
@@ -2991,6 +3012,8 @@ track.style.gap = "6px";
 track.style.paddingTop = "8px";
 track.style.paddingBottom = "8px";
 trackWrap.appendChild(track);
+// Lot M5 of the animations study: the HP bars slide to their new width (src/hpBarSlide.js; only the drawing).
+installHPBarSlide(track);
 // Lot U11 (UX-08): the GM's empty tracker says so and offers "Aggiungi attori", the header's "+" (in the compact
 // layout, the "…" menu's). Players see nothing. Beside the track, not in it: the card renders replace the track's nodes.
 const trackerEmptyNotice = document.createElement("div");
@@ -3318,7 +3341,7 @@ function buildEffectsDisplayModeArrow(symbol, label) {
     textAlign: "center",
     cursor: "pointer",
     userSelect: "none",
-    transition: "background 140ms ease, color 140ms ease, transform 140ms ease",
+    transition: "background var(--obrt-motion-fast, 120ms) ease, color var(--obrt-motion-fast, 120ms) ease, transform var(--obrt-motion-fast, 120ms) ease",
   });
   button.addEventListener("pointerenter", () => {
     button.style.background = "rgba(96,165,250,.18)";
@@ -4243,8 +4266,8 @@ function applyTrackerLayout() {
       minWidth: "",
       flex: "",
       pointerEvents: "auto",
-      gap: "6px",
-      padding: "8px 10px",
+      gap: "5px",
+      padding: "6px 8px",
       borderRadius: "14px",
       textAlign: "left",
       cursor: "default",
@@ -5479,6 +5502,13 @@ function entryFromSceneItem(it, characterBuildBySourceId = null) {
     hp: (meta.hp ?? null),
     hpMax: (meta.hpMax ?? null),
     tempHp: (meta.tempHp ?? null),
+    // Lot L4 of the tracker UI study: alive, down (KO) or dead (skull), from the real HP before the players'
+    // projection strips them (D3a); the state at 0 HP and the condition Morto let syncTrackerHPNow draw the right
+    // badge between two renders; a PC's death saves for the card.
+    vitalState: trackerVitalState({ attitude: meta.attitude, hp: meta.hp, hpMax: meta.hpMax, conditions: meta.conditions }),
+    vitalStateAtZero: trackerVitalStateAtZero({ attitude: meta.attitude, conditions: meta.conditions }),
+    deadByCondition: isDeadByCondition(meta.conditions),
+    deathSaves: meta.deathSaves ?? null,
     isEpic: !!meta.epic,
     paragonActions:
       (meta.paragon && Number(meta.paragon.actions) > 0)
@@ -7008,10 +7038,11 @@ function getEditingHPForId() {
   }
 
   function clamp01(n){ return Math.max(0, Math.min(1, n)); }
+  // The map bars' colours (hpbar-items.js, the --obrt-hp-* tokens), so the tracker and the map show one bar (lot L2).
   function hpColorByPct(p){
-    if (p > 0.66) return "#16a34a"; // verde
-    if (p > 0.33) return "#facc15"; // giallo
-    return "#dc2626";               // rosso
+    if (p > 0.66) return "#22c55e"; // verde
+    if (p > 0.33) return "#f59e0b"; // ambra
+    return "#ef4444";               // rosso
   }
 
   // Mostra "cur/max"; se cur > max, colora cur per indicare Temp HP
@@ -7063,15 +7094,22 @@ function syncTrackerHPNow(itemId, hp, hpMax, tempHp = null) {
   for (const card of cards) {
     const canSeeHP = card.dataset.hpCanSee === "1";
     const showHP = canSeeHP && hasHP;
-    const knockedOut = showHP && card.dataset.groupCollapsed !== "1" && nHP <= 0;
+    const downByHP = showHP && card.dataset.groupCollapsed !== "1" && nHP <= 0;
+    // Lot L4 of the tracker UI study: the condition Morto keeps the skull whatever the HP; at 0 HP the card shows what
+    // the next render will draw (KO, or the skull of a creature that is not a PC).
+    const deadByCondition = card.dataset.deadByCondition === "1";
+    const knockedOut = downByHP || deadByCondition;
+    const dead = deadByCondition || (downByHP && card.dataset.vitalAtZero === "dead");
     card.dataset.hpVisible = showHP ? "1" : "0";
     card.dataset.knockedOut = knockedOut ? "1" : "0";
-    card.style.filter = knockedOut
-      ? "saturate(.42) brightness(.72)"
-      : card.dataset.compactCard === "1" && card.dataset.active === "1"
-        ? "brightness(1.13)"
-        : "none";
-    card.style.opacity = knockedOut ? ".84" : "1";
+    card.style.filter = dead
+      ? DEAD_CARD_FILTER
+      : knockedOut
+        ? KNOCKED_OUT_CARD_FILTER
+        : card.dataset.compactCard === "1" && card.dataset.active === "1"
+          ? "brightness(1.13)"
+          : "none";
+    card.style.opacity = dead ? ".8" : knockedOut ? ".84" : "1";
 
     // The compact HP text carries data-badge="hp" for its editor (lot 6.4) but keeps its own format, written below.
     // The card's own HP, not a summon's or a shared-HP badge that may stand before it (the spell chip in the header).
@@ -7106,10 +7144,15 @@ function syncTrackerHPNow(itemId, hp, hpMax, tempHp = null) {
       if (fill.parentElement) fill.parentElement.style.display = showHP ? "block" : "none";
     }
 
+    // Lot L4: KO or the skull; a badge of the other kind gives way to the right one.
+    const vitalKind = dead ? "dead" : "down";
     let koBadge = card.querySelector("[data-card-ko-badge='1']");
+    if (koBadge && knockedOut && (koBadge.dataset.vitalState || "down") !== vitalKind) {
+      koBadge.remove();
+      koBadge = null;
+    }
     if (knockedOut && !koBadge) {
-      koBadge = compactStatusBadge("KO", `Fuori combattimento: 0 / ${nHPMax}`);
-      koBadge.dataset.cardKoBadge = "1";
+      koBadge = buildVitalStateBadge(vitalKind, { title: `Fuori combattimento: 0 / ${nHPMax}` });
       Object.assign(koBadge.style, card.dataset.compactCard === "1" ? {
         ...compactKnockedOutBadgeStyle(Number(card.dataset.portraitSize) || 49),
         pointerEvents: "none",
@@ -7121,9 +7164,12 @@ function syncTrackerHPNow(itemId, hp, hpMax, tempHp = null) {
       card.appendChild(koBadge);
     } else if (!knockedOut) {
       koBadge?.remove();
-    } else if (koBadge) {
+    } else if (koBadge && !dead) {
       koBadge.title = `Fuori combattimento: 0 / ${nHPMax}`;
     }
+    // The C of concentration gives way to the KO, as on a card drawn at 0 HP (lot L4).
+    const concentrationBadge = card.querySelector("[data-card-concentration-badge='1']");
+    if (concentrationBadge) concentrationBadge.style.display = knockedOut ? "none" : "";
   }
 }
 
@@ -7221,7 +7267,7 @@ function bindInitiativeEditorForEntry(badge, entry) {
           `[data-item-id="${entry.id}"]`
         );
         currentCard?.scrollIntoView?.({
-          behavior: "smooth",
+          behavior: smoothScrollBehavior(),
           block: "center",
           inline: "nearest",
         });
@@ -7291,7 +7337,7 @@ function bindInitiativeEditorForEntry(badge, entry) {
         nextBadge.scrollIntoView?.({
           block: "center",
           inline: "nearest",
-          behavior: "smooth",
+          behavior: smoothScrollBehavior(),
         });
         const nextInput = nextBadge.querySelector("input");
         if (nextInput) {
@@ -7584,7 +7630,7 @@ function bindHPEditorForEntry(
           nextPill.scrollIntoView?.({
             block: "center",
             inline: "nearest",
-            behavior: "smooth",
+            behavior: smoothScrollBehavior(),
           });
           requestAnimationFrame(() => {
             __suspendRenders = false;
@@ -7737,7 +7783,7 @@ async function openInitiativeFillCandidate(itemId, sceneEpoch = currentSceneEpoc
   const badge = document.querySelector(`[data-badge="init"][data-item-id="${itemId}"]`);
   if (!badge) return false;
   badge.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-  badge.scrollIntoView?.({ block: "center", inline: "nearest", behavior: "smooth" });
+  badge.scrollIntoView?.({ block: "center", inline: "nearest", behavior: smoothScrollBehavior() });
   return true;
 }
 
@@ -9217,8 +9263,9 @@ function __mountTrackerQuickActions(card, sourceEntry, { compact = false, anchor
   const epicAction = isEpicActionId(sourceEntry.id);
   const sourceId = epicAction ? String(sourceEntry.epicBossId || "") : splitParagonId(sourceEntry.id).baseId;
   if (!sourceId) return;
-  // On the compact card the column starts below the top-right corner when an Epic Boss's "E" holds it.
-  const belowCorner = compact && !!sourceEntry.isEpic;
+  // On the compact card the column starts below the top-right corner when a badge holds it: an Epic Boss's "E", or
+  // the "EP" of an Epic Action card, which the circle used to cover (lot L2 of the tracker UI study).
+  const belowCorner = compact && (!!sourceEntry.isEpic || epicAction);
   const host = anchor || card;
   let launchers = 0;
   // Boss Actions: the first circle of the launchers' column, at the top (a slot of its own above ⚡ in the classic
@@ -9777,6 +9824,10 @@ let __playerScreenProfileUnsubscribe = null;
 
 function __setTrackerViewZoom(scale) {
   document.documentElement.style.zoom = scale !== 1 ? String(scale) : "";
+  // Chrome's zoom multiplies vh too: the tracker's glass root (index.html) divides its 100vh by this, so it stays as
+  // tall as its popover instead of 1.5 times taller at 150% (studio UI del tracker, T1).
+  if (scale !== 1) document.documentElement.style.setProperty("--tbp-tracker-zoom", String(scale));
+  else document.documentElement.style.removeProperty("--tbp-tracker-zoom");
 }
 
 function __readTrackerViewScale() {
@@ -9917,12 +9968,19 @@ mountCompactTrackerResizeHandles({
   },
 });
 
-const GROUP_LAYOUT_ANIMATION_MS = 460;
+// Group transitions (seamless pass of 18/11): the movement starts at once and slows down at the end (C); the group's
+// card and its first member swap in two halves, one text out and then the other in, over the same frame (B); the cards
+// on the stage stand on an opaque base, so the ones still under the first never show through it (A).
+const GROUP_LAYOUT_ANIMATION_MS = 380;
 const GROUP_LAYOUT_STAGGER_MS = 34;
 const GROUP_LAYOUT_MAX_STAGGER_MS = 140;
-const GROUP_LAYOUT_EASING = "cubic-bezier(.45,0,.55,1)";
-const GROUP_CARD_SWAP_FADE_MS = 220;
+// "ease": moving within the first 100ms, but softly in the very first frames, so a long first frame (the bench measured
+// 25–35ms) is not a visible step.
+const GROUP_LAYOUT_EASING = "cubic-bezier(.25,.1,.25,1)";
+const GROUP_CARD_SWAP_HALF_MS = 90;
+const GROUP_CARD_SWAP_FADE_MS = GROUP_CARD_SWAP_HALF_MS * 2;
 const GROUP_CARD_SWAP_EASING = "cubic-bezier(.22,1,.36,1)";
+const GROUP_STAGE_OPAQUE_BASE = "rgb(31, 39, 51)";
 let __finishGroupLayoutTransition = null;
 let __activeGroupLayoutSignature = null;
 let __afterGroupLayoutTransition = null;
@@ -9960,7 +10018,7 @@ function __scrollTrackerCardIntoView(card) {
     return;
   }
   card.scrollIntoView?.({
-    behavior: "smooth",
+    behavior: smoothScrollBehavior(),
     block: compact ? "nearest" : "center",
     inline: compact ? "center" : "nearest",
   });
@@ -10193,23 +10251,115 @@ function __animateActiveCardEntrance(animateActive, expectedActiveId = null) {
   card.style.transition = "none";
   card.style.scale = "1";
   void card.offsetHeight;
-  card.style.transition = previousTransition;
-  card.style.scale = targetScale;
+  // Lot M1: the growth starts two frames later, past the long frame of the rebuilt cards (40–60ms on the bench), which
+  // made it stumble at its start.
+  // On a group's stage (the turn opening the group) the card has no transition (the stage sets none to place it) and
+  // grew in one frame: there it grows by an animation of its own, with the same timing (18/11).
+  const onStage = !!card.closest('[data-group-transition-stage="1"]');
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (!card.isConnected || card.dataset.active !== "1") return;
+    card.style.transition = previousTransition;
+    card.style.scale = targetScale;
+    if (onStage) {
+      card.animate?.([{ scale: "1" }, { scale: targetScale }], { duration: ZOOM_CFG.dur, easing: ZOOM_CFG.ease });
+    }
+  }));
   __initiativeDiag("animation:active-start", {
     activeId: card.dataset.itemId,
     layout: isCompactTrackerLayout() ? "compact" : "classic",
   });
 }
 
-function __groupAccordionFrames(dx, dy, baseTransform = "none") {
+// The active halo pulses in phase with the document's time origin (initiativeCardClassicBuilder.js), set once at its
+// first animationstart. A card taken out of the page and put back (a group's stage, the copy of M1) restarts its CSS
+// animation from the start: the halo dropped to its lowest point in one frame (18/11). Put back in phase at once, before
+// the frame is drawn (getAnimations creates the restarted animation).
+function __syncActiveTurnHalos(root) {
+  if (!root?.querySelectorAll) return;
+  for (const halo of root.querySelectorAll('[data-active-turn-halo="1"]')) {
+    for (const animation of halo.getAnimations?.() || []) animation.startTime = 0;
+  }
+}
+
+// Lot M1 of the animations study: the card that loses the turn is rebuilt without the active look, which vanished in one
+// frame while the new card grew. A still copy of it (not clickable, out of every query: no tracker data) is laid over the
+// rebuilt card and shrinks and fades with the new card's timing. Not for a card inside a group transition (its stage
+// carries the old card itself), nor with reduced motion.
+function __capturePreviousActiveCard() {
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) return null;
+  const live = Array.from(track.children).find((node) => node instanceof HTMLElement
+    && node.dataset.trackerCard === "1" && node.dataset.active === "1");
+  if (!live) return null;
+  return { live, itemId: live.dataset.itemId, scale: getComputedStyle(live).scale };
+}
+
+function __fadeOutPreviousActiveCard(capture) {
+  if (!capture) return;
+  const card = Array.from(track.children).find((node) => node instanceof HTMLElement
+    && node.dataset.trackerCard === "1" && node.dataset.itemId === capture.itemId);
+  if (!card || card.dataset.active === "1" || card === capture.live) return;
+  const ghost = capture.live.cloneNode(true);
+  for (const attribute of ["id", "data-tracker-card", "data-item-id", "data-active", "data-group-key", "draggable"]) {
+    ghost.removeAttribute(attribute);
+  }
+  ghost.dataset.activeTurnGhost = "1";
+  ghost.setAttribute("aria-hidden", "true");
+  ghost.inert = true;
+  // Laid on the rebuilt card, and kept on it frame by frame: when a group opens or closes with the turn every card is
+  // rebuilt, and those above it grow when their chip rows are measured (a frame later), so the copy placed once stayed
+  // 21px off the card for the whole fade, a second card in view (18/11).
+  const place = () => {
+    Object.assign(ghost.style, {
+      left: `${card.offsetLeft}px`,
+      top: `${card.offsetTop}px`,
+      width: `${card.offsetWidth}px`,
+      minWidth: `${card.offsetWidth}px`,
+      maxWidth: `${card.offsetWidth}px`,
+      height: `${card.offsetHeight}px`,
+    });
+  };
+  Object.assign(ghost.style, {
+    position: "absolute",
+    margin: "0",
+    zIndex: "4",
+    pointerEvents: "none",
+    transition: "none",
+  });
+  place();
+  track.appendChild(ghost);
+  const follow = () => {
+    if (!ghost.isConnected || !card.isConnected) return;
+    place();
+    requestAnimationFrame(follow);
+  };
+  requestAnimationFrame(follow);
+  __syncActiveTurnHalos(ghost);
+  const from = capture.scale && capture.scale !== "none" ? capture.scale : String(ZOOM_CFG.scale);
+  const animation = ghost.animate?.([
+    { opacity: 1, scale: from },
+    { opacity: 0, scale: "1" },
+  ], { duration: ZOOM_CFG.dur, easing: ZOOM_CFG.ease, fill: "forwards" });
+  if (!animation) {
+    ghost.remove();
+    return;
+  }
+  // Held on its first frame through the long frame of the rebuilt cards, as the new card's growth.
+  animation.pause();
+  requestAnimationFrame(() => requestAnimationFrame(() => animation.play()));
+  animation.finished.then(() => ghost.remove(), () => ghost.remove());
+  // Never left behind by a render that comes first.
+  window.setTimeout(() => ghost.remove(), ZOOM_CFG.dur + 400);
+}
+
+// A member between its place in the open group and its edge of the collapsed group's deck: `offset` along the list
+// back to the first card, then `deckShift` down and to the right, as groupDeckShadow draws the edges.
+function __groupDeckStackFrames(offset, deckShift = 0, baseTransform = "none") {
   const compact = isCompactTrackerLayout();
-  const axisX = compact ? dx : 0;
-  const axisY = compact ? 0 : dy;
-  const transformSuffix = baseTransform && baseTransform !== "none"
-    ? ` ${baseTransform}`
-    : "";
+  const x = (compact ? -offset : 0) + deckShift;
+  const y = (compact ? 0 : -offset) + deckShift;
+  const transformSuffix = baseTransform && baseTransform !== "none" ? ` ${baseTransform}` : "";
   return [
-    { transform: `translate(${axisX}px, ${axisY}px)${transformSuffix}` },
+    { transform: `translate(${x}px, ${y}px)${transformSuffix}` },
     { transform: baseTransform || "none" },
   ];
 }
@@ -10354,9 +10504,15 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
     const expandedSize = compact
       ? lastRecord.snapshot.layoutLeft + lastRecord.snapshot.width - firstSnapshot.layoutLeft
       : lastRecord.snapshot.layoutTop + lastRecord.snapshot.height - firstSnapshot.layoutTop;
-    const motherSize = compact
+    // The collapsed card keeps room beside or under it for the deck's edges (groupDeckRoom, 18/11): the stage counts it,
+    // or the list snapped by that much at the start of an opening and at the end of a closing.
+    const motherCard = type === "collapse" ? rendered[0].card : oldGroup[0].card;
+    const deckRoom = motherCard.dataset.groupDeck === "1"
+      ? Number.parseFloat(compact ? motherCard.style.marginRight : motherCard.style.marginBottom) || 0
+      : 0;
+    const motherSize = deckRoom + (compact
       ? (type === "collapse" ? rendered[0].snapshot.width : oldGroup[0].snapshot.width)
-      : (type === "collapse" ? rendered[0].snapshot.height : oldGroup[0].snapshot.height);
+      : (type === "collapse" ? rendered[0].snapshot.height : oldGroup[0].snapshot.height));
     const stageWidth = compact
       ? (type === "collapse" ? expandedSize : expandedSize)
       : Math.max(...source.map(({ snapshot }) => snapshot.width));
@@ -10386,23 +10542,22 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
     let finalCards = [];
     let finalLead = null;
     let finalLeadStyle = null;
+    let finalLeadColor = "";
     let swapVisual = null;
 
     if (type === "collapse") {
       finalLead = rendered[0].card;
       finalLeadStyle = finalLead.getAttribute("style");
+      finalLeadColor = getComputedStyle(finalLead).backgroundColor;
       finalLead.replaceWith(stage);
       oldGroup.forEach(({ card, snapshot }, index) => {
         const visual = card;
-        const activeVisual = visual.dataset.active === "1";
         visual.removeAttribute("id");
         const offset = setAbsoluteCard(visual, snapshot, firstSnapshot, stageWidth, stageHeight);
         visual.style.zIndex = index === 0 ? "1000" : String(900 - index);
-        // Le card attive usano il gradiente/opacità della fazione. Un
-        // backgroundColor pieno qui lo copriva durante la chiusura del gruppo
-        // e faceva sparire anche la percezione dello zoom attivo.
-        if (!activeVisual) visual.style.backgroundColor = "rgb(31, 39, 51)";
-        else visual.style.backgroundColor = "";
+        // An opaque base under every card, the active one too (animations study, 18/11): the active card's faction
+        // gradient is a background image and stays over it, and the members under it no longer show through.
+        visual.style.backgroundColor = GROUP_STAGE_OPAQUE_BASE;
         stage.appendChild(visual);
         if (index === 0) swapVisual = visual;
         else movingRecords.push({ card: visual, offset, baseTransform: snapshot.baseTransform, index: index - 1, count: oldGroup.length - 1 });
@@ -10413,6 +10568,9 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
       finalLead.style.top = compact ? `${(stageHeight - finalSnapshot.height) / 2}px` : "0";
       finalLead.style.visibility = "hidden";
       finalLead.style.zIndex = "1001";
+      // On the same opaque base as the card it fades in over: two opaque cards with the same frame crossfade as a clean
+      // blend; on its own translucent colour the frame's gradient showed twice, a colour step at the end (18/11).
+      finalLead.style.backgroundColor = GROUP_STAGE_OPAQUE_BASE;
       stage.appendChild(finalLead);
       finalCards = [finalLead];
     } else {
@@ -10421,9 +10579,14 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
       for (const { card, snapshot } of rendered) {
         const originalStyle = card.getAttribute("style");
         const offset = setAbsoluteCard(card, snapshot, firstSnapshot, stageWidth, stageHeight);
-        card.style.zIndex = card === firstCard ? "1000" : "800";
+        // The nearer a member is to the first card, the higher: as the deck's edges, the first edge over the second.
+        card.style.zIndex = card === firstCard ? "1000" : String(900 - movingRecords.length);
         stage.appendChild(card);
-        movingRecords.push({ card, offset, baseTransform: snapshot.baseTransform, originalStyle, index: movingRecords.length, count: rendered.length });
+        // A: the members leave from under the first card; on their own colours (translucent) they showed through it.
+        // The active card too: when the turn opens the group, the first member is the new active card, and on its
+        // translucent colours the members under it showed through (animations study, 18/11).
+        const baseColor = getComputedStyle(card).backgroundColor;
+        movingRecords.push({ card, offset, baseTransform: snapshot.baseTransform, originalStyle, baseColor, index: movingRecords.length, count: rendered.length });
       }
       const oldLead = oldGroup[0];
       swapVisual = oldLead.card;
@@ -10432,6 +10595,9 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
       swapVisual.style.left = compact ? "0" : `${(stageWidth - oldLead.snapshot.width) / 2}px`;
       swapVisual.style.top = compact ? `${(stageHeight - oldLead.snapshot.height) / 2}px` : "0";
       swapVisual.style.zIndex = "1001";
+      // The opaque base here too: fading out over the first member's frame on its translucent colour, the gradient
+      // showed twice for a moment (a colour bump at the start, 18/11).
+      swapVisual.style.backgroundColor = GROUP_STAGE_OPAQUE_BASE;
       stage.appendChild(swapVisual);
       finalCards = rendered.map(({ card }) => card);
     }
@@ -10447,6 +10613,8 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
     stages.push({
       key,
       type,
+      // The deck's step (groupDeckShadow): the members pile into its edges, not under the first card.
+      deckStep: deckRoom / 2,
       stage,
       initialSize,
       finalSize,
@@ -10457,6 +10625,7 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
       finalLead,
       finalLeadStyle,
       finalLeadOpacity: finalLead?.style.opacity || "1",
+      finalLeadColor,
       swapVisual,
       transitionDuration,
     });
@@ -10464,6 +10633,8 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
 
   trackWrap.scrollLeft = Math.min(scrollLeftBefore, Math.max(0, trackWrap.scrollWidth - trackWrap.clientWidth));
   trackWrap.scrollTop = Math.min(scrollTopBefore, Math.max(0, trackWrap.scrollHeight - trackWrap.clientHeight));
+  // The cards moved onto the stages restarted their halo's pulse.
+  __syncActiveTurnHalos(track);
 
   const animations = [];
   const play = (element, frames, options) => {
@@ -10489,7 +10660,14 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
         }
         if (record.stage.isConnected) record.stage.replaceWith(...record.finalCards);
       }
+      // The styles put back were taken before the turn changed: the selection's glow too, which the Focus token had
+      // moved during the transition (the new active card lost its glow at the end, the group's card got back the one
+      // of the member that had the turn). The selection of now, as the cards showed it on the stage.
+      for (const card of record.finalCards) {
+        if (card?.dataset?.trackerCard === "1") __applyTrackerSelectionState(card);
+      }
     }
+    __syncActiveTurnHalos(track);
     for (const promoted of promotedCards) {
       promoted.card.style.willChange = promoted.willChange;
       promoted.card.style.backfaceVisibility = promoted.backfaceVisibility;
@@ -10540,23 +10718,19 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
             Math.max(0, moving.count - 1 - moving.index) * GROUP_LAYOUT_STAGGER_MS,
             GROUP_LAYOUT_MAX_STAGGER_MS
           );
-          play(moving.card, __groupAccordionFrames(
-            compact ? -moving.offset : 0,
-            compact ? 0 : -moving.offset,
-            moving.baseTransform
-          ), {
+          // C: the frames themselves run backwards (not direction "reverse", which also reverses the easing), so the
+          // closing starts at once as the opening does. Each member lands on its edge of the deck (the first one
+          // step down and right, the others two steps), where the group's card draws that edge as it fades in.
+          play(moving.card, __groupDeckStackFrames(moving.offset, record.deckStep * Math.min(moving.index + 1, 2), moving.baseTransform)
+            .reverse(), {
             duration: GROUP_LAYOUT_ANIMATION_MS,
             delay: reverseDelay,
             easing: GROUP_LAYOUT_EASING,
-            direction: "reverse",
             fill: "both",
           });
         } else if (moving.offset > 0) {
-          play(moving.card, __groupAccordionFrames(
-            compact ? -moving.offset : 0,
-            compact ? 0 : -moving.offset,
-            moving.baseTransform
-          ), {
+          // The members leave from the deck's edges, where the group's card drew them.
+          play(moving.card, __groupDeckStackFrames(moving.offset, record.deckStep * Math.min(moving.index, 2), moving.baseTransform), {
             duration: GROUP_LAYOUT_ANIMATION_MS,
             delay: Math.min(Math.max(0, moving.index - 1) * GROUP_LAYOUT_STAGGER_MS, GROUP_LAYOUT_MAX_STAGGER_MS),
             easing: GROUP_LAYOUT_EASING,
@@ -10565,26 +10739,116 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
         }
       }
 
+      // The member that had the turn, when the turn closes the group, leaves the active look as a card that loses the
+      // turn out of a group does (lot M1, the same timing): it went into the deck large and bright until it vanished.
+      if (record.type === "collapse") {
+        for (const card of [record.swapVisual, ...record.movingRecords.map((moving) => moving.card)]) {
+          if (card?.dataset?.active !== "1") continue;
+          const style = getComputedStyle(card);
+          const from = style.scale && style.scale !== "none" ? style.scale : "1";
+          play(card, [
+            { scale: from, filter: style.filter || "none" },
+            { scale: "1", filter: "none" },
+          ], { duration: ZOOM_CFG.dur, easing: ZOOM_CFG.ease, fill: "forwards" });
+          for (const halo of card.querySelectorAll('[data-active-turn-halo="1"]')) {
+            play(halo, [{ opacity: 0 }], { duration: ZOOM_CFG.dur, easing: ZOOM_CFG.ease, fill: "forwards" });
+          }
+        }
+      }
+
+      // What differs between the group's card and its first member (names, hit points and their bar, chips, the small
+      // buttons): every leaf element but the portrait, the initiative, the frame's full-size layers and the active halo,
+      // which are the same in both and stay still (fading them too, the card went blank for a moment).
+      // Whole blocks (the name's row, the hit points' row and bar, the buttons), not their leaves, or the buttons' empty
+      // circles and the bar's track stayed: a block holding the portrait or the initiative is entered, the others fade.
+      const STILL = '[data-badge="init"], [title*="niziativa"], [data-active-turn-halo="1"]';
+      const contentOf = (card) => {
+        const cardWidth = card.getBoundingClientRect().width;
+        const isPortrait = (element) => element.tagName === "IMG" && element.getBoundingClientRect().width >= 40;
+        const holdsStill = (element) => element.matches(STILL) || isPortrait(element)
+          || !!element.querySelector(STILL)
+          || Array.from(element.querySelectorAll("img")).some(isPortrait);
+        const blocks = [];
+        const walk = (parent) => {
+          for (const child of parent.children) {
+            if (child.matches(STILL) || isPortrait(child)) continue;
+            const rect = child.getBoundingClientRect();
+            if (!rect.width || !rect.height) continue;
+            // The frame's layers span the whole card; the compact rows (name, hit points) span 87% of it.
+            if (holdsStill(child) || rect.width > cardWidth * 0.97) {
+              walk(child);
+              continue;
+            }
+            blocks.push(child);
+          }
+        };
+        walk(card);
+        return blocks;
+      };
       if (record.type === "expand") {
+        // A: an opaque base under every card on the stage, back to the card's own colour as the movement ends.
+        for (const moving of record.movingRecords) {
+          if (!moving.baseColor) continue;
+          play(moving.card, [
+            { backgroundColor: GROUP_STAGE_OPAQUE_BASE },
+            { backgroundColor: GROUP_STAGE_OPAQUE_BASE, offset: 0.8 },
+            { backgroundColor: moving.baseColor },
+          ], { duration: record.transitionDuration, easing: "linear", fill: "both" });
+        }
+        // B: the group's card fades out over the first member's frame, whose content then fades in: one text at a time.
         play(record.swapVisual, [{ opacity: 1 }, { opacity: 0 }], {
-          duration: GROUP_CARD_SWAP_FADE_MS,
+          duration: GROUP_CARD_SWAP_HALF_MS,
           easing: GROUP_CARD_SWAP_EASING,
           fill: "forwards",
         });
+        const firstMember = record.finalCards[0];
+        for (const part of firstMember ? contentOf(firstMember) : []) {
+          play(part, [{ opacity: 0 }, { opacity: 1 }], {
+            duration: GROUP_CARD_SWAP_HALF_MS,
+            delay: GROUP_CARD_SWAP_HALF_MS,
+            easing: GROUP_CARD_SWAP_EASING,
+            fill: "backwards",
+          });
+        }
       } else {
         const fadeDelay = record.transitionDuration - GROUP_CARD_SWAP_FADE_MS;
-        play(record.swapVisual, [{ opacity: 1 }, { opacity: 0 }], {
-          duration: GROUP_CARD_SWAP_FADE_MS,
-          delay: fadeDelay,
-          easing: GROUP_CARD_SWAP_EASING,
+        // B: the first member's text goes first, then the group's card comes in over the same frame as the member's
+        // card leaves, in the second half.
+        for (const part of contentOf(record.swapVisual)) {
+          play(part, [{ opacity: 1 }, { opacity: 0 }], {
+            duration: GROUP_CARD_SWAP_HALF_MS,
+            delay: fadeDelay,
+            easing: GROUP_CARD_SWAP_EASING,
+            fill: "forwards",
+          });
+        }
+        // The member's card stays whole under the group's card until that one is in: both on the opaque base, the
+        // group's card covers it (it used to leave in a 60ms fade over a translucent card, a colour step). Then, with
+        // nothing left under it, the group's card goes from the opaque base back to its own colour over the panel in the
+        // 60ms before the stage goes (finish, +80ms): the base is near the panel's colour, never exactly (18/11).
+        play(record.swapVisual, [{ opacity: 0 }], {
+          duration: 1,
+          delay: fadeDelay + GROUP_CARD_SWAP_FADE_MS,
           fill: "forwards",
         });
+        if (record.finalLeadColor) {
+          play(record.finalLead, [
+            { backgroundColor: GROUP_STAGE_OPAQUE_BASE },
+            { backgroundColor: record.finalLeadColor },
+          ], {
+            duration: 60,
+            delay: fadeDelay + GROUP_CARD_SWAP_FADE_MS,
+            easing: "linear",
+            fill: "forwards",
+          });
+        }
         // Lot U13: the members fade out with the old lead while the group's card fades in, so their names never
         // show through it (they used to finish under it, readable until the end).
+        // On the deck's edges, they leave while the group's card draws those edges: the same half, crossfaded.
         for (const moving of record.movingRecords) {
           play(moving.card, [{ opacity: 0 }], {
-            duration: GROUP_CARD_SWAP_FADE_MS,
-            delay: fadeDelay,
+            duration: GROUP_CARD_SWAP_HALF_MS,
+            delay: fadeDelay + GROUP_CARD_SWAP_HALF_MS,
             easing: GROUP_CARD_SWAP_EASING,
             fill: "forwards",
           });
@@ -10594,8 +10858,8 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
           { opacity: 0 },
           { opacity: Number.parseFloat(record.finalLeadOpacity) || 1 },
         ], {
-          duration: GROUP_CARD_SWAP_FADE_MS,
-          delay: fadeDelay,
+          duration: GROUP_CARD_SWAP_HALF_MS,
+          delay: fadeDelay + GROUP_CARD_SWAP_HALF_MS,
           easing: GROUP_CARD_SWAP_EASING,
           fill: "backwards",
         });
@@ -10608,23 +10872,31 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
     );
     const initialStageSizes = stages.map((record) => record.initialSize);
     const finalStageSizes = stages.map((record) => record.finalSize);
-    onGroupTransitionStart?.({
-      duration: totalDuration,
-      measureProgress: () => compactTrackerGroupProgress(
-        initialStageSizes,
-        finalStageSizes,
-        stages.map((record) => {
-          const rect = record.stage.getBoundingClientRect();
-          return compactTrackerStageSize(
-            compact ? rect.width : rect.height,
-            record.finalSize,
-            record.stage.isConnected,
-          );
-        }),
-      ),
+    // The frame right after the stage is built is a long one (20–35ms on the bench, laying out the rebuilt cards).
+    // With a movement that starts at once (C) that frame became a visible step: the animations wait in their first
+    // frame, held at the start, and run from the next one.
+    for (const animation of animations) animation.pause?.();
+    requestAnimationFrame(() => {
+      if (finished) return;
+      for (const animation of animations) animation.play?.();
+      onGroupTransitionStart?.({
+        duration: totalDuration,
+        measureProgress: () => compactTrackerGroupProgress(
+          initialStageSizes,
+          finalStageSizes,
+          stages.map((record) => {
+            const rect = record.stage.getBoundingClientRect();
+            return compactTrackerStageSize(
+              compact ? rect.width : rect.height,
+              record.finalSize,
+              record.stage.isConnected,
+            );
+          }),
+        ),
+      });
+      __revealExpandingGroup(stages, compact, () => finished);
+      window.setTimeout(finish, totalDuration + 80);
     });
-    __revealExpandingGroup(stages, compact, () => finished);
-    window.setTimeout(finish, totalDuration + 80);
   });
   return true;
 }
@@ -10688,17 +10960,19 @@ function __compactTrackerFrameOrigin(trackerAnchor) {
   };
 }
 
-async function __toggleCompactEffectsPopover(card, effectAnchor, entryId, effects) {
+async function __toggleCompactEffectsPopover(card, effectAnchor, entryId, effects, minEffects = 2) {
   // The effects open in a drawer beside the card (appendCompactEffectsDrawer), drawn by the render, one card at a
-  // time; no more popover under the bar (closed here in case an earlier version left it open).
-  if (!effects?.length || effects.length < 2) return false;
+  // time; no more popover under the bar (closed here in case an earlier version left it open). effects: the drawer's
+  // own list (compactStatusLayout, lots L2 and L3), which opens with one effect (minEffects 1); the default 2 is the
+  // older rule, on the card's whole list.
+  if (!effects?.length || effects.length < minEffects) return false;
   __expandedCompactEffectsId = __expandedCompactEffectsId === entryId ? null : entryId;
   await OBR.popover.close(COMPACT_EFFECTS_POPOVER_ID).catch(() => {});
   await renderAll("compact-effects-drawer");
   const opened = __expandedCompactEffectsId === entryId;
   if (opened) {
     const drawer = track.querySelector(`[data-item-id="${entryId}"] [data-compact-effects-drawer="1"]`);
-    drawer?.scrollIntoView?.({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    drawer?.scrollIntoView?.({ block: "nearest", inline: "nearest", behavior: smoothScrollBehavior() });
   }
   return opened;
 }
@@ -10745,6 +11019,8 @@ function renderCompactTrack(
       safeHP,
       hpPercent,
       knockedOut,
+      dead,
+      deathSaves,
       effectMembers,
     } = deriveCompactCardPresentation(entry, activeId, { isGM: IS_GM, virtual });
     const faction = factionColors(attitude);
@@ -10761,8 +11037,24 @@ function renderCompactTrack(
       spellKey: __spellKey,
       concentrationSpellKey: entry.concSpellKey,
       showEffectSummaryParts,
+      // Lot L3 of the tracker UI study: the conditions shown as their emoji alone, in a square of their pill's colour.
+      conditionEmoji: conditionIconEmoji,
+      conditionAccent: conditionAccentColor,
     });
-    const hasExpandableEffects = compactEffects.length > 1;
+    const legendary = members.find((member) => Number(member.legendary?.max) > 0)?.legendary;
+    const legendaryResistances = members.find(
+      (member) => Number(member.legendaryResistances?.max) > 0
+    )?.legendaryResistances;
+    // Lots L2 and L3 of the tracker UI study (compactStatusLayout): the conditions as their emoji, the first other
+    // effect as a label when it keeps four letters beside them and the legendary pips, "+N" for the rest; the drawer
+    // lists them.
+    const statusLayout = compactStatusLayout(compactEffects, {
+      legendaryMax: legendary?.max,
+      resistanceMax: legendaryResistances?.max,
+      pipSize: LEG_PIPS_CFG.size,
+    });
+    // A row of conditions opens the drawer even when nothing is left out: the drawer has the names.
+    const hasExpandableEffects = statusLayout.hiddenCount > 0 || statusLayout.icons.length > 0;
 
     const dragAllowed = !(virtual || entry.isEpic);
     const card = buildCompactCardShell(entry, {
@@ -10774,12 +11066,17 @@ function renderCompactTrack(
       canSeeHP,
       showHP,
       knockedOut,
+      dead,
       hasExpandableEffects,
       groupKey: entry.__groupKey || __groupKey(entry),
       selectionItemIds: __selectionIdsForEntry(entry),
       dragAllowed,
       zoomScale: ZOOM_CFG.scale,
     });
+    // Lot L4: what syncTrackerHPNow draws when the HP fall to 0 between renders (KO or the skull), and the condition
+    // Morto, which keeps the skull whatever the HP.
+    card.dataset.vitalAtZero = entry.vitalStateAtZero || "down";
+    card.dataset.deadByCondition = entry.deadByCondition ? "1" : "0";
 
     card.addEventListener("click", (event) => {
       if (event.target.closest("button, [role='button']")) return;
@@ -10837,12 +11134,21 @@ function renderCompactTrack(
       hpMax,
       hpPercent,
       knockedOut,
+      dead,
       hpColorByPct,
       portraitSize,
     });
     // syncTrackerHPNow places a KO that appears between renders from it.
     card.dataset.portraitSize = String(portraitSize);
     if (knockedOutBadge) card.appendChild(knockedOutBadge);
+    // Lot L4: a PC's death saves where its empty bar was; concentration as a C on the portrait, where a KO would sit.
+    const deathSavePips = deathSaves ? buildDeathSavePips(deathSaves, { size: 7 }) : null;
+    if (deathSavePips) deathSavePips.style.marginTop = "1px";
+    if (concentrating && !knockedOut) {
+      card.appendChild(buildCompactConcentrationBadge(portraitSize, {
+        title: entry.concSpellName ? `Concentrazione: ${entry.concSpellName}` : "Concentrazione",
+      }));
+    }
     // HP in one click (lot 6.4): the classic card's inline editor and save path, for the same cards as the classic
     // (GM; not collapsed groups, Lair turns or Epic Actions). The compact card has no ± button.
     if (
@@ -10878,17 +11184,14 @@ function renderCompactTrack(
       });
     }
 
-    const legendary = members.find((member) => Number(member.legendary?.max) > 0)?.legendary;
-    const legendaryResistances = members.find(
-      (member) => Number(member.legendaryResistances?.max) > 0
-    )?.legendaryResistances;
-
     const effectsPopoverOpen = __expandedCompactEffectsId === entry.id;
     const {
       status,
       previewPill,
       moreEffectsButton,
+      iconStrip,
     } = buildCompactCardStatus(compactEffects, {
+      layout: statusLayout,
       hasExpandableEffects,
       effectsPopoverOpen,
       spellColor: __spellColor,
@@ -10930,7 +11233,7 @@ function renderCompactTrack(
       "Resistenze leggendarie",
     );
 
-    card.append(portrait, name, ...(virtualTurnLabel ? [virtualTurnLabel] : []), hpText, hpTrack, status);
+    card.append(portrait, name, ...(virtualTurnLabel ? [virtualTurnLabel] : []), hpText, deathSavePips || hpTrack, status);
     __mountTrackerQuickActions(card, entry, { compact: true });
     // Reorder at equal initiative (lot 6.8): a grip shown on hover, on the cards of a real tie.
     if (showsTieReorderHandle(entry, tieInitiatives, { isGM: IS_GM, isVirtualId: __isVirtualTrackerId })) {
@@ -10938,7 +11241,7 @@ function renderCompactTrack(
     }
     // The other effects, when opened, in a drawer on the card's right (before the companions' tab).
     if (hasExpandableEffects && effectsPopoverOpen) {
-      const effectsDrawer = appendCompactEffectsDrawer(card, compactEffects.slice(1), {
+      const effectsDrawer = appendCompactEffectsDrawer(card, statusLayout.drawer, {
         spellColor: __spellColor,
         onTerminateClassFeature: IS_GM
           ? (instance) => __terminateClassFeatureOnTrackerCard(entry.__paragonBaseId || entry.id, instance)
@@ -10986,16 +11289,22 @@ function renderCompactTrack(
         selectedIds: __selectedSceneItemIds,
       },
     );
-    if (hasExpandableEffects && !previewPill?.dataset.referenceEntry) {
+    // A concentration label opens its spell's reference instead; beside the conditions, their row and "+N" still open
+    // the drawer (lot L3). The drawer opens with what compactStatusLayout puts in it, one effect being enough (lot L2).
+    const referencePreview = !!previewPill?.dataset.referenceEntry;
+    if (hasExpandableEffects && (!referencePreview || iconStrip)) {
       bindCompactEffectsToggle({
-        previewPill,
+        previewPill: referencePreview ? null : previewPill,
         moreEffectsButton,
+        iconStrip,
         effectsCount: compactEffects.length,
+        hiddenCount: statusLayout.hiddenCount,
         requestToggle: () => __toggleCompactEffectsPopover(
           card,
-          previewPill,
+          previewPill || iconStrip || moreEffectsButton,
           entry.id,
-          compactEffects,
+          statusLayout.drawer,
+          1,
         ),
       });
     }
@@ -11013,6 +11322,7 @@ function renderCompactTrack(
     return true;
   }
 
+  const previousActive = animateActive && activeChanged ? __capturePreviousActiveCard() : null;
   const groupResizeScheduled = __replaceTrackCardsAnimated(nodes, {
     onGroupTransitionStart: ({ measureProgress, duration }) => {
       resizeCompactTrackerPopover(visibleEntries, {
@@ -11021,6 +11331,7 @@ function renderCompactTrack(
       });
     },
   });
+  __fadeOutPreviousActiveCard(previousActive);
   __animateActiveCardEntrance(animateActive && activeChanged, activeId);
   if (__expandedCompactEffectsId && !nodes.some((node) =>
     node.dataset.itemId === __expandedCompactEffectsId && node.dataset.hasEffectOverflow === "1"
@@ -11125,6 +11436,7 @@ function buildClassicTrackerCardForRender(entry, state, nextId) {
       hpPolicy: projectionPolicy.hp,
       effectsPolicy: projectionPolicy.effects,
       bossDetails: projectionPolicy.bossDetails,
+      deathSaves: projectionPolicy.deathSaves,
     });
     if (compactLayout) {
       const boardTokenCompanionMap = spellBoardTokenCompanionsByCasterId(__spellBoardTokenItems);
@@ -11212,7 +11524,9 @@ for (const e of entries) {
       return true;
     }
 
+    const previousActive = animateActive && currentActiveId !== __lastRenderedActiveId ? __capturePreviousActiveCard() : null;
     __replaceTrackCardsAnimated(nodes);
+    __fadeOutPreviousActiveCard(previousActive);
     __animateActiveCardEntrance(animateActive, currentActiveId);
     updateActiveCardMovementIndicator(latestMovementSnapshot);
 

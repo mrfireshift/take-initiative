@@ -681,7 +681,8 @@ test("il nome compatto distingue gruppo, attivo e card ordinaria", () => {
     { active: false, documentRef },
   );
 
-  assert.equal(activeGroup.textContent, "Goblin (Gruppo)");
+  // Choice B (18/11): the deck and the xN badge say it is a group; the name stays whole.
+  assert.equal(activeGroup.textContent, "Goblin");
   assert.equal(activeGroup.title, "Goblin (x3)");
   assert.equal(activeGroup.style.color, "#fff");
   assert.equal(activeGroup.style.fontWeight, "700");

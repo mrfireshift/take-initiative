@@ -106,7 +106,7 @@ h1 {
   font-size: var(--obrt-close-font, 18px);
   line-height: 1;
   cursor: pointer;
-  transition: background-color .12s ease;
+  transition: background-color var(--obrt-motion-fast, 120ms) ease;
 }
 
 .close:hover { background: var(--obrt-close-hover, rgba(255, 255, 255, .08)); }
@@ -196,7 +196,7 @@ main {
   border-radius: 10px;
   background: var(--aura-surface);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
-  transition: opacity .15s ease, background-color .15s ease, border-color .15s ease;
+  transition: opacity var(--obrt-motion-fast, 120ms) ease, background-color var(--obrt-motion-fast, 120ms) ease, border-color var(--obrt-motion-fast, 120ms) ease;
 }
 
 .aura-summary-card:hover {
@@ -338,7 +338,7 @@ main {
   cursor: pointer;
   padding: 1px 4px;
   border-radius: 4px;
-  transition: background-color .14s ease, color .14s ease;
+  transition: background-color var(--obrt-motion-fast, 120ms) ease, color var(--obrt-motion-fast, 120ms) ease;
 }
 
 .preset-link-action:hover {
@@ -384,7 +384,7 @@ main {
   border-radius: 8px;
   background: rgba(15, 23, 42, .35);
   overflow: hidden;
-  transition: border-color .15s ease;
+  transition: border-color var(--obrt-motion-fast, 120ms) ease;
 }
 
 .sub-card.is-open {
@@ -399,7 +399,7 @@ main {
   cursor: pointer;
   user-select: none;
   background: rgba(255, 255, 255, .02);
-  transition: background-color .14s ease;
+  transition: background-color var(--obrt-motion-fast, 120ms) ease;
 }
 
 .sub-card-head:hover {
@@ -435,7 +435,7 @@ main {
   flex: 0 0 auto;
   color: var(--aura-subtle);
   font-size: 11px;
-  transition: transform .18s ease;
+  transition: transform var(--obrt-motion-base, 180ms) ease;
 }
 
 .chevron.open {
@@ -481,7 +481,7 @@ main {
   border: 1px solid var(--aura-line);
   border-radius: 9px;
   background: var(--aura-surface);
-  transition: background-color .14s ease;
+  transition: background-color var(--obrt-motion-fast, 120ms) ease;
 }
 
 .preset-item:hover {
@@ -641,7 +641,7 @@ textarea {
   outline: 0;
   background: var(--aura-field);
   color: var(--aura-text);
-  transition: border-color .14s ease, box-shadow .14s ease;
+  transition: border-color var(--obrt-motion-fast, 120ms) ease, box-shadow var(--obrt-motion-fast, 120ms) ease;
 }
 
 input[type="number"],
@@ -716,7 +716,7 @@ input[type="range"] {
   cursor: pointer;
   font-size: var(--obrt-type-body, 13px);
   font-weight: var(--obrt-weight-semibold, 600);
-  transition: background-color .14s ease, border-color .14s ease, transform .14s ease;
+  transition: background-color var(--obrt-motion-fast, 120ms) ease, border-color var(--obrt-motion-fast, 120ms) ease, transform var(--obrt-motion-fast, 120ms) ease;
 }
 
 .button:hover:not(:disabled) {
@@ -751,7 +751,7 @@ input[type="range"] {
   cursor: pointer;
   font-size: 12px;
   font-weight: var(--obrt-weight-medium, 500);
-  transition: background-color .14s ease, border-color .14s ease;
+  transition: background-color var(--obrt-motion-fast, 120ms) ease, border-color var(--obrt-motion-fast, 120ms) ease;
 }
 
 .button-sm:hover:not(:disabled) {

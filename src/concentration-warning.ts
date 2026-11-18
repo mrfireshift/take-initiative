@@ -1,6 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { lazyModule } from "./lazyModule.js";
+import { leaveNoticeThen } from "./noticeLeave.js";
 import { perfBootPage } from "./perfProbe.js";
 
 perfBootPage(OBR);
@@ -53,6 +54,7 @@ type Warning = {
 };
 
 let hideTimer = 0;
+let leaveTimer = 0;
 let activeWarnings: Warning[] = [];
 let noticeRole = "PLAYER";
 let roleReady = false;
@@ -124,20 +126,28 @@ function closePopoverSdk() {
   return OBR.popover.close(runtimeScope.popoverId);
 }
 
+// Lot M2 of the animations study: the warning fades, then the host hears it closed and the popup closes; a new warning
+// cancels the closing.
 function closePopover() {
   window.clearTimeout(hideTimer);
-  void OBR.broadcast.sendMessage(
-    HOST_CHANNEL,
-    { type: "concentration-warning-closed", ...runtimeMessageScope() },
-    { destination: "LOCAL" },
-  ).catch(() => {});
-  void closePopoverSdk().catch(() => {});
+  if (leaveTimer) return;
+  leaveTimer = leaveNoticeThen(document.querySelectorAll("#app .warning"), () => {
+    leaveTimer = 0;
+    void OBR.broadcast.sendMessage(
+      HOST_CHANNEL,
+      { type: "concentration-warning-closed", ...runtimeMessageScope() },
+      { destination: "LOCAL" },
+    ).catch(() => {});
+    void closePopoverSdk().catch(() => {});
+  });
 }
 
 function render(role: string, warnings: Warning[] = warningsFromURL()) {
   const app = document.getElementById("app");
   if (!app) return;
   window.clearTimeout(hideTimer);
+  window.clearTimeout(leaveTimer);
+  leaveTimer = 0;
   activeWarnings = warnings;
   app.replaceChildren();
   if (!warnings.length) {
