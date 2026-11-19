@@ -1290,7 +1290,7 @@ Fonte: [PROVA_STANZA_AUDIT_UX.md](PROVA_STANZA_AUDIT_UX.md), punto 2. Fatto il 3
   - l'icona della reazione non compare su nessuna card.
 
   Il GM vede tutto come prima. Nel menu **Il mio schermo** nessun testo finisce sotto le tendine.
-- [ ] **Versione:** **Opzioni → Manutenzione → Versione in uso** mostra «Versione 1.5.0 · commit del …» con la sigla del commit.
+- [ ] **Versione:** **Opzioni → Manutenzione → Versione in uso** mostra «Versione 2.0.0 · commit del …» con la sigla del commit.
 
 ### C3. Riposo del gruppo (U6′)
 

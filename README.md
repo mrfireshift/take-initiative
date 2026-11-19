@@ -6,9 +6,9 @@ progettata soprattutto per il gioco **in presenza**: il Dungeon Master usa
 Owlbear Rodeo dal proprio computer, mentre una seconda finestra player-side
 viene proiettata su uno schermo orizzontale appoggiato sul tavolo.
 
-La versione dichiarata dal progetto è **v1.3.0**. Questa documentazione
-descrive lo stato corrente del repository, comprese le funzioni sviluppate
-dopo la stabilizzazione 1.3 e non ancora raccolte in una nuova release.
+La versione corrente è **v2.0.0**. Questa documentazione descrive lo stato
+del repository; il commit esatto della build in uso si legge in
+**Opzioni → Manutenzione → Versione in uso**.
 
 ## Cosa fa
 
