@@ -1,0 +1,1 @@
+function i(){return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches?0:180}function a(r,n){const t=Array.from(r||[]).filter(e=>e?.isConnected);for(const e of t)e.classList.add("is-leaving");const o=t.length?i():0;return o?window.setTimeout(n,o):(n(),0)}export{a as l};

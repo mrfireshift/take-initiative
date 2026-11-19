@@ -13,7 +13,7 @@
         position: relative;
         overflow: hidden;
         color: #fff;
-        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         pointer-events: none;
       }
       #notice-stack {
@@ -66,7 +66,7 @@
         opacity: 0;
         transform: translate(0, -8px);
         transform-origin: top center;
-        transition: opacity 180ms ease, transform 220ms ease;
+        transition: opacity var(--obrt-motion-base, 180ms) ease, transform 220ms ease;
         will-change: opacity, transform;
       }
       .notice.is-visible { opacity: 1; transform: translate(0, 0); }
@@ -270,7 +270,9 @@
           inset 0 -18px 30px rgba(0,0,0,.22);
         transform: none;
         transform-origin: top center;
+        transition: opacity var(--obrt-motion-base, 180ms) ease, transform var(--obrt-motion-base, 180ms) ease;
       }
+      .zone-notice.is-leaving { opacity: 0; transform: translate(0, 5px); }
       .zone-notice::before {
         position: absolute;
         inset: 4px 6px;
@@ -319,7 +321,7 @@
       .zone-eyebrow {
         margin-bottom: 2px;
         color: var(--accent);
-        font-family: system-ui, -apple-system, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         font-size: var(--obrt-type-micro, 10px);
         font-weight: 800;
         letter-spacing: .6px;
@@ -358,7 +360,7 @@
         border: 1px solid rgba(255, 255, 255, .18);
         background: rgba(255, 255, 255, .08);
         color: rgba(255, 255, 255, .70);
-        font-family: system-ui, -apple-system, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         font-size: var(--obrt-type-micro, 10px);
         font-weight: 700;
         line-height: 1.2;
@@ -417,7 +419,7 @@
         display: inline-flex;
         align-items: center;
         color: rgba(255, 255, 255, .82);
-        font-family: system-ui, -apple-system, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         font-size: var(--obrt-type-micro, 10px);
         font-weight: 700;
         line-height: 1.2;
@@ -477,7 +479,7 @@
         border-radius: 4px;
         background: rgba(4, 8, 13, .82);
         color: #fff;
-        font: 700 10px/1 system-ui, sans-serif;
+        font: 700 10px/1 var(--obrt-font-ui);
         pointer-events: auto;
       }
       .zone-resolution button {
@@ -590,38 +592,39 @@
         .zone-title { font-size: 14px; }
       }
     </style>
-    <script type="module" crossorigin src="/assets/turnNotice-BPxxTkLh.js"></script>
+    <script type="module" crossorigin src="/assets/turnNotice-BQrCfjX9.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
     <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
     <link rel="modulepreload" crossorigin href="/assets/index-Bb_Y0rOR.js">
     <link rel="modulepreload" crossorigin href="/assets/sceneEpoch-B8A8dIDk.js">
     <link rel="modulepreload" crossorigin href="/assets/sceneItemEvents-CiCl9ZLV.js">
+    <link rel="modulepreload" crossorigin href="/assets/noticeLeave-DlPm-Ql_.js">
     <link rel="modulepreload" crossorigin href="/assets/maxHpModifierCore-BZ0RBpki.js">
     <link rel="modulepreload" crossorigin href="/assets/distance3dCore-BOSJN9RO.js">
-    <link rel="modulepreload" crossorigin href="/assets/effectSaveReminderCore-CvK1MfcV.js">
+    <link rel="modulepreload" crossorigin href="/assets/effectSaveReminderCore-D3qYSA04.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeStyle-BBl-cwqV.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-D9UI-Ijo.js">
     <link rel="modulepreload" crossorigin href="/assets/customAuraCore-Cig87-uH.js">
     <link rel="modulepreload" crossorigin href="/assets/effectLabelCore-BVOJN7Do.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-CM7bcLiC.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-2Xhixdb2.js">
     <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-DbzB9Q20.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellAreaRules-CrOdnEDM.js">
-    <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-UUCeFxtv.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellAreaRules-CSrDx-34.js">
+    <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-DLqCdYHA.js">
     <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-BtPRaIe-.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-LEBe4-t7.js">
-    <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-CJid37NX.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-D0tb1b7D.js">
+    <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-DVHa6bIL.js">
     <link rel="modulepreload" crossorigin href="/assets/lazyModule-BEU7KMxf.js">
     <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-D6mSkJ7O.js">
     <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementClient-BgQYp9Lz.js">
     <link rel="modulepreload" crossorigin href="/assets/turnNotice-BIDK-JRW.js">
     <link rel="modulepreload" crossorigin href="/assets/fiveToolsArchiveCore-tLcUxIcx.js">
     <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-DFHVk58p.js">
-    <link rel="modulepreload" crossorigin href="/assets/optionsProjection-Q6yiUnAv.js">
-    <link rel="modulepreload" crossorigin href="/assets/perfProbe-CEkUfiNO.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsProjection-CxOCDwH4.js">
+    <link rel="modulepreload" crossorigin href="/assets/perfProbe-CncyQ5AA.js">
     <link rel="modulepreload" crossorigin href="/assets/roomMetadataBudget-Dhmti3v9.js">
-    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-CIEwHM0q.js">
-    <link rel="modulepreload" crossorigin href="/assets/optionsSelectors-B_kGsnBf.js">
-    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-FwgBjPq7.js">
+    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-CgLGPCEq.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsSelectors-B3anOP5j.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-kZcl4d5_.js">
   </head>
   <body>
     <div id="notice-stack">

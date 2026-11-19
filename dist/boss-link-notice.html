@@ -13,7 +13,7 @@
         position: relative;
         overflow: hidden;
         color: #fff;
-        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         pointer-events: none;
       }
       .warning {
@@ -43,6 +43,9 @@
         --accent-soft: rgba(249, 115, 22, .42);
         --accent-deep: rgba(96, 40, 10, .94);
       }
+      /* Lot M2 of the animations study: it fades before the popup closes (src/noticeLeave.js). */
+      .warning { transition: opacity var(--obrt-motion-base, 180ms) ease, transform var(--obrt-motion-base, 180ms) ease; }
+      .warning.is-leaving { opacity: 0; transform: translate(0, 5px); }
       .warning::before {
         position: absolute;
         inset: 6px 8px;
@@ -158,11 +161,12 @@
         .round-badge { top: 12px; right: 12px; width: 42px; height: 42px; }
       }
     </style>
-    <script type="module" crossorigin src="/assets/bossLinkNotice-DRnpz8qK.js"></script>
+    <script type="module" crossorigin src="/assets/bossLinkNotice-DtaY6ekx.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
     <link rel="modulepreload" crossorigin href="/assets/index-Bb_Y0rOR.js">
     <link rel="modulepreload" crossorigin href="/assets/bossLinkResistanceCore-BnYd3cot.js">
     <link rel="modulepreload" crossorigin href="/assets/bossLinkNoticeHost-XZb6ShLy.js">
+    <link rel="modulepreload" crossorigin href="/assets/noticeLeave-DlPm-Ql_.js">
   </head>
   <body>
     <div id="app"></div>

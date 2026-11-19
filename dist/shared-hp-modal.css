@@ -36,7 +36,7 @@ button:focus-visible, select:focus-visible { outline: 2px solid #60a5fa; outline
 .row.broken { border-color: rgba(251, 191, 36, .45); }
 .row.broken .token-detail { color: #fde68a; }
 .empty { padding: var(--obrt-space-xl); border: 1px dashed var(--obrt-line); border-radius: var(--obrt-radius-lg); color: var(--obrt-muted); font-size: var(--obrt-type-secondary); text-align: center; line-height: var(--obrt-leading-relaxed); }
-.button { min-height: var(--obrt-h-control-sm); padding: 5px var(--obrt-space-lg); border: 1px solid var(--obrt-line); border-radius: var(--obrt-radius-md); background: var(--obrt-surface); cursor: pointer; font-weight: var(--obrt-weight-medium); transition: background-color .12s ease, border-color .12s ease; }
+.button { min-height: var(--obrt-h-control-sm); padding: 5px var(--obrt-space-lg); border: 1px solid var(--obrt-line); border-radius: var(--obrt-radius-md); background: var(--obrt-surface); cursor: pointer; font-weight: var(--obrt-weight-medium); transition: background-color var(--obrt-motion-fast, 120ms) ease, border-color var(--obrt-motion-fast, 120ms) ease; }
 .button:hover { background: rgba(51, 65, 85, .7); border-color: rgba(148, 163, 184, .4); }
 .button.primary { min-height: var(--obrt-h-control-lg); background: #2563eb; border-color: rgba(96, 165, 250, .5); font-weight: var(--obrt-weight-bold); }
 .button.primary:hover { background: #1d4ed8; }

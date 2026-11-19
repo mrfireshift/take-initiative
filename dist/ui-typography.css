@@ -1,11 +1,40 @@
 @import url("/ui-scrollbars.css");
 
+/* Lot L7 of the tracker UI study (docs/STUDIO_UI_TRACKER_BG3.md, D7 of 18/11): Vollkorn for the titles of the notices,
+   chosen at the bench over Alegreya, DM Serif and Fraunces. From @fontsource-variable/vollkorn 5.3.0: Latin with the
+   accented letters, weights 400-900 in one file. SIL Open Font License 1.1, beside the font in fonts/Vollkorn-OFL.txt. */
+@font-face {
+  font-family: "Vollkorn";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("/fonts/vollkorn-latin-wght-normal.woff2") format("woff2");
+}
+
+/* Figtree for the interface (lot L7, chosen at the bench over IBM Plex Sans, Alegreya Sans, Atkinson Hyperlegible, Fira
+   Sans and Inter). From @fontsource-variable/figtree 5.3.0: Latin with the accented letters, weights 300-900 in one
+   file. SIL Open Font License 1.1, beside the font in fonts/Figtree-OFL.txt. The map's labels are drawn by Owlbear
+   Rodeo, which cannot load it: they keep the system stack. */
+@font-face {
+  font-family: "Figtree";
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url("/fonts/figtree-latin-wght-normal.woff2") format("woff2");
+}
+
 :root {
   /* Font Families */
-  --obrt-font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --obrt-font-ui: "Figtree", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --obrt-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  /* Titles of the turn notices and warnings only; everything else uses --obrt-font-ui. */
-  --obrt-font-display: Georgia, "Times New Roman", serif;
+  /* Titles of the turn notices and warnings only; everything else uses --obrt-font-ui. Vollkorn (lot L7), Georgia
+     while it loads or if it cannot. */
+  --obrt-font-display: "Vollkorn", Georgia, "Times New Roman", serif;
+  /* Lot M4 of the animations study (docs/STUDIO_ANIMAZIONI.md, 18/11): three shared durations instead of twenty.
+     fast: hover, colours, borders; base: appearing and fading; move: growing and moving (the groups, the active card). */
+  --obrt-motion-fast: 120ms;
+  --obrt-motion-base: 180ms;
+  --obrt-motion-move: 380ms;
 
   /* Typographic Scale */
   --obrt-type-display: 20px;
@@ -169,7 +198,7 @@ textarea {
   font-weight: var(--obrt-weight-semibold);
   line-height: 1;
   cursor: pointer;
-  transition: background-color .12s ease, border-color .12s ease, opacity .12s ease;
+  transition: background-color var(--obrt-motion-fast, 120ms) ease, border-color var(--obrt-motion-fast, 120ms) ease, opacity var(--obrt-motion-fast, 120ms) ease;
 }
 
 .obrt-btn:hover:not(:disabled) {
@@ -380,4 +409,25 @@ select:disabled {
   background-position: center !important;
   background-size: 12px 8px !important;
   transform: translateY(-50%) !important;
+}
+
+/* Lot M3 of the animations study (docs/STUDIO_ANIMAZIONI.md, 18/11): for who asks for reduced motion, every change happens
+   at once in every page that loads this sheet: transitions (the ones JavaScript writes inline too), pulses, flashes and
+   smooth scrolling. What is information stays: the notices' expiry bars (.timer, .zone-timer) and the tracker's loading
+   spinner. The JavaScript animations read the same preference (src/motionPreference.js and their own checks). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+  *:not(.tbp-loading__spinner),
+  *:not(.timer):not(.zone-timer)::before,
+  *:not(.timer):not(.zone-timer)::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+  }
 }

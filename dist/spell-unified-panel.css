@@ -139,7 +139,7 @@ select:disabled {
   font-size: var(--obrt-close-font, 18px);
   line-height: 1;
   cursor: pointer;
-  transition: background-color .12s ease;
+  transition: background-color var(--obrt-motion-fast, 120ms) ease;
 }
 
 .unified-close-button:hover {
@@ -362,7 +362,7 @@ select:disabled {
   color: #bfdbfe;
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
-  transition: background .12s ease, border-color .12s ease, transform .12s ease;
+  transition: background var(--obrt-motion-fast, 120ms) ease, border-color var(--obrt-motion-fast, 120ms) ease, transform var(--obrt-motion-fast, 120ms) ease;
 }
 
 .unified-reference-button:hover:not(:disabled) {
@@ -1122,7 +1122,7 @@ select:disabled {
   height: 100%;
   border-radius: inherit;
   background: var(--unified-primary);
-  transition: width .15s ease;
+  transition: width var(--obrt-motion-fast, 120ms) ease;
 }
 
 .unified-composition.is-invalid .unified-composition__meter-fill {
@@ -1495,7 +1495,7 @@ select:disabled {
   font: inherit;
   font-size: var(--obrt-type-caption);
   font-weight: var(--obrt-weight-semibold);
-  transition: background-color .12s ease;
+  transition: background-color var(--obrt-motion-fast, 120ms) ease;
 }
 
 .unified-terminate-button:hover:not(:disabled) {

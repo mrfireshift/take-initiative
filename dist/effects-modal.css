@@ -83,7 +83,7 @@ html, body {
   font-size: var(--obrt-close-font, 18px);
   line-height: 1;
   cursor: pointer;
-  transition: background-color .12s ease;
+  transition: background-color var(--obrt-motion-fast, 120ms) ease;
 }
 
 .effects-close-button:hover {
@@ -151,7 +151,7 @@ html, body {
   font-size: var(--obrt-type-body, 12px);
   line-height: var(--obrt-leading-snug, 1.25);
   outline: none;
-  transition: border-color .12s ease, box-shadow .12s ease;
+  transition: border-color var(--obrt-motion-fast, 120ms) ease, box-shadow var(--obrt-motion-fast, 120ms) ease;
 }
 
 .effects-control:focus {
@@ -206,7 +206,7 @@ html, body {
   font: inherit;
   font-size: var(--obrt-type-secondary, 11px);
   outline: none;
-  transition: border-color .12s ease, box-shadow .12s ease;
+  transition: border-color var(--obrt-motion-fast, 120ms) ease, box-shadow var(--obrt-motion-fast, 120ms) ease;
 }
 
 .effects-search-input:focus {
@@ -225,7 +225,7 @@ html, body {
   font-size: var(--obrt-type-caption, 10px);
   font-weight: var(--obrt-weight-semibold, 600);
   cursor: pointer;
-  transition: background-color .12s ease, border-color .12s ease;
+  transition: background-color var(--obrt-motion-fast, 120ms) ease, border-color var(--obrt-motion-fast, 120ms) ease;
 }
 
 .effects-faction-btn:hover {
@@ -285,7 +285,7 @@ html, body {
   border-radius: var(--obrt-radius-md, 8px);
   background: var(--effects-surface);
   cursor: pointer;
-  transition: border-color .12s ease, background-color .12s ease;
+  transition: border-color var(--obrt-motion-fast, 120ms) ease, background-color var(--obrt-motion-fast, 120ms) ease;
 }
 
 .effects-target-row.selected {
@@ -357,7 +357,7 @@ html, body {
   font-size: var(--obrt-type-body, 12px);
   font-weight: var(--obrt-weight-semibold, 600);
   cursor: pointer;
-  transition: background-color .12s ease, border-color .12s ease, opacity .12s ease;
+  transition: background-color var(--obrt-motion-fast, 120ms) ease, border-color var(--obrt-motion-fast, 120ms) ease, opacity var(--obrt-motion-fast, 120ms) ease;
 }
 
 .effects-btn:hover:not(:disabled) {

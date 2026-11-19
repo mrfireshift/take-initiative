@@ -13,7 +13,7 @@
         position: relative;
         overflow: hidden;
         color: #fff;
-        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         pointer-events: none;
       }
       .warning {
@@ -40,6 +40,9 @@
           inset 0 0 0 1px rgba(255, 255, 255, .12),
           inset 0 -28px 44px rgba(0, 0, 0, .25);
       }
+      /* Lot M2 of the animations study: it fades before the popup closes (src/noticeLeave.js). */
+      .warning { transition: opacity var(--obrt-motion-base, 180ms) ease, transform var(--obrt-motion-base, 180ms) ease; }
+      .warning.is-leaving { opacity: 0; transform: translate(0, 5px); }
       .warning::before {
         position: absolute;
         top: 6px;
@@ -87,7 +90,7 @@
       .eyebrow {
         margin-bottom: 2px;
         color: var(--accent);
-        font-family: system-ui, -apple-system, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         font-size: var(--obrt-type-micro, 10px);
         font-weight: 800;
         letter-spacing: .6px;
@@ -141,13 +144,13 @@
       .close:hover { background: rgba(255, 255, 255, .08); color: #fff; }
       .save-badge span {
         color: var(--accent);
-        font: 800 10px system-ui, sans-serif;
+        font: 800 10px var(--obrt-font-ui);
         letter-spacing: .4px;
         text-transform: uppercase;
       }
       .save-badge strong {
         color: #fff;
-        font-family: system-ui, -apple-system, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         font-size: 12px;
         font-weight: 800;
       }
@@ -192,7 +195,7 @@
       .name {
         overflow: hidden;
         color: #fff;
-        font-family: system-ui, -apple-system, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         font-size: var(--obrt-type-micro, 10px);
         font-weight: 800;
         letter-spacing: .2px;
@@ -211,7 +214,7 @@
         min-width: 0;
         overflow: hidden;
         color: var(--accent);
-        font-family: system-ui, -apple-system, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         font-size: var(--obrt-type-micro, 10px);
         font-weight: 800;
         text-overflow: ellipsis;
@@ -221,7 +224,7 @@
       .spell-name {
         overflow: hidden;
         color: rgba(255, 255, 255, .50);
-        font-family: system-ui, -apple-system, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         font-size: var(--obrt-type-micro, 10px);
         font-weight: 500;
         text-overflow: ellipsis;
@@ -230,7 +233,7 @@
       .damage, .dc {
         display: inline-flex;
         align-items: center;
-        font-family: system-ui, -apple-system, sans-serif;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
         font-size: var(--obrt-type-micro, 10px);
         line-height: 1.2;
         border: none;
@@ -261,7 +264,7 @@
         background: rgba(4, 8, 13, .82);
         color: #fff;
         cursor: pointer;
-        font: 700 10px/1 system-ui, sans-serif;
+        font: 700 10px/1 var(--obrt-font-ui);
         pointer-events: auto;
       }
       .resolution button:hover {
@@ -302,12 +305,13 @@
         .title { font-size: 14px; }
       }
     </style>
-    <script type="module" crossorigin src="/assets/concentrationWarning-C_RZrEuY.js"></script>
+    <script type="module" crossorigin src="/assets/concentrationWarning-SZBqJKla.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
     <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
     <link rel="modulepreload" crossorigin href="/assets/index-Bb_Y0rOR.js">
     <link rel="modulepreload" crossorigin href="/assets/lazyModule-BEU7KMxf.js">
-    <link rel="modulepreload" crossorigin href="/assets/perfProbe-CEkUfiNO.js">
+    <link rel="modulepreload" crossorigin href="/assets/noticeLeave-DlPm-Ql_.js">
+    <link rel="modulepreload" crossorigin href="/assets/perfProbe-CncyQ5AA.js">
   </head>
   <body>
     <div id="app"></div>
