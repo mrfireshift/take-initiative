@@ -84,6 +84,9 @@
        (the cantrip row's children join the card's grid to be ordered). */
     .cantrip-row { display: contents; }
     #pc-attack-facts, #pc-attack-damage { order: 1; }
+    /* A monster's attack as its stat block writes it, under its bonus and reach: closed until the GM opens it. */
+    #pc-attack-statblock-text { order: 1; }
+    #pc-attack-statblock-text-body { margin: 0; font-size: var(--obrt-type-secondary); line-height: 1.4; white-space: pre-line; text-wrap: pretty; }
     #pc-attack-extras-section { order: 2; }
     .cantrip-note { order: 4; }
     #pc-attack-spell-details { order: 5; }
@@ -343,6 +346,7 @@
             <details class="spell-details" id="pc-attack-spell-details" hidden><summary>Dettagli</summary><div class="spell-details-body" id="pc-attack-spell-details-body"></div></details>
           </div>
           <p class="action-facts" id="pc-attack-facts"></p>
+          <details class="spell-details" id="pc-attack-statblock-text" hidden><summary>Testo dello statblock</summary><p class="spell-details-body" id="pc-attack-statblock-text-body"></p></details>
           <div class="component-list" id="pc-attack-damage"></div>
           <div class="damage-reactions" id="pc-attack-damage-reactions" hidden></div>
           <p class="monster-note" id="pc-attack-monster-note" hidden></p>

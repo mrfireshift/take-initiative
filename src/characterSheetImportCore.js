@@ -478,7 +478,9 @@ function importedInnateSpells(data, unresolved) {
     }
     const perDay = integer(raw.perDay);
     const castLevel = integer(raw.level ?? raw.livello);
-    if (!perDay && spell.level === 0) {
+    // "Entangling Plants (Recharge 5–6)": free, with the recharge the console counts.
+    const recharge = perDay ? null : integer(raw.recharge ?? raw.ricarica);
+    if (!perDay && !recharge && spell.level === 0) {
       if (!cantrips.includes(spell.id)) cantrips.push(spell.id);
       continue;
     }
@@ -490,7 +492,8 @@ function importedInnateSpells(data, unresolved) {
     const action = sanitizeQuickAction({ id: "import", kind: "spell", label: spell.displayName || spell.name, spellId: spell.id,
       launchMode: "auto", targetMode: "selection", applyAutomations: true,
       ...(castLevel && spell.level > 0 && castLevel > spell.level && castLevel <= 9 ? { slotLevel: castLevel } : {}),
-      ...(perDay ? { cost: "uses", uses: Math.min(MAX_QUICK_ACTION_USES, Math.max(1, perDay)) } : { cost: "free" }) });
+      ...(perDay ? { cost: "uses", uses: Math.min(MAX_QUICK_ACTION_USES, Math.max(1, perDay)) } : { cost: "free" }),
+      ...(recharge ? { recharge } : {}) });
     if (!action) continue;
     const { id: _id, ...draft } = action;
     actions.push(draft);
@@ -676,7 +679,7 @@ export function sheetImportSectionSummary(id, section, { classNameOf = (classId)
     return `${section.length} ${section.length === 1 ? "attacco" : "attacchi"}: ${section.map((attack) => attack.label).join(", ")}`;
   }
   if (id === "innate") {
-    return section.map((action) => `${action.label}${action.slotLevel ? ` (${action.slotLevel}°)` : ""} ${action.cost === "uses" ? `${action.uses}/giorno` : "a volontà"}`).join(", ");
+    return section.map((action) => `${action.label}${action.slotLevel ? ` (${action.slotLevel}°)` : ""} ${action.cost === "uses" ? `${action.uses}/giorno` : action.recharge ? `ricarica ${action.recharge === 6 ? "6" : `${action.recharge}–6`}` : "a volontà"}`).join(", ");
   }
   if (id === "notes" || id === "multiattack") return section.length > 60 ? `${section.slice(0, 60)}…` : section;
   return "";

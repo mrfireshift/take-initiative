@@ -6,6 +6,7 @@ import { spellbookAttackAction, spellbookAttackWaitsForCast, spellbookCantripAtt
 import { classFeatureDisplayNameWithParent, getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import { pcAttackFeatureReactable, pcAttackFeatureSpendable, pcAttackFeatureUsable } from "./pcAttackFeatureFormCore.js";
 import { spellbookAttackActionId, spellbookQuickActionId } from "./spellbookCore.js";
+import { getSpellDefinition } from "./spells-srd.js";
 
 // The attack console's picker: everything the actor can do with an attack or a spell on its turn, one entry each.
 // Attacchi: the weapon attacks and the breath weapons. Trucchetti and Incantesimi: the spells of the book the actor
@@ -79,6 +80,15 @@ export function pcAttackPickerEntries(card, { activeSpellIds = [], grantedAction
   }
   entries.features = pcAttackFeatureEntries(profile);
   if (transformation && !transformation.canCast) return PC_ATTACK_PICKER_TABS.flatMap((tab) => entries[tab.id]);
+  // A monster's innate spell with a recharge ("Entangling Plants (Recharge 5–6)", the Vine Blight): launched as the 🪄
+  // menu does, with the card's own action, which spends the recharge (spellSlotSpendCore.js). Its other innate spells
+  // stay on the ⚡ button.
+  for (const action of quickActions) {
+    if (action.kind !== "spell" || !action.recharge) continue;
+    const spell = getSpellDefinition(action.spellId);
+    add(spell?.level === 0 ? "cantrips" : "spells", action.id, action.spellId, action.label || spell?.displayName || action.spellId,
+      { mode: "launch", level: (action.slotLevel || spell?.level) ?? null, concentration: spell?.concentration === true, recharge: action.recharge });
+  }
   // Not the rituals of Ritual Caster's book (lot F3b-4 of docs/STUDIO_TALENTI.md): ten minutes longer, never a turn's cast
   // nor a readied one; the sheet and the 🪄 menu cast them.
   const book = spellbookGroupsForProfile(profile)

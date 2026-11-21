@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **330** |
+| **B. Console attacchi, mostri e capacità** | **334** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -94,6 +94,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B65. Carica, Maestro degli Scudi, Lottatore da Taverna, Appostato | 4 |
 | B66. Lottatore: vantaggio e Immobilizza | 4 |
 | B67. Tempra Nanica | 4 |
+| B68. Incantesimi a ricarica e testo dello statblock nella console | 4 |
 | **C. Tracker e UX** | **42** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -122,7 +123,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **714** |
+| **Totale** | **718** |
 
 ## A. Incantesimi
 
@@ -1244,6 +1245,15 @@ Fonte: [STUDIO_TALENTI.md](STUDIO_TALENTI.md), lotto F8-3 (piano dei PF §7.34.4
 - [ ] **La cura:** scritto 7, il totale dice «Tempra Nanica: 7 + 3 = 10 PF, 20 → 30»; **Registra** mette la Schivata e porta il nano a 30/45, sulla mappa anche. A 43/45 arriva a 45.
 - [ ] **Vuoto o fuori misura:** vuoto, la Schivata di sempre; 0 o 13 tengono spento **Registra** con il motivo.
 - [ ] **Annulla:** l'Annulla della console toglie la Schivata e riporta il nano a 20/45.
+
+### B68. Incantesimi a ricarica e testo dello statblock nella console
+
+Fonte: richiesta dell'utente del 21/11 sul Vine Blight del 2024 (decisioni: riquadro apribile, incantesimo a ricarica nella console con il contatore). Le voci sono nuove: nessuna lista le aveva. Serve un nemico e l'archivio di 5eTools con i libri del 2024.
+
+- [ ] **Import:** con «Importa anche i mostri delle regole 2024» acceso, importa da 5eTools il **Vine Blight** (XMM). Il pannello Importa mostra fra gli incantesimi innati «Intralciare ricarica 5–6», e non dice più che la ricarica resta al tavolo. Salvata la scheda, nel ⚡ la riga di Intralciare dice «ricarica 5–6».
+- [ ] **La console:** apri la console del Vine Blight. In **Incantesimi** c'è Intralciare (Azione · Conc.), con la nota «Ricarica 5–6: senza slot, il lancio spende la ricarica.». **Lancia** apre il pannello incantesimi; lanciato, il pannello dice «speso: ricarica di Intralciare (5–6)» e non spende slot.
+- [ ] **Usata:** dopo il lancio la nota diventa «Ricarica 5–6 · usata: lancialo di nuovo quando il d6 al tavolo la ricarica.», e nel ⚡ la riga dice «ricarica 5–6 usata». Lanciato di nuovo, il lancio parte lo stesso. Un riposo breve la riporta pronta.
+- [ ] **Il testo dell'attacco:** in **Attacchi**, sotto «Mischia · +4 al tiro · portata 3 m», c'è «Testo dello statblock», chiuso. Aperto, mostra il testo intero di Constricting Vine, anche il danno a ogni turno di chi è in lotta. Resta aperto passando a un altro attacco e si chiude con un clic. Prova anche un mostro importato da testo (Ezmerelda) e un'azione bonus (Crushing Grip del Werewolf Brawler). In un PG il riquadro non c'è.
 
 ## C. Tracker e UX
 

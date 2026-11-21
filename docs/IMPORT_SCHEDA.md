@@ -294,9 +294,16 @@ una propria:
   testo, e la CD o il bonus del testo se la scheda non ne ha. Una scelta fra
   più incantesimi, un lancio con una condizione e un'azione con dadi propri
   («dealing 10 (3d6) piercing damage») restano al tavolo; un danno in più
-  («an additional 5 (2d4) necrotic damage») e la ricarica li dice il rapporto.
+  («an additional 5 (2d4) necrotic damage») lo dice il rapporto.
   Un incantesimo che la scheda ha già fra quelli preparati non diventa un
   innato: si lancia con gli slot, e il rapporto lo dice.
+  `recharge` (facoltativo, da 2 a 6, senza `perDay`) è la ricarica di un
+  innato: «Entangling Plants (Recharge 5–6)» del Vine Blight del 2024, da
+  5eTools o da un'azione che lancia l'incantesimo, diventa `{ "name":
+  "Entangle", "recharge": 5 }`. L'azione rapida è gratuita, e l'incantesimo
+  compare anche nella scheda Incantesimi della console attacchi. Il lancio
+  spende la ricarica come quella di un attacco; quando è usata, la console
+  lo dice e il GM tira il d6 al tavolo.
   Le azioni rapide sono al massimo 12: quelle in più vanno in rosso.
 
 Uno statblock di un mostro importato sopra un altro sostituisce anche classe,

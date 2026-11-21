@@ -32,6 +32,7 @@ import {
   MAX_QUICK_ACTION_ATTACKS,
   MAX_QUICK_ACTION_ATTACK_COMPONENTS,
   MAX_QUICK_ACTION_USES,
+  quickActionRechargeState,
   quickActionUsesLeft,
   findQuickAction,
   isAttackQuickAction,
@@ -432,7 +433,10 @@ function quickActionSummary(action) {
   // The cost of the cast: the uses left of its own counter, or free; a spell slot is the default.
   const uses = item ? quickActionUsesLeft(action, getClassFeatureState(item).resources) : null;
   const cost = uses ? ` · ${uses.current}/${uses.maximum} usi` : action.cost === "free" ? " · gratuito" : "";
-  return `Incantesimo · ${launch} · ${target}${cost}`;
+  // A monster's innate spell with a recharge: its recharge, used when the cast spent it.
+  const recharge = action.recharge ? quickActionRechargeState(action, item ? getClassFeatureState(item).resources : {}) : null;
+  const rechargeText = recharge ? ` · ricarica ${recharge.recharge === 6 ? "6" : `${recharge.recharge}–6`}${recharge.ready ? "" : " usata"}` : "";
+  return `Incantesimo · ${launch} · ${target}${cost}${rechargeText}`;
 }
 
 function classFeatureChoiceControl(feature, { compact = false, label = "", defaultValue = "", enabledFeatureIds = [] } = {}) {
@@ -3482,6 +3486,8 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
   // A monster's attack fields (save, bonus, recharge…) have no input here yet: the row keeps them for the save.
   const monsterFields = quickActionMonsterAttackFields(current);
   if (Object.keys(monsterFields).length) row.dataset.monsterAttackFields = JSON.stringify(monsterFields);
+  // A monster's innate spell with a recharge (Entangling Plants): no input either, kept for the save.
+  if (current.kind === "spell" && Number.isInteger(current.recharge)) row.dataset.spellRecharge = String(current.recharge);
 
   const head = document.createElement("div");
   head.className = "quick-action-editor-head";
@@ -4670,6 +4676,8 @@ function collectQuickActions() {
         applyAutomations: true,
         cost: field("cost").value,
         uses: field("uses").value,
+        // Kept while the cost stays free (sanitizeQuickAction drops it otherwise).
+        ...(row.dataset.spellRecharge ? { recharge: Number(row.dataset.spellRecharge) } : {}),
       };
     }
     return {

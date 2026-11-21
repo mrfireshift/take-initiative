@@ -287,6 +287,8 @@ function castSpellAction(action, entry) {
   if (/\{@hit /.test(tagged) && !/\(\{@hit \d+\} to hit\)/.test(tagged)) return null;
   const actionName = fiveToolsPlainText(String(action?.name || ""));
   const perDay = Number(actionName.match(/\((\d+)\/day/i)?.[1]) || 0;
+  // "Entangling Plants (Recharge 5–6)": the spell's own recharge, counted by the console as an attack's.
+  const recharge = Number(actionName.match(/\(Recharge (\d)(?:[–-]6)?\)/i)?.[1]) || 0;
   const level = Number(match[6]) || 0;
   // What the action says beyond the cast ("targeting up to two creatures…", "A target that succeeds … is dazed instead"),
   // but its extra damage, said apart.
@@ -295,9 +297,9 @@ function castSpellAction(action, entry) {
   const extra = [
     ...(additional ? [`il danno in più (${damages.map((damage) => `${damage[1].replace(/\s+/g, "")}${damage[2] ? ` ${damageTypeLabel(damage[2]) || damage[2]}` : ""}`).join(", ")}) resta da aggiungere al tavolo`] : []),
     ...(rest.length || /^[,;]| with | targeting | in a | on /.test(text.slice(match.index + match[0].length, match.index + match[0].length + 12)) ? ["il resto del testo resta al tavolo"] : []),
-    ...(/\{@recharge|\bRecharge\b/i.test(String(action?.name || "")) ? ["la ricarica resta da gestire al tavolo"] : []),
+    ...(!recharge && /\{@recharge|\bRecharge\b/i.test(String(action?.name || "")) ? ["la ricarica resta da gestire al tavolo"] : []),
   ];
-  return { spell: { name, ...(perDay ? { perDay } : {}), ...(level ? { level } : {}) }, dc: Number(match[2] || match[3]) || null,
+  return { spell: { name, ...(perDay ? { perDay } : {}), ...(!perDay && recharge ? { recharge } : {}), ...(level ? { level } : {}) }, dc: Number(match[2] || match[3]) || null,
     hit: Number(match[4] || match[5]) || null, extra, entry: entry.name };
 }
 
@@ -537,7 +539,14 @@ function fiveToolsSpellcasting(monster, report) {
       // "3/day" without "each": one pool for all of them; the plugin gives each one its own uses.
       if (!key.endsWith("e") && spells.length > 1) report.push(`${perDay}/giorno in comune tra ${spells.join(", ")}: ognuno ha i suoi usi, il totale si tiene al tavolo`);
     }
-    for (const field of ["weekly", "rest", "recharge", "charges"]) {
+    // "Entangling Plants {@recharge 5}" (the 2024 Vine Blight): { recharge: { "5": [spell] } }, each one an innate spell
+    // with its recharge, which the console counts as an attack's (spent when cast, back at the table's d6 or a rest).
+    const recharges = block.recharge && typeof block.recharge === "object" ? Object.entries(block.recharge) : [];
+    for (const [key, list] of recharges) {
+      const recharge = Number.parseInt(key, 10);
+      if (recharge >= 2 && recharge <= 6) for (const spell of asList(list)) out.innateSpells.push({ ...innate(spell, 0), recharge });
+    }
+    for (const field of ["weekly", "rest", ...(recharges.every(([key]) => Number.parseInt(key, 10) >= 2 && Number.parseInt(key, 10) <= 6) ? [] : ["recharge"]), "charges"]) {
       if (block[field]) report.push(`${name}: incantesimi a uso ${field === "weekly" ? "settimanale" : field === "rest" ? "per riposo" : "a ricarica"} da gestire al tavolo`);
     }
   }

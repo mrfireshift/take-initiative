@@ -3,6 +3,7 @@ import { ID } from "./constants.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { createPcAttackRuntime, pcAttackSmiteSlotPlans, pcAttackSpellSlotPlan } from "./pcAttackExecution.js";
 import { spellSlotStatus } from "./spellSlotCore.js";
+import { quickActionRechargeState } from "./quickActionsCore.js";
 import { pcAttackAreaOutcomes, pcAttackTargetActionImmune, pcAttackTargetConditionImmune, pcAttackTargetEvasion, pcAttackTargetSaveBonus,
   pcAttackAllyCandidates, pcAttackFeetLabel, pcAttackGrappleEscapeAdvantage, pcAttackMonsterFailureText, pcAttackSave, pcAttackSaveLabel as hitSaveLabel } from "./pcAttackCore.js";
 import { DODGE_SAVE_NOTE, dodgeSaveAdvantage, SHIELD_MASTER_SAVE_NOTE, shieldMasterDexSave } from "./attackAdvantagePillsCore.js";
@@ -12,7 +13,7 @@ import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAtta
   pcAttackModeOptions, pcAttackAreaPreview, pcAttackAreaRowDamage, pcAttackActionPanelCantripIds, pcAttackSpellIds, pcAttackWithSpellType, pcAttackOpenSpellCast, pcAttackReadiedRelease,
   pcAttackMonsterAreaNote, pcAttackMonsterTags, pcAttackSpellBonusTags, pcAttackMagicToggleable, pcAttackMagicHint, pcAttackDefenseText } from "./pcAttackCore.js";
 import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileCore.js";
-import { PC_ATTACK_MONSTER_GROUP_TITLES, pcAttackMonsterTraitEntries } from "./pcAttackMonsterTraitsCore.js";
+import { PC_ATTACK_MONSTER_GROUP_TITLES, pcAttackMonsterActionText, pcAttackMonsterTraitEntries } from "./pcAttackMonsterTraitsCore.js";
 import { TRANSFORMATION_FORM_GROUP_TITLES, transformationFormEntries, transformationFormOf, transformationFormStatblockRef } from "./transformationStatblockCore.js";
 import { transformationChangeEntries } from "./transformationSpellsCore.js";
 import { monsterStatblockTextRef } from "./monsterStatblockTextCore.js";
@@ -244,6 +245,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const schedule=overrides.schedule || ((callback,delay)=>setTimeout(callback,delay));
   // A monster's full stat block, kept in this browser (fase 4, lotto 5): its traits, reactions and legendary actions.
   let statblockText=overrides.statblockText || null;
+  // The view the actor's attacks are read from (Testo dello statblock): its form's in a form, else its monster's; set by
+  // the load that is still current (refresh), never by a stale one.
+  let monsterView=null;
   async function monsterTraitEntries(item) {
     const card=item?.metadata?.[META_KEY]?.initiativeCard || {};
     // Trasformazioni (16/11/2026): an actor in a form reads the form's stat block, from the GM's archive or its snapshot.
@@ -255,12 +259,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const shapeEntries=shape?[...transformationFormEntries(shape,shapeView),...transformationChangeEntries(item)]:[];
     // The console is the GM's (pcAttackLauncher.js): the sheet's rule, an NPC's monster card only.
     const ref=monsterStatblockTextRef({isGM:true,attitude:item?.metadata?.[META_KEY]?.attitude,card});
-    if(!ref) return shapeEntries;
+    if(!ref) return Object.assign(shapeEntries,{view:shape?shapeView:null});
     statblockText ||= createMonsterStatblockTextLoader();
     // Read again only when the card's monster changes (a new import): the reloads on every token change cost nothing.
     const view=await statblockText.view(ref,{fromArchive:card[MONSTER_PROFILE_FIELD]?.source==="5etools",
       revision:JSON.stringify(card[MONSTER_PROFILE_FIELD] || null)}).catch(()=>null);
-    return [...shapeEntries,...pcAttackMonsterTraitEntries(view)];
+    return Object.assign([...shapeEntries,...pcAttackMonsterTraitEntries(view)],{view:shape?shapeView:view});
   }
   const params=new URLSearchParams(globalThis.location?.search || "");
   // The open console follows the turn (pcAttackTurnController.js): the actor changes in place.
@@ -371,6 +375,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const attackView=$("pc-attack-attack-view"),launchBox=$("pc-attack-launch"),casterLine=$("pc-attack-caster");
   // A monster's card: its Multiattack over the Attacchi tab, its action's note (what the console does not automate).
   const multiattackLine=$("pc-attack-multiattack"),monsterNote=$("pc-attack-monster-note");
+  const statblockTextBox=$("pc-attack-statblock-text"),statblockTextBody=$("pc-attack-statblock-text-body");
   // A spell the console does not resolve (launched, woven into a weapon, or by hand): its card replaces the attack form.
   let launchKey="",launchBusy=false,launchSignature="";
   // Lancia / Usa in the fixed row; the spell's accordion in the attack form; one open state for both.
@@ -1436,6 +1441,14 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     }
     const note=launching()?"":resolved()?.note || "";
     if(monsterNote){monsterNote.hidden=!note;monsterNote.textContent=note?`Da risolvere al tavolo: ${note}`:"";}
+    // Testo dello statblock: the attack as the monster's stat block writes it (the one kept in this browser, as the
+    // Capacità tab reads it). Only its text changes: opened once, it stays open from an attack to the next.
+    if(statblockTextBox) {
+      const entry=currentEntry();
+      const text=!launching() && entry?.tab==="attacks"?pcAttackMonsterActionText(monsterView,entry.label):"";
+      statblockTextBox.hidden=!text;
+      if(statblockTextBody.textContent!==text) statblockTextBody.textContent=text;
+    }
   }
   function renderCaster() {
     if(!casterLine) return;
@@ -1859,13 +1872,19 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const meta=presentation?.item?.metadata?.[META_KEY] || {};
     // No slots on the sheet (a monster without a class): the table counts them, there is nothing to warn about.
     const slotRows=spellSlotStatus(meta.initiativeCard?.characterBuild,meta.classFeatureState?.resources);
-    const freeSlot=!level || !slotRows.length || slotRows.some(row=>row.level>=level && row.current>0);
+    // A monster's innate spell with a recharge (the Vine Blight's Entangle): no slot, its recharge spent with the cast.
+    const rechargeAction=entry?.recharge?(Array.isArray(meta.initiativeCard?.quickActions)?meta.initiativeCard.quickActions:[]).find(action=>action?.id===entry.actionId):null;
+    const recharge=rechargeAction?quickActionRechargeState(rechargeAction,meta.classFeatureState?.resources || {}):null;
+    const rechargeLabel=recharge?`Ricarica ${recharge.recharge===6?"6":`${recharge.recharge}–6`}`:"";
+    const freeSlot=!!recharge || !level || !slotRows.length || slotRows.some(row=>row.level>=level && row.current>0);
     const feature=isFeature?featureCard(entry):null;
     const notes=!entry?[["Nessun attacco, incantesimo o capacità da mostrare per questo attore.",""]]
       :isFeature?feature.notes
       :entry.mode==="weapon"?[["Si lancia con un attacco con arma da mischia: scegli l'arma nella scheda Attacchi e attivalo fra gli extra al colpo.",""]]
       :entry.mode==="manual"?[["Non automatizzato: risolvilo al tavolo.",""]]
       :[...(entry.concentration && others.length?[[`Lanciandolo termina la concentrazione su ${others.join(", ")}.`,"warning"]]:[]),
+        ...(recharge?[recharge.ready?[`${rechargeLabel}: senza slot, il lancio spende la ricarica.`,""]
+          :[`${rechargeLabel} · usata: lancialo di nuovo quando il d6 al tavolo la ricarica.`,"warning"]]:[]),
         ...(!freeSlot?[[`Nessuno slot libero dal ${level}° livello in su.`,"warning"]]:[]),
         ...(entry.recordOnly?[["Il plugin registra il lancio e lo slot: gli effetti si risolvono al tavolo.",""]]:[])];
     const canLaunch=entry?.mode==="launch" || (entry?.mode==="activate" && feature?.form.kind!=="manual");
@@ -2953,6 +2972,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const traits=await monsterTraitEntries(loaded?.item);
     // A load for an action the picker has already left, or for the actor before the turn moved on, is stale.
     if(!lifecycle.isCurrent(operation) || asked!==actionId || askedSource!==sourceId) return;
+    monsterView=traits.view || null;
     // A monster's traits join the Capacità tab; Grapple and Shove: every creature can try them (never counted as
     // something to show by pcAttackPickerEntries).
     loaded.picker=[...(loaded.picker || []),...traits,...pcAttackTurnActionEntries(),...pcAttackManeuverEntries()];

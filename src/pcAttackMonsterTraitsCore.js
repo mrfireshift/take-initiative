@@ -14,6 +14,21 @@ export function legendaryActionCost(name) {
   return Number(String(name || "").match(/\(Costs (\d+) Actions?\)/i)?.[1]) || 1;
 }
 
+// The stat block's text of a monster's attack in the console (Testo dello statblock): the entry of its actions, bonus
+// actions, reactions or legendary actions whose name is the attack's, without what is in parentheses ("Crushing Grip
+// (bonus action)", "Fire Breath (Recharge 5–6)"); for an action split in several attacks ("Spear (melee)"), the one whose
+// name opens the label. "" when the view has none.
+const actionNameKey = (name) => String(name || "").replace(/\s*\([^()]*\)/g, "").replace(/\s+/g, " ").trim().toLocaleLowerCase("en");
+export function pcAttackMonsterActionText(view, label) {
+  const wanted = actionNameKey(label);
+  if (!wanted) return "";
+  const entries = (Array.isArray(view?.sections) ? view.sections : []).filter((section) => section.title)
+    .flatMap((section) => (Array.isArray(section.entries) ? section.entries : []).filter((entry) => entry?.name && entry.text));
+  const exact = entries.find((entry) => actionNameKey(entry.name) === wanted);
+  const opening = exact || entries.find((entry) => wanted.startsWith(`${actionNameKey(entry.name)} `));
+  return opening ? String(opening.text) : "";
+}
+
 // view: { header, sections } of monsterStatblockTextView. The entries join the Capacità tab after the class features:
 // mode "monster" (a card of its own, never a button), group: traits, reactions, legendary actions.
 export function pcAttackMonsterTraitEntries(view) {

@@ -2,7 +2,7 @@
 // (spellApplicationExecutor.js and spellAreaResolutionExecutor.js take it as extraOperations, so one Undo
 // gives the slot back with the spell). Pure: the callers read the caster's build and resources.
 import { SPELL_SLOT_RESOURCE_POOLS, spellSlotStatus } from "./spellSlotCore.js";
-import { quickActionUsesLeft, sanitizeQuickAction } from "./quickActionsCore.js";
+import { quickActionRechargeState, quickActionUsesLeft, sanitizeQuickAction } from "./quickActionsCore.js";
 
 // "": the slot the rules pick; "pact": Pact Magic; "none": no slot (ritual, a free cast).
 export const SPELL_SLOT_SOURCES = Object.freeze(["", "pact", "none"]);
@@ -108,7 +108,25 @@ export function planSpellCastCost({
   const quickAction = sanitizeQuickAction(action);
   const castPhase = String(phase || "cast").trim().toLowerCase();
   const nothing = { operation: null, spent: "", exhausted: false, message: "", slotLevel: null };
-  if (quickAction?.kind === "spell" && quickAction.cost === "free") return nothing;
+  if (quickAction?.kind === "spell" && quickAction.cost === "free") {
+    // A monster's innate spell with a recharge: the cast spends it while it is ready; spent, the GM rolled the d6 at the
+    // table and it came back (as an attack's recharge, never a block). Only the cast, never a readied spell's release.
+    const recharge = castPhase === "cast" || castPhase === "prepare" ? quickActionRechargeState(quickAction, resources) : null;
+    if (!recharge?.ready) return nothing;
+    return {
+      ...nothing,
+      operation: {
+        type: "class-feature:adjust-resource",
+        operationId: `quick-action-recharge:${quickAction.id}:${Date.now().toString(36)}`,
+        sourceId: String(sourceId || "").trim(),
+        pool: recharge.pool,
+        characterBuild,
+        abilityModifiers,
+        adjustment: { delta: -1 },
+      },
+      spent: `ricarica di ${quickAction.label} (${recharge.recharge === 6 ? "6" : `${recharge.recharge}–6`})`,
+    };
+  }
   if (quickAction?.kind === "spell" && quickAction.cost === "uses") {
     if (castPhase !== "cast" && castPhase !== "prepare") return nothing;
     const uses = quickActionUsesLeft(quickAction, resources);

@@ -9544,7 +9544,8 @@ function mountPcAttackSpellLaunchListener() {
       if (!__isCurrentSceneOperation(sceneEpoch, "pc-attack-spell-launch")) return { ok: false, message: "Scena cambiata." };
       const sourceEntry = entries.find((entry) => entry.id === String(data.sourceId || ""));
       const action = sanitizeQuickActions(sourceEntry?.quickActions, { limit: 64, attackLimit: 64 })
-        .find((entry) => entry.id === String(data.actionId || "") && isSpellbookQuickAction(entry));
+        // A monster's innate spell with a recharge is in the console too (its Incantesimi tab): the card's own action.
+        .find((entry) => entry.id === String(data.actionId || "") && (isSpellbookQuickAction(entry) || (entry.kind === "spell" && entry.recharge)));
       if (!sourceEntry || !action) return { ok: false, message: "Incantesimo non più nel grimorio." };
       const result = await __runTrackerQuickAction(sourceEntry, action, { fromConsole: true });
       return { ok: true, mode: result?.mode || "", ...(result?.message ? { message: String(result.message) } : {}) };

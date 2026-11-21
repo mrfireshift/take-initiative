@@ -236,6 +236,9 @@ export function sanitizeQuickAction(value) {
     // The cost of the cast: a spell slot (the default, never stored, so existing actions keep their shape), a
     // counter of its own (a spell from a feat, a species or an item) or nothing.
     const cost = spellCostSet.has(value.cost) ? value.cost : "slot";
+    // A monster's innate spell with a recharge ("Entangling Plants (Recharge 5–6)"): cast without a slot, its recharge
+    // counted as an attack's (quickActionRechargePool).
+    const recharge = cost === "free" ? boundedInteger(value.recharge, 2, 6) : null;
     return {
       version: QUICK_ACTION_VERSION,
       id,
@@ -249,6 +252,7 @@ export function sanitizeQuickAction(value) {
       launchMode,
       ...(cost !== "slot" ? { cost } : {}),
       ...(cost === "uses" ? { uses: optionalInteger(value.uses, 1, MAX_QUICK_ACTION_USES) ?? 1 } : {}),
+      ...(recharge !== null ? { recharge } : {}),
     };
   }
 
@@ -381,10 +385,12 @@ export function quickActionUsesPool(action) {
 }
 
 // A monster's attack with a recharge (Recharge 5–6): one charge, spent when it is used and back with a rest. It never
-// blocks the attack: the GM rolls the d6 at the table and, when it comes back, simply uses it again.
+// blocks the attack: the GM rolls the d6 at the table and, when it comes back, simply uses it again. A monster's innate
+// spell with a recharge (cost "free") has the same counter, spent when it is cast.
 export function quickActionRechargePool(action) {
   const normalized = sanitizeQuickAction(action);
-  if (normalized?.kind !== "attack" || normalized.source || !normalized.recharge) return null;
+  const counted = normalized?.kind === "attack" ? !normalized.source : normalized?.kind === "spell";
+  if (!counted || !normalized.recharge) return null;
   return {
     id: `${QUICK_ACTION_RECHARGE_POOL_PREFIX}${normalized.id}`,
     name: `Ricarica: ${normalized.label}`,
