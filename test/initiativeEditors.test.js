@@ -807,6 +807,66 @@ test("L19: un'iniziativa lasciata com'era non viene riscritta", async () => {
   }
 });
 
+// The initiative fill starts by itself when creatures join the initiative and holds the tracker's renders while it is
+// on. Its editor closed by the focus going elsewhere (the map, a card's menu, the clear button) left it on with no
+// editor open: a faction change, a removal or a clear reached the tracker only after reloading the room.
+test("la compilazione delle iniziative si chiude quando il suo editor perde il fuoco", async () => {
+  const open = async ({ fill = true } = {}) => {
+    const documentRef = createTestDocument();
+    const badge = documentRef.createElement("div");
+    badge.textContent = "10";
+    const state = { fill, calls: [] };
+    bindClassicInitiativeEditor({
+      badge, isEditable: () => true, armClickIgnore: () => {},
+      beginEdit: async () => {}, readValue: async () => 10, editorReady: () => {},
+      cleanupEdit: () => state.calls.push("cleanup"),
+      saveValue: async (value) => state.calls.push(["save", value]),
+      afterCommit: async (value) => state.calls.push(["after", value]),
+      afterCancel: async () => state.calls.push("cancel"),
+      isFillMode: () => state.fill,
+      finishFillMode: async () => { state.calls.push("finish-fill"); state.fill = false; },
+      openFillNeighbor: async () => state.calls.push("fill-neighbor"),
+      commitAndOpenNeighbor: async ({ commit }) => commit(),
+      documentRef, requestAnimationFrameRef: (callback) => callback(), setTimeoutRef: (callback) => callback(),
+    });
+    await badge.dispatch("pointerdown", createTestEvent());
+    return { badge, input: badge.children[0], state };
+  };
+  const settle = () => new Promise((resolve) => setImmediate(resolve));
+
+  // A click elsewhere: the value is saved and the fill ends, so the tracker draws again.
+  const left = await open();
+  left.input.value = "17";
+  await left.input.dispatch("blur", createTestEvent());
+  await settle();
+  assert.deepEqual(left.state.calls, [["save", "17"], "cleanup", ["after", "17"], "finish-fill"]);
+  assert.equal(left.badge.dataset.initEditing, undefined);
+
+  // Invio moves to the next creature: a blur after it does not end the fill.
+  const next = await open();
+  next.input.value = "12";
+  await next.input.dispatch("keydown", createTestEvent({ key: "Enter" }));
+  await next.input.dispatch("blur", createTestEvent());
+  await settle();
+  assert.deepEqual(next.state.calls, [["save", "12"], "cleanup", ["after", "12"], "fill-neighbor"]);
+  assert.equal(next.state.fill, true);
+
+  // The next editor closes this one first (closeOpenEditors): the fill goes on there.
+  const handedOver = await open();
+  await handedOver.badge.__commitFn();
+  await handedOver.input.dispatch("blur", createTestEvent());
+  await settle();
+  assert.deepEqual(handedOver.state.calls, ["cleanup", ["after", "10"]]);
+  assert.equal(handedOver.state.fill, true);
+
+  // Outside the fill a blur only saves, as before.
+  const single = await open({ fill: false });
+  single.input.value = "5";
+  await single.input.dispatch("blur", createTestEvent());
+  await settle();
+  assert.deepEqual(single.state.calls, [["save", "5"], "cleanup", ["after", "5"]]);
+});
+
 // Lot L19: a refused inline HP save went back to the old value without a word.
 test("L19: un salvataggio dei PF rifiutato lo dice", async () => {
   const documentRef = createTestDocument();

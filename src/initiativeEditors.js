@@ -223,7 +223,16 @@ export function bindClassicInitiativeEditor({
     });
 
     input.addEventListener("blur", () => {
-      if (!tabbing) requestAnimationFrameRef(() => commit());
+      if (tabbing) return;
+      requestAnimationFrameRef(() => {
+        // Closed already by Invio, Tab, Esc or the next editor: a fill goes on from there.
+        if (committed) return;
+        // The focus went elsewhere (the map, a card's menu, a header button): the fill ends here as with Esc. Left on
+        // with no editor open, it held every render of the tracker until the room was reloaded.
+        void commit()
+          .then(() => (isFillMode() ? finishFillMode() : undefined))
+          .catch((error) => console.warn("[initiative] editor blur:", error?.message || error));
+      });
     });
   });
 

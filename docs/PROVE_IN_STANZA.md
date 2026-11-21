@@ -95,7 +95,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B66. Lottatore: vantaggio e Immobilizza | 4 |
 | B67. Tempra Nanica | 4 |
 | B68. Incantesimi a ricarica e testo dello statblock nella console | 4 |
-| **C. Tracker e UX** | **42** |
+| **C. Tracker e UX** | **45** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
 | C3. Riposo del gruppo (U6′) | 3 |
@@ -105,6 +105,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | C7. Riquadro del movimento compresso | 6 |
 | C8. Interfaccia del tracker (studio contro Baldur's Gate 3) | 7 |
 | C9. Animazioni | 8 |
+| C10. Compilazione lasciata con un clic fuori | 3 |
 | **D. Avvisi, registro e gioco online** | **24** |
 | D1. Avvisi di reazione | 13 |
 | D2. Registro delle schede nella stanza | 3 |
@@ -123,7 +124,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **718** |
+| **Totale** | **721** |
 
 ## A. Incantesimi
 
@@ -1375,6 +1376,14 @@ Fonte: [STUDIO_ANIMAZIONI.md](STUDIO_ANIMAZIONI.md), lotti M1–M5 e le correzio
 - [ ] **Le barre dei PF (M5):** danno e cura su un mostro: la barra della card scorre al nuovo valore, nelle due viste, e arriva alla stessa misura di quella sulla mappa.
 - [ ] **Il movimento ridotto (M3):** in Windows, Impostazioni → Accessibilità → Effetti visivi → Effetti animazione spenti, poi ricarica le finestre. Gruppi, cambio di turno, avvisi e barre dei PF cambiano subito, senza animazione; le barre di scadenza degli avvisi scorrono ancora. Alla fine riaccendi gli effetti.
 - [ ] **Le durate comuni (M4):** pulsanti, menu e pannelli (Effetti, Aure, Opzioni, Cronologia, Orologi) reagiscono al passaggio del mouse come prima, un po' più svelti dove erano più lenti; nessuno ha perso la sua transizione.
+
+### C10. Compilazione lasciata con un clic fuori
+
+Fonte: correzione del 21/11 del tracker fermo («cambio fazione, tolgo qualcuno o svuoto, e devo ricaricare la room»), test in `test/initiativeEditors.test.js`. Le voci sono nuove. Prima la compilazione restava accesa senza editor dopo un clic fuori, e il tracker non si ridisegnava più. Al banco il fuoco si simula: qui si guarda che succeda con i clic veri.
+
+- [ ] **Il clic fuori:** aggiungi due token in iniziativa dal menu di Owlbear; la compilazione si apre sulla prima creatura. Scrivi un numero e clicca sulla mappa. I bordi tratteggiati spariscono, il numero resta e le card si riordinano.
+- [ ] **I tre casi:** subito dopo, dal menu di una card cambia la fazione, poi togli una creatura dall'iniziativa, poi svuota l'iniziativa con ×. Ogni volta il tracker cambia subito, senza ricaricare, sia nella finestra del GM sia sullo schermo del tavolo. Ripeti in vista compatta e in vista estesa, riaprendo ogni volta la compilazione.
+- [ ] **La compilazione con i tasti:** aggiungi di nuovo dei token. **Invio** e **Tab** passano alla creatura successiva senza chiudere la compilazione; **Esc** e **Ctrl+Invio** la chiudono come prima.
 
 ## D. Avvisi, registro e gioco online
 
