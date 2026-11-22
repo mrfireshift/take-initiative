@@ -11,6 +11,16 @@ Scritto dall'utente, che lo ha messo a disposizione del plugin:
 > - punti ferita temporanei pari a 1d6+livello da chierico
 > - rimuovere condizione affascinato o spaventato
 
+Il 22/11, su richiesta dell'utente, il testo mostrato dalla scheda è stato riformulato in stile da manuale, in terza persona come gli altri testi delle capacità. Comprende la fine anticipata approvata in D5. È in `data/class-features/homebrew_database_finale.json` e non contiene sequenze dei testi privati (controllo di `scripts/check-private-texts.mjs`):
+
+> Al 2° livello, il chierico ottiene questa opzione di Incanalare Divinità, con cui avvolge sé stesso e i suoi compagni in un crepuscolo protettivo.
+>
+> Come azione, il chierico emana una sfera di luce fioca del raggio di 9 metri, centrata su di sé, che si sposta insieme a lui. La sfera dura 1 minuto o finché il chierico non diventa incapacitato.
+>
+> Quando una creatura all'interno della sfera, chierico compreso, termina il proprio turno, il chierico può usare la sua reazione per concederle uno dei benefici seguenti, a scelta della creatura:
+> - La creatura ottiene un ammontare di punti ferita temporanei pari a 1d6 + il livello da chierico del chierico.
+> - La creatura smette di essere affascinata o spaventata. Se è sia affascinata sia spaventata, sceglie quale delle due condizioni termina.
+
 ## Le differenze con la versione ufficiale
 
 | | Ufficiale (Tasha), come la tratta oggi il plugin | Homebrew |

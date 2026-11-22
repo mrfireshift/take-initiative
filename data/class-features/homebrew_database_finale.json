@@ -19,7 +19,7 @@
         2
       ],
       "fonte_descrizione": "homebrew_del_tavolo",
-      "descrizione": "Azione, 1 minuto - emani una sfera di luce fioca centrata su te stessa, r = 9m, che si muove seguendoti.\nQuando una creatura (inclusa te) termina il suo turno all'interno della sfera, puoi usare la tua reazione per concederle una sola opzione a sua scelta tra:\n- punti ferita temporanei pari a 1d6+livello da chierico\n- rimuovere condizione affascinato o spaventato"
+      "descrizione": "Al 2° livello, il chierico ottiene questa opzione di Incanalare Divinità, con cui avvolge sé stesso e i suoi compagni in un crepuscolo protettivo.\n\nCome azione, il chierico emana una sfera di luce fioca del raggio di 9 metri, centrata su di sé, che si sposta insieme a lui. La sfera dura 1 minuto o finché il chierico non diventa incapacitato.\n\nQuando una creatura all'interno della sfera, chierico compreso, termina il proprio turno, il chierico può usare la sua reazione per concederle uno dei benefici seguenti, a scelta della creatura:\n• La creatura ottiene un ammontare di punti ferita temporanei pari a 1d6 + il livello da chierico del chierico.\n• La creatura smette di essere affascinata o spaventata. Se è sia affascinata sia spaventata, sceglie quale delle due condizioni termina."
     }
   ],
   "opzioni": []

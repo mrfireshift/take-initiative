@@ -150,9 +150,10 @@ test("D1: l'homebrew è una capacità del catalogo con la sua fonte, scelta sull
   assert.deepEqual(enabled({}), [OFFICIAL]);
   assert.deepEqual(enabled({ classFeaturesConfigured: true, enabledClassFeatureIds: [HOMEBREW] }), [HOMEBREW]);
   assert.deepEqual(enabled({ classFeaturesConfigured: true, enabledClassFeatureIds: [OFFICIAL, HOMEBREW] }).length, 1);
-  // The text is the GM's own: it ships with the plugin, unlike the manual's.
+  // The text is the GM's own, worded like a manual's entry: it ships with the plugin, unlike the manual's.
   const descriptions = JSON.parse(fs.readFileSync(new URL("../src/class-features-descriptions.json", import.meta.url), "utf8"));
-  assert.match(descriptions[HOMEBREW], /puoi usare la tua reazione/u);
+  assert.match(descriptions[HOMEBREW], /il chierico può usare la sua reazione/u);
+  assert.match(descriptions[HOMEBREW], /\n• La creatura ottiene/u);
   assert.equal(descriptions[OFFICIAL], undefined);
 });
 
