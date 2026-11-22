@@ -777,6 +777,18 @@ test("Regenerate: at the start of its turn the reminder has the 1 entered; a dyi
   assert.deepEqual([meta("hero").hp, meta("hero").deathSaves], [1, undefined], "the tally goes with the first hit point");
 });
 
+// The cast's healing is an hp:set: a dying PC healed by it wakes up (its automatic Privo di sensi ends) and loses its tally.
+test("Regenerate: the cast's healing wakes a PC at 0 HP: Privo di sensi ends, the death saves go; one Undo brings them back", async () => {
+  await resetScene([token(CASTER, 30, 30), token("hero", 0, 60, { attitude: "pc", deathSaves: { successes: 1, failures: 2 },
+    conditions: { version: 2, instances: [{ id: "ko", condition: "Privo di sensi", type: "hp-zero", active: true, expiry: { mode: "manual" } }] } })]);
+  await castWith("regenerate", 7, ["hero"], { castHealingValue: 20 });
+  assert.equal(meta("hero").hp, 20);
+  assert.equal(pills("hero").includes("Privo di sensi"), false, "awake");
+  assert.equal(meta("hero").deathSaves, undefined);
+  await undoLast();
+  assert.deepEqual([meta("hero").hp, pills("hero"), meta("hero").deathSaves], [0, ["Privo di sensi"], { successes: 1, failures: 2 }]);
+});
+
 test("Regenerate: no reminder at full hit points nor on the dead; any creature type can be healed", async () => {
   await resetScene([token(CASTER, 30, 30), token("hero", 60, 60)]);
   await castWith("regenerate", 7, ["hero"], { castHealingValue: 10 });

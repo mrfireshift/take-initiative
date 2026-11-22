@@ -607,30 +607,31 @@ async function preparedInstanceIsCurrent(casterId, activeConcentration, spellId)
 // same command as its pill. The pill's id is given here, before the coordinator would, so it can be their source
 // (lotto T3a): its end takes the ones left. targets: each creature's temporary hit points before and after.
 // CAP-REPEAT-HEAL: the healing of the cast of a tracked spell (Regenerate), in the command of its pill. The HP write
-// goes through the coordinator's patches, which empties the death saves of a PC back above 0 HP.
+// is an hp:set: the coordinator empties the death saves of a PC back above 0 HP and ends its automatic Privo di sensi
+// (a metadata patch left Privo di sensi on).
 async function buildCastHealingMutation({ spell, phase = "", targetIds = [], value = undefined } = {}) {
-  if (!spellCastHealingDice(spell?.id) || phase === "prepare") return { metadataPatches: [] };
+  if (!spellCastHealingDice(spell?.id) || phase === "prepare") return { operations: [] };
   const amount = Math.floor(Number(value));
   if (value === undefined || value === "" || !Number.isFinite(amount) || amount < 0) throw new Error("spell-healing-required");
   const ids = Array.from(new Set((targetIds || []).filter(Boolean)));
   const items = ids.length ? await OBR.scene.items.getItems(ids) : [];
-  const metadataPatches = [];
+  const updates = [];
   for (const item of items) {
     const meta = item?.metadata?.[`${ID}/meta`] || {};
     if (!Object.prototype.hasOwnProperty.call(meta, "hp") || !Object.prototype.hasOwnProperty.call(meta, "hpMax")) continue;
     const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: amount, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp });
     if (!change.changed) continue;
-    metadataPatches.push({
-      id: item.id,
+    updates.push({
+      itemId: item.id,
+      hp: change.afterHP,
+      hpMax: change.hpMax,
+      tempHp: change.afterTempHp,
       hpIntent: { mode: QUICK_HP_MODES.HEAL, amount, eventId: `cast-healing:${spell.id}:${item.id}` },
-      fields: {
-        hp: { expected: metadataSnapshot(meta, "hp"), value: change.afterHP },
-        hpMax: { expected: metadataSnapshot(meta, "hpMax"), value: change.hpMax },
-        ...tempHpPatchFields(meta, change),
-      },
+      expectedHP: metadataSnapshot(meta, "hp"),
+      expectedHPMax: metadataSnapshot(meta, "hpMax"),
     });
   }
-  return { metadataPatches };
+  return { operations: updates.length ? [{ type: "hp:set", updates }] : [] };
 }
 
 // CAP-CLEANSE on this lane: what the cast ends on its targets, read live, in the command and the History entry of its
@@ -2799,11 +2800,11 @@ export async function executeSpellApplication({
       selectors: [{ casterId }],
     });
   }
-  const mutation = await runEffectsMutation(applicationOperations, {
+  const mutation = await runEffectsMutation([...applicationOperations, ...castHealing.operations], {
     kind: "spell",
     label: applicationPlan.historyLabel,
     targetIds: [casterId, ...targetIds],
-    metadataPatches: [...initialDamageMutation.metadataPatches, ...castTemporaryHp.metadataPatches, ...castHealing.metadataPatches],
+    metadataPatches: [...initialDamageMutation.metadataPatches, ...castTemporaryHp.metadataPatches],
     sideEffects,
     history: {
       kind: "spell",

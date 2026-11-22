@@ -460,7 +460,9 @@ async function applyLayOnHandsResolved({
     throw classFeatureError(preflightActivation.reason || "invalid-activation", preflightActivation.poolId);
   }
   let hpChange = null;
-  const metadataPatches = [];
+  // The healing goes through hp:set, as a species trait's: the coordinator ends the automatic Privo di sensi of a PC
+  // back above 0 HP, empties its death saves and keeps shared HP (a metadata patch left Privo di sensi on).
+  const hpOperations = [];
   if (normalizedMode === "heal") {
     const targetMeta = targetItem.metadata?.[META_KEY] || {};
     const hp = Number(targetMeta.hp);
@@ -476,22 +478,17 @@ async function applyLayOnHandsResolved({
       tempHp: targetMeta.tempHp,
     });
     if (hpChange.changed) {
-      const tempHpField = quickHPTempHpPatchField(targetMeta, hpChange.afterTempHp,
-        metadataFieldExpectation(targetMeta, "tempHp"));
-      metadataPatches.push({
-        id: targetId,
-        fields: {
-          hp: {
-            mode: "set",
-            value: hpChange.afterHP,
-            expected: metadataFieldExpectation(targetMeta, "hp"),
-          },
-          ...(tempHpField ? { tempHp: tempHpField } : {}),
-          hpMax: {
-            mode: "assert",
-            expected: metadataFieldExpectation(targetMeta, "hpMax"),
-          },
-        },
+      hpOperations.push({
+        type: "hp:set",
+        updates: [{
+          itemId: targetId,
+          hp: hpChange.afterHP,
+          hpMax: hpChange.hpMax,
+          tempHp: hpChange.afterTempHp,
+          hpIntent: { mode: QUICK_HP_MODES.HEAL, amount: requestedValue, eventId: instanceId },
+          expectedHP: metadataFieldExpectation(targetMeta, "hp"),
+          expectedHPMax: metadataFieldExpectation(targetMeta, "hpMax"),
+        }],
       });
     }
   }
@@ -501,11 +498,10 @@ async function applyLayOnHandsResolved({
     operationId,
     ...activationInput,
     pools: classFeatureMutationPools(feature),
-  }], {
+  }, ...hpOperations], {
     kind: "class-feature",
     label: `Capacità: ${feature.name}`,
     targetIds: itemIds,
-    metadataPatches,
   });
   const activation = requireClassFeatureStateMutation(mutation, operationId);
   await refreshConditionLabels(itemIds);

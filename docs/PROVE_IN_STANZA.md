@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **343** |
+| **B. Console attacchi, mostri e capacità** | **345** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -96,6 +96,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B67. Tempra Nanica | 4 |
 | B68. Incantesimi a ricarica e testo dello statblock nella console | 4 |
 | B69. Santuario del Crepuscolo homebrew | 9 |
+| B70. Cure a 0 PF: Imposizione delle Mani e Rigenerazione | 2 |
 | **C. Tracker e UX** | **45** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -125,7 +126,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **730** |
+| **Totale** | **732** |
 
 ## A. Incantesimi
 
@@ -1270,6 +1271,13 @@ Fonte: richiesta dell'utente del 22/11, decisioni D1–D7 di `docs/STUDIO_SANTUA
 - [ ] **Nemici e fine:** un nemico che finisce il turno nella sfera non riceve l'offerta. Il chierico a 0 PF, o stordito, chiude il Santuario da solo, cerchio e pill compresi.
 - [ ] **L'ufficiale:** torna alla versione di Tasha e riattivala. L'offerta arriva anche ai nemici, ha il campo del d6 e i pulsanti delle condizioni, e non segna la reazione. Anche questa versione si chiude da sola quando il chierico va a 0 PF.
 - [ ] **Le due viste:** in vista compatta e in vista estesa la card del chierico mostra la reazione usata, e quella dell'alleato i suoi PF temporanei.
+
+### B70. Cure a 0 PF: Imposizione delle Mani e Rigenerazione
+
+Fonte: correzione del 22/11 (la cura con una patch dei PF lasciava «Privo di sensi»). Le voci sono nuove: nessuna lista le aveva. Servono un paladino, un mago con Rigenerazione e un PG portato a 0 PF dalla console (Privo di sensi e Prono), in combattimento.
+
+- [ ] **Imposizione delle Mani:** curato il PG a 0 PF dalla console attacchi o dalla scheda, «Privo di sensi» se ne va e Prono resta; spariscono anche i tiri contro la morte e «Stabile», se c'erano. Un solo Annulla rimette PF, condizioni e punti spesi. Da provare in vista compatta ed estesa.
+- [ ] **Rigenerazione:** lanciata dal pannello sul PG a 0 PF con il totale dei 4d8 + 15, lo sveglia allo stesso modo, con la pill della rigenerazione.
 
 ## C. Tracker e UX
 
