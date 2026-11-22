@@ -23,15 +23,16 @@ const rageId = "barbaro-ira";
 const vowId = "paladino-giuramento-di-vendetta-incanalare-divinita-giuramento-di-inimicizia";
 const twilightId = "chierico-dominio-del-crepuscolo-incanalare-divinita-santuario-del-crepuscolo";
 
-test("il catalogo runtime copre PHB, Xanathar, Tasha e Ranger Revised", () => {
+test("il catalogo runtime copre PHB, Xanathar, Tasha, Ranger Revised e l'homebrew del tavolo", () => {
   assert.equal(CLASS_FEATURE_CATALOG.version, 4);
   assert.deepEqual(
     CLASS_FEATURE_CATALOG.sources.map((entry) => entry.id),
-    ["phb2014", "xanathar", "tasha", "ranger-revised"],
+    ["phb2014", "xanathar", "tasha", "ranger-revised", "homebrew"],
   );
-  assert.equal(CLASS_FEATURE_CATALOG.validation.catalogRecords, 860);
-  // 272 with Combat Wild Shape (Trasformazioni, lotto W6).
-  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeImplemented, 272);
+  // 861 with the homebrew Twilight Sanctuary (docs/STUDIO_SANTUARIO_HOMEBREW.md).
+  assert.equal(CLASS_FEATURE_CATALOG.validation.catalogRecords, 861);
+  // 272 with Combat Wild Shape (Trasformazioni, lotto W6), 273 with the homebrew Twilight Sanctuary.
+  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeImplemented, 273);
   assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeNotAutomated, 588);
   assert.ok(CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === rageId));
   assert.ok(CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === vowId));
@@ -101,8 +102,16 @@ test("ogni caratteristica attivabile ha un'emoji unica e coerente", () => {
   const activatable = CLASS_FEATURE_CATALOG.features.filter((feature) =>
     feature.runtimeSupport?.status === "implemented"
   );
+  // Two versions of one feature (the manual's and the table's homebrew: one option group, the same pill) share their
+  // emoji: they count once.
   const byClass = new Map();
+  const seenVersions = new Set();
   for (const feature of activatable) {
+    const version = feature.optionGroup && feature.effectPlan?.conditionName
+      ? `${feature.optionGroup}:${feature.effectPlan.conditionName}`
+      : "";
+    if (version && seenVersions.has(version)) continue;
+    if (version) seenVersions.add(version);
     const entries = byClass.get(feature.classId) || [];
     entries.push(feature.theme?.emoji);
     byClass.set(feature.classId, entries);
@@ -428,10 +437,19 @@ test("il catalogo distingue bersaglio singolo e aura", () => {
     frequency: "once-per-turn",
     // CAP-TEMP: the manual roll of the heal reminder, for temporary hit points (reminderResolutionCore.js).
     resolution: "manual-heal",
-    label: "Santuario: PF temporanei pari a 1d6 + livello da Chierico (inserisci il totale), oppure termina a mano Affascinato o Spaventato e Ignora.",
+    label: "Santuario: PF temporanei pari a 1d6 + livello da Chierico, oppure togli Affascinato o Spaventato.",
     healing: { dice: "1d6", baseSlot: 0, additionalPerSlotAbove: 0 },
-    resolutionData: { temporaryHp: true, healing: { dice: "1d6", baseSlot: 0, additionalPerSlotAbove: 0 } },
+    // D7b of docs/STUDIO_SANTUARIO_HOMEBREW.md: the die alone with the cleric's level added, and the two conditions
+    // taken away from the reminder; no reaction, unlike the homebrew.
+    resolutionData: {
+      temporaryHp: true,
+      temporaryHpPlus: { classLevel: "chierico" },
+      removableConditions: ["Affascinato", "Spaventato"],
+      healing: { dice: "1d6", baseSlot: 0, additionalPerSlotAbove: 0 },
+    },
   });
+  // D7a: it ends when the cleric is incapacitated (an end condition the engine knows).
+  assert.deepEqual(twilight.duration.endConditions, ["incapacitato"]);
 });
 
 // ==========================================
@@ -439,8 +457,9 @@ test("il catalogo distingue bersaglio singolo e aura", () => {
 // ==========================================
 
 test("Fase 1: tutte le capacità del catalogo sono esposte nel runtime", () => {
-  assert.equal(CLASS_FEATURE_CATALOG.validation.activeFeatures, 860);
-  assert.equal(CLASS_FEATURE_CATALOG.features.length, 860);
+  // 861 with the homebrew Twilight Sanctuary.
+  assert.equal(CLASS_FEATURE_CATALOG.validation.activeFeatures, 861);
+  assert.equal(CLASS_FEATURE_CATALOG.features.length, 861);
   for (const subclassId of [
     "druido-circolo-della-terra",
     "guerriero-campione",

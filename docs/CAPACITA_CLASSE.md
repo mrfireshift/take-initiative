@@ -8,9 +8,11 @@ bersagli e reminder, ma non tira dadi e non decide gli esiti di gioco.
 ## Stato corrente del catalogo
 
 Il catalogo runtime è `src/class-features-runtime.json`, versione `4`.
-Contiene **860 capacità**, **104 pool di risorse** e 13 identificatori di
+Contiene **861 capacità**, **105 pool di risorse** e 13 identificatori di
 classe. L'identificatore `ranger-revised` è il dataset opzionale Unearthed
-Arcana 2016 e non è la stessa progressione del Ranger 2014.
+Arcana 2016 e non è la stessa progressione del Ranger 2014. La fonte
+`homebrew` raccoglie le varianti del tavolo (vedi
+[Varianti homebrew del tavolo](#varianti-homebrew-del-tavolo)).
 
 | Sorgente | Record runtime |
 | --- | ---: |
@@ -18,13 +20,14 @@ Arcana 2016 e non è la stessa progressione del Ranger 2014.
 | Guida Omnicomprensiva di Xanathar | 199 |
 | Calderone Omnicomprensivo di Tasha | 176 |
 | Unearthed Arcana: Ranger, Revised (2016) | 45 |
-| **Totale** | **860** |
+| Homebrew del tavolo | 1 |
+| **Totale** | **861** |
 
 Lo stato di supporto è intenzionalmente esplicito:
 
-- **271 `implemented`**: la capacità può essere attivata dal runtime secondo
+- **273 `implemented`**: la capacità può essere attivata dal runtime secondo
   l'adapter dichiarato;
-- **589 `not-automated`**: la voce resta consultabile e gestibile manualmente,
+- **588 `not-automated`**: la voce resta consultabile e gestibile manualmente,
   ma il pulsante di attivazione non applica una meccanica automatica. Le
   passive, le reazioni e gli effetti istantanei compaiono come
   **Promemoria descrittivo**; le altre come gestione manuale al tavolo, con il
@@ -72,6 +75,46 @@ essere abilitate aspettandosi un adapter che il catalogo non dichiara.
 Il player può vedere le informazioni rese disponibili dalla card e i reminder,
 ma non modifica build, risorse o istanze. I comandi di configurazione,
 attivazione e terminazione sono del GM.
+
+## Varianti homebrew del tavolo
+
+La fonte **Homebrew del tavolo** (`homebrew` nel catalogo) raccoglie le
+versioni scritte dal GM accanto a quelle dei manuali:
+
+- i dati stanno in `data/class-features/homebrew_database_finale.json`, con
+  record e testo, e in `homebrew_livello_meccanico_v1_0.json`, con la
+  meccanica;
+- la voce runtime sta negli override, come le altre;
+- il testo è del GM, quindi sta nel repository e la scheda lo mostra senza
+  pacchetto privato.
+
+Una variante condivide l'`optionGroup` della versione del manuale. Nella
+scheda le due capacità diventano pulsanti radio, e `getEnabledClassFeatures`
+ne tiene una sola. Di base resta la versione del manuale (`defaultEnabled`).
+
+| Variante | Differenze dalla versione del manuale |
+| --- | --- |
+| Incanalare Divinità: Santuario del Crepuscolo (homebrew) | ogni beneficio costa la reazione del chierico; lo sceglie la creatura; niente offerta ai nemici |
+
+Il promemoria di fine turno del Santuario, in tutte e due le versioni, legge
+questi campi di `resolutionData`:
+
+| Campo | Effetto |
+| --- | --- |
+| `temporaryHpPlus: { classLevel }` | il GM scrive solo il dado; l'aura scrive il livello della classe (`temporaryHpBonus`) e il plugin lo aggiunge |
+| `removableConditions` | un pulsante «Togli …» per ogni condizione che la creatura ha; toglie tutte le sue pill |
+| `spendsSourceReaction` | solo homebrew: il beneficio segna «Reazione usata» nello stesso comando; con la reazione usata l'offerta non nasce e quelle aperte cadono |
+| `skipHostileTargets` | solo homebrew: niente offerta alle creature ostili alla sorgente |
+
+La reazione torna all'inizio del turno del chierico, e il plugin toglie la pill
+proprio in quel cambio di turno, a volte prima di leggere la fine del turno
+appena chiuso. Per questo l'aura ricorda lo stato della reazione visto
+all'ultima passata (`sourceReaction` nei metadata dell'aura): per la
+creatura che gioca subito prima del chierico conta quello. Un beneficio dato
+quando il turno del chierico è già cominciato non segna niente, perché la
+reazione è già tornata.
+
+Studio e decisioni: [STUDIO_SANTUARIO_HOMEBREW.md](STUDIO_SANTUARIO_HOMEBREW.md).
 
 ## Cosa compare sulla card
 
@@ -181,7 +224,7 @@ capacità già coperte dai test e dagli adapter:
 | Barbaro | Ira, Attacco Irruento, Frenesia, Forma della Bestia, Impeto Selvaggio, Protettori Ancestrali, scelte totemiche e alcune aure. |
 | Bardo | Ispirazione Bardica, Parole Inquietanti, Controfascino, Linguaggio Universale, Ispirazione Contagiosa; Parole di Terrore, Conoscenze dell'Ombra, Esibizione Estasiante, Manto di Maestà, Maestà Inviolabile, Creazione Animata e Virtuosismo della Lama. |
 | Guerriero | Azione Impetuosa, Indomito, tutte le Manovre (dadi di Superiorità), Frecce del Tiro Arcano, Potenza del Gigante e Rune, Potere Psionico, Baluardo della Forza, Marchio Incrollabile, Forza di Fronte alla Morte. |
-| Chierico | Santuario del Crepuscolo, Scacciare Non Morti, Passi nella Notte e le opzioni di Incanalare Divinità di tutti i domini; Legame Incoraggiante, Benedizione dell'Ingannatore, Ira dell'Ordine, Corona di Luce, Incarnazione della Legge. |
+| Chierico | Santuario del Crepuscolo (anche nella variante homebrew del tavolo), Scacciare Non Morti, Passi nella Notte e le opzioni di Incanalare Divinità di tutti i domini; Legame Incoraggiante, Benedizione dell'Ingannatore, Ira dell'Ordine, Corona di Luce, Incarnazione della Legge. |
 | Druido | Forma Selvatica e Forma Elementale come marker (i PF della bestia restano al GM), Forma Siderale e Totem Spirituale con scelta della variante, Entità Simbiotica, Diffusione di Spore, Infestazione Fungina, Spirito della Fiamma con Legame Migliorato e gli usi dei circoli. |
 | Ladro | Imboscata Magica, Ingannatore Versatile, Ladro di Incantesimi e Colpo di Fortuna; i poteri della Lama Spirituale, Velo Psichico, Squarciare la Mente, Cammino Fantasma, Spavalderia, Combattimento Intuitivo e Maestro di Imboscate. |
 | Mago | Portento, Terzo Occhio, Sguardo Ipnotico, Deviazione Arcana, Melodia della Lama, Comandare Non Morti e gli usi delle scuole (Trasposizione Benevola, Sosia Illusorio, Ordine degli Scribi). |

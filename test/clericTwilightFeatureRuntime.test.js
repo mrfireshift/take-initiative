@@ -36,6 +36,8 @@ const TURN_UNDEAD = "chierico-incanalare-divinita-scacciare-non-morti";
 const NIGHT_EYES = "chierico-dominio-del-crepuscolo-occhi-della-notte";
 const VIGILANT_BLESSING = "chierico-dominio-del-crepuscolo-benedizione-vigile";
 const SANCTUARY = "chierico-dominio-del-crepuscolo-incanalare-divinita-santuario-del-crepuscolo";
+// The table's homebrew version, the card's alternative to the manual's (test/twilightSanctuaryHomebrew.test.js).
+const SANCTUARY_HOMEBREW = "chierico-dominio-del-crepuscolo-incanalare-divinita-santuario-homebrew";
 const STEPS = "chierico-dominio-del-crepuscolo-passi-nella-notte";
 const CHANNEL_POOL = "chierico-incanalare-divinita-usi";
 const STEPS_POOL = "chierico-dominio-del-crepuscolo-passi-nella-notte-usi";
@@ -77,6 +79,7 @@ const REFERENCE_IDS = [
 const ASSISTED_IDS = [
   TURN_UNDEAD,
   SANCTUARY,
+  SANCTUARY_HOMEBREW,
   STEPS,
 ];
 
@@ -154,7 +157,7 @@ test("il Chierico del Crepuscolo espone i sette privilegi base e i sette di sott
   assert.equal(otherDomain.some((entry) => TWILIGHT_IDS.includes(entry.id)), false);
 });
 
-test("gli undici reminder descrittivi non hanno effect plan né quick action, mentre le tre capacità assistite sono le sole implementate", () => {
+test("gli undici reminder descrittivi non hanno effect plan né quick action, mentre le capacità assistite (tre, più il Santuario homebrew) sono le sole implementate", () => {
   for (const id of REFERENCE_IDS) {
     const value = feature(id);
     assert.equal(value.runtimeSupport.status, "not-automated", id);
@@ -176,7 +179,7 @@ test("gli undici reminder descrittivi non hanno effect plan né quick action, me
       .sort(),
     [...ASSISTED_IDS].sort(),
   );
-  assert.equal(perimeter.filter((entry) => entry.runtimeSupport.status === "implemented").length, 3);
+  assert.equal(perimeter.filter((entry) => entry.runtimeSupport.status === "implemented").length, 4);
 });
 
 test("Incanalare Divinità risolve 1/2/3 usi e recupera a riposo breve o lungo", () => {

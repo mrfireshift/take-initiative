@@ -51,7 +51,8 @@ test("senza pacchetto la scheda mostra i fatti di un incantesimo di Xanathar e d
 test("nei database delle capacità restano solo i testi SRD, gli stessi che la scheda carica", async () => {
   const descriptions = JSON.parse(fs.readFileSync(new URL("../src/class-features-descriptions.json", import.meta.url), "utf8"));
   const withText = [];
-  for (const file of ["phb2014_classi_database_finale", "xanathar_sottoclassi_database_finale", "tasha_sottoclassi_database_finale", "ranger_revised_database_finale"]) {
+  // The table's homebrew database holds its GM's own texts (docs/STUDIO_SANTUARIO_HOMEBREW.md), loaded the same way.
+  for (const file of ["phb2014_classi_database_finale", "xanathar_sottoclassi_database_finale", "tasha_sottoclassi_database_finale", "ranger_revised_database_finale", "homebrew_database_finale"]) {
     const database = JSON.parse(fs.readFileSync(new URL(`../data/class-features/${file}.json`, import.meta.url), "utf8"));
     for (const record of [...(database.privilegi || []), ...(database.opzioni || [])]) {
       if (typeof record.descrizione === "string") withText.push(record.id);

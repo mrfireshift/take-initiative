@@ -738,6 +738,7 @@
       "automationLevel": "assistita",
       "defaultEnabled": true,
       "quickActionEligible": false,
+      "optionGroup": "chierico-dominio-del-crepuscolo-santuario-del-crepuscolo",
       "targeting": {
         "mode": "aura",
         "rangeMeters": 9,
@@ -746,7 +747,7 @@
       },
       "duration": {
         "rounds": 10,
-        "end_conditions": ["incapacitato_o_morto"]
+        "end_conditions": ["incapacitato"]
       },
       "trackingMode": "active",
       "effectPlan": {
@@ -772,9 +773,72 @@
               "targetMode": "actor",
               "frequency": "once-per-turn",
               "resolution": "manual-heal",
-              "label": "Santuario: PF temporanei pari a 1d6 + livello da Chierico (inserisci il totale), oppure termina a mano Affascinato o Spaventato e Ignora.",
+              "label": "Santuario: PF temporanei pari a 1d6 + livello da Chierico, oppure togli Affascinato o Spaventato.",
               "healing": { "dice": "1d6", "baseSlot": 0, "additionalPerSlotAbove": 0 },
-              "resolutionData": { "temporaryHp": true, "healing": { "dice": "1d6", "baseSlot": 0, "additionalPerSlotAbove": 0 } }
+              "resolutionData": {
+                "temporaryHp": true,
+                "temporaryHpPlus": { "classLevel": "chierico" },
+                "removableConditions": ["Affascinato", "Spaventato"],
+                "healing": { "dice": "1d6", "baseSlot": 0, "additionalPerSlotAbove": 0 }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "chierico-dominio-del-crepuscolo-incanalare-divinita-santuario-homebrew": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "aura",
+      "automationLevel": "assistita",
+      "defaultEnabled": false,
+      "quickActionEligible": false,
+      "optionGroup": "chierico-dominio-del-crepuscolo-santuario-del-crepuscolo",
+      "theme": { "emoji": "🌙", "accent": "#a78bfa", "background": "#312e81", "text": "#f5f3ff" },
+      "targeting": {
+        "mode": "aura",
+        "rangeMeters": 9,
+        "maxTargets": null,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 10,
+        "end_conditions": ["incapacitato"]
+      },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Santuario del Crepuscolo",
+        "radiusMeters": 9,
+        "detail": "Sfera di luce fioca centrata sul Chierico, che lo segue. Versione homebrew: ogni beneficio costa la reazione del Chierico.",
+        "sourceCardPill": { "mapVisible": false },
+        "membershipTargeting": {
+          "filter": "all",
+          "includeCaster": true
+        },
+        "targetEffect": {
+          "conditionName": "Nel Santuario del Crepuscolo",
+          "effectKind": "buff",
+          "detail": "Homebrew: a fine turno il Chierico può usare la reazione per dare una sola opzione, a scelta della creatura: PF temporanei pari a 1d6 + suo livello da Chierico, oppure togliere Affascinato o Spaventato. Termina dopo 1 minuto o se il Chierico è incapacitato. Con Sudario (17°), Chierico e alleati hanno mezza copertura."
+        },
+        "triggerPolicy": {
+          "triggers": [
+            {
+              "id": "santuario-del-crepuscolo-homebrew-fine-turno",
+              "event": "turn-end",
+              "targetMode": "actor",
+              "frequency": "once-per-turn",
+              "resolution": "manual-heal",
+              "label": "Santuario, con la reazione del Chierico: PF temporanei pari a 1d6 + livello da Chierico, oppure togli Affascinato o Spaventato. Sceglie la creatura.",
+              "healing": { "dice": "1d6", "baseSlot": 0, "additionalPerSlotAbove": 0 },
+              "resolutionData": {
+                "temporaryHp": true,
+                "temporaryHpPlus": { "classLevel": "chierico" },
+                "removableConditions": ["Affascinato", "Spaventato"],
+                "spendsSourceReaction": true,
+                "skipHostileTargets": true,
+                "healing": { "dice": "1d6", "baseSlot": 0, "additionalPerSlotAbove": 0 }
+              }
             }
           ]
         }

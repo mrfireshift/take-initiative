@@ -71,7 +71,8 @@ function mechanic(id) {
 }
 
 test("il Ladro e il Mistificatore Arcano espongono livelli e sottoclasse corretti", () => {
-  assert.equal(CLASS_FEATURE_CATALOG.validation.catalogRecords, 860);
+  // 861 with the homebrew Twilight Sanctuary.
+  assert.equal(CLASS_FEATURE_CATALOG.validation.catalogRecords, 861);
   const baseAvailable = new Set(getAvailableClassFeatures(rogueBuild(20)).map((entry) => entry.id));
   assert.deepEqual(
     [...baseAvailable].filter((id) => id in BASE_FEATURE_LEVELS).sort(),

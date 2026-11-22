@@ -42,6 +42,14 @@ const SOURCE_CONFIGS = Object.freeze([
     catalog: "ranger_revised_database_finale.json",
     mechanics: "ranger_revised_livello_meccanico_v1_0.json",
   }),
+  // The table's own variants, written by its GM beside the manuals' versions (docs/STUDIO_SANTUARIO_HOMEBREW.md): their
+  // texts are the GM's, so they stay in the repository.
+  Object.freeze({
+    id: "homebrew",
+    label: "Homebrew del tavolo",
+    catalog: "homebrew_database_finale.json",
+    mechanics: "homebrew_livello_meccanico_v1_0.json",
+  }),
 ]);
 
 const NON_ACTION_ACTIVATIONS = new Set([

@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **334** |
+| **B. Console attacchi, mostri e capacità** | **343** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -95,6 +95,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B66. Lottatore: vantaggio e Immobilizza | 4 |
 | B67. Tempra Nanica | 4 |
 | B68. Incantesimi a ricarica e testo dello statblock nella console | 4 |
+| B69. Santuario del Crepuscolo homebrew | 9 |
 | **C. Tracker e UX** | **45** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -124,7 +125,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **721** |
+| **Totale** | **730** |
 
 ## A. Incantesimi
 
@@ -1255,6 +1256,20 @@ Fonte: richiesta dell'utente del 21/11 sul Vine Blight del 2024 (decisioni: riqu
 - [ ] **La console:** apri la console del Vine Blight. In **Incantesimi** c'è Intralciare (Azione · Conc.), con la nota «Ricarica 5–6: senza slot, il lancio spende la ricarica.». **Lancia** apre il pannello incantesimi; lanciato, il pannello dice «speso: ricarica di Intralciare (5–6)» e non spende slot.
 - [ ] **Usata:** dopo il lancio la nota diventa «Ricarica 5–6 · usata: lancialo di nuovo quando il d6 al tavolo la ricarica.», e nel ⚡ la riga dice «ricarica 5–6 usata». Lanciato di nuovo, il lancio parte lo stesso. Un riposo breve la riporta pronta.
 - [ ] **Il testo dell'attacco:** in **Attacchi**, sotto «Mischia · +4 al tiro · portata 3 m», c'è «Testo dello statblock», chiuso. Aperto, mostra il testo intero di Constricting Vine, anche il danno a ogni turno di chi è in lotta. Resta aperto passando a un altro attacco e si chiude con un clic. Prova anche un mostro importato da testo (Ezmerelda) e un'azione bonus (Crushing Grip del Werewolf Brawler). In un PG il riquadro non c'è.
+
+### B69. Santuario del Crepuscolo homebrew
+
+Fonte: richiesta dell'utente del 22/11, decisioni D1–D7 di `docs/STUDIO_SANTUARIO_HOMEBREW.md`. Le voci sono nuove: nessuna lista le aveva. Serve un chierico del Dominio del Crepuscolo dal 2° livello, con il livello sulla scheda, e nella sfera un alleato e un nemico.
+
+- [ ] **La scelta sulla scheda:** in modifica, nella scheda Capacità, sotto Incanalare Divinità ci sono due pulsanti radio: «Santuario del Crepuscolo», acceso, e «Santuario del Crepuscolo (homebrew)». Scegli l'homebrew e salva: tra le capacità del chierico c'è un solo Santuario, con il testo del tavolo e la fonte «Homebrew del tavolo».
+- [ ] **La sfera:** attivalo. Si spende un uso di Incanalare Divinità e sulla mappa compare il cerchio viola di 9 m, che segue il chierico quando si muove. Chi sta dentro ha la pill «Nel Santuario del Crepuscolo», nemici compresi.
+- [ ] **L'offerta:** quando un alleato nella sfera finisce il turno, il GM vede la sua riga con il campo «PF temporanei 1d6», il livello da chierico accanto («+ N»), «Applica PF temporanei» e «Ignora». Scrivi 4: accanto compare «+ N = 4+N». Lo schermo del tavolo vede la stessa riga, senza pulsanti.
+- [ ] **La reazione:** premi Applica. L'alleato ha 4+N PF temporanei e sulla card del chierico l'icona della reazione diventa rossa. Quando finisce il turno la creatura successiva, l'offerta non compare. Un Annulla toglie insieme i PF temporanei e la reazione.
+- [ ] **Prima del chierico:** con la reazione già spesa nel round, fai finire il turno nella sfera alla creatura che gioca subito prima del chierico. L'offerta non compare, anche se all'inizio del turno del chierico l'icona della reazione torna verde.
+- [ ] **Affascinato e Spaventato:** dai Spaventato a un alleato nella sfera. Alla fine del suo turno la riga ha «Togli Spaventato»: toglie la pill e segna la reazione. Una creatura senza quelle condizioni non ha il pulsante.
+- [ ] **Nemici e fine:** un nemico che finisce il turno nella sfera non riceve l'offerta. Il chierico a 0 PF, o stordito, chiude il Santuario da solo, cerchio e pill compresi.
+- [ ] **L'ufficiale:** torna alla versione di Tasha e riattivala. L'offerta arriva anche ai nemici, ha il campo del d6 e i pulsanti delle condizioni, e non segna la reazione. Anche questa versione si chiude da sola quando il chierico va a 0 PF.
+- [ ] **Le due viste:** in vista compatta e in vista estesa la card del chierico mostra la reazione usata, e quella dell'alleato i suoi PF temporanei.
 
 ## C. Tracker e UX
 

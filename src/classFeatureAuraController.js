@@ -185,6 +185,12 @@ function auraVisualNeedsUpdate(item, desired) {
   return JSON.stringify(metadata) !== JSON.stringify(merged);
 }
 
+function auraVisualReconcilePerformedOwnedWrite(result) {
+  const metrics = result?.metrics || {};
+  return [metrics.addCalls, metrics.updateCalls, metrics.deleteCalls]
+    .some((value) => Number(value) > 0);
+}
+
 async function reconcileAuraVisuals(desiredVisuals, sceneEpoch, snapshot = null) {
   return reconcileOwnedSceneItems({
     desired: desiredVisuals,
@@ -491,8 +497,13 @@ async function reconcileClassFeatureAuras({ reason = "event", force = false } = 
     () => isCurrentSceneEpoch(sceneEpoch) && spatialSceneSnapshot.isCurrent(snapshot),
   );
   if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
-  await reconcileAuraVisuals(desiredVisuals, sceneEpoch, snapshot);
-  if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
+  const auraVisualReconcile = await reconcileAuraVisuals(desiredVisuals, sceneEpoch, snapshot);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  // Writing triggerRuntime on the aura is this controller's own write, and it makes the snapshot stale on purpose: the
+  // reminders it has just persisted still go out, as the spell and custom auras do (the next pass finds them handled).
+  // Without that check the end of a turn in Twilight Sanctuary was never offered (docs/STUDIO_SANTUARIO_HOMEBREW.md).
+  // A snapshot gone stale without a write of ours is a concurrent change, planned again on the next pass.
+  if (!spatialSceneSnapshot.isCurrent(snapshot) && !auraVisualReconcilePerformedOwnedWrite(auraVisualReconcile)) return;
   if (newTriggerNotices.length) {
     void sendProjectedReminderPayload(
       SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,

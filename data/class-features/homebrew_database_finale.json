@@ -1,0 +1,26 @@
+{
+  "meta": {
+    "titolo": "Database delle capacità homebrew del tavolo",
+    "lingua": "it-IT",
+    "sistema": "D&D 5e 2014",
+    "versione_schema": "1.1.0",
+    "versione": "1.0.0",
+    "data_generazione": "2026-11-22",
+    "note": "Varianti scritte dal GM del tavolo, accanto alle versioni dei manuali. I testi sono del GM: possono stare nel repository. Studio: docs/STUDIO_SANTUARIO_HOMEBREW.md."
+  },
+  "privilegi": [
+    {
+      "id": "chierico-dominio-del-crepuscolo-incanalare-divinita-santuario-homebrew",
+      "nome": "Incanalare Divinità: Santuario del Crepuscolo (homebrew)",
+      "tipo": "privilegio",
+      "classe_id": "chierico",
+      "sottoclasse_id": "chierico-dominio-del-crepuscolo",
+      "livelli": [
+        2
+      ],
+      "fonte_descrizione": "homebrew_del_tavolo",
+      "descrizione": "Azione, 1 minuto - emani una sfera di luce fioca centrata su te stessa, r = 9m, che si muove seguendoti.\nQuando una creatura (inclusa te) termina il suo turno all'interno della sfera, puoi usare la tua reazione per concederle una sola opzione a sua scelta tra:\n- punti ferita temporanei pari a 1d6+livello da chierico\n- rimuovere condizione affascinato o spaventato"
+    }
+  ],
+  "opzioni": []
+}

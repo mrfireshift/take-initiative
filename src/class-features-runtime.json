@@ -24,6 +24,12 @@
       "label": "Unearthed Arcana: Ranger, Revised (2016)",
       "catalogVersion": "1.0.0",
       "mechanicVersion": "1.0.0"
+    },
+    {
+      "id": "homebrew",
+      "label": "Homebrew del tavolo",
+      "catalogVersion": "1.0.0",
+      "mechanicVersion": "1.0.0"
     }
   ],
   "classes": [
@@ -12946,6 +12952,7 @@
       "activation": {
         "primary": "azione"
       },
+      "optionGroup": "chierico-dominio-del-crepuscolo-santuario-del-crepuscolo",
       "trackedResourcePoolIds": [
         "chierico-incanalare-divinita-usi"
       ],
@@ -12988,7 +12995,7 @@
               "targetMode": "actor",
               "frequency": "once-per-turn",
               "resolution": "manual-heal",
-              "label": "Santuario: PF temporanei pari a 1d6 + livello da Chierico (inserisci il totale), oppure termina a mano Affascinato o Spaventato e Ignora.",
+              "label": "Santuario: PF temporanei pari a 1d6 + livello da Chierico, oppure togli Affascinato o Spaventato.",
               "healing": {
                 "dice": "1d6",
                 "baseSlot": 0,
@@ -12996,6 +13003,13 @@
               },
               "resolutionData": {
                 "temporaryHp": true,
+                "temporaryHpPlus": {
+                  "classLevel": "chierico"
+                },
+                "removableConditions": [
+                  "Affascinato",
+                  "Spaventato"
+                ],
                 "healing": {
                   "dice": "1d6",
                   "baseSlot": 0,
@@ -13010,7 +13024,116 @@
       "duration": {
         "rounds": 10,
         "endConditions": [
-          "incapacitato_o_morto"
+          "incapacitato"
+        ]
+      },
+      "trackingMode": "active",
+      "resourceCosts": [
+        {
+          "poolId": "chierico-incanalare-divinita-usi",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "chierico-dominio-del-crepuscolo-incanalare-divinita-santuario-homebrew",
+      "name": "Incanalare Divinità: Santuario del Crepuscolo (homebrew)",
+      "classId": "chierico",
+      "subclassId": "chierico-dominio-del-crepuscolo",
+      "parentFeatureId": "chierico-incanalare-divinita",
+      "minimumLevel": 2,
+      "source": "homebrew",
+      "sourceLabel": "Homebrew del tavolo",
+      "page": null,
+      "collection": "privilegi",
+      "defaultEnabled": false,
+      "automationLevel": "assistita",
+      "completenessStatus": "curated",
+      "runtimeRequirements": [],
+      "missingForExecution": [],
+      "runtimeSupport": {
+        "status": "implemented",
+        "adapter": "aura",
+        "reason": null
+      },
+      "activation": {
+        "primary": "azione"
+      },
+      "optionGroup": "chierico-dominio-del-crepuscolo-santuario-del-crepuscolo",
+      "trackedResourcePoolIds": [
+        "chierico-incanalare-divinita-usi"
+      ],
+      "quickActionEligible": false,
+      "targetMode": "self",
+      "targeting": {
+        "mode": "aura",
+        "rangeMeters": 9,
+        "maxTargets": null,
+        "excludeSource": false
+      },
+      "theme": {
+        "emoji": "🌙",
+        "accent": "#a78bfa",
+        "background": "#312e81",
+        "text": "#f5f3ff"
+      },
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Santuario del Crepuscolo",
+        "radiusMeters": 9,
+        "detail": "Sfera di luce fioca centrata sul Chierico, che lo segue. Versione homebrew: ogni beneficio costa la reazione del Chierico.",
+        "sourceCardPill": {
+          "mapVisible": false
+        },
+        "membershipTargeting": {
+          "filter": "all",
+          "includeCaster": true
+        },
+        "targetEffect": {
+          "conditionName": "Nel Santuario del Crepuscolo",
+          "effectKind": "buff",
+          "detail": "Homebrew: a fine turno il Chierico può usare la reazione per dare una sola opzione, a scelta della creatura: PF temporanei pari a 1d6 + suo livello da Chierico, oppure togliere Affascinato o Spaventato. Termina dopo 1 minuto o se il Chierico è incapacitato. Con Sudario (17°), Chierico e alleati hanno mezza copertura."
+        },
+        "triggerPolicy": {
+          "triggers": [
+            {
+              "id": "santuario-del-crepuscolo-homebrew-fine-turno",
+              "event": "turn-end",
+              "targetMode": "actor",
+              "frequency": "once-per-turn",
+              "resolution": "manual-heal",
+              "label": "Santuario, con la reazione del Chierico: PF temporanei pari a 1d6 + livello da Chierico, oppure togli Affascinato o Spaventato. Sceglie la creatura.",
+              "healing": {
+                "dice": "1d6",
+                "baseSlot": 0,
+                "additionalPerSlotAbove": 0
+              },
+              "resolutionData": {
+                "temporaryHp": true,
+                "temporaryHpPlus": {
+                  "classLevel": "chierico"
+                },
+                "removableConditions": [
+                  "Affascinato",
+                  "Spaventato"
+                ],
+                "spendsSourceReaction": true,
+                "skipHostileTargets": true,
+                "healing": {
+                  "dice": "1d6",
+                  "baseSlot": 0,
+                  "additionalPerSlotAbove": 0
+                }
+              }
+            }
+          ]
+        }
+      },
+      "breaksConcentration": false,
+      "duration": {
+        "rounds": 10,
+        "endConditions": [
+          "incapacitato"
         ]
       },
       "trackingMode": "active",
@@ -50525,11 +50648,11 @@
     }
   ],
   "validation": {
-    "catalogRecords": 860,
-    "mechanicRecords": 860,
-    "activeFeatures": 860,
+    "catalogRecords": 861,
+    "mechanicRecords": 861,
+    "activeFeatures": 861,
     "resourcePools": 105,
-    "runtimeImplemented": 272,
+    "runtimeImplemented": 273,
     "runtimeNotAutomated": 588
   }
 }

@@ -21,10 +21,14 @@ import {
 import { effectSaveReminderNoticeFromHistoryReplay } from "./effectSaveReminderCore.js";
 import {
   REMINDER_OUTCOMES,
+  REMINDER_REMOVE_CONDITION_OUTCOME,
   normalizeReminderResolution,
+  reminderConditionInstances,
   reminderDamageDefenseRows,
+  reminderRemovableConditions,
   reminderResolutionNeedsDamage,
   reminderResolutionOutcomeNeedsDamage,
+  reminderTemporaryHpBonus,
 } from "./reminderResolutionCore.js";
 import {
   spellActionDamageTypes,
@@ -216,6 +220,7 @@ const RESOLUTION_LABELS: Record<string, string> = {
   [REMINDER_OUTCOMES.FAILED]: "Fallito",
   apply: "Applica cura",
   ignore: "Ignora",
+  [REMINDER_REMOVE_CONDITION_OUTCOME]: "Condizione tolta",
   ...DEATH_SAVE_OUTCOME_LABELS,
 };
 const RESOLUTION_BUTTON_OUTCOMES = [
@@ -424,6 +429,8 @@ function resolutionDraftFor(activationId: string) {
   const draft = {
     outcome: "",
     damageRoll: "",
+    // Twilight Sanctuary: the condition the creature drops (outcome REMINDER_REMOVE_CONDITION_OUTCOME).
+    removeCondition: "",
     turbineSize: "",
     turbineStrengthOutcome: "",
     ignoredDefenses: [] as string[],
@@ -773,6 +780,10 @@ function buildResolutionControls(line: HTMLElement, row: any) {
   const manualHeal = row.resolution?.mode === "manual-heal";
   // CAP-TEMP: the same manual roll for temporary hit points (Twilight Sanctuary).
   const manualTempHp = manualHeal && row.resolution?.activation?.resolutionData?.temporaryHp === true;
+  // Twilight Sanctuary (docs/STUDIO_SANTUARIO_HOMEBREW.md): the die alone, the cleric's level added by the plugin and
+  // shown beside it; Charmed or Frightened taken away instead, one button for each the creature has.
+  const tempHpBonus = manualTempHp ? reminderTemporaryHpBonus(row.resolution) : { bonus: 0, faces: 0, dice: "" };
+  const removableConditions = reminderRemovableConditions(row.resolution);
   // The amount already known (Heroism: the caster's modifier; Regenerate: 1), entered for the GM, who can still change it.
   const suggestedAmount = manualHeal ? row.resolution?.activation?.resolutionData?.suggestedAmount : undefined;
   if (Number.isInteger(suggestedAmount) && !draft.outcome && draft.damageRoll === "") draft.damageRoll = String(suggestedAmount);
@@ -786,19 +797,39 @@ function buildResolutionControls(line: HTMLElement, row: any) {
   if (reminderResolutionNeedsDamage(row.resolution) || manualHeal) {
     const damageLabel = document.createElement("label");
     damageLabel.className = "zone-resolution-damage";
-    damageLabel.textContent = manualTempHp ? "PF temporanei" : manualHeal ? "Cura" : "Danni";
+    damageLabel.textContent = manualTempHp
+      ? (tempHpBonus.bonus ? `PF temporanei ${tempHpBonus.dice}` : "PF temporanei")
+      : manualHeal ? "Cura" : "Danni";
     damageInput = document.createElement("input");
     damageInput.type = manualDamage ? "text" : "number";
-    damageInput.min = "0";
+    damageInput.min = tempHpBonus.bonus ? "1" : "0";
+    if (tempHpBonus.bonus) damageInput.max = String(tempHpBonus.faces);
     damageInput.step = "1";
     damageInput.inputMode = "numeric";
     damageInput.value = draft.damageRoll;
-    damageInput.placeholder = "0";
-    damageInput.setAttribute("aria-label", "Risultato dei dadi");
+    damageInput.placeholder = tempHpBonus.bonus ? `1–${tempHpBonus.faces}` : "0";
+    damageInput.setAttribute("aria-label", tempHpBonus.bonus ? `Risultato del ${tempHpBonus.dice}` : "Risultato dei dadi");
+    // The level the plugin adds, and the sum once the die is in: «+ 5 = 9».
+    const bonusHint = tempHpBonus.bonus ? document.createElement("span") : null;
+    const renderBonusHint = () => {
+      if (!bonusHint) return;
+      const roll = Math.floor(Number(damageInput?.value));
+      const valid = Number.isInteger(roll) && roll >= 1 && roll <= tempHpBonus.faces;
+      bonusHint.textContent = valid ? `+ ${tempHpBonus.bonus} = ${roll + tempHpBonus.bonus}` : `+ ${tempHpBonus.bonus}`;
+    };
+    if (bonusHint) {
+      bonusHint.dataset.temporaryHpBonus = String(tempHpBonus.bonus);
+      bonusHint.title = "Il livello da chierico, aggiunto dal plugin";
+    }
     damageInput.addEventListener("input", () => {
       draft.damageRoll = damageInput?.value || "";
+      renderBonusHint();
     });
     damageLabel.appendChild(damageInput);
+    if (bonusHint) {
+      renderBonusHint();
+      damageLabel.appendChild(bonusHint);
+    }
     controls.appendChild(damageLabel);
   }
 
@@ -854,7 +885,8 @@ function buildResolutionControls(line: HTMLElement, row: any) {
 
   const refreshSelection = () => {
     for (const button of Array.from(outcomes.querySelectorAll("button"))) {
-      button.classList.toggle("is-selected", button.dataset.outcome === draft.outcome);
+      button.classList.toggle("is-selected", button.dataset.outcome === draft.outcome
+        && (!button.dataset.condition || button.dataset.condition === draft.removeCondition));
     }
   };
 
@@ -920,6 +952,8 @@ function buildResolutionControls(line: HTMLElement, row: any) {
   const resolve = async (outcome: string) => {
     if (resolvingActivations.has(activationId)) return;
     draft.outcome = outcome;
+    // A condition's button writes its name in the draft just before; any other outcome drops it.
+    if (outcome !== REMINDER_REMOVE_CONDITION_OUTCOME) draft.removeCondition = "";
     refreshSelection();
     if (turbine && !draft.turbineSize) {
       draft.turbineSize = await turbineSizePromise;
@@ -969,6 +1003,7 @@ function buildResolutionControls(line: HTMLElement, row: any) {
         },
         outcome: draft.outcome,
         damageRoll: draft.damageRoll,
+        ...(draft.removeCondition ? { removeCondition: draft.removeCondition } : {}),
         ...(draft.ignoredDefenses.length ? { ignoredDefenses: draft.ignoredDefenses } : {}),
         ...(turbine ? {
           turbineSize: draft.turbineSize,
@@ -1037,6 +1072,37 @@ function buildResolutionControls(line: HTMLElement, row: any) {
       void resolve(option.value);
     });
     outcomes.appendChild(button);
+  }
+  // Twilight Sanctuary: «Togli Affascinato», «Togli Spaventato» before Ignora, only for the conditions the creature has
+  // now, read from its token.
+  const conditionTargetId = String(row?.targets?.[0]?.id || "").trim();
+  if (manualHeal && removableConditions.length && conditionTargetId) {
+    const conditionBox = document.createElement("span");
+    conditionBox.className = "zone-resolution-outcomes";
+    conditionBox.dataset.removableConditions = "1";
+    conditionBox.hidden = true;
+    outcomes.insertBefore(conditionBox, outcomes.querySelector('button[data-outcome="ignore"]'));
+    void OBR.scene.items.getItems([conditionTargetId]).then((items) => {
+      const names = removableConditions.filter((name) => reminderConditionInstances(items?.[0], name).length > 0);
+      conditionBox.replaceChildren(...names.map((name) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.outcome = REMINDER_REMOVE_CONDITION_OUTCOME;
+        button.dataset.condition = name;
+        button.textContent = `Togli ${name}`;
+        button.disabled = resolvingActivations.has(activationId);
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          if (resolvingActivations.has(activationId)) return;
+          draft.removeCondition = name;
+          void resolve(REMINDER_REMOVE_CONDITION_OUTCOME);
+        });
+        return button;
+      }));
+      conditionBox.hidden = names.length === 0;
+      refreshSelection();
+      announceNoticeLayout({ force: true });
+    }).catch(() => {});
   }
   controls.append(outcomes);
   if (turbine) controls.append(turbineStrengthGroup);

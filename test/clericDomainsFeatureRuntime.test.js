@@ -73,8 +73,9 @@ test("Chierico: il batch implementa 17 capacità senza adapter nuovi", () => {
   const implemented = CLASS_FEATURE_CATALOG.features.filter((entry) =>
     entry.classId === "chierico" && entry.runtimeSupport.status === "implemented"
   );
-  // 20 dal batch e dalle cure precedenti, più Incarnazione della Legge (P1).
-  assert.equal(implemented.length, 21);
+  // 20 dal batch e dalle cure precedenti, più Incarnazione della Legge (P1), più il Santuario del Crepuscolo homebrew
+  // (docs/STUDIO_SANTUARIO_HOMEBREW.md).
+  assert.equal(implemented.length, 22);
   assert.equal(Object.keys(CONDITIONS).length + Object.keys(RESOURCE_ONLY).length + 1, 17);
 });
 

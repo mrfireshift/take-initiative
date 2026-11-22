@@ -43,6 +43,8 @@ import {
   blinkStateUpsertOperation,
   blinkStateFromCastContext,
 } from "./blinkRules.js";
+import { planReactionSpend } from "./reactionTrackerCore.js";
+import { initiativeTurnMark, initiativeTurnMarkOrdinal } from "./turnBoundaryCore.js";
 
 export const REMINDER_RESOLUTION_VERSION = 1;
 export const REMINDER_RESOLUTIONS_FIELD = "reminderResolutions";
@@ -51,6 +53,9 @@ export const REMINDER_OUTCOMES = Object.freeze({
   FAILED: "failed",
   IMMUNE: "immune",
 });
+// Twilight Sanctuary (docs/STUDIO_SANTUARIO_HOMEBREW.md): instead of the temporary hit points of a manual-heal reminder,
+// the creature drops a condition its resolutionData names (removableConditions: Charmed, Frightened).
+export const REMINDER_REMOVE_CONDITION_OUTCOME = "remove-condition";
 
 const META_KEY = `${ID}/meta`;
 const OUTCOME_KEYS = Object.freeze([
@@ -325,6 +330,55 @@ function conditionInstances(item) {
   const value = item?.metadata?.[META_KEY]?.conditions;
   if (Array.isArray(value)) return value;
   return Array.isArray(value?.instances) ? value.instances : [];
+}
+
+// Twilight Sanctuary (docs/STUDIO_SANTUARIO_HOMEBREW.md). The conditions a manual-heal reminder can take away instead
+// of its temporary hit points, as its resolutionData names them.
+export function reminderRemovableConditions(resolution) {
+  const data = resolution?.activation?.resolutionData;
+  return resolution?.mode === "manual-heal" && Array.isArray(data?.removableConditions)
+    ? [...new Set(data.removableConditions.map((name) => text(name, "", 80)).filter(Boolean))]
+    : [];
+}
+
+// The active pills of one condition on a creature: the ones its button takes away.
+export function reminderConditionInstances(item, conditionName) {
+  const wanted = text(conditionName, "", 160).toLocaleLowerCase("it");
+  return wanted
+    ? conditionInstances(item).filter((instance) => instance?.active !== false
+      && text(instance?.id, "", 200)
+      && conditionNameKey(instance) === wanted)
+    : [];
+}
+
+// What the plugin adds to the die the GM enters for the temporary hit points (the cleric's level, written by the
+// aura's reminder from the card), with the die's faces: { bonus: 0 } when the GM enters the total.
+export function reminderTemporaryHpBonus(resolution) {
+  const data = resolution?.activation?.resolutionData;
+  const bonus = Math.floor(Number(data?.temporaryHpBonus));
+  if (resolution?.mode !== "manual-heal" || data?.temporaryHp !== true || !Number.isInteger(bonus) || bonus < 1) {
+    return { bonus: 0, faces: 0, dice: "" };
+  }
+  const dice = text(resolution?.healing?.dice || data?.healing?.dice, "", 40);
+  const faces = Number(/^1d(\d+)$/iu.exec(dice)?.[1]) || 0;
+  return faces ? { bonus, faces, dice } : { bonus: 0, faces: 0, dice: "" };
+}
+
+// Whether the source's own turn has begun since that turn (a key "round:index:entry", the turn that ended): its
+// reaction is back then (reactionTrackerCore.js), so a benefit given late spends nothing.
+function sourceTurnBegunSince(state, turnKey, sourceId) {
+  const order = Array.isArray(state?.order) ? state.order : [];
+  const id = text(sourceId, "", 200);
+  const [round, index, ...rest] = String(turnKey || "").split(":");
+  if (!order.length || !id || !rest.length) return false;
+  const from = initiativeTurnMarkOrdinal({ round: Number(round), index: Number(index), actorId: rest.join(":") }, order);
+  const now = initiativeTurnMarkOrdinal(initiativeTurnMark(state), order);
+  if (from < 0 || now <= from) return false;
+  if (now - from > order.length) return order.includes(id);
+  for (let ordinal = from + 1; ordinal <= now; ordinal += 1) {
+    if (String(order[ordinal % order.length] || "").trim() === id) return true;
+  }
+  return false;
 }
 
 function spellInstances(item) {
@@ -1689,6 +1743,8 @@ export function buildReminderResolutionPlan({
   items = [],
   outcome = "",
   damageRoll = 0,
+  // REMINDER_REMOVE_CONDITION_OUTCOME: the condition the creature drops (one of resolutionData.removableConditions).
+  removeCondition = "",
   turbineSize = "",
   turbineStrengthOutcome = "",
   // The damage defenses the GM ignores in this reminder: the types.
@@ -1713,6 +1769,13 @@ export function buildReminderResolutionPlan({
   // CAP-TEMP: a manual roll that gives temporary hit points instead of healing (Twilight Sanctuary at the end of a
   // creature's turn): the same popup and roll, the hit points apart from the HP (quickHpCore.js).
   const manualTempHp = manualHeal && resolutionData.temporaryHp === true;
+  // Twilight Sanctuary (docs/STUDIO_SANTUARIO_HOMEBREW.md): Charmed or Frightened taken away instead of the temporary
+  // hit points, and the plugin adding the cleric's level to the die the GM enters.
+  const removableConditions = reminderRemovableConditions(resolution);
+  const removalName = normalizedOutcome === REMINDER_REMOVE_CONDITION_OUTCOME
+    ? removableConditions.find((name) => name.toLocaleLowerCase("it") === text(removeCondition, "", 80).toLocaleLowerCase("it")) || ""
+    : "";
+  const temporaryHpBonus = reminderTemporaryHpBonus(resolution);
   const manualDamage = resolution?.mode === "manual-damage";
   const manualCondition = resolution?.mode === "manual-condition";
   const deathSave = resolution?.mode === DEATH_SAVE_RESOLUTION_MODE;
@@ -1723,12 +1786,15 @@ export function buildReminderResolutionPlan({
     : turbine
     ? ["passed", "failed"].includes(normalizedOutcome)
     : manualHeal
-    ? ["apply", "ignore"].includes(normalizedOutcome)
+    ? ["apply", "ignore"].includes(normalizedOutcome) || !!removalName
     : manualDamage
       ? normalizedOutcome === "confirmed"
       : manualCondition
         ? [REMINDER_OUTCOMES.PASSED, REMINDER_OUTCOMES.FAILED].includes(normalizedOutcome)
       : consumeOnly || OUTCOME_KEYS.includes(normalizedOutcome);
+  if (manualHeal && normalizedOutcome === REMINDER_REMOVE_CONDITION_OUTCOME && !removalName) {
+    return { status: "invalid", message: "Questa condizione non si toglie da questo promemoria." };
+  }
   if (!resolution || !validOutcome) {
     if (blinkResolution) {
       return { status: "invalid", message: "Esito di Intermittenza non valido." };
@@ -1884,6 +1950,11 @@ export function buildReminderResolutionPlan({
   ) {
     return { status: "invalid", message: "Inserisci un risultato dei dadi valido." };
   }
+  // With the cleric's level known the GM enters the die alone, and the plugin adds the level.
+  if (manualTempHp && normalizedOutcome === "apply" && temporaryHpBonus.bonus
+    && (!Number.isInteger(healingRoll) || healingRoll < 1 || healingRoll > temporaryHpBonus.faces)) {
+    return { status: "invalid", message: `Inserisci il risultato del ${temporaryHpBonus.dice}, da 1 a ${temporaryHpBonus.faces}.` };
+  }
   const hpBefore = Number(meta.hp);
   const hpMax = Number(meta.hpMax);
   const creatureType = String(
@@ -1908,7 +1979,10 @@ export function buildReminderResolutionPlan({
     return { status: "unsupported", message: "Aura di Vita non cura una creatura ostile." };
   }
   const healing = manualTempHp && normalizedOutcome === "apply"
-    ? { roll: Math.max(0, Math.floor(Number(healingRoll) || 0)), amount: Math.max(0, Math.floor(Number(healingRoll) || 0)) }
+    ? {
+      roll: Math.max(0, Math.floor(Number(healingRoll) || 0)),
+      amount: Math.max(0, Math.floor(Number(healingRoll) || 0)) + temporaryHpBonus.bonus,
+    }
     : manualHeal && normalizedOutcome === "apply"
     ? {
       roll: Math.max(0, Math.floor(Number(healingRoll) || 0)),
@@ -1961,6 +2035,39 @@ export function buildReminderResolutionPlan({
     operations.push(...result.operations);
     actionSideEffects.push(...(result.sideEffects || []));
     actionMetadataPatches.push(...(result.metadataPatches || []));
+  }
+
+  // Twilight Sanctuary (docs/STUDIO_SANTUARIO_HOMEBREW.md): every pill of the condition the creature drops, read now.
+  if (removalName) {
+    const instances = reminderConditionInstances(target, removalName);
+    if (!instances.length) {
+      return {
+        status: "stale",
+        message: `La condizione ${removalName} non è più attiva su ${text(target?.name, "questa creatura", 100)}.`,
+      };
+    }
+    operations.push({
+      type: "condition:remove-instances",
+      removals: instances.map((instance) => ({ itemId: targetId, instanceId: text(instance.id, "", 200) })),
+    });
+  }
+  // The homebrew's cost: the source's reaction, in the same command, so one Undo gives both back. Nothing when its own
+  // turn has begun since the turn that ended (the creature just before it, answered on its turn): it is back by then.
+  let reaction = null;
+  if (resolutionData.spendsSourceReaction === true && (normalizedOutcome === "apply" || removalName)) {
+    const source = itemsById.get(sourceId);
+    const state = sceneMetadata?.[`${ID}/state`] || null;
+    if (source && !sourceTurnBegunSince(state, resolution.activation?.turnKey, sourceId)) {
+      const spend = planReactionSpend({
+        casterId: sourceId,
+        casterName: source.name,
+        conditions: { instances: conditionInstances(source) },
+        initiativeState: state,
+      });
+      if (spend.alreadyUsed) return { status: "unsupported", message: `${spend.message} Scegli Ignora.` };
+      operations.push(...spend.operations);
+      if (spend.applies) reaction = { sourceId, sourceName: text(source.name, "", 100) };
+    }
   }
 
   if (turbine && turbineChain?.capture) {
@@ -2044,6 +2151,7 @@ export function buildReminderResolutionPlan({
       outcome: normalizedOutcome,
       ...(damage.amount ? { damage: damage.amount } : {}),
       ...(healing.amount ? { healing: healing.amount } : {}),
+      ...(removalName ? { condition: removalName } : {}),
       ...(turbine ? {
         turbine: {
           size: turbineChain?.size || "",
@@ -2129,6 +2237,8 @@ export function buildReminderResolutionPlan({
     damage,
     healing,
     hpChange,
+    ...(removalName ? { removedCondition: removalName } : {}),
+    ...(reaction ? { reaction } : {}),
     ...(damage.factor === "full" || damage.factor === "half"
       ? { damageDefenses }
       : {}),

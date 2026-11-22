@@ -1,0 +1,77 @@
+{
+  "meta": {
+    "titolo": "Livello meccanico - Capacità homebrew del tavolo",
+    "sistema": "D&D 5e 2014",
+    "lingua": "it-IT",
+    "versione": "1.0.0",
+    "versione_schema": "1.0.0",
+    "data_generazione": "2026-11-22",
+    "base_catalog_file": "homebrew_database_finale.json",
+    "base_phb_mechanics_file": "phb2014_livello_meccanico_v1_1.json",
+    "descrizione": "Overlay meccanico delle varianti homebrew. Le risorse sono quelle delle classi del Manuale del Giocatore."
+  },
+  "external_resource_pools": [
+    "chierico-incanalare-divinita-usi"
+  ],
+  "resource_pools": [],
+  "mechanics": [
+    {
+      "id": "chierico-dominio-del-crepuscolo-incanalare-divinita-santuario-homebrew",
+      "catalog_ref": {
+        "file": "homebrew_database_finale.json",
+        "collection": "privilegi",
+        "id": "chierico-dominio-del-crepuscolo-incanalare-divinita-santuario-homebrew"
+      },
+      "source": {
+        "manuale": "Homebrew del tavolo"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "azione",
+        "alternatives": [],
+        "optional": true
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters_detected": [
+          9
+        ],
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "testuale_o_non_specificata",
+        "end_conditions": []
+      },
+      "resource_costs": [
+        {
+          "pool_id": "chierico-incanalare-divinita-usi",
+          "amount": 1
+        }
+      ],
+      "effects": [
+        {
+          "type": "aura",
+          "radius_meters": 9,
+          "duration": "1_minuto",
+          "on_end_turn": [
+            "reazione_temp_hp_1d6_plus_level_chierico",
+            "reazione_rimuovi_affascinato_o_spaventato"
+          ]
+        }
+      ],
+      "effect_tags": [
+        "pf_temporanei",
+        "condizione",
+        "reazione"
+      ],
+      "runtime_requirements": [],
+      "completeness": {
+        "status": "curata",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    }
+  ]
+}

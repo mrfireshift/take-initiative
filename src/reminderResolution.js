@@ -22,6 +22,9 @@ import { DEATH_SAVE_OUTCOME_LABELS } from "./deathSaveCore.js";
 const STATE_KEY = `${ID}/state`;
 const META_KEY = `${ID}/meta`;
 const REMINDER_RESOLUTIONS_FIELD = "reminderResolutions";
+// REMINDER_REMOVE_CONDITION_OUTCOME of reminderResolutionCore.js (Twilight Sanctuary: the condition the creature drops),
+// written out so that this module keeps importing only the plan from it.
+const REMOVE_CONDITION_OUTCOME = "remove-condition";
 const pendingResolutions = new Map();
 const pendingResolutionRecoveryWaiters = new Set();
 const REMINDER_RESOLUTION_RECOVERY_BACKOFF_MS = Object.freeze([750, 1500, 3000]);
@@ -402,6 +405,8 @@ function formatReminderResolutionLabel({ notice, plan }) {
     confirmed: "Confermato",
     apply: "Applicato",
     ignore: "Ignorato",
+    // Twilight Sanctuary: the condition the creature dropped.
+    [REMOVE_CONDITION_OUTCOME]: `${plan?.removedCondition || "Condizione"} tolto`,
     ...DEATH_SAVE_OUTCOME_LABELS,
   }[outcome] || (plan?.resolutionMode === "consume" ? "Chiuso" : outcome || "Risolto");
   return `${labelName} · ${outcomeText}`;
@@ -489,6 +494,7 @@ async function completeReminderResolution({
       plan,
     };
   }
+  const reactionNote = plan.reaction ? ` Reazione di ${plan.reaction.sourceName || "chi lo concede"} usata.` : "";
   return {
     status: "applied",
     message: plan.resolutionMode === "consume"
@@ -497,7 +503,7 @@ async function completeReminderResolution({
         ? "Risolto: Fallito · Trattenuto."
       : plan.zoneResourceNote
         ? `Risolto: ${outcomeLabel}. ${plan.zoneResourceNote}`
-      : `Risolto: ${outcomeLabel}.`,
+      : `Risolto: ${outcomeLabel}.${reactionNote}`,
     mutation,
     plan,
   };
@@ -507,6 +513,7 @@ async function executeReminderResolution({
   notice = null,
   outcome = "",
   damageRoll = 0,
+  removeCondition = "",
   turbineSize = "",
   turbineStrengthOutcome = "",
   ignoredDefenses = [],
@@ -539,6 +546,7 @@ async function executeReminderResolution({
     items,
     outcome,
     damageRoll,
+    removeCondition,
     turbineSize,
     turbineStrengthOutcome,
     ignoredDefenses,
@@ -558,6 +566,7 @@ async function executeReminderResolution({
     confirmed: "Confermato",
     apply: "Applicato",
     ignore: "Ignorato",
+    [REMOVE_CONDITION_OUTCOME]: `${plan.removedCondition || "Condizione"} tolto`,
     ...DEATH_SAVE_OUTCOME_LABELS,
   }[plan.outcome] || (plan.resolutionMode === "consume" ? "Chiuso" : plan.outcome);
   const commandId = `reminder-resolution:${plan.activationId}:${resolutionAttemptId}`;

@@ -506,6 +506,52 @@ etichette in più.
 - **Avvelenato**: Purezza del Corpo e Interdizione della Natura rendono
   immuni alla condizione: il plugin non la applica mai a quei personaggi.
 
+#### Santuario del Crepuscolo: ufficiale o homebrew
+
+Il chierico del Dominio del Crepuscolo ha due versioni di Santuario del
+Crepuscolo. Nella scheda **Capacità**, in modifica, sotto **Incanalare
+Divinità** scegli tra **Santuario del Crepuscolo** (Tasha, quella di base) e
+**Santuario del Crepuscolo (homebrew)**, la versione del tavolo. Sono due
+pulsanti radio: ne vale una sola. La scheda mostra il testo dell'homebrew e la
+fonte «Homebrew del tavolo».
+
+Le due versioni hanno in comune:
+
+- **Attivazione**: un'azione e un uso di Incanalare Divinità.
+- **Sfera**: un cerchio viola di 9 m che segue il chierico. La luce fioca non
+  è disegnata: il plugin non tocca luci e nebbia di Owlbear.
+- **Durata**: 10 round. Finisce da sola se il chierico è incapacitato, per
+  esempio a 0 PF o stordito, con l'aura e le pill.
+- **Promemoria di fine turno**: quando una creatura nella sfera finisce il
+  turno, il promemoria ha una riga per lei:
+  - **PF temporanei 1d6**: scrivi solo il risultato del d6. Il plugin aggiunge
+    il livello da chierico preso dalla scheda e mostra la somma
+    (`+ 5 = 9`). Se la scheda non ha il livello, scrivi il totale;
+  - **Togli Affascinato** e **Togli Spaventato**: compaiono solo se la creatura
+    ha quella condizione, e la tolgono con tutte le sue pill. Se la pill viene
+    da un incantesimo, l'incantesimo resta;
+  - **Ignora**.
+
+  Lo schermo del tavolo vede la stessa riga, senza pulsanti. Si sceglie una
+  sola opzione.
+
+Nella versione homebrew:
+
+- ogni beneficio costa la **reazione** del chierico. Il plugin la segna nello
+  stesso passo: un solo **Annulla** toglie il beneficio e restituisce la
+  reazione, e l'offerta torna;
+- finché la reazione è usata, per qualunque motivo, l'offerta non compare, e
+  quelle ancora aperte spariscono. La reazione torna all'inizio del turno del
+  chierico, quindi la creatura che gioca subito prima di lui non riceve
+  l'offerta se la reazione era già usata;
+- sceglie la creatura: il giocatore legge le opzioni sullo schermo del tavolo
+  e le dice a voce, tu premi;
+- le creature nemiche del chierico non ricevono l'offerta, mentre alleati e
+  neutrali sì.
+
+Nella versione di Tasha il beneficio non costa la reazione e l'offerta arriva
+anche ai nemici.
+
 Per conteggi, adapter, limiti e persistenza consulta
 [Capacità di classe](CAPACITA_CLASSE.md).
 
@@ -961,7 +1007,7 @@ Alcuni li danno da soli:
 - **Guardiano della Natura, Grande Albero**: 10, che spariscono quando finisce l'incantesimo.
 - **Eroismo**: immunità a Spaventato e, a inizio di ogni turno del bersaglio, un promemoria con il modificatore da incantatore già inserito (si ricava da CD e livello della scheda di chi lancia; se mancano, lo scrivi tu). Premi **Applica PF temporanei** o **Ignora**. Quelli rimasti spariscono alla fine della concentrazione. Uno Spaventato già presente al lancio lo togli a mano.
 - **Flusso di Energia Negativa**: per un non morto premi **Non morto** al posto dell'esito del TS, e inserisci il tiro di 5d12: riceve metà del tiro come temporanei, senza danni. Il tipo di creatura lo indichi sempre tu. Chi viene ucciso riceve l'etichetta **Si rianima come zombi**, con il promemoria al prossimo turno di chi ha lanciato; il token dello zombi lo aggiungi tu.
-- **Capacità di classe**: Entità Simbiotica, Tomba di Levistus, Chiamata alla caccia e Totem spirituale (Orso) li danno all'attivazione. Entrando in Ira li danno anche Aura tempestosa (Tundra: alle creature selezionate sulla mappa entro 3 m, o al solo barbaro se non ne selezioni nessuna; nei turni dopo dalla Console effetti manuali) e Impeto selvaggio (Viti Oscure: a ogni Ira chiede il tiro di 1d12). Santuario del crepuscolo offre **Applica PF temporanei** nel promemoria di fine turno. Questi temporanei non scadono da soli con la capacità: se serve, togli i rimasti dalla card.
+- **Capacità di classe**: Entità Simbiotica, Tomba di Levistus, Chiamata alla caccia e Totem spirituale (Orso) li danno all'attivazione. Entrando in Ira li danno anche Aura tempestosa (Tundra: alle creature selezionate sulla mappa entro 3 m, o al solo barbaro se non ne selezioni nessuna; nei turni dopo dalla Console effetti manuali) e Impeto selvaggio (Viti Oscure: a ogni Ira chiede il tiro di 1d12). Santuario del Crepuscolo li offre nel promemoria di fine turno: scrivi solo il d6 e il plugin aggiunge il livello da chierico (vedi «Santuario del Crepuscolo: ufficiale o homebrew»). Questi temporanei non scadono da soli con la capacità: se serve, togli i rimasti dalla card.
 
 ### PF massimi cambiati dagli incantesimi
 
