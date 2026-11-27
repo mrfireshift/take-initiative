@@ -16,6 +16,7 @@ import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileC
 import { PC_ATTACK_MONSTER_GROUP_TITLES, pcAttackMonsterActionText, pcAttackMonsterTraitEntries } from "./pcAttackMonsterTraitsCore.js";
 import { TRANSFORMATION_FORM_GROUP_TITLES, transformationFormEntries, transformationFormOf, transformationFormStatblockRef } from "./transformationStatblockCore.js";
 import { transformationChangeEntries } from "./transformationSpellsCore.js";
+import { transformationFormNamed } from "./transformationFormsCore.js";
 import { monsterStatblockTextRef } from "./monsterStatblockTextCore.js";
 import { createMonsterStatblockTextLoader } from "./monsterStatblockTextLoader.js";
 import { getPcAttackSpell, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
@@ -28,7 +29,8 @@ import { pcAttackCriticalDice } from "./pcAttackRiderCatalog.js";
 import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossTargetLabel, bossTargetParts } from "./bossActionsViewCore.js";
 import { DAMAGE_TYPES, damageDefenseCount, damageTypeLabel, damageDefensesForItem, HEAVY_ARMOR_DEFENSE } from "./damageDefensesCore.js";
 import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_HEIGHT, PC_ATTACK_POPOVER_ID, PC_ATTACK_SPELL_LAUNCH_CHANNEL, PC_ATTACK_WIDTH } from "./pcAttackLauncher.js";
-import { loadSpellbookSpellReference, spellbookSpellDetails, spellbookSpellReferenceLoaded } from "./spellbookCatalog.js";
+import { loadSpellbookSpellReference, spellbookGroupsForProfile, spellbookSpellDetails, spellbookSpellReferenceLoaded } from "./spellbookCatalog.js";
+import { spellbookQuickActionId } from "./spellbookCore.js";
 import { rulesTextBlock } from "./rulesTextView.js";
 import { privateTextMissingNote } from "./privatePackCore.js";
 import { getClassFeatureDefinition } from "./classFeatureCatalog.js";
@@ -447,6 +449,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   loadReactionMonsters();
   let reactionsBusy=false;
+  // 27/11, a monster's entry that acts (renderMonsterUse): the form chosen and the spell picked, by creature.
+  const monsterFormValues=new Map();
+  const monsterUseChoice=new Map();
+  // Speed of the Adder used in this turn, by creature: the turn it was used in (no write: the console's own memory).
+  const actionSpellAsBonusTurn=new Map();
+  const currentTurnKey=()=>JSON.stringify([presentation?.turnState?.round ?? null,presentation?.turnState?.current ?? null]);
   const targetById=id=>presentation?.targets.find(item=>item.id===id) || null;
   // Any tracked creature, the attacker included (temporary hit points, Bursting Arrow's creatures).
   const creatureById=id=>id===presentation?.item?.id?presentation.item:targetById(id);
@@ -1883,6 +1891,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       :entry.mode==="weapon"?[["Si lancia con un attacco con arma da mischia: scegli l'arma nella scheda Attacchi e attivalo fra gli extra al colpo.",""]]
       :entry.mode==="manual"?[["Non automatizzato: risolvilo al tavolo.",""]]
       :[...(entry.concentration && others.length?[[`Lanciandolo termina la concentrazione su ${others.join(", ")}.`,"warning"]]:[]),
+        // 27/11: a spell of level 1+ cast with a bonus action this turn (Speed of the Adder): only a cantrip of 1 action now.
+        ...(level>0 && actionSpellAsBonusTurn.get(sourceId)===currentTurnKey()?[["Ha già lanciato un incantesimo come azione bonus in questo turno: ora solo un trucchetto da 1 azione.","warning"]]:[]),
         ...(recharge?[recharge.ready?[`${rechargeLabel}: senza slot, il lancio spende la ricarica.`,""]
           :[`${rechargeLabel} · usata: lancialo di nuovo quando il d6 al tavolo la ricarica.`,"warning"]]:[]),
         ...(!freeSlot?[[`Nessuno slot libero dal ${level}° livello in su.`,"warning"]]:[]),
@@ -1983,6 +1993,88 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     } catch(error) {setStatus(String(error?.message || error || "Forma non cambiata."),"error");}
     finally {launchBusy=false;launchSignature="";renderLaunch();}
   }
+  // 27/11 (Strahd Reloaded, the Wizard of Wines): a monster's entry that does something on the map, from its own text
+  // (pcAttackMonsterTraitsCore.js, monsterUse): a reaction that casts a spell on it (Gift of the Gulthias), a reaction that
+  // gives it a form keeping its HP (Guardian of the Gulthias: the «Forma» field of Wild Shape, its quick form saved once),
+  // a bonus action that casts a spell of 1 action of its book (Speed of the Adder), launched as the 🪄 menu does.
+  const monsterUseLabel=entry=>plainLabel(entry.label).replace(/\s*\([^()]*\)\s*$/u,"");
+  function actionSpellChoices() {
+    const card=attackerCard();
+    return spellbookGroupsForProfile(card).flatMap(group=>group.spells || []).filter(spell=>spell.prepared!==false && spell.id)
+      // Its casting time once the reference has loaded: 1 action only; before, every spell of the book.
+      .filter(spell=>!spellbookSpellReferenceLoaded() || castingTimeLabel(spell.id)==="azione")
+      .map(spell=>({id:spell.id,label:spell.label || getSpellDefinition(spell.id)?.displayName || spell.id,level:spell.level ?? 0}));
+  }
+  function renderMonsterUse(entry) {
+    const use=entry.monsterUse;
+    const values=monsterFormValues.get(sourceId) || {};
+    monsterFormValues.set(sourceId,values);
+    const spell=use.kind==="cast"?getSpellDefinition(use.spellName):null;
+    const choices=use.kind==="action-spell"?actionSpellChoices():[];
+    if(use.kind==="form" && !values.form) values.form=transformationFormNamed(attackerCard(),use.formName);
+    const signature=JSON.stringify(["monster-use",entry.key,entry.text,launchBusy,busy,invalidated,choices.map(choice=>choice.id),
+      spellbookSpellReferenceLoaded(),use.kind==="form"?[values.form?.name || "",values.formPanel || "",values.formBusy || false]:null]);
+    if(signature===launchSignature) return;
+    launchSignature=signature;
+    const children=[launchHead(entry,entry.activation && !pickerNamesEntry?[capitalized(entry.activation)]:[]),node("p",entry.text || "","spell-text")];
+    const run=node("button","","quick-action-add");
+    run.type="button";
+    if(use.kind==="cast") {
+      run.textContent=launchBusy?"Lancio…":`Lancia ${spell?.displayName || use.spellName}`;
+      run.disabled=busy || launchBusy || invalidated || !spell;
+      if(!spell) children.push(node("p",`${use.spellName}: incantesimo che il plugin non conosce.`,"launch-note warning"));
+      else children.push(node("p",`Su ${actorName()}${use.noConcentration?", senza concentrazione":""}${use.slotLevel?`, con uno slot di ${use.slotLevel}°`:""}; spende la reazione.`,"launch-details"));
+      run.addEventListener("click",()=>void runMonsterUse(entry,()=>import("./monsterReactionRuntime.js").then(runtime=>runtime.castMonsterReactionSpell({
+        casterId:sourceId,spellId:spell.id,slotLevel:use.slotLevel,noConcentration:use.noConcentration,label:monsterUseLabel(entry)}))));
+    } else if(use.kind==="form") {
+      children.push(transformationFormField({documentRef,values,card:attackerCard(),item:presentation?.item || null,
+        field:{id:"form",type:"transformation-form",label:"Forma",kind:"monster-form",context:{kind:"monster-form"}},
+        disabled:busy || launchBusy || invalidated,rerender:()=>{launchSignature="";renderLaunch();},setStatus,creatures:presentation?.targets || []}));
+      children.push(node("p",`Per ${use.minutes} ${use.minutes===1?"minuto":"minuti"}: tiene i suoi PF e i suoi incantesimi; CA, velocità, difese e attacchi sono della forma. Spende la reazione.`,"launch-details"));
+      run.textContent=launchBusy?"Cambio…":"Assumi la forma";
+      run.disabled=busy || launchBusy || invalidated || !values.form;
+      run.addEventListener("click",()=>void runMonsterUse(entry,()=>import("./monsterReactionRuntime.js").then(runtime=>runtime.assumeMonsterForm({
+        sourceId,form:values.form,formName:use.formName,minutes:use.minutes,label:monsterUseLabel(entry),portrait:values.formPortrait || null}))));
+    } else {
+      if(!spellbookSpellReferenceLoaded()) void loadSpellbookSpellReference().then(()=>{if(currentEntry()?.key===entry.key){launchSignature="";renderLaunch();}}).catch(()=>{});
+      const select=node("select","","inline-select");
+      select.setAttribute("aria-label","Incantesimo");
+      const chosen=choices.some(choice=>choice.id===monsterUseChoice.get(sourceId))?monsterUseChoice.get(sourceId):choices[0]?.id || "";
+      select.replaceChildren(...choices.map(choice=>{const option=node("option",`${choice.label}${choice.level?` · ${choice.level}°`:" · trucchetto"}`);option.value=choice.id;return option;}));
+      select.value=chosen;
+      select.disabled=busy || launchBusy || invalidated || !choices.length;
+      select.addEventListener("change",()=>{monsterUseChoice.set(sourceId,select.value);launchSignature="";renderLaunch();});
+      if(choices.length) children.push(select);
+      else children.push(node("p","Nessun incantesimo da 1 azione nel suo libro.","launch-details"));
+      run.textContent=launchBusy?"Lancio…":"Lancia come azione bonus";
+      run.disabled=busy || launchBusy || invalidated || !chosen;
+      run.addEventListener("click",()=>void runActionSpellAsBonus(entry,choices.find(choice=>choice.id===(monsterUseChoice.get(sourceId) || chosen))));
+    }
+    children.push(run);
+    launchBox.replaceChildren(...children);
+  }
+  async function runMonsterUse(entry,call) {
+    if(launchBusy || busy || invalidated) return;
+    launchBusy=true;launchSignature="";renderLaunch();
+    try {
+      const result=await call();
+      setStatus(result.message,result.ok?"ok":"warn");
+      if(result.ok){const values=monsterFormValues.get(sourceId);if(values){values.form=null;values.formPortrait=null;}}
+    } catch(error) {setStatus(String(error?.message || error),"error");}
+    finally {launchBusy=false;launchSignature="";renderLaunch();scheduleRefresh();}
+  }
+  async function runActionSpellAsBonus(entry,choice) {
+    if(!choice || launchBusy || busy || invalidated) return;
+    if(typeof api.broadcast?.onMessage!=="function"){setStatus("Lancio non disponibile.","error");return;}
+    launchBusy=true;launchSignature="";renderLaunch();
+    try {
+      const result=await launchThroughTracker({actionId:spellbookQuickActionId(choice.id),label:choice.label});
+      const ok=!!result?.ok && ["review","executed"].includes(result.mode);
+      if(ok && choice.level>0) actionSpellAsBonusTurn.set(sourceId,currentTurnKey());
+      setStatus(ok?`${launchSummary({label:choice.label},result)} ${monsterUseLabel(entry)}: azione bonus.${choice.level>0?" In questo turno altri incantesimi solo trucchetti da 1 azione.":""}`
+        :launchSummary({label:choice.label},result),ok?"ok":!result?"warn":"error");
+    } finally {launchBusy=false;launchSignature="";renderLaunch();}
+  }
   function renderMonsterTrait(entry) {
     $("pc-attack-title").textContent=actorName();
     const kind={"monster-trait":"Tratto","monster-reaction":"Reazione","monster-legendary":"Azione leggendaria","monster-bonus":"Azione bonus",
@@ -1992,6 +2084,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     apply.hidden=true;
     if(launchButton) launchButton.hidden=true;
     if(entry.group==="form-change") {renderFormChange(entry);return;}
+    if(entry.monsterUse) {renderMonsterUse(entry);return;}
     const signature=JSON.stringify(["monster",entry.key,entry.label,entry.text]);
     if(signature===launchSignature) return;
     launchSignature=signature;
@@ -2438,6 +2531,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(candidate.flow==="activate-feature") return activateReactionFeature(candidate);
     if(candidate.flow==="off-turn-attack") return useReactionPromptAttack(candidate);
     if(candidate.flow==="use-feature" || (candidate.flow==="note" && candidate.featureId)) return useReactionPromptFeature(candidate);
+    if(candidate.flow==="monster-cast" || candidate.flow==="monster-form") return useMonsterReaction(candidate);
     await castTargetReaction({spellId:candidate.spellId,direct:candidate.flow==="cast-spell",variant:candidate.variant || "",
       targetIds:candidate.targetIds || [],casterId:candidate.reactorId});
   }
@@ -2487,6 +2581,22 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // Lot R3a: a class feature that changes the outcome (a bonus to the AC, a critical made a hit, the attacker's reroll):
   // its use and the reaction through the existing flows (reactionFeatureRuntime.js); the GM changes the outcome, except
   // Sentinel at Death's Door, which makes the critical a hit here.
+  // 27/11 (the Wizard of Wines): a monster's reaction that casts a spell on it or gives it a form, from the prompt. The GM
+  // then checks the roll against its new AC, as with Shield.
+  async function useMonsterReaction(candidate) {
+    if(reactionsBusy) return;
+    reactionsBusy=true;renderTargetReactions();
+    try {
+      const runtime=await import("./monsterReactionRuntime.js");
+      const label=String(candidate.label || "").replace(/\s*\([^()]*\)\s*$/u,"");
+      const result=candidate.flow==="monster-cast"
+        ?await runtime.castMonsterReactionSpell({casterId:candidate.reactorId,spellId:candidate.spellId,slotLevel:candidate.slotLevel || 0,
+          noConcentration:candidate.noConcentration===true,label})
+        :await runtime.assumeMonsterForm({sourceId:candidate.reactorId,formName:candidate.formName,minutes:candidate.minutes || 1,label});
+      setStatus(result.ok?`${result.message} Se il tiro non arriva alla CA nuova, segna Mancato.`:result.message,result.ok?"ok":"warn");
+    } catch(error) {setStatus(String(error?.message || error),"error");}
+    finally {reactionsBusy=false;renderTargetReactions();scheduleRefresh();}
+  }
   async function useReactionPromptFeature(candidate) {
     if(reactionsBusy) return;
     reactionsBusy=true;renderTargetReactions();

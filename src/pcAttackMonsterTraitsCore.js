@@ -2,6 +2,8 @@
 // 5): entries to read, with their text, from the full stat block kept in the GM's browser (monsterStatblockTextLoader.js).
 // Nothing here is spent or written (decision D9): the legendary actions' pips stay on the tracker. Pure.
 
+import { monsterReactionFromEntry } from "./monsterReactionParseCore.js";
+
 // Bonus Actions (lot TD of docs/STUDIO_AZIONI_DI_TURNO.md): the 2024 stat blocks' own section (the goblin's Nimble
 // Escape), between the traits and the reactions.
 const GROUPS = Object.freeze({ "": "monster-trait", "Bonus Actions": "monster-bonus", Reactions: "monster-reaction",
@@ -29,6 +31,9 @@ export function pcAttackMonsterActionText(view, label) {
   return opening ? String(opening.text) : "";
 }
 
+// "The druid casts a spell it knows with a casting time of 1 action." (Speed of the Adder, a bonus action).
+const ACTION_SPELL_AS_BONUS = /\bcasts a spell (?:it|he|she|they) knows? with a casting time of 1 action\b/i;
+
 // view: { header, sections } of monsterStatblockTextView. The entries join the Capacità tab after the class features:
 // mode "monster" (a card of its own, never a button), group: traits, reactions, legendary actions.
 export function pcAttackMonsterTraitEntries(view) {
@@ -41,8 +46,16 @@ export function pcAttackMonsterTraitEntries(view) {
       if (!entry.name && group !== "monster-trait") return;
       const label = entry.name || "Statblock";
       const cost = group === "monster-legendary" ? legendaryActionCost(label) : 0;
+      // 27/11 (Strahd Reloaded, the Wizard of Wines): what the entry can do on the map, from its own text. A reaction
+      // that casts a spell on the monster or gives it a form (monsterReactionParseCore.js); a bonus action that casts a
+      // spell of 1 action (Speed of the Adder).
+      const reaction = group === "monster-reaction" ? monsterReactionFromEntry(entry) : null;
+      const monsterUse = reaction?.kind === "cast-when-attacked" ? { kind: "cast", spellName: reaction.spellName, slotLevel: reaction.slotLevel || 0,
+        noConcentration: reaction.noConcentration === true }
+        : reaction?.kind === "form-when-targeted" && reaction.keepsHp ? { kind: "form", formName: reaction.formName, minutes: reaction.minutes }
+          : group === "monster-bonus" && ACTION_SPELL_AS_BONUS.test(String(entry.text || "")) ? { kind: "action-spell" } : null;
       entries.push({ key: `monster::${entries.length}`, tab: "features", actionId: "", spellId: "", featureId: "", label,
-        mode: "monster", group, text: entry.text,
+        mode: "monster", group, text: entry.text, ...(monsterUse ? { monsterUse } : {}),
         activation: group === "monster-reaction" ? "reazione" : group === "monster-bonus" ? "azione bonus"
           : group === "monster-legendary" ? (cost > 1 ? `leggendaria (${cost})` : "leggendaria") : "",
         species: false, level: null, concentration: false, ritual: false, recordOnly: false, pinned: false });

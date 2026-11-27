@@ -25,6 +25,8 @@ import { playerMemoryKeyOfItem } from "./playerAssignmentMemoryCore.js";
 import { damageTypeLabel } from "./damageDefensesCore.js";
 import { REACTION_TRIGGER_CATALOG, REACTION_TRIGGER_OPTION, REACTION_TRIGGERS, reactionTriggerEntriesFor } from "./reactionTriggerCatalog.js";
 import { isReactionPromptMuted, normalizeReactionPromptOptions } from "./reactionPromptOptionsCore.js";
+import { getSpellDefinition } from "./spells-srd.js";
+import { activeTransformation } from "./transformationFormsCore.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_KEY = `${ID}/spells`;
@@ -304,6 +306,19 @@ export function reactionCandidates(event, { items = [], state = null, options = 
         if (!monsterReaction) continue;
         if (monsterReaction.melee && value.range !== "melee") continue;
       }
+      // 27/11 (Gift of the Gulthias): the spell its reaction casts, which it must be able to cast now, with a slot of the
+      // level the text asks; never while the spell already lasts on it.
+      let monsterCast = null;
+      if (monsterReaction?.kind === "cast-when-attacked") {
+        const spell = getSpellDefinition(monsterReaction.spellName);
+        if (!spell?.id || !creatureCastableSpellIds(reactor).has(spell.id) || hasActiveSpell(reactor, spell.id)) continue;
+        const slotLevel = monsterReaction.slotLevel || Number(spell.level) || 0;
+        if (slotLevel > 0 && !reactionSpellAvailable(reactor, spell.id, slotLevel)) continue;
+        monsterCast = { spellId: spell.id, slotLevel, noConcentration: monsterReaction.noConcentration === true,
+          spellName: spell.displayName || spell.name };
+      }
+      // 27/11 (Guardian of the Gulthias): only a form that keeps the creature's own hit points, never while it is in one.
+      if (monsterReaction?.kind === "form-when-targeted" && (monsterReaction.keepsHp !== true || activeTransformation(metaOf(reactor)))) continue;
 
       const absorbed = entry.effect?.variantByType ? value.damageTypes.find((type) => ABSORB_ELEMENTS_CHOICES[type]) : "";
       const targetIds = entry.targetsAttacker ? (value.attackerId ? [value.attackerId] : [])
@@ -324,11 +339,15 @@ export function reactionCandidates(event, { items = [], state = null, options = 
           actorKey,
           protectedId: target ? target.id : "",
           protectedName: target ? nameOf(target) : "",
-          spellId: entry.spellId || "",
+          spellId: monsterCast?.spellId || entry.spellId || "",
+          ...(monsterCast ? { slotLevel: monsterCast.slotLevel, noConcentration: monsterCast.noConcentration } : {}),
+          ...(monsterReaction?.kind === "form-when-targeted" ? { formName: monsterReaction.formName, minutes: monsterReaction.minutes } : {}),
           featureId,
           variant: absorbed ? ABSORB_ELEMENTS_CHOICES[absorbed] : "",
           targetIds,
-          short: monsterReaction?.kind === "ac-bonus" ? `+${monsterReaction.amount} CA` : entry.short,
+          short: monsterReaction?.kind === "ac-bonus" ? `+${monsterReaction.amount} CA`
+            : monsterCast ? `Lancia ${monsterCast.spellName}${monsterCast.slotLevel ? ` (slot di ${monsterCast.slotLevel}°)` : ""}`
+              : monsterReaction?.kind === "form-when-targeted" ? `Forma: ${monsterReaction.formName}` : entry.short,
           rule: monsterReaction ? `${monsterReaction.name}: ${monsterReaction.text}` : entry.rule,
           ...(monsterReaction?.kind === "ac-bonus" ? { amount: monsterReaction.amount } : {}),
           why: why(value, { attacker, caster, mover, target }),

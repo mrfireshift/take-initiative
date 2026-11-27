@@ -681,3 +681,32 @@ La misura sulle pagine di Strahd Reloaded: nei personaggi le azioni registrabili
 D&D Beyond: chiede l'accesso, quindi niente download; serve il testo copiato dall'utente da 2–3 pagine di mostri. Homebrewery usa lo stesso Markdown di GM Binder, con i suoi blocchi `{{monster,frame}}`: già coperto dai test di ST1, da confermare con un link vero se l'utente ne ha uno.
 
 Le prove in stanza della seconda parte sono in [PROVE_IN_STANZA.md](PROVE_IN_STANZA.md), sezione B32.
+
+## 17. La Wizard of Wines: azioni bonus e reazioni con effetti veri (27/11)
+
+Richiesta dell'utente: collegare a effetti veri nel VTT le azioni bonus e le reazioni dei druidi della Wizard of Wines (Arc J di Strahd Reloaded) e comporre lo statblock di Lorghoth the Decayer. Prima di questo passo, Gift of the Gulthias e Speed of the Adder si leggevano bene, ma solo come testo nella scheda Capacità della console.
+
+### 17.1 Lorghoth
+
+La pagina non ha uno statblock di Lorghoth: lo descrive come un Druid Naturalist con 136 PF, senza Gift of the Gulthias, con Indomitable, Master of Blights e Guardian of the Gulthias (con Mulchform). Lo statblock composto da queste regole si importa senza errori né righe perse; i dadi dei PF non sono scritti, quindi resta solo 136. Il testo è fuori dal repository (D9), come quelli dei druidi.
+
+### 17.2 Che cosa fa ora il plugin
+
+- **Gift of the Gulthias** («In response to being attacked by a creature it can see, the druid casts barkskin, provided it has a 2nd-level spell slot available. (The spell doesn't require concentration when cast in this way.)»): una reazione di un tipo nuovo, `cast-when-attacked` (`monsterReactionParseCore.js`). Negli avvisi di reazione compare quando il GM segna Colpito, come Scudo: «Lancia Pelle coriacea (slot di 2°)». **Usa** lancia l'incantesimo sul mostro con il motore degli incantesimi, senza concentrazione, e spende lo slot e la reazione nello stesso comando (`monsterReactionRuntime.js`): un Annulla restituisce tutto. Non compare con l'incantesimo già attivo, senza slot del livello, senza l'incantesimo nel libro o con la reazione usata. Lo stesso pulsante c'è nella scheda Capacità della console del mostro. La lettura è generale: vale per ogni «In response to being attacked …, X casts Y».
+- **Speed of the Adder** («casts a spell it knows with a casting time of 1 action»): nella scheda Capacità, un menu degli incantesimi del libro con tempo di lancio di 1 azione e **Lancia come azione bonus**, che lancia come il menu 🪄. Per il resto del turno, la scheda Incantesimi avvisa che resta solo un trucchetto da 1 azione. L'avviso vive nella memoria della console: niente si scrive e niente si blocca, quindi non è un conteggio di turno a mano.
+- **Guardian of the Gulthias** («polymorphs into a shambling mound for 1 minute … retains his game statistics (including his hit points), spellcasting abilities»): una reazione di tipo `form-when-targeted` e un tipo nuovo di forma, `monster-form` (`MONSTER_FORM_TEMPLATE`): tiene i PF (`hitPoints: "own"`, nessuno scambio di PF), la mente, le capacità e gli incantesimi; dalla forma vengono CA, Forza e Destrezza, velocità, difese, sensi, attacchi e taglia del token. Nessun limite di tipo o GS: la forma la dice lo statblock. Si sceglie una volta con il campo «Forma» della Forma Selvatica, nella scheda Capacità della console del mostro (con «Usa e salva» resta tra le forme rapide); poi **Assumi la forma** o l'**Usa** dell'avviso la applicano per i minuti del testo, con la reazione.
+
+### 17.3 Le scelte fatte, da rivedere
+
+- **G-1. Quando compare Gift of the Gulthias:** al Colpito, come Scudo, non prima del tiro. Il plugin non vede l'attacco prima che il GM ne segni l'esito; il GM confronta il tiro con la CA nuova.
+- **G-2. Speed of the Adder:** l'avviso non si salva (sparisce se la console si chiude) e non blocca nulla.
+- **G-3. Guardian of the Gulthias:** la forma viene dalle forme rapide della scheda, scelta una volta; l'uso 1/giorno non si conta (resta al tavolo).
+- **G-4. Le reazioni che tengono i PF:** solo una forma con «retains … (including his hit points)» diventa `monster-form`; una che prende i PF della forma resta testo.
+
+### 17.4 Che cosa resta
+
+- Indomitable di Lorghoth (ripetere il TS contro una condizione alla fine del turno di un nemico) resta testo.
+- Tre trucchetti dei druidi non sono nel catalogo del plugin e non entrano nel libro: thorn whip, gust e infestation.
+- «In response to taking damage, Ludmilla casts misty step» non è ancora letto: è lo stesso schema di Gift of the Gulthias, con il danno al posto dell'attacco.
+
+Prove al banco (27/11): Gift dall'avviso e Annulla, Speed of the Adder con Onda tonante, Guardian dalla console e dall'avviso, fine della forma con i PF invariati. Le prove in stanza sono in [PROVE_IN_STANZA.md](PROVE_IN_STANZA.md), sezione B71.

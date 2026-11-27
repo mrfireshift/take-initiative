@@ -29,8 +29,9 @@ function conditionInstances(conditions) {
 export function transformationFormHpOf(instance) {
   const template = instance?.mechanics?.transformation;
   if (!template || typeof template !== "object" || !template.form) return null;
-  // Lotto W7e: a form that brings temporary hit points (Mass Polymorph) swaps none.
-  if (template.hitPoints === "temporary") return null;
+  // Lotto W7e: a form that brings temporary hit points (Mass Polymorph) swaps none; nor does one that keeps the creature's
+  // own (27/11, a monster's form: Guardian of the Gulthias).
+  if (template.hitPoints === "temporary" || template.hitPoints === "own") return null;
   return integerAtLeast(template.formHp, 1) ?? integerAtLeast(template.form?.hitPoints?.average, 1);
 }
 

@@ -17,7 +17,22 @@ export const TRANSFORMATION_KINDS = Object.freeze([
   "animal-shapes",
   // Lotto W7e: Mass Polymorph (Xanathar), whose form brings temporary hit points instead of its own.
   "mass-polymorph",
+  // 27/11 (Guardian of the Gulthias, Strahd Reloaded): a form a monster's own reaction gives, keeping its hit points.
+  "monster-form",
 ]);
+
+// 27/11: the form of a monster's feature ("polymorphs into a shambling mound … retains his game statistics (including his
+// hit points), spellcasting abilities"): its mind, features and spells stay, its hit points too (hitPoints: "own"): the
+// form brings its AC, Strength and Dexterity, speeds, defenses, senses and attacks. No limit of type or challenge rating:
+// the stat block names the form.
+export const MONSTER_FORM_TEMPLATE = Object.freeze({ kind: "monster-form", conditionName: "Forma", keepsMind: true,
+  keepsFeatures: true, canCast: true, hitPoints: "own" });
+
+// 27/11: the card's quick form a monster's feature names ("polymorphs into a shambling mound"), by name; null without it.
+export function transformationFormNamed(card, formName) {
+  const wanted = plainTransformationName(formName);
+  return wanted ? sanitizeTransformationForms(card?.[TRANSFORMATION_FORMS_FIELD]).find((form) => plainTransformationName(form.name) === wanted) || null : null;
+}
 
 // The card's quick forms (G37): at most 8, and a byte budget, since the card goes into the Room's registry, whose
 // metadata Owlbear holds to 16 kB in all.
@@ -213,6 +228,7 @@ export function transformationLimits({
   if (kind === "animal-shapes") {
     return { kind, types: ["beast"], maxCr: 4, maxCrText: "il limite di GS 4", maxSize: "large" };
   }
+  if (kind === "monster-form") return { kind };
   return { error: "Trasformazione sconosciuta." };
 }
 

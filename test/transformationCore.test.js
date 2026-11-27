@@ -230,8 +230,9 @@ test("tipo, GS o taglia mancanti: la forma aspetta che il GM li indichi", () => 
   assert.deepEqual(transformationFormAllowed(null, druid(8)), { allowed: false, reasons: ["Nessuna forma scelta."] });
   assert.deepEqual(transformationFormAllowed(facts(wolf), { kind: "moonbeam" }), { allowed: false, reasons: ["Trasformazione sconosciuta."] });
   assert.deepEqual(transformationLimits({ kind: "" }), { error: "Trasformazione sconosciuta." });
+  // 27/11: monster-form, the form of a monster's own reaction (Guardian of the Gulthias), test/monsterReactionEffects.test.js.
   assert.deepEqual([...TRANSFORMATION_KINDS], ["wild-shape", "elemental-wild-shape", "polymorph", "true-polymorph", "shapechange", "animal-shapes",
-    "mass-polymorph"]);
+    "mass-polymorph", "monster-form"]);
 });
 
 test("l'istantanea della forma da 5eTools: PF, CA, caratteristiche, velocità, azioni e multiattacco", () => {

@@ -105,6 +105,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
     ?useBossReactionAttack(candidate)
     :candidate.flow==="use-feature" || (candidate.flow==="note" && candidate.featureId)
     ?useBossReactionFeature(candidate)
+    :candidate.flow==="monster-cast" || candidate.flow==="monster-form"
+    ?useBossMonsterReaction(candidate)
     :castTargetReaction({spellId:candidate.spellId,direct:candidate.flow==="cast-spell",variant:candidate.variant || "",targetIds:candidate.targetIds || [],
       casterId:candidate.reactorId})});
   // Lot R3a: the distance between two creatures, read once from the grid, for a reaction on an ally within a few meters.
@@ -943,6 +945,22 @@ export function bootBossActions(documentRef=document, overrides={}) {
   }
   // Lot R3a: a class feature that changes the outcome: its use and the reaction through the existing flows
   // (reactionFeatureRuntime.js); the GM changes the outcome, except Sentinel at Death's Door, which makes the critical a hit.
+  // 27/11 (the Wizard of Wines): a monster's reaction that casts a spell on it or gives it a form (monsterReactionRuntime.js).
+  async function useBossMonsterReaction(candidate) {
+    if(reactionsBusy) return;
+    reactionsBusy=true;renderBossTargetReactions();
+    try {
+      const runtime=await import("./monsterReactionRuntime.js");
+      const label=String(candidate.label || "").replace(/\s*\([^()]*\)\s*$/u,"");
+      const result=candidate.flow==="monster-cast"
+        ?await runtime.castMonsterReactionSpell({casterId:candidate.reactorId,spellId:candidate.spellId,slotLevel:candidate.slotLevel || 0,
+          noConcentration:candidate.noConcentration===true,label})
+        :await runtime.assumeMonsterForm({sourceId:candidate.reactorId,formName:candidate.formName,minutes:candidate.minutes || 1,label});
+      setStatus(result.ok?`${result.message} Se il tiro non arriva alla CA nuova, segna Mancato.`:result.message,result.ok?"ok":"error");
+      targets=bossActionTargets(await api.scene.items.getItems(),sourceId);
+    } catch(error) {setStatus(String(error?.message || error),"error");}
+    finally {reactionsBusy=false;renderTargetBox();renderDecisions();}
+  }
   async function useBossReactionFeature(candidate) {
     if(reactionsBusy) return;
     reactionsBusy=true;renderBossTargetReactions();

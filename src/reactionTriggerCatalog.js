@@ -36,8 +36,12 @@
 export const REACTION_TRIGGERS = Object.freeze(["hit", "damage", "miss", "spell-cast", "move-leave", "move-enter", "move-enter-reach",
   "turn-end-near"]);
 export const REACTION_TIMINGS = Object.freeze(["before", "after"]);
+// "monster-cast" (27/11, Gift of the Gulthias): the monster casts the spell its reaction names on itself, its slot and
+// its reaction spent, without concentration when the text says so (monsterReactionRuntime.js); "monster-form" (27/11,
+// Guardian of the Gulthias): the monster takes the form its reaction names, one of its card's quick forms, keeping its
+// own hit points.
 export const REACTION_FLOWS = Object.freeze(["cast-spell", "spell-panel", "use-feature", "off-turn-attack", "counterspell", "note",
-  "modifier", "activate-feature"]);
+  "modifier", "activate-feature", "monster-cast", "monster-form"]);
 
 // The option switch of each trigger (reactionPromptOptions in reactionCandidatesCore.js).
 export const REACTION_TRIGGER_OPTION = Object.freeze({
@@ -286,6 +290,14 @@ export const REACTION_TRIGGER_CATALOG = Object.freeze([
   monster({ id: "monster-note-miss", label: "Reazione", monsterKind: "note-miss", triggers: ["miss"], timing: "after",
     effect: { kind: "other" }, short: "Dopo il mancato",
     rule: "Una creatura lo manca con un attacco (testo dello statblock)." }),
+  // 27/11 (Strahd Reloaded, the Wizard of Wines): seen when the GM picks Hit, as Shield; the GM then checks the roll
+  // against the new AC.
+  monster({ id: "monster-cast-when-attacked", label: "Reazione", monsterKind: "cast-when-attacked", triggers: ["hit"], timing: "before",
+    filters: { attackRoll: true }, flow: "monster-cast", effect: { kind: "other" }, short: "Lancia l'incantesimo",
+    rule: "Quando viene attaccato, lancia un incantesimo su di sé (testo dello statblock)." }),
+  monster({ id: "monster-form-when-targeted", label: "Reazione", monsterKind: "form-when-targeted", triggers: ["hit"], timing: "before",
+    filters: { attackRoll: true }, flow: "monster-form", effect: { kind: "other" }, short: "Cambia forma",
+    rule: "Quando viene preso di mira, assume un'altra forma tenendo i suoi PF (testo dello statblock)." }),
 ]);
 
 const BY_ID = new Map(REACTION_TRIGGER_CATALOG.map((value) => [value.id, value]));

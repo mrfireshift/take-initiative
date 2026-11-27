@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **345** |
+| **B. Console attacchi, mostri e capacità** | **351** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -97,6 +97,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B68. Incantesimi a ricarica e testo dello statblock nella console | 4 |
 | B69. Santuario del Crepuscolo homebrew | 9 |
 | B70. Cure a 0 PF: Imposizione delle Mani e Rigenerazione | 2 |
+| B71. Wizard of Wines: Gift of the Gulthias, Speed of the Adder, Guardian of the Gulthias | 6 |
 | **C. Tracker e UX** | **45** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -126,7 +127,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **732** |
+| **Totale** | **738** |
 
 ## A. Incantesimi
 
@@ -1278,6 +1279,17 @@ Fonte: correzione del 22/11 (la cura con una patch dei PF lasciava «Privo di se
 
 - [ ] **Imposizione delle Mani:** curato il PG a 0 PF dalla console attacchi o dalla scheda, «Privo di sensi» se ne va e Prono resta; spariscono anche i tiri contro la morte e «Stabile», se c'erano. Un solo Annulla rimette PF, condizioni e punti spesi. Da provare in vista compatta ed estesa.
 - [ ] **Rigenerazione:** lanciata dal pannello sul PG a 0 PF con il totale dei 4d8 + 15, lo sveglia allo stesso modo, con la pill della rigenerazione.
+
+### B71. Wizard of Wines: Gift of the Gulthias, Speed of the Adder, Guardian of the Gulthias
+
+Fonte: [STUDIO_IMPORT_STATBLOCK_TESTO.md](STUDIO_IMPORT_STATBLOCK_TESTO.md), §17 (27/11). Le voci sono nuove: nessuna lista le aveva. Servono un PG con un attacco, il Druid Naturalist dell'Arc J e lo statblock di Lorghoth, l'archivio di 5eTools per lo Shambling Mound.
+
+- [ ] **Gift of the Gulthias dall'avviso:** importa il Druid Naturalist (o il Druid Assailant) dalla pagina dell'Arc J di Strahd Reloaded, con gli avvisi di reazione accesi anche per i mostri (Opzioni, «Mostri»). Un PG lo attacca nella console e segna **Colpito**: l'avviso dice «Gift of the Gulthias · Lancia Pelle coriacea (slot di 2°)». **Usa** mette sul druido la pill «CA minima 16» per un'ora, senza concentrazione, gli spende uno slot di 2° (3 → 2) e la reazione. Se il tiro non arriva a 16, segna Mancato.
+- [ ] **Gift of the Gulthias, quando non c'è:** l'avviso non compare con Pelle coriacea già attiva sul druido, senza slot di 2° rimasti o con la reazione già usata. Un **Annulla** dalla Cronologia toglie la pill e la reazione e ridà lo slot.
+- [ ] **Gift of the Gulthias dalla sua console:** nella console del druido, Capacità → Gift of the Gulthias ha il pulsante «Lancia Pelle coriacea», con lo stesso risultato.
+- [ ] **Speed of the Adder:** nella console del druido, Capacità → Speed of the Adder ha il menu dei suoi incantesimi da 1 azione e **Lancia come azione bonus**: Onda tonante apre il pannello incantesimi. Nella scheda Incantesimi, per il resto del turno, c'è l'avviso «Ha già lanciato un incantesimo come azione bonus in questo turno: ora solo un trucchetto da 1 azione.»; al turno dopo sparisce. Non blocca niente.
+- [ ] **Lorghoth, la forma:** importa lo statblock di Lorghoth the Decayer. Nella sua console, Capacità → Guardian of the Gulthias: scegli Shambling Mound dall'archivio con «Altra forma…» e **Usa e salva**, poi **Assumi la forma**. I suoi PF non cambiano; la pill dura 10 round; la CA è 15, la velocità 6 m e il nuoto 6 m, ha resistenza a freddo e fuoco e immunità al fulmine; negli Attacchi ci sono Slam ed Engulf, gli incantesimi restano; il token diventa Grande. Spende la reazione.
+- [ ] **Lorghoth dall'avviso:** un PG lo attacca e segna **Colpito**: l'avviso dice «Forma: shambling mound»; **Usa** gli dà la forma salvata. Senza la forma salvata, la riga di stato dice di sceglierla una volta nella sua console. Quando la pill finisce, o con la ✕, i PF restano quelli che aveva. Da provare in vista compatta ed estesa.
 
 ## C. Tracker e UX
 

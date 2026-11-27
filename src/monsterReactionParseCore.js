@@ -9,8 +9,19 @@
 //   says so;
 // - "halve": "halves the damage that it takes from an attack that hits it" (a monster's Uncanny Dodge);
 // - "note-hit" / "note-miss": "when a creature … hits / misses it with an attack": the text, after the attack.
+// - "cast-when-attacked": "In response to being attacked by a creature it can see, the druid casts barkskin, provided it
+//   has a 2nd-level spell slot available. (The spell doesn't require concentration when cast in this way.)" (Gift of the
+//   Gulthias, Strahd Reloaded): spellName, slotLevel (the slot it spends, else the spell's level), noConcentration;
+// - "form-when-targeted": "In response to being targeted by an attack or spell, Lorghoth … polymorph(s) into a shambling
+//   mound for 1 minute … retains his game statistics (including his hit points)" (Guardian of the Gulthias): formName,
+//   minutes, keepsHp (the creature keeps its own hit points; only then the plugin can take the form, decision of 27/11).
 
-export const MONSTER_REACTION_KINDS = Object.freeze(["ac-bonus", "halve", "note-hit", "note-miss"]);
+export const MONSTER_REACTION_KINDS = Object.freeze(["ac-bonus", "halve", "note-hit", "note-miss", "cast-when-attacked",
+  "form-when-targeted"]);
+
+// "casts barkskin", "casts misty step,": the spell's name in lower case, as the stat blocks write it.
+const CAST_WHEN_ATTACKED = /^In response to being attacked\b[^.]*?,\s*(?:the [\w'’ -]{1,40}?|[A-Z][\w'’-]*(?: [A-Z][\w'’-]*){0,3}) casts ([a-z][a-z'’ /-]{1,40}?)(?=[,.;(]|$| at | using | targeting | on )/;
+const FORM_WHEN_TARGETED = /^In response to being targeted by an attack(?: or (?:a )?spell)?\b[^.]*?\bpolymorphs? into (?:an? )?([a-z][a-z'’ -]{1,40}?) for (\d{1,2}) minutes?\b/i;
 
 const MAX_TEXT = 600;
 const clean = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
@@ -27,6 +38,17 @@ export function monsterReactionFromEntry(entry) {
     if (amount < 1) return null;
     const melee = !!ac[2] || /Trigger:[^.]*\bmelee\b/i.test(body);
     return { kind: "ac-bonus", name, text, amount, melee };
+  }
+  const cast = body.match(CAST_WHEN_ATTACKED);
+  if (cast) {
+    const slotLevel = Number(body.match(/\bprovided (?:it|he|she|they) ha(?:s|ve) an? (\d)(?:st|nd|rd|th)-level spell slot/i)?.[1]) || null;
+    return { kind: "cast-when-attacked", name, text, spellName: cast[1].trim(), ...(slotLevel ? { slotLevel } : {}),
+      ...(/\bdo(?:es)?n['’]t require concentration|\bdoes not require concentration/i.test(body) ? { noConcentration: true } : {}) };
+  }
+  const form = body.match(FORM_WHEN_TARGETED);
+  if (form) {
+    return { kind: "form-when-targeted", name, text, formName: form[1].trim(), minutes: Number(form[2]),
+      ...(/\bretains? (?:his|her|its|their) game statistics \(including (?:his|her|its|their) hit points\)/i.test(body) ? { keepsHp: true } : {}) };
   }
   if (/\bhalves the (?:attack's |attack’s )?damage\b/i.test(body)) return { kind: "halve", name, text };
   const struck = body.match(/\b(hits|misses) (?:it|him|her|them|the [\w'’ -]{1,40}?) with (?:an? |a )?(?:melee |ranged )?(?:weapon |spell )?attack/i);
