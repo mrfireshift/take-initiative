@@ -85,8 +85,9 @@ async function openChange(f) {
   assert.ok(row, "the row of Cambia forma");
   await row.click(); await tick();
 }
-const launchButtons = (f) => f.$("pc-attack-launch").querySelectorAll("button");
-const changeButton = (f) => launchButtons(f).find((button) => button.textContent === "Cambia forma");
+// 27/11: «Cambia forma» is the fixed row's button, as every action of the console.
+const changeButton = (f) => (f.$("pc-attack-launch-button").textContent === "Cambia forma" && !f.$("pc-attack-launch-button").hidden
+  ? f.$("pc-attack-launch-button") : undefined);
 
 test("G28: Trasformazione: «Cambia forma» in Capacità, la forma nuova dalle rapide, un comando con la forma", async () => {
   const f = fixture();

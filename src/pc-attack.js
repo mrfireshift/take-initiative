@@ -388,6 +388,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   launchButton?.addEventListener("click",()=>{
     const entry=currentEntry();
     if(!launching() || !entry) return;
+    // 27/11: a monster's entry that acts (renderMonsterUse) and «Cambia forma» (renderFormChange): their action on the
+    // fixed button, as every other entry of the console.
+    if(entry.mode==="monster"){if(fixedMonsterAction && !launchButton.disabled) void fixedMonsterAction();return;}
     if(entry.mode==="maneuver") void registerManeuver(entry);
     else if(entry.mode==="turn-action") void registerTurnAction(entry);
     else if(entry.mode==="activate") void runFeature(entry);else void launchSpell(entry);
@@ -455,6 +458,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const monsterUseChoice=new Map();
   // Speed of the Adder used in this turn, by creature: the turn it was used in (no write: the console's own memory).
   const actionSpellAsBonusTurn=new Map();
+  // The action of the fixed row's button for a monster's entry that acts (setFixedMonsterAction).
+  let fixedMonsterAction=null;
   const currentTurnKey=()=>JSON.stringify([presentation?.turnState?.round ?? null,presentation?.turnState?.current ?? null]);
   const targetById=id=>presentation?.targets.find(item=>item.id===id) || null;
   // Any tracked creature, the attacker included (temporary hit points, Bursting Arrow's creatures).
@@ -1965,11 +1970,23 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // G28 (docs/PIANO_TRASFORMAZIONI.md): «Cambia forma» while Shapechange or Animal Shapes lasts: the «Forma» field of
   // Wild Shape with the spell's limits, the quick forms of whoever casts it, and one command (transformationChangeRuntime.js).
   const formChangeValues=new Map();
+  // The fixed row's button for a monster's entry (27/11): its label, whether it can run, and what it runs; null hides it.
+  function setFixedMonsterAction(label,enabled,action) {
+    fixedMonsterAction=action || null;
+    if(applyRow) applyRow.hidden=!action;
+    apply.hidden=true;
+    if(total){total.replaceChildren();total.textContent="";total.title="";total.dataset.kind="";}
+    if(!launchButton) return;
+    launchButton.hidden=!action;
+    launchButton.textContent=label || "";
+    launchButton.disabled=!action || !enabled;
+  }
   function renderFormChange(entry) {
     const change=entry.change || {};
     const values=formChangeValues.get(sourceId) || {};
     formChangeValues.set(sourceId,values);
-    const signature=JSON.stringify(["form-change",entry.key,entry.text,launchBusy,busy,invalidated]);
+    setFixedMonsterAction(launchBusy?"Cambio…":"Cambia forma",!busy && !launchBusy && !invalidated && !!values.form,()=>runFormChange(values));
+    const signature=JSON.stringify(["form-change",entry.key,entry.text,launchBusy,busy,invalidated,values.form?.name || ""]);
     if(signature===launchSignature) return;
     launchSignature=signature;
     const caster=change.kind==="animal-shapes"?(presentation?.targets || []).find(item=>item.id===change.casterId) || null:presentation?.item || null;
@@ -1977,11 +1994,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       field:{id:"form",type:"transformation-form",label:"Forma nuova",kind:change.kind,context:change.context || null},
       disabled:busy || launchBusy || invalidated,rerender:()=>{launchSignature="";renderLaunch();},setStatus,
       creatures:presentation?.targets || []});
-    const run=node("button",launchBusy?"Cambio…":"Cambia forma","quick-action-add");
-    run.type="button";
-    run.disabled=busy || launchBusy || invalidated || !values.form;
-    run.addEventListener("click",()=>void runFormChange(values));
-    launchBox.replaceChildren(launchHead(entry,[capitalized(entry.activation)]),node("p",entry.text,"spell-text"),field,run);
+    launchBox.replaceChildren(launchHead(entry,[capitalized(entry.activation)]),node("p",entry.text,"spell-text"),field);
   }
   async function runFormChange(values) {
     if(launchBusy || busy || invalidated || !values.form) return;
@@ -2013,21 +2026,29 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const spell=use.kind==="cast"?getSpellDefinition(use.spellName):null;
     const choices=use.kind==="action-spell"?actionSpellChoices():[];
     if(use.kind==="form" && !values.form) values.form=transformationFormNamed(attackerCard(),use.formName);
+    const chosen=choices.some(choice=>choice.id===monsterUseChoice.get(sourceId))?monsterUseChoice.get(sourceId):choices[0]?.id || "";
+    const free=!busy && !launchBusy && !invalidated;
+    // The action on the fixed row's button, as every other entry of the console (27/11): its cost beside it. Indomitable
+    // has one outcome per effect instead, in its rows.
+    if(use.kind==="cast") setFixedMonsterAction(launchBusy?"Lancio…":"Lancia",free && !!spell,()=>runMonsterUse(entry,()=>import("./monsterReactionRuntime.js")
+      .then(runtime=>runtime.castMonsterReactionSpell({casterId:sourceId,spellId:spell.id,slotLevel:use.slotLevel,free:!use.slotLevel,
+        noConcentration:use.noConcentration,label:monsterUseLabel(entry)}))));
+    else if(use.kind==="form") setFixedMonsterAction(launchBusy?"Cambio…":"Assumi la forma",free && !!values.form,()=>runMonsterUse(entry,()=>import("./monsterReactionRuntime.js")
+      .then(runtime=>runtime.assumeMonsterForm({sourceId,form:values.form,formName:use.formName,minutes:use.minutes,label:monsterUseLabel(entry),
+        portrait:values.formPortrait || null}))));
+    else if(use.kind==="action-spell") setFixedMonsterAction(launchBusy?"Lancio…":"Lancia",free && !!chosen,
+      ()=>runActionSpellAsBonus(entry,choices.find(choice=>choice.id===(monsterUseChoice.get(sourceId) || chosen))));
+    else setFixedMonsterAction("",false,null);
+    if(total && use.kind!=="repeat-save" && !pickerNamesEntry) total.append(costTag(use.kind==="action-spell"?"azione bonus":"reazione"));
     const repeatable=use.kind==="repeat-save"?repeatableSaveEffects(presentation?.item || null,presentation?.targets || []).map(effect=>[effect.instanceId,effect.dc]):null;
     const signature=JSON.stringify(["monster-use",entry.key,entry.text,launchBusy,busy,invalidated,choices.map(choice=>choice.id),repeatable,
       spellbookSpellReferenceLoaded(),use.kind==="form"?[values.form?.name || "",values.formPanel || "",values.formBusy || false]:null]);
     if(signature===launchSignature) return;
     launchSignature=signature;
     const children=[launchHead(entry,entry.activation && !pickerNamesEntry?[capitalized(entry.activation)]:[]),node("p",entry.text || "","spell-text")];
-    const run=node("button","","quick-action-add");
-    run.type="button";
     if(use.kind==="cast") {
-      run.textContent=launchBusy?"Lancio…":`Lancia ${spell?.displayName || use.spellName}`;
-      run.disabled=busy || launchBusy || invalidated || !spell;
       if(!spell) children.push(node("p",`${use.spellName}: incantesimo che il plugin non conosce.`,"launch-note warning"));
-      else children.push(node("p",`Su ${actorName()}${use.noConcentration?", senza concentrazione":""}${use.slotLevel?`, con uno slot di ${use.slotLevel}°`:""}; spende la reazione.`,"launch-details"));
-      run.addEventListener("click",()=>void runMonsterUse(entry,()=>import("./monsterReactionRuntime.js").then(runtime=>runtime.castMonsterReactionSpell({
-        casterId:sourceId,spellId:spell.id,slotLevel:use.slotLevel,free:!use.slotLevel,noConcentration:use.noConcentration,label:monsterUseLabel(entry)}))));
+      else children.push(node("p",`${spell.displayName || spell.name} su ${actorName()}${use.noConcentration?", senza concentrazione":""}${use.slotLevel?`, con uno slot di ${use.slotLevel}°`:", senza slot"}; spende la reazione.`,"launch-details"));
     } else if(use.kind==="repeat-save") {
       // Indomitable: the effects on it whose save can be repeated, each with the outcome the GM reads at the table.
       const effects=repeatableSaveEffects(presentation?.item || null,[...(presentation?.targets || []),...(presentation?.item?[presentation.item]:[])]);
@@ -2038,7 +2059,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         for(const [outcome,text] of [["passed","Superato"],["failed","Fallito"]]) {
           const button=node("button",text,"mini-button");
           button.type="button";
-          button.disabled=busy || launchBusy || invalidated;
+          button.disabled=!free;
           button.addEventListener("click",()=>void runMonsterUse(entry,()=>import("./monsterReactionRuntime.js").then(runtime=>runtime.repeatMonsterSave({
             sourceId,instanceId:effect.instanceId,outcome,label:monsterUseLabel(entry)}))));
           row.append(button);
@@ -2046,32 +2067,22 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         children.push(row);
       }
       if(effects.length) children.push(node("p","Spende la reazione; con Superato l'effetto finisce.","launch-details"));
-      run.hidden=true;
     } else if(use.kind==="form") {
       children.push(transformationFormField({documentRef,values,card:attackerCard(),item:presentation?.item || null,
         field:{id:"form",type:"transformation-form",label:"Forma",kind:"monster-form",context:{kind:"monster-form"}},
-        disabled:busy || launchBusy || invalidated,rerender:()=>{launchSignature="";renderLaunch();},setStatus,creatures:presentation?.targets || []}));
+        disabled:!free,rerender:()=>{launchSignature="";renderLaunch();},setStatus,creatures:presentation?.targets || []}));
       children.push(node("p",`Per ${use.minutes} ${use.minutes===1?"minuto":"minuti"}: tiene i suoi PF e i suoi incantesimi; CA, velocità, difese e attacchi sono della forma. Spende la reazione.`,"launch-details"));
-      run.textContent=launchBusy?"Cambio…":"Assumi la forma";
-      run.disabled=busy || launchBusy || invalidated || !values.form;
-      run.addEventListener("click",()=>void runMonsterUse(entry,()=>import("./monsterReactionRuntime.js").then(runtime=>runtime.assumeMonsterForm({
-        sourceId,form:values.form,formName:use.formName,minutes:use.minutes,label:monsterUseLabel(entry),portrait:values.formPortrait || null}))));
     } else {
       if(!spellbookSpellReferenceLoaded()) void loadSpellbookSpellReference().then(()=>{if(currentEntry()?.key===entry.key){launchSignature="";renderLaunch();}}).catch(()=>{});
       const select=node("select","","inline-select");
       select.setAttribute("aria-label","Incantesimo");
-      const chosen=choices.some(choice=>choice.id===monsterUseChoice.get(sourceId))?monsterUseChoice.get(sourceId):choices[0]?.id || "";
       select.replaceChildren(...choices.map(choice=>{const option=node("option",`${choice.label}${choice.level?` · ${choice.level}°`:" · trucchetto"}`);option.value=choice.id;return option;}));
       select.value=chosen;
-      select.disabled=busy || launchBusy || invalidated || !choices.length;
+      select.disabled=!free || !choices.length;
       select.addEventListener("change",()=>{monsterUseChoice.set(sourceId,select.value);launchSignature="";renderLaunch();});
       if(choices.length) children.push(select);
       else children.push(node("p","Nessun incantesimo da 1 azione nel suo libro.","launch-details"));
-      run.textContent=launchBusy?"Lancio…":"Lancia come azione bonus";
-      run.disabled=busy || launchBusy || invalidated || !chosen;
-      run.addEventListener("click",()=>void runActionSpellAsBonus(entry,choices.find(choice=>choice.id===(monsterUseChoice.get(sourceId) || chosen))));
     }
-    children.push(run);
     launchBox.replaceChildren(...children);
   }
   async function runMonsterUse(entry,call) {
@@ -2104,6 +2115,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(applyRow) applyRow.hidden=true;
     apply.hidden=true;
     if(launchButton) launchButton.hidden=true;
+    fixedMonsterAction=null;
     if(entry.group==="form-change") {renderFormChange(entry);return;}
     if(entry.monsterUse) {renderMonsterUse(entry);return;}
     const signature=JSON.stringify(["monster",entry.key,entry.label,entry.text]);
