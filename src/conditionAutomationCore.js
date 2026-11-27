@@ -49,6 +49,30 @@ export function getPotentialConditionAutomationChanges(items = [], itemIds = [],
   };
 }
 
+// The grapples the creatures of grapplerIds hold, when they fall to 0 HP or are incapacitated: each Grappled pill they
+// are the source of, and the Restrained that lasts while it holds ("until this grapple ends", the Vine Blight's Constrict:
+// the same source, no spell behind it, as the console's end of a grapple reads it, pcAttackManeuverCore.js). Never a grapple
+// whose source is the creature itself (the condition panel's default source). [{ itemId, instanceId }].
+export function grappleReleaseRemovals(items = [], grapplerIds = [], readConditions = (item) => item?.conditions || []) {
+  const grapplers = new Set(uniqueIds(grapplerIds).map(String));
+  if (!grapplers.size) return [];
+  const removals = [];
+  for (const item of Array.isArray(items) ? items : []) {
+    const itemId = String(item?.id || "");
+    const instances = conditionsFor(item, readConditions).filter((instance) => instance?.active !== false);
+    const sourceOf = (instance) => String(instance?.sourceId || "").trim();
+    const held = new Set(instances.filter((instance) => conditionKey(instance) === "afferrato"
+      && grapplers.has(sourceOf(instance)) && sourceOf(instance) !== itemId).map(sourceOf));
+    if (!held.size) continue;
+    for (const instance of instances) {
+      const key = conditionKey(instance);
+      const tied = key === "afferrato" || (key === "trattenuto" && !String(instance?.parentEffectId || "").trim());
+      if (tied && held.has(sourceOf(instance)) && String(instance?.id || "")) removals.push({ itemId, instanceId: String(instance.id) });
+    }
+  }
+  return removals;
+}
+
 export function buildConditionAutomationPlan(items = [], itemIds = [], options = {}) {
   const readConditions = options.readConditions || ((item) => item?.conditions || []);
   const subjectSet = new Set(uniqueIds(itemIds));

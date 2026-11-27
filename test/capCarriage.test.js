@@ -355,9 +355,10 @@ test("nella stanza: la sfera va posata, il caster tiene il suo record e lo strum
   // The panel asks for the sphere before the cast: without it only the caster's concentration was left, with no ⚡.
   assert.equal(getSpellAreaRuleById("xanathar-sfera-acquea:cast").zonePolicy.placementOptional, false);
   const read = (file) => fs.readFileSync(new URL(`../src/${file}`, import.meta.url), "utf8");
-  // A zone that carries creatures keeps its record on the caster even when the creatures it holds carry theirs.
+  // A zone that carries creatures keeps its record on the caster even when the creatures it holds carry theirs (so does
+  // every zone that stays without its creatures, test/spellZoneFreedTargets.test.js).
   const executor = read("spellAreaResolutionExecutor.js");
-  assert.ok(executor.includes("const carriesCreatures = (placementRule?.zonePolicy?.movement?.carriedEffectIds?.length || 0) > 0;"));
+  assert.ok(executor.includes("const carriesCreatures = (placementRule?.zonePolicy?.movement?.carriedEffectIds?.length || 0) > 0\n      || !targetScopedStaticZone;"));
   assert.ok(executor.includes("trackConcentration: spell.concentration === true && (!hasTrackedSpellInstance || carriesCreatures),"));
   // The tool's ✓ and ✕ show during a zone's movement too, and confirm or cancel it.
   const tool = read("aoeTargetTool.js");

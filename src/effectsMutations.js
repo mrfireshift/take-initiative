@@ -16,6 +16,7 @@ import {
 } from "./conditions.js";
 import { CLASS_FEATURE_STATE_FIELD } from "./classFeatureCore.js";
 import { creatureConditionImmunities } from "./damageDefensesCore.js";
+import { grappleReleaseRemovals } from "./conditionAutomationCore.js";
 import {
   isClassFeatureStateMutationOperation,
   planClassFeatureStateMutations,
@@ -1095,6 +1096,16 @@ function planZeroHpConcentrationBreak(item, beforeHP, afterHP, hpOperations) {
   hpOperations.push({ type: "concentration:break", casterIds: [item.id] });
 }
 
+// Bug of 27/11: a Vine Blight killed while it held a character left it Grappled and Restrained. A creature brought to 0
+// HP is incapacitated, a monster dies: the grapples it holds end, with the Restrained that lasts while they hold
+// (conditionAutomationCore.js). A character's Privo di sensi did it already (condition:automate); a monster's death did not.
+function planZeroHpGrappleRelease(item, beforeHP, afterHP, hpOperations, sceneItems) {
+  if (!(Number(beforeHP) > 0) || !(Number(afterHP) <= 0)) return;
+  const removals = grappleReleaseRemovals(sceneItems, [item?.id],
+    (candidate) => getConditionInstances(candidate?.metadata?.[META_KEY]?.conditions || {}));
+  if (removals.length) hpOperations.push({ type: "condition:remove-instances", removals });
+}
+
 function sceneItemMetadataSnapshot(item, field) {
   return metadataFieldSnapshot(item?.metadata || {}, field);
 }
@@ -1920,6 +1931,7 @@ export async function prepareEffectsMutation(operations = [], {
         if (removals.length) hpOperations.push({ type: "condition:remove-instances", removals });
       }
       if (!boardToken) planZeroHpConcentrationBreak(item, meta.hp, update.hp, hpOperations);
+      if (!boardToken) planZeroHpGrappleRelease(item, meta.hp, update.hp, hpOperations, sceneItems);
       item.metadata[META_KEY] = { ...meta, hp: update.hp, hpMax: update.hpMax, ...(tempHp === null ? {} : { tempHp }),
         ...(tempHpSource === null ? {} : { tempHpSource }) };
       if (!boardToken) hpOperations.push({ type: "condition:reconcile-zero-hp", targetIds: [item.id] });
@@ -2003,6 +2015,7 @@ export async function prepareEffectsMutation(operations = [], {
       hpIntents: patch.hpIntents }, hpOperations, instantDeathIds);
     if (Object.keys(deathSaveFields).length) hpPatches.push({ id: patch.id, fields: deathSaveFields });
     planZeroHpConcentrationBreak(item, hpMeta.hp, hp, hpOperations);
+    planZeroHpGrappleRelease(item, hpMeta.hp, hp, hpOperations, sceneItems);
     // After a return, Privo di sensi follows the creature's own HP (the writer's own, read on the form, goes below).
     if (shaped) {
       item.metadata[META_KEY] = { ...hpMeta, hp, hpMax };

@@ -17,6 +17,7 @@ import {
   terminationRequestId,
 } from "./spellTerminationGatewayCore.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
+import { grappleReleaseRemovals } from "./conditionAutomationCore.js";
 
 const CONDITION_SCHEMA_VERSION = 2;
 const EXHAUSTION_CONDITION = "Indebolimento";
@@ -852,6 +853,15 @@ function breakConcentration(states, casterId, reference = null, context = {}, op
   return null;
 }
 
+// A spell whose zone stays on the map without its creatures (Entangle's plants, the Watery Sphere, Reverse Gravity): the
+// caster holds the zone's owner record (spellStaticZoneCore.js). Freeing its last creature, by hand or by a save, leaves
+// the concentration and the zone; a zone that follows its targets (Phantasmal Force's illusion) ends with them.
+function concentrationZoneOutlivesTargets(caster, instanceId) {
+  const wanted = String(instanceId || "").trim();
+  return !!wanted && (caster?.spells || []).some((spell) => String(spell?.instanceId || "").trim() === wanted
+    && spell?.castContext?.staticZoneOwner === true && spell?.castContext?.staticZoneTargetScope !== "spell-targets");
+}
+
 function breakConcentrationOnTargets(
   states,
   casterId,
@@ -886,7 +896,8 @@ function breakConcentrationOnTargets(
   // Rimuovere l'ultimo target equivale a terminare davvero la concentrazione.
   // Delega al lifecycle completo così spell, parent-end e child effect remoti
   // vengono puliti nello stesso modo del normale concentration:break.
-  if (!remainingTargets.length) {
+  // Not for a spell whose zone stays without its creatures (Entangle): the concentration and the zone go on.
+  if (!remainingTargets.length && !concentrationZoneOutlivesTargets(caster, instanceId)) {
     const pending = beginPendingTermination(states, caster, matchedKey, operation, context);
     if (pending) return pending;
     return breakConcentration(
@@ -1491,12 +1502,13 @@ function applyConditionAutomation(states, subjectIds, context = {}, operation = 
     if (pending) return pending;
   }
   // A grapple ends when its grappler is incapacitated, never because the grappled creature is (a grapple whose source
-  // is the creature itself, the condition panel's default source).
+  // is the creature itself, the condition panel's default source); the Restrained that lasts while it holds goes with it.
+  const released = new Set(grappleReleaseRemovals([...states.values()], [...incapacitated], (state) => state.conditions)
+    .map((removal) => `${removal.itemId}|${removal.instanceId}`));
+  if (!released.size) return null;
   for (const state of states.values()) {
     state.conditions = state.conditions.filter((instance) =>
-      conditionKey(instance) !== "afferrato" ||
-      !incapacitated.has(String(instance?.sourceId || "")) ||
-      String(instance?.sourceId || "") === String(state.id || "")
+      !released.has(`${String(state.id || "")}|${String(instance?.id || "")}`)
     );
   }
   return null;
@@ -1994,7 +2006,8 @@ function applyOperation(states, operation, options = {}, context = {}) {
           const entry = match?.entry || {};
           const currentTargets = uniqueIds(entry.targets);
           const terminatesWholeInstance = action.policy === "spell"
-            || !currentTargets.some((targetId) => targetId !== itemId);
+            || (!currentTargets.some((targetId) => targetId !== itemId)
+              && !concentrationZoneOutlivesTargets(states.get(String(concentrationSpell.casterId || "").trim()), action.parentId));
           if (!terminatesWholeInstance) continue;
           const pending = pendingEventForSpell(
             states,

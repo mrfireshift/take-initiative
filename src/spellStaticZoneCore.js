@@ -254,6 +254,9 @@ export function staticSpellZoneOwnerOperation({
     castContext: {
       staticZoneOwner: true,
       staticZoneRuleId: rule.id,
+      // A zone that exists only for the spell's targets (Phantasmal Force's illusion) ends with its last one; the others
+      // stay on the map without creatures (effectsMutationCore.js, concentrationZoneOutlivesTargets).
+      ...(rule?.zonePolicy?.targetScope === "spell-targets" ? { staticZoneTargetScope: "spell-targets" } : {}),
       ...(slotLevel !== null && slotLevel !== "" && Number.isInteger(Number(slotLevel))
         ? { slotLevel: Number(slotLevel) }
         : {}),

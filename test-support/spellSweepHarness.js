@@ -181,6 +181,7 @@ const { spellOverviewGroups } = await import(source("spellsPanelViewCore.js"));
 const { normalizeHistoryUndoResult, HISTORY_UNDO_OUTCOME } = await import(source("historyUndoResultCore.js"));
 const { spellEffectStandsAlone } = await import(source("effectLabelCore.js"));
 const { getEffectiveConditionInstances } = await import(source("conditions.js"));
+const { concentrationSaveWarningsForItems } = await import(source("concentrationSaveReminderCore.js"));
 
 export const sweepCatalog = () => srd.getSpellCatalog();
 
@@ -216,7 +217,8 @@ async function resetScene() {
     },
   });
   sceneState.items = [
-    token(CASTER, "Maga", 300, { attitude: "pc", initiativeCard: { characterBuild: [{ classId: "mago", level: 20 }], spellSaveDC: 15 } }),
+    token(CASTER, "Maga", 300, casterOverride
+      || { attitude: "pc", initiativeCard: { characterBuild: [{ classId: "mago", level: 20 }], spellSaveDC: 15 } }),
     token(TARGET_ONE, "Bersaglio Uno", 600),
     token(TARGET_TWO, "Bersaglio Due", 750),
   ];
@@ -315,6 +317,8 @@ function targetContextFor(id, targetIds, outcome) {
 
 let keepRawConditions = false;
 let slotOverride = null;
+// The caster's own metadata in place of the wizard's: a monster that casts (the Vine Blight's Entangle).
+let casterOverride = null;
 
 async function castOnce({ id, phase, variant, outcome }) {
   const spell = srd.getSpellDefinition(id);
@@ -581,6 +585,64 @@ export async function runSpellSweep({ spellIds = null, quiet = true, keepRaw = f
   } finally {
     if (quiet) silenced.forEach((name) => { console[name] = originals[name]; });
     process.off("unhandledRejection", swallowRejection);
+    historyOwner.unmountHistoryOwner();
+    backgroundEffects.unmountEffectsMutationCoordinatorService();
+  }
+  return records;
+}
+
+// The card's × on every pill of the targets that ends its spell on that creature only (parentRemoval "target"), after
+// a failed cast: as when the last restrained creature breaks free of Entangle. What is left of the spell: its zones on
+// the map and the caster's concentration. One record per spell whose cast left such a pill.
+export async function runSpellFreeTargetsSweep({ spellIds = null, policies = ["target"], caster = null } = {}) {
+  casterOverride = caster;
+  const wanted = spellIds ? new Set(spellIds) : null;
+  const silenced = ["log", "info", "warn", "error", "debug"];
+  const originals = Object.fromEntries(silenced.map((name) => [name, console[name]]));
+  const swallowRejection = () => {};
+  silenced.forEach((name) => { console[name] = () => {}; });
+  process.on("unhandledRejection", swallowRejection);
+  const records = [];
+  try {
+    for (const entry of srd.getSpellCatalog().filter((candidate) => !wanted || wanted.has(candidate.id))) {
+      const id = entry.id;
+      const spell = srd.getSpellDefinition(id);
+      const variant = [
+        ...srd.getAreaSaveRuleChoices(spell).map((choice) => choice.value),
+        ...srd.getSpellEffectChoices(spell).map((choice) => choice.value),
+        ...(getSpellSaveWorkflowChoiceOptions(id) || []).map((choice) => choice.value),
+        ...getSpellAreaPlacementChoices(id).map((choice) => choice.value),
+      ][0] || "";
+      const phase = getSpellCastPhaseOptions(spell).map((option) => option.value)[0] || "cast";
+      try {
+        await resetScene();
+        const cast = await castOnce({ id, phase, variant, outcome: "failed" });
+        if (cast.status !== "applied") continue;
+        const removals = [TARGET_ONE, TARGET_TWO].flatMap((item) => conditionsOf(item)
+          .filter((condition) => policies.includes(condition.parentRemoval === "target" || condition.parentRemoval === "spell"
+            ? condition.parentRemoval : condition.endsParentOnRemoval === true ? "spell" : "") && String(condition.parentEffectId || "").trim())
+          .map((condition) => ({ itemId: item, instanceId: condition.id })));
+        if (!removals.length) continue;
+        const zonesBefore = sceneState.items.length - TOKENS;
+        const concentratingBefore = concentrationOf(CASTER).length;
+        await withTimeout(clientEffects.runEffectsMutation([{ type: "condition:remove-instances", removals }], {
+          kind: "condition", label: "Rimossa", targetIds: [...new Set(removals.map((removal) => removal.itemId))],
+        }), "free-targets");
+        await converge();
+        records.push({ id, variant, removed: removals.length, zonesBefore, zonesAfter: sceneState.items.length - TOKENS,
+          concentratingBefore, concentratingAfter: concentrationOf(CASTER).length,
+          casterPillsAfter: spellsOf(CASTER).filter((pill) => pill.spellId === id).length,
+          // The save the caster is asked when it then takes 10 damage (the two consoles' and the tracker's warning).
+          damageWarnings: concentrationSaveWarningsForItems({ items: sceneState.items.filter((item) => item.id === CASTER).map(clone),
+            changes: [{ itemId: CASTER, damage: 10 }] }).length });
+      } catch (error) {
+        records.push({ id, variant, thrown: String(error?.message || error).slice(0, 200) });
+      }
+    }
+  } finally {
+    silenced.forEach((name) => { console[name] = originals[name]; });
+    process.off("unhandledRejection", swallowRejection);
+    casterOverride = null;
     historyOwner.unmountHistoryOwner();
     backgroundEffects.unmountEffectsMutationCoordinatorService();
   }

@@ -2246,8 +2246,11 @@ async function buildPlan(command, runtime) {
       && text(operation.instanceId) === spellInstanceId
     ));
     // A zone that carries the creatures it holds (Watery Sphere, CAP-CARRIAGE) keeps its record on the caster even when
-    // they carry theirs: the caster's pill has the ⚡ that moves it, with the creatures in it.
-    const carriesCreatures = (placementRule?.zonePolicy?.movement?.carriedEffectIds?.length || 0) > 0;
+    // they carry theirs: the caster's pill has the ⚡ that moves it, with the creatures in it. So does every zone that
+    // stays without its creatures (Entangle, Reverse Gravity: not one scoped to the spell's targets): freed by hand or
+    // by a save, the last of them leaves the spell, its concentration and its zone on the caster (effectsMutationCore.js).
+    const carriesCreatures = (placementRule?.zonePolicy?.movement?.carriedEffectIds?.length || 0) > 0
+      || !targetScopedStaticZone;
     const ownerOperation = staticSpellZoneOwnerOperation({
       rule: placementRule,
       spell,

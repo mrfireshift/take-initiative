@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **355** |
+| **B. Console attacchi, mostri e capacità** | **360** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -99,6 +99,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B70. Cure a 0 PF: Imposizione delle Mani e Rigenerazione | 2 |
 | B71. Wizard of Wines: Gift of the Gulthias, Speed of the Adder, Guardian of the Gulthias | 6 |
 | B72. Reazioni al danno, Indomitable, trucchetti dei druidi | 4 |
+| B73. Intralciare liberato a mano, concentrazione e prese del Vine Blight | 5 |
 | **C. Tracker e UX** | **45** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -128,7 +129,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **742** |
+| **Totale** | **747** |
 
 ## A. Incantesimi
 
@@ -1300,6 +1301,16 @@ Fonte: [STUDIO_IMPORT_STATBLOCK_TESTO.md](STUDIO_IMPORT_STATBLOCK_TESTO.md), §1
 - [ ] **Indomitable:** con Blocca persone su Lorghoth (TS fallito), nella sua console Capacità → Indomitable elenca «Blocca persone · TS Saggezza» con **Superato** e **Fallito**. Superato toglie Paralizzato e chiude l'incantesimo (anche la concentrazione di chi l'ha lanciato) e spende la reazione; Fallito lascia l'effetto e spende la reazione. Senza effetti con un TS da ripetere dice che non ce ne sono.
 - [ ] **I trucchetti dei druidi:** importa il Druid Assailant e il Druid Naturalist: il pannello Importa non nomina più thorn whip, gust né infestation fra i non trovati. Nella console, Trucchetti ha Frusta di Spine (Assailant), Folata e Infestazione (Naturalist).
 - [ ] **Gli altri nomi inglesi:** importa Ezmerelda d'Avenir: snare, zephyr strike e cordon of arrows entrano nel libro (Trabocchetto, Colpo dello Zefiro, Cordone di Frecce).
+
+### B73. Intralciare liberato a mano, concentrazione e prese del Vine Blight
+
+Fonte: bug della sessione del 27/11 (Vine Blight e Intralciare), corretti il 28/11. Le voci sono nuove: nessuna lista le aveva. Servono un PG, due creature ostili e un Vine Blight importato (Constrict e Entangling Plants).
+
+- [ ] **Intralciare senza più creature:** un PG lancia Intralciare, due creature falliscono il TS. Togli a mano (×) Trattenuto a tutte e due: l'area resta sulla mappa, il PG resta concentrato e la sua pill di Intralciare ha ancora **Termina**, che chiude l'area. Prova in vista compatta e in vista espansa.
+- [ ] **Le altre zone che restano:** con Inversione della gravità e con Sfera acquea (Xanathar), liberata a mano l'ultima creatura, zona e concentrazione restano; con Allucinazione di forza e con Blocca persone, liberato l'unico bersaglio, l'incantesimo finisce come prima.
+- [ ] **La concentrazione del Vine Blight:** dalla sua console, scheda Incantesimi, lancia Entangling Plants; liberate le creature trattenute, un PG colpisce il Vine Blight: compare l'avviso del TS di Costituzione per la concentrazione.
+- [ ] **Il Vine Blight che muore tenendo un PG:** Constrict colpisce un PG (Afferrato e Trattenuto). Porta il Vine Blight a 0 PF: dal PG spariscono tutte e due le pill, mentre un Trattenuto di Intralciare resta; **Annulla** ridà PF e presa insieme.
+- [ ] **Chi afferra incapacitato:** un PG che afferra un nemico va a 0 PF (o viene Stordito): la presa finisce, e con lei il Trattenuto legato alla presa.
 
 ## C. Tracker e UX
 
