@@ -17,6 +17,7 @@ import { PC_ATTACK_MONSTER_GROUP_TITLES, pcAttackMonsterActionText, pcAttackMons
 import { TRANSFORMATION_FORM_GROUP_TITLES, transformationFormEntries, transformationFormOf, transformationFormStatblockRef } from "./transformationStatblockCore.js";
 import { transformationChangeEntries } from "./transformationSpellsCore.js";
 import { transformationFormNamed } from "./transformationFormsCore.js";
+import { repeatableSaveEffects } from "./monsterRepeatSaveCore.js";
 import { monsterStatblockTextRef } from "./monsterStatblockTextCore.js";
 import { createMonsterStatblockTextLoader } from "./monsterStatblockTextLoader.js";
 import { getPcAttackSpell, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
@@ -2012,7 +2013,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const spell=use.kind==="cast"?getSpellDefinition(use.spellName):null;
     const choices=use.kind==="action-spell"?actionSpellChoices():[];
     if(use.kind==="form" && !values.form) values.form=transformationFormNamed(attackerCard(),use.formName);
-    const signature=JSON.stringify(["monster-use",entry.key,entry.text,launchBusy,busy,invalidated,choices.map(choice=>choice.id),
+    const repeatable=use.kind==="repeat-save"?repeatableSaveEffects(presentation?.item || null,presentation?.targets || []).map(effect=>[effect.instanceId,effect.dc]):null;
+    const signature=JSON.stringify(["monster-use",entry.key,entry.text,launchBusy,busy,invalidated,choices.map(choice=>choice.id),repeatable,
       spellbookSpellReferenceLoaded(),use.kind==="form"?[values.form?.name || "",values.formPanel || "",values.formBusy || false]:null]);
     if(signature===launchSignature) return;
     launchSignature=signature;
@@ -2025,7 +2027,26 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       if(!spell) children.push(node("p",`${use.spellName}: incantesimo che il plugin non conosce.`,"launch-note warning"));
       else children.push(node("p",`Su ${actorName()}${use.noConcentration?", senza concentrazione":""}${use.slotLevel?`, con uno slot di ${use.slotLevel}°`:""}; spende la reazione.`,"launch-details"));
       run.addEventListener("click",()=>void runMonsterUse(entry,()=>import("./monsterReactionRuntime.js").then(runtime=>runtime.castMonsterReactionSpell({
-        casterId:sourceId,spellId:spell.id,slotLevel:use.slotLevel,noConcentration:use.noConcentration,label:monsterUseLabel(entry)}))));
+        casterId:sourceId,spellId:spell.id,slotLevel:use.slotLevel,free:!use.slotLevel,noConcentration:use.noConcentration,label:monsterUseLabel(entry)}))));
+    } else if(use.kind==="repeat-save") {
+      // Indomitable: the effects on it whose save can be repeated, each with the outcome the GM reads at the table.
+      const effects=repeatableSaveEffects(presentation?.item || null,[...(presentation?.targets || []),...(presentation?.item?[presentation.item]:[])]);
+      if(!effects.length) children.push(node("p",`Nessun effetto su ${actorName()} con un tiro salvezza da ripetere.`,"launch-details"));
+      for(const effect of effects) {
+        const row=node("div","","attack-reaction");
+        row.append(node("p",`${effect.label} · TS ${effect.abilityLabel}${effect.dc?` CD ${effect.dc}`:""}`,"attack-reaction-note"));
+        for(const [outcome,text] of [["passed","Superato"],["failed","Fallito"]]) {
+          const button=node("button",text,"mini-button");
+          button.type="button";
+          button.disabled=busy || launchBusy || invalidated;
+          button.addEventListener("click",()=>void runMonsterUse(entry,()=>import("./monsterReactionRuntime.js").then(runtime=>runtime.repeatMonsterSave({
+            sourceId,instanceId:effect.instanceId,outcome,label:monsterUseLabel(entry)}))));
+          row.append(button);
+        }
+        children.push(row);
+      }
+      if(effects.length) children.push(node("p","Spende la reazione; con Superato l'effetto finisce.","launch-details"));
+      run.hidden=true;
     } else if(use.kind==="form") {
       children.push(transformationFormField({documentRef,values,card:attackerCard(),item:presentation?.item || null,
         field:{id:"form",type:"transformation-form",label:"Forma",kind:"monster-form",context:{kind:"monster-form"}},
@@ -2591,9 +2612,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const label=String(candidate.label || "").replace(/\s*\([^()]*\)\s*$/u,"");
       const result=candidate.flow==="monster-cast"
         ?await runtime.castMonsterReactionSpell({casterId:candidate.reactorId,spellId:candidate.spellId,slotLevel:candidate.slotLevel || 0,
-          noConcentration:candidate.noConcentration===true,label})
+          noConcentration:candidate.noConcentration===true,free:candidate.free===true,label})
         :await runtime.assumeMonsterForm({sourceId:candidate.reactorId,formName:candidate.formName,minutes:candidate.minutes || 1,label});
-      setStatus(result.ok?`${result.message} Se il tiro non arriva alla CA nuova, segna Mancato.`:result.message,result.ok?"ok":"warn");
+      setStatus(result.ok && candidate.timing==="before" && !result.panel?`${result.message} Se il tiro non arriva alla CA nuova, segna Mancato.`:result.message,result.ok?"ok":"warn");
     } catch(error) {setStatus(String(error?.message || error),"error");}
     finally {reactionsBusy=false;renderTargetReactions();scheduleRefresh();}
   }

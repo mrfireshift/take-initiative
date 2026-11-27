@@ -2753,9 +2753,22 @@ const RECORD_ONLY_SPELL_IDS = new Set(ALL_SPELLS
   .filter((spell) => !TRACKABLE_SPELL_IDS.has(spell.id) && !resolvedByAreaCommand(spell.id))
   .map((spell) => spell.id));
 
+// The English names of spells outside the SRD (Xanathar, the PHB 2014 extras), which a stat block pasted in English or a
+// 5eTools monster names (27/11, the Wizard of Wines and Ezmerelda of Strahd Reloaded): found by them, never shown. The SRD
+// spells are found by their English name already.
+const ENGLISH_LOOKUP_NAMES = Object.freeze({
+  "phb2014-frusta-di-spine": ["Thorn Whip"],
+  "phb2014-cordone-di-frecce": ["Cordon of Arrows"],
+  "xanathar-folata": ["Gust"],
+  "xanathar-infestazione": ["Infestation"],
+  "xanathar-trabocchetto": ["Snare"],
+  "xanathar-colpo-dello-zefiro": ["Zephyr Strike"],
+  "xanathar-assorbire-elementi": ["Absorb Elements"],
+});
+
 const BY_LOOKUP = new Map();
 for (const spell of ALL_SPELLS) {
-  for (const value of [spell.id, spell.name, spell.displayName, spell.catalogLabel, ...spell.aliases]) {
+  for (const value of [spell.id, spell.name, spell.displayName, spell.catalogLabel, ...spell.aliases, ...(ENGLISH_LOOKUP_NAMES[spell.id] || [])]) {
     const key = normalizeLookup(value);
     if (key && !BY_LOOKUP.has(key)) BY_LOOKUP.set(key, spell);
   }

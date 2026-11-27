@@ -954,9 +954,9 @@ export function bootBossActions(documentRef=document, overrides={}) {
       const label=String(candidate.label || "").replace(/\s*\([^()]*\)\s*$/u,"");
       const result=candidate.flow==="monster-cast"
         ?await runtime.castMonsterReactionSpell({casterId:candidate.reactorId,spellId:candidate.spellId,slotLevel:candidate.slotLevel || 0,
-          noConcentration:candidate.noConcentration===true,label})
+          noConcentration:candidate.noConcentration===true,free:candidate.free===true,label})
         :await runtime.assumeMonsterForm({sourceId:candidate.reactorId,formName:candidate.formName,minutes:candidate.minutes || 1,label});
-      setStatus(result.ok?`${result.message} Se il tiro non arriva alla CA nuova, segna Mancato.`:result.message,result.ok?"ok":"error");
+      setStatus(result.ok && candidate.timing==="before" && !result.panel?`${result.message} Se il tiro non arriva alla CA nuova, segna Mancato.`:result.message,result.ok?"ok":"error");
       targets=bossActionTargets(await api.scene.items.getItems(),sourceId);
     } catch(error) {setStatus(String(error?.message || error),"error");}
     finally {reactionsBusy=false;renderTargetBox();renderDecisions();}

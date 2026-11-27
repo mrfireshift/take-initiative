@@ -106,3 +106,43 @@ test("in the Capacità tab: what each entry can do, from its own text", () => {
     ["Root Mantle (1/day)", { kind: "form", formName: "shambling mound", minutes: 1 }],
   ]);
 });
+
+// 27/11, second part: the reaction after the damage, Indomitable, the English names of the spells outside the SRD.
+const MISTY = { name: "Fading Step", text: "In response to taking damage, Veska casts misty step." };
+const STUBBORN = { name: "Stubborn Root", text: "Trigger: A hostile creature ends its turn. Effect: Veska can repeat the saving throw against one effect or condition currently affecting her. (This reaction has no effect if the effect or condition didn't originally require her to fail a saving throw.)" };
+
+test("after the damage: the reaction gives the spell itself, with no slot and no book", () => {
+  assert.deepEqual(monsterReactionFromEntry(MISTY), { kind: "cast-when-damaged", name: "Fading Step", text: MISTY.text, spellName: "misty step" });
+  const veska = creature("warden", { attitude: "enemy", initiativeCard: { armorClass: 13 } }, "Veska");
+  const candidates = reactionCandidates({ ...hit, trigger: "damage" }, { items: [hero, veska], state, options: npcsOn,
+    monsterReactions: { warden: [monsterReactionFromEntry(MISTY)] } }).candidates;
+  assert.deepEqual(candidates.map((candidate) => [candidate.reactionId, candidate.flow, candidate.timing, candidate.spellId, candidate.free, candidate.short]),
+    [["monster-cast-when-damaged", "monster-cast", "after", "misty-step", true, "Lancia Passo velato (senza slot)"]]);
+  const view = { header: [], sections: [{ title: "Reactions", entries: [MISTY, STUBBORN] }] };
+  assert.deepEqual(pcAttackMonsterTraitEntries(view).map((entry) => entry.monsterUse), [
+    { kind: "cast", spellName: "misty step", slotLevel: 0, noConcentration: false }, { kind: "repeat-save" }]);
+});
+
+test("Indomitable: the effects on it whose save can be repeated, with their ability and DC", async () => {
+  const { repeatableSaveEffects } = await import("../src/monsterRepeatSaveCore.js");
+  assert.equal(monsterReactionFromEntry(STUBBORN).kind, "repeat-save");
+  const caster = creature("caster", { initiativeCard: { spellSaveDC: 14 } }, "Mira");
+  const held = creature("warden", { attitude: "enemy", conditions: { version: 2, instances: [
+    { id: "hold", condition: "Paralizzato", spellName: "Blocca persone", active: true, sourceId: "caster",
+      saveReminder: { ability: "wis", timing: "turn-end", dcSource: "source-spell" } },
+    { id: "slow", condition: "Lentezza", active: true, saveReminder: { ability: "wis", timing: "turn-end", dc: 15 } },
+    { id: "prone", condition: "Prono", active: true },
+  ] } }, "Veska");
+  assert.deepEqual(repeatableSaveEffects(held, [caster, held]).map((effect) => [effect.instanceId, effect.label, effect.abilityLabel, effect.dc]),
+    [["hold", "Blocca persone", "Saggezza", 14], ["slow", "Lentezza", "Saggezza", 15]]);
+});
+
+test("the English names of the spells outside the SRD: found, never shown", async () => {
+  const { getSpellDefinition } = await import("../src/spells-srd.js");
+  assert.deepEqual(["Thorn Whip", "gust", "Infestation", "snare", "Zephyr Strike", "cordon of arrows", "Absorb Elements"]
+    .map((name) => [getSpellDefinition(name)?.id, getSpellDefinition(name)?.displayName]), [
+    ["phb2014-frusta-di-spine", "Frusta di Spine"], ["xanathar-folata", "Folata"], ["xanathar-infestazione", "Infestazione"],
+    ["xanathar-trabocchetto", "Trabocchetto"], ["xanathar-colpo-dello-zefiro", "Colpo dello Zefiro"], ["phb2014-cordone-di-frecce", "Cordone di Frecce"],
+    ["xanathar-assorbire-elementi", "Assorbire Elementi"]]);
+  assert.equal(getSpellDefinition("Gust of Wind")?.id, "gust-of-wind");
+});

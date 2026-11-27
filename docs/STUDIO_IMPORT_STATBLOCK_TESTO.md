@@ -703,10 +703,16 @@ La pagina non ha uno statblock di Lorghoth: lo descrive come un Druid Naturalist
 - **G-3. Guardian of the Gulthias:** la forma viene dalle forme rapide della scheda, scelta una volta; l'uso 1/giorno non si conta (resta al tavolo).
 - **G-4. Le reazioni che tengono i PF:** solo una forma con «retains … (including his hit points)» diventa `monster-form`; una che prende i PF della forma resta testo.
 
-### 17.4 Che cosa resta
+### 17.4 Che cosa restava
 
-- Indomitable di Lorghoth (ripetere il TS contro una condizione alla fine del turno di un nemico) resta testo.
-- Tre trucchetti dei druidi non sono nel catalogo del plugin e non entrano nel libro: thorn whip, gust e infestation.
-- «In response to taking damage, Ludmilla casts misty step» non è ancora letto: è lo stesso schema di Gift of the Gulthias, con il danno al posto dell'attacco.
+Indomitable, i tre trucchetti dei druidi (thorn whip, gust, infestation) e «In response to taking damage, Ludmilla casts misty step»: fatti nel passo dopo, §17.5.
+
+### 17.5 Reazioni al danno, Indomitable, trucchetti (27/11, secondo passo)
+
+- **I trucchetti:** c'erano già nel catalogo con il nome italiano (Frusta di Spine del PHB, Folata e Infestazione di Xanathar), ma lo statblock li scrive in inglese e solo gli incantesimi dell'SRD si trovavano anche per nome inglese. `spells-srd.js` ha ora una piccola tabella di nomi inglesi per la sola ricerca (`ENGLISH_LOOKUP_NAMES`, mai mostrati): i tre trucchetti, più snare, zephyr strike e cordon of arrows di Ezmerelda e Absorb Elements. Druidi, Lorghoth ed Ezmerelda si importano senza incantesimi non trovati; Frusta di Spine e Infestazione sono trucchetti della console. Le pagine del capitolo nei nostri dati non bastano per abbinare in automatico tutti i 157 incantesimi fuori dall'SRD: gli altri nomi inglesi restano da aggiungere quando servono.
+- **«In response to taking damage, X casts Y»:** un tipo di reazione `cast-when-damaged`, nell'avviso dopo il danno (quando il GM preme Registra). Senza uno slot nel testo, l'incantesimo viene dalla reazione stessa: niente slot, niente libro. Un incantesimo da posare sulla mappa (un'area, un teletrasporto come Passo velato) apre il pannello incantesimi senza slot, con l'origine `monster-reaction`, che fa spendere al pannello la reazione con il lancio; gli altri si applicano subito, come Gift of the Gulthias.
+- **Indomitable:** un tipo `repeat-save`, nella scheda Capacità della console del mostro: elenca gli effetti su di lui con un tiro salvezza da ripetere (le pill con un promemoria di TS, con abilità e CD: `monsterRepeatSaveCore.js`), con **Superato** e **Fallito**. Il risultato passa dalla stessa risoluzione dei promemoria: Superato toglie l'effetto e chiude l'incantesimo. Poi spende la reazione, in una voce della Cronologia sua. Non c'è nell'avviso di reazione: il plugin non ha un avviso per «un nemico finisce il turno».
+
+Prove al banco: Misty Step dall'avviso (Ludmilla spostata, reazione usata, nessuno slot), Indomitable contro Blocca persone (Paralizzato tolto, concentrazione di chi lancia chiusa), i trucchetti nella console del Druid Naturalist. Le prove in stanza sono in [PROVE_IN_STANZA.md](PROVE_IN_STANZA.md), sezione B72.
 
 Prove al banco (27/11): Gift dall'avviso e Annulla, Speed of the Adder con Onda tonante, Guardian dalla console e dall'avviso, fine della forma con i PF invariati. Le prove in stanza sono in [PROVE_IN_STANZA.md](PROVE_IN_STANZA.md), sezione B71.

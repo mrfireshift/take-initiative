@@ -620,10 +620,12 @@ export function bootSpellUnifiedPanel(
       patchSession({ feedback: { state: "info", message: "Lancio annullato: niente da spendere." } }, { clearFeedback: false });
       return null;
     }
-    // A reaction spell spends the caster's reaction with its slot (spellReactionCore.js), in combat only.
+    // A reaction spell spends the caster's reaction with its slot (spellReactionCore.js), in combat only; so does a spell a
+    // monster's reaction casts (27/11, "In response to taking damage, Ludmilla casts misty step": origin monster-reaction).
     const sceneMetadata = await Promise.resolve().then(() => OBR.scene.getMetadata()).catch(() => ({}));
     if (!sceneLifecycle.isCurrent(operation)) return null;
-    const reaction = planSpellReactionSpend({ spellId: spell?.id, caster, initiativeState: sceneMetadata?.[`${ID}/state`] });
+    const reaction = planSpellReactionSpend({ spellId: spell?.id, caster, initiativeState: sceneMetadata?.[`${ID}/state`],
+      readiedRelease: String(route?.origin || "") === "monster-reaction" });
     if (reaction.alreadyUsed && !window.confirm(`${reaction.message}\n\nLanciare comunque ${spell?.displayName || spell?.name || "l'incantesimo"}?`)) {
       patchSession({ feedback: { state: "info", message: "Lancio annullato: reazione già usata." } }, { clearFeedback: false });
       return null;

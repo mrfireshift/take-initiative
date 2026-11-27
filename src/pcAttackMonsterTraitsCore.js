@@ -50,8 +50,9 @@ export function pcAttackMonsterTraitEntries(view) {
       // that casts a spell on the monster or gives it a form (monsterReactionParseCore.js); a bonus action that casts a
       // spell of 1 action (Speed of the Adder).
       const reaction = group === "monster-reaction" ? monsterReactionFromEntry(entry) : null;
-      const monsterUse = reaction?.kind === "cast-when-attacked" ? { kind: "cast", spellName: reaction.spellName, slotLevel: reaction.slotLevel || 0,
-        noConcentration: reaction.noConcentration === true }
+      const monsterUse = reaction?.kind === "cast-when-attacked" || reaction?.kind === "cast-when-damaged"
+        ? { kind: "cast", spellName: reaction.spellName, slotLevel: reaction.slotLevel || 0, noConcentration: reaction.noConcentration === true }
+        : reaction?.kind === "repeat-save" ? { kind: "repeat-save" }
         : reaction?.kind === "form-when-targeted" && reaction.keepsHp ? { kind: "form", formName: reaction.formName, minutes: reaction.minutes }
           : group === "monster-bonus" && ACTION_SPELL_AS_BONUS.test(String(entry.text || "")) ? { kind: "action-spell" } : null;
       entries.push({ key: `monster::${entries.length}`, tab: "features", actionId: "", spellId: "", featureId: "", label,

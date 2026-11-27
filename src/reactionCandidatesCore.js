@@ -309,12 +309,16 @@ export function reactionCandidates(event, { items = [], state = null, options = 
       // 27/11 (Gift of the Gulthias): the spell its reaction casts, which it must be able to cast now, with a slot of the
       // level the text asks; never while the spell already lasts on it.
       let monsterCast = null;
-      if (monsterReaction?.kind === "cast-when-attacked") {
+      // A text that names no slot ("In response to taking damage, Ludmilla casts misty step."): the reaction itself gives
+      // the spell, with no slot and no book.
+      if (monsterReaction?.kind === "cast-when-attacked" || monsterReaction?.kind === "cast-when-damaged") {
         const spell = getSpellDefinition(monsterReaction.spellName);
-        if (!spell?.id || !creatureCastableSpellIds(reactor).has(spell.id) || hasActiveSpell(reactor, spell.id)) continue;
-        const slotLevel = monsterReaction.slotLevel || Number(spell.level) || 0;
+        if (!spell?.id || hasActiveSpell(reactor, spell.id)) continue;
+        const free = !monsterReaction.slotLevel;
+        if (!free && !creatureCastableSpellIds(reactor).has(spell.id)) continue;
+        const slotLevel = free ? 0 : monsterReaction.slotLevel;
         if (slotLevel > 0 && !reactionSpellAvailable(reactor, spell.id, slotLevel)) continue;
-        monsterCast = { spellId: spell.id, slotLevel, noConcentration: monsterReaction.noConcentration === true,
+        monsterCast = { spellId: spell.id, slotLevel, free, noConcentration: monsterReaction.noConcentration === true,
           spellName: spell.displayName || spell.name };
       }
       // 27/11 (Guardian of the Gulthias): only a form that keeps the creature's own hit points, never while it is in one.
@@ -340,13 +344,13 @@ export function reactionCandidates(event, { items = [], state = null, options = 
           protectedId: target ? target.id : "",
           protectedName: target ? nameOf(target) : "",
           spellId: monsterCast?.spellId || entry.spellId || "",
-          ...(monsterCast ? { slotLevel: monsterCast.slotLevel, noConcentration: monsterCast.noConcentration } : {}),
+          ...(monsterCast ? { slotLevel: monsterCast.slotLevel, noConcentration: monsterCast.noConcentration, ...(monsterCast.free ? { free: true } : {}) } : {}),
           ...(monsterReaction?.kind === "form-when-targeted" ? { formName: monsterReaction.formName, minutes: monsterReaction.minutes } : {}),
           featureId,
           variant: absorbed ? ABSORB_ELEMENTS_CHOICES[absorbed] : "",
           targetIds,
           short: monsterReaction?.kind === "ac-bonus" ? `+${monsterReaction.amount} CA`
-            : monsterCast ? `Lancia ${monsterCast.spellName}${monsterCast.slotLevel ? ` (slot di ${monsterCast.slotLevel}°)` : ""}`
+            : monsterCast ? `Lancia ${monsterCast.spellName}${monsterCast.slotLevel ? ` (slot di ${monsterCast.slotLevel}°)` : " (senza slot)"}`
               : monsterReaction?.kind === "form-when-targeted" ? `Forma: ${monsterReaction.formName}` : entry.short,
           rule: monsterReaction ? `${monsterReaction.name}: ${monsterReaction.text}` : entry.rule,
           ...(monsterReaction?.kind === "ac-bonus" ? { amount: monsterReaction.amount } : {}),

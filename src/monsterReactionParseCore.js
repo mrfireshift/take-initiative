@@ -16,11 +16,17 @@
 //   mound for 1 minute … retains his game statistics (including his hit points)" (Guardian of the Gulthias): formName,
 //   minutes, keepsHp (the creature keeps its own hit points; only then the plugin can take the form, decision of 27/11).
 
+// - "cast-when-damaged": "In response to taking damage, Ludmilla casts misty step." (Strahd Reloaded), the same after the
+//   damage; without a slot in the text, the reaction itself gives the spell (no slot, no book).
+// - "repeat-save": "Trigger: A hostile creature ends its turn. Effect: Lorghoth can repeat the saving throw against one
+//   effect or condition currently affecting him." (Indomitable).
+
 export const MONSTER_REACTION_KINDS = Object.freeze(["ac-bonus", "halve", "note-hit", "note-miss", "cast-when-attacked",
-  "form-when-targeted"]);
+  "form-when-targeted", "cast-when-damaged", "repeat-save"]);
 
 // "casts barkskin", "casts misty step,": the spell's name in lower case, as the stat blocks write it.
-const CAST_WHEN_ATTACKED = /^In response to being attacked\b[^.]*?,\s*(?:the [\w'’ -]{1,40}?|[A-Z][\w'’-]*(?: [A-Z][\w'’-]*){0,3}) casts ([a-z][a-z'’ /-]{1,40}?)(?=[,.;(]|$| at | using | targeting | on )/;
+// "In response to being attacked …" or, after the damage, "In response to taking damage, Ludmilla casts misty step."
+const CAST_WHEN_ATTACKED = /^In response to (being attacked|taking damage)\b[^.]*?,\s*(?:the [\w'’ -]{1,40}?|[A-Z][\w'’-]*(?: [A-Z][\w'’-]*){0,3}) casts ([a-z][a-z'’ /-]{1,40}?)(?=[,.;(]|$| at | using | targeting | on )/;
 const FORM_WHEN_TARGETED = /^In response to being targeted by an attack(?: or (?:a )?spell)?\b[^.]*?\bpolymorphs? into (?:an? )?([a-z][a-z'’ -]{1,40}?) for (\d{1,2}) minutes?\b/i;
 
 const MAX_TEXT = 600;
@@ -42,9 +48,11 @@ export function monsterReactionFromEntry(entry) {
   const cast = body.match(CAST_WHEN_ATTACKED);
   if (cast) {
     const slotLevel = Number(body.match(/\bprovided (?:it|he|she|they) ha(?:s|ve) an? (\d)(?:st|nd|rd|th)-level spell slot/i)?.[1]) || null;
-    return { kind: "cast-when-attacked", name, text, spellName: cast[1].trim(), ...(slotLevel ? { slotLevel } : {}),
+    return { kind: cast[1] === "taking damage" ? "cast-when-damaged" : "cast-when-attacked", name, text, spellName: cast[2].trim(),
+      ...(slotLevel ? { slotLevel } : {}),
       ...(/\bdo(?:es)?n['’]t require concentration|\bdoes not require concentration/i.test(body) ? { noConcentration: true } : {}) };
   }
+  if (/\bcan repeat the saving throw against one (?:effect or condition|condition or effect)\b/i.test(body)) return { kind: "repeat-save", name, text };
   const form = body.match(FORM_WHEN_TARGETED);
   if (form) {
     return { kind: "form-when-targeted", name, text, formName: form[1].trim(), minutes: Number(form[2]),

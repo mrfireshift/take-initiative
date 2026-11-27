@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **351** |
+| **B. Console attacchi, mostri e capacità** | **355** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -98,6 +98,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B69. Santuario del Crepuscolo homebrew | 9 |
 | B70. Cure a 0 PF: Imposizione delle Mani e Rigenerazione | 2 |
 | B71. Wizard of Wines: Gift of the Gulthias, Speed of the Adder, Guardian of the Gulthias | 6 |
+| B72. Reazioni al danno, Indomitable, trucchetti dei druidi | 4 |
 | **C. Tracker e UX** | **45** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -127,7 +128,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **738** |
+| **Totale** | **742** |
 
 ## A. Incantesimi
 
@@ -1290,6 +1291,15 @@ Fonte: [STUDIO_IMPORT_STATBLOCK_TESTO.md](STUDIO_IMPORT_STATBLOCK_TESTO.md), §1
 - [ ] **Speed of the Adder:** nella console del druido, Capacità → Speed of the Adder ha il menu dei suoi incantesimi da 1 azione e **Lancia come azione bonus**: Onda tonante apre il pannello incantesimi. Nella scheda Incantesimi, per il resto del turno, c'è l'avviso «Ha già lanciato un incantesimo come azione bonus in questo turno: ora solo un trucchetto da 1 azione.»; al turno dopo sparisce. Non blocca niente.
 - [ ] **Lorghoth, la forma:** importa lo statblock di Lorghoth the Decayer. Nella sua console, Capacità → Guardian of the Gulthias: scegli Shambling Mound dall'archivio con «Altra forma…» e **Usa e salva**, poi **Assumi la forma**. I suoi PF non cambiano; la pill dura 10 round; la CA è 15, la velocità 6 m e il nuoto 6 m, ha resistenza a freddo e fuoco e immunità al fulmine; negli Attacchi ci sono Slam ed Engulf, gli incantesimi restano; il token diventa Grande. Spende la reazione.
 - [ ] **Lorghoth dall'avviso:** un PG lo attacca e segna **Colpito**: l'avviso dice «Forma: shambling mound»; **Usa** gli dà la forma salvata. Senza la forma salvata, la riga di stato dice di sceglierla una volta nella sua console. Quando la pill finisce, o con la ✕, i PF restano quelli che aveva. Da provare in vista compatta ed estesa.
+
+### B72. Reazioni al danno, Indomitable, trucchetti dei druidi
+
+Fonte: [STUDIO_IMPORT_STATBLOCK_TESTO.md](STUDIO_IMPORT_STATBLOCK_TESTO.md), §17.5 (27/11). Le voci sono nuove: nessuna lista le aveva. Servono un PG con un attacco e un incantesimo con TS (Blocca persone), Ludmilla First Form, i due druidi e Lorghoth dell'Arc J, Ezmerelda.
+
+- [ ] **Misty Step di Ludmilla:** importa Ludmilla, First Form dall'Arc J, con gli avvisi accesi anche per i mostri. Un PG la colpisce e preme **Registra**: l'avviso dice «Misty Step · Lancia Passo velato (senza slot)». **Usa** apre il pannello incantesimi su Passo velato, senza slot; posata la destinazione e applicato, Ludmilla si sposta, la reazione risulta usata e nessuno slot cambia.
+- [ ] **Indomitable:** con Blocca persone su Lorghoth (TS fallito), nella sua console Capacità → Indomitable elenca «Blocca persone · TS Saggezza» con **Superato** e **Fallito**. Superato toglie Paralizzato e chiude l'incantesimo (anche la concentrazione di chi l'ha lanciato) e spende la reazione; Fallito lascia l'effetto e spende la reazione. Senza effetti con un TS da ripetere dice che non ce ne sono.
+- [ ] **I trucchetti dei druidi:** importa il Druid Assailant e il Druid Naturalist: il pannello Importa non nomina più thorn whip, gust né infestation fra i non trovati. Nella console, Trucchetti ha Frusta di Spine (Assailant), Folata e Infestazione (Naturalist).
+- [ ] **Gli altri nomi inglesi:** importa Ezmerelda d'Avenir: snare, zephyr strike e cordon of arrows entrano nel libro (Trabocchetto, Colpo dello Zefiro, Cordone di Frecce).
 
 ## C. Tracker e UX
 

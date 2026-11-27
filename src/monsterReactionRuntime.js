@@ -13,6 +13,7 @@ import { planReactionSpend } from "./reactionTrackerCore.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
+const SPELLS_POPOVER_ID = `${ID}/spells-modal`;
 const text = (value) => String(value ?? "").trim();
 const newId = (prefix) => `${prefix}:${typeof globalThis.crypto?.randomUUID === "function"
   ? globalThis.crypto.randomUUID() : `${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 10)}`}`;
@@ -31,26 +32,45 @@ function reactionSpend(item, initiativeState) {
   return planReactionSpend({ applies: true, casterId: item.id, casterName: item.name, conditions: meta.conditions, initiativeState });
 }
 
+// The spell panel ready for a monster's reaction (a spell placed on the map: Misty Step): its caster, no slot when the
+// reaction itself gives the spell, no concentration when the text says so; origin monster-reaction makes the panel spend
+// the reaction with the cast (spell-unified-panel.js).
+async function openMonsterReactionPanel(api, { casterId, spellId, slotLevel, free, noConcentration }) {
+  const { buildSpellUnifiedPanelRouteQuery } = await import("./spellUnifiedPanelRoutingCore.js");
+  const query = buildSpellUnifiedPanelRouteQuery({ spellId, casterId, origin: "monster-reaction", ...(free ? { slotSource: "none" } : {}),
+    ...(slotLevel ? { slotLevel } : {}), ...(noConcentration ? { withoutConcentration: true } : {}) });
+  try { await api.popover.close(SPELLS_POPOVER_ID); } catch {}
+  await api.popover.open({ id: SPELLS_POPOVER_ID, url: `/spell-unified-panel.html?${query}`, width: 640, height: 640,
+    anchorReference: "POSITION", anchorPosition: { left: 60, top: 60 }, anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+    transformOrigin: { horizontal: "LEFT", vertical: "TOP" }, disableClickAway: true });
+}
+
 /**
- * Gift of the Gulthias: casterId casts spellId on itself. slotLevel: the slot the text asks (0: none); noConcentration:
- * the cast keeps no concentration. Returns { ok, message }, the message in Italian.
+ * Gift of the Gulthias: casterId casts spellId on itself. slotLevel: the slot the text asks (0: none); free: the reaction
+ * itself gives the spell, no slot ("In response to taking damage, Ludmilla casts misty step"); noConcentration: the cast
+ * keeps no concentration. A spell placed on the map (an area, a teleport) opens the spell panel instead. Returns
+ * { ok, message, panel }, the message in Italian.
  */
-export async function castMonsterReactionSpell({ casterId = "", spellId = "", slotLevel = 0, noConcentration = false, label = "" } = {}, {
+export async function castMonsterReactionSpell({ casterId = "", spellId = "", slotLevel = 0, free = false, noConcentration = false, label = "" } = {}, {
   api = OBR,
 } = {}) {
-  const [{ getSpellDefinition }, { executeSpellApplication, getCurrentSpellAppliedAt }, { planSpellCastCost }] = await Promise.all([
-    import("./spells-srd.js"), import("./spellApplicationExecutor.js"), import("./spellSlotSpendCore.js"),
+  const [{ getSpellDefinition }, { executeSpellApplication, getCurrentSpellAppliedAt }, { planSpellCastCost }, { SPELL_AREA_GEOMETRY_BY_ID }] = await Promise.all([
+    import("./spells-srd.js"), import("./spellApplicationExecutor.js"), import("./spellSlotSpendCore.js"), import("./spellAreaIndex.js"),
   ]);
   const spell = getSpellDefinition(spellId);
   const { item, initiativeState } = await sourceAndState(api, casterId);
   if (!item || !spell) return { ok: false, message: "Creatura o incantesimo non più disponibili." };
+  const name = text(item.name) || "La creatura";
+  const spellName = spell.displayName || spell.name;
+  if (Object.hasOwn(SPELL_AREA_GEOMETRY_BY_ID, spell.id)) {
+    await openMonsterReactionPanel(api, { casterId: item.id, spellId: spell.id, slotLevel, free, noConcentration });
+    return { ok: true, panel: true, message: `${name} · ${label || "Reazione"}: completa ${spellName} nel pannello incantesimi${free ? ", senza slot" : ""}; il lancio spende la reazione.` };
+  }
   const meta = item.metadata?.[META_KEY] || {};
   const card = meta.initiativeCard || {};
   const level = Math.max(Number(spell.level) || 0, Number(slotLevel) || 0);
-  const cost = level > 0 ? planSpellCastCost({ sourceId: item.id, characterBuild: card.characterBuild, abilityModifiers: card.abilityModifiers || null,
+  const cost = level > 0 && !free ? planSpellCastCost({ sourceId: item.id, characterBuild: card.characterBuild, abilityModifiers: card.abilityModifiers || null,
     resources: meta.classFeatureState?.resources, spellLevel: level, slotLevel: level, phase: "cast" }) : { operation: null, spent: "", exhausted: false };
-  const name = text(item.name) || "La creatura";
-  const spellName = spell.displayName || spell.name;
   if (cost.exhausted) return { ok: false, message: `${name}: nessuno slot di ${level}° livello per ${spellName}.` };
   const reaction = reactionSpend(item, initiativeState);
   if (reaction.alreadyUsed) return { ok: false, message: reaction.message };
@@ -105,4 +125,41 @@ export async function assumeMonsterForm({ sourceId = "", form = null, formName =
   ], { kind: "condition", label: history, targetIds: [item.id], history: { kind: "condition", label: history } });
   requireAppliedEffectsMutation(result);
   return { ok: true, message: `${history}: CA ${chosen.armorClass ?? "della forma"}, i suoi PF restano.` };
+}
+
+/**
+ * Indomitable (Lorghoth): the save against one effect on sourceId repeated (instanceId, one of repeatableSaveEffects),
+ * outcome "passed" or "failed", resolved as the effect's own reminder resolves it (a success ends it); then its reaction,
+ * in combat, as its own History entry. Returns { ok, message }.
+ */
+export async function repeatMonsterSave({ sourceId = "", instanceId = "", outcome = "", label = "" } = {}, { api = OBR } = {}) {
+  const [{ repeatableSaveEffects }, { buildEffectSaveReminderResolution }, { resolveReminder }] = await Promise.all([
+    import("./monsterRepeatSaveCore.js"), import("./reminderResolutionCore.js"), import("./reminderResolution.js"),
+  ]);
+  const items = await api.scene.items.getItems();
+  const item = items.find((entry) => entry.id === sourceId) || null;
+  if (!item) return { ok: false, message: "La creatura non è più nella scena." };
+  const name = text(item.name) || "La creatura";
+  const effect = repeatableSaveEffects(item, items).find((entry) => entry.instanceId === instanceId);
+  const conditions = item.metadata?.[META_KEY]?.conditions;
+  const instances = Array.isArray(conditions) ? conditions : Array.isArray(conditions?.instances) ? conditions.instances : [];
+  const instance = effect ? instances.find((entry) => String(entry?.id || "") === instanceId) || null : null;
+  if (!effect || !instance) return { ok: false, message: `${name}: l'effetto non c'è più.` };
+  const { initiativeState } = await sourceAndState(api, sourceId);
+  const spend = reactionSpend(item, initiativeState);
+  if (spend.alreadyUsed) return { ok: false, message: spend.message };
+  const activationId = newId("monster-repeat-save");
+  const resolution = buildEffectSaveReminderResolution({ item, instance, reminder: effect.reminder, dc: effect.dc, activationId });
+  if (!resolution) return { ok: false, message: `${name}: ${effect.label} non si risolve con un tiro salvezza.` };
+  const result = await resolveReminder({
+    notice: { activationId, spellName: effect.label, kind: "effect-reminder", targets: [{ id: item.id, name }], resolution },
+    outcome,
+  });
+  if (result?.status !== "applied" && result?.status !== "already-resolved") return { ok: false, message: result?.message || "Tiro salvezza non registrato." };
+  if (spend.operations.length) {
+    const { runEffectsMutation } = await import("./effectsMutations.js");
+    await runEffectsMutation(spend.operations, { kind: "condition", label: `${name}: ${label || "Reazione"}`, targetIds: [item.id],
+      history: { kind: "condition", label: `${name}: ${label || "Reazione"}` } }).catch(() => null);
+  }
+  return { ok: true, message: `${name} · ${label || "Reazione"}: TS ${effect.abilityLabel} contro ${effect.label} ${outcome === "passed" ? "superato, l'effetto finisce" : "fallito, l'effetto resta"}.` };
 }
