@@ -96,6 +96,7 @@ import { retainFactionRegistryWithinByteBudget } from "./factionRegistryCore.js"
 import { retainInitiativeCardRegistryWithinByteBudget } from "./initiativeCardRegistryCore.js";
 import { retainActorVitalsRegistryWithinByteBudget } from "./actorVitalsCore.js";
 import { retainPlayerAssignmentMemoryWithinByteBudget } from "./playerAssignmentMemoryCore.js";
+import { roomBudgetPruningNotice } from "./roomBudgetNoticeCore.js";
 import { perfBootPage } from "./perfProbe.js";
 import { mountSecondGmWarning } from "./secondGmWarning.js";
 import { mountPlayerAssignmentMemory } from "./playerAssignmentMemory.js";
@@ -109,7 +110,7 @@ let historyUndoToolInProgress = false;
 async function reconcileRoomMetadataBudget() {
   const role = await OBR.player.getRole().catch(() => "PLAYER");
   if (String(role).toUpperCase() !== "GM") return null;
-  return reconcileOwnedRoomMetadataBudget(OBR.room, [
+  const plan = await reconcileOwnedRoomMetadataBudget(OBR.room, [
     {
       key: METADATA_OWNERSHIP.ACTOR_VITALS.key,
       retain: retainActorVitalsRegistryWithinByteBudget,
@@ -134,6 +135,10 @@ async function reconcileRoomMetadataBudget() {
       retain: retainPlayerAssignmentMemoryWithinByteBudget,
     },
   ], { runtime: "background-room-metadata-budget" });
+  // Studio archivio attori, lotto R0: the GM is told what the compaction took out of the Room (until now the console only).
+  const notice = roomBudgetPruningNotice(plan);
+  if (notice) await OBR.notification.show(notice, "WARNING").catch(() => {});
+  return plan;
 }
 
 async function runHistoryUndoTool() {

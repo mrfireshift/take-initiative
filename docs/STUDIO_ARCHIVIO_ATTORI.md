@@ -307,7 +307,7 @@ e registro hanno la stessa data, quindi non c'è ciclo.
 
 - un token incollato a scena già aperta: si riallinea alla prossima apertura della scena o aprendo la scheda;
 - i token senza `actorProfileId` e i mostri;
-- R0 (misura e avvisi) e P3 (più pagine che scrivono): restano da fare.
+- P3 (più pagine che scrivono): resta da fare. Per R0 vedi «Esito di R0».
 
 **Test:** quattro in `test/initiativeCardSaveTransportRegression.test.js` («R1a», «R1b»). Suite completa verde,
 6.636 test; build riuscita in una cartella temporanea.
@@ -321,3 +321,24 @@ quello della scena B copiato prima di cambiare la scheda:
 3. dopo l'apertura di B la Cronologia non ha voci «Scheda personaggio aggiornata»;
 4. riposo lungo in B e ritorno in A: la scheda ha ancora l'arma rinominata e la CA nuova, con un livello di
    Indebolimento in meno.
+
+## Esito di R0 (28 novembre 2026)
+
+Ridotto, d'accordo con l'utente, al solo avviso della potatura all'avvio (P6). La misura in Opzioni e l'avviso
+per una scrittura locale fallita (P8) non sono stati fatti: con l'archivio online come casa dei dati pesano meno.
+
+- `compactOwnedRoomMetadata` (`src/roomMetadataBudget.js`) restituisce anche `previousValues`: ciò che ogni
+  chiave riscritta conteneva prima. Cosa viene potato non cambia.
+- `roomBudgetPruningNotice` (`src/roomBudgetNoticeCore.js`, nuovo) scrive la frase: le schede per nome (le prime
+  quattro, le altre contate), poi quanti PF ricordati, fazioni e giocatori assegnati sono usciti dalla stanza.
+  Una chiave solo riscritta in un'altra forma, senza voci tolte, non dà nessun avviso.
+- `reconcileRoomMetadataBudget` (`src/background.js`) mostra la frase al GM dopo la compattazione.
+
+Esempio: «Memoria della stanza piena. Tolti dalla stanza all'avvio: le schede di Dalia e Elric, i PF ricordati
+di 3 personaggi e 2 fazioni ricordate. In questo browser restano le copie già salvate.»
+
+Dopo la potatura la stanza sta nel budget, quindi l'avviso non torna al riavvio successivo, a meno che la
+stanza si riempia di nuovo.
+
+**Test:** quattro in `test/roomBudgetNoticeCore.test.js`. Suite completa verde, 6.641 test; build riuscita in
+una cartella temporanea. **In stanza non è stato provato:** serve una stanza oltre il budget.

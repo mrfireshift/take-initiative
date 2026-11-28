@@ -284,6 +284,8 @@ export function compactOwnedRoomMetadata(
   return {
     metadata: { ...source, ...updates },
     updates,
+    // What each rewritten key held before, for the GM's notice of what left the Room (roomBudgetNoticeCore.js).
+    previousValues: Object.fromEntries(Object.keys(updates).map((key) => [key, source[key]])),
     totalBeforeBytes: roomMetadataBytes(source),
     candidateTotalBytes,
     limitBytes: targetLimit,
