@@ -61,7 +61,7 @@ import { mountCombatLogEventSink } from "./combatLog.js";
 import { mountHistoryOwner } from "./historyOwner.js";
 import { undoHistoryThrough } from "./history.js";
 import { readLegacyHPMemoryForItem } from "./hpMemory.js";
-import { migrateInitiativeCardActorIdentities } from "./initiativeCards.js";
+import { migrateInitiativeCardActorIdentities, realignStaleInitiativeCards } from "./initiativeCards.js";
 import {
   actorVitalsRecordFor,
   isValidActorVitalsRecord,
@@ -333,6 +333,23 @@ OBR.onReady(async () => {
         if (phase === "ready") void sharedHpInitiative.reconcile().catch(error => console.warn("[shared-hp] scene:", error));
       });
       window.addEventListener("pagehide", () => { sharedHpInitiative.stop(); unsubscribeEpoch(); }, { once: true });
+      // Studio archivio attori, lotto R1b: at each scene opening the tokens whose card is older than the registry's
+      // get the registry's (until now only opening their sheet did it). After the coordinator: it writes the tokens.
+      const realignInitiativeCards = async () => {
+        const sceneEpoch = currentSceneEpoch();
+        try {
+          if (!await OBR.scene.isReady() || !isCurrentSceneEpoch(sceneEpoch)) return;
+          const items = await OBR.scene.items.getItems();
+          await realignStaleInitiativeCards(items, { isCurrent: () => isCurrentSceneEpoch(sceneEpoch) });
+        } catch (error) {
+          console.warn("[initiative-card] scene realignment:", error?.message || error);
+        }
+      };
+      void realignInitiativeCards();
+      const unsubscribeCardEpoch = subscribeSceneEpoch(({ phase }) => {
+        if (phase === "ready") void realignInitiativeCards();
+      });
+      window.addEventListener("pagehide", () => unsubscribeCardEpoch(), { once: true });
     }
     await Promise.all(optionalRuntimes.map(([selector, lifecycle]) => (
       bindOptionalRuntimeOption({

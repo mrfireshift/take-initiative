@@ -553,6 +553,8 @@ async function writeTokenProfile(
     sceneIdentity = null,
     transportTimeoutMs = undefined,
     deferRecoveryHistory = false,
+    // false: a realignment at the opening of a scene (lot R1b) writes no History entry.
+    history = undefined,
   } = {},
 ) {
   if (!isCurrent()) throw new Error("scene-stale-before-card-token-write");
@@ -585,6 +587,7 @@ async function writeTokenProfile(
     ...(transportTimeoutMs !== undefined ? { transportTimeoutMs } : {}),
     // A save from the sheet: answered once the token write is journaled, the History follows (effectsRecovery.js).
     ...(deferRecoveryHistory ? { deferRecoveryHistory: true } : {}),
+    ...(history === false ? { history: false } : {}),
   });
   if (!isCurrent()) throw new Error("scene-stale-after-card-token-write");
   requireAppliedEffectsMutation(mutation);
@@ -646,7 +649,26 @@ function namesakeRegistryProfile(winner, tokenRaw) {
     : rest;
 }
 
-export async function loadInitiativeCard(item, { hydrate = false, registry, deferWrites = false } = {}) {
+// Studio archivio attori (docs/STUDIO_ARCHIVIO_ATTORI.md), lotto R1: the registry's card of this token when it is
+// strictly newer than the token's own (a token prepared earlier in another scene); else null. A token without a card
+// keeps its own path (the sheet's opening, the entry into the initiative). Never a deletion, never a monster's stat
+// block for one of its namesakes, never the card of another actor.
+// sameActorOnly (R1b): only for a token and an entry that carry the same actorProfileId.
+function newerRegistryCardProfile(item, tokenRaw, registry, { sameActorOnly = false } = {}) {
+  if (!tokenRaw || typeof tokenRaw !== "object") return null;
+  const entry = findInitiativeCardRegistryEntry(registry, item);
+  const profile = roomEntryProfile(entry);
+  if (!profile || entry.deleted === true) return null;
+  if (!isActorIdentityCandidate(item, tokenRaw) || !isActorIdentityCandidate(item, profile)) return null;
+  const tokenActorId = actorProfileIdFromItem(item) || actorProfileIdFromProfile(tokenRaw);
+  const entryActorId = actorProfileIdFromRegistryEntry(entry);
+  if (sameActorOnly ? !tokenActorId || tokenActorId !== entryActorId : tokenActorId && entryActorId && tokenActorId !== entryActorId) return null;
+  if (Math.max(0, Number(entry.updatedAt) || 0) <= Math.max(0, Number(tokenRaw.updatedAt) || 0)) return null;
+  return profile;
+}
+
+// recordHistory false: the token's realignment writes no History entry (lot R1b).
+export async function loadInitiativeCard(item, { hydrate = false, registry, deferWrites = false, recordHistory = true } = {}) {
   const resolvedRegistry = registry === undefined
     ? (await readInitiativeCardRegistry()).registry
     : registry;
@@ -777,7 +799,7 @@ export async function loadInitiativeCard(item, { hydrate = false, registry, defe
         return next;
       });
       if (needsTokenSync || needsConditionSync || !!actorProfileId && actorProfileIdFromItem(item) !== actorProfileId) {
-        await writeTokenProfile(item.id, storedProfile, actorProfileId);
+        await writeTokenProfile(item.id, storedProfile, actorProfileId, recordHistory ? {} : { history: false });
       }
     }, deferWrites);
   }
@@ -956,9 +978,12 @@ export async function saveInitiativeCard(
   const [sourceItem] = await OBR.scene.items.getItems([itemId]).catch(() => []);
   if (!isCurrent()) throw new Error("scene-stale-after-card-read");
   const sourceRawProfile = sourceItem?.metadata?.[META_KEY]?.[INITIATIVE_CARD_FIELD];
-  const profile = mergeStoredCardProfile(sourceRawProfile, value);
   const { registry } = await readInitiativeCardRegistry();
   if (!isCurrent()) throw new Error("scene-stale-after-card-registry-read");
+  // Lot R1a: a save starts from the newer of the token's card and the registry's. Started from an old token (group
+  // rest, the console's «Usa e salva») it wrote the old card over the newer one of the registry, stamped as newest.
+  const newerRegistryProfile = sourceItem ? newerRegistryCardProfile(sourceItem, sourceRawProfile, registry) : null;
+  const profile = mergeStoredCardProfile(newerRegistryProfile || sourceRawProfile, value);
   const legacyMatch = resolveInitiativeCardActorMatch(
     registry,
     sourceItem || { name },
@@ -982,7 +1007,10 @@ export async function saveInitiativeCard(
     exhaustion: Number.isFinite(Number(baseExhaustion)) && baseExhaustion !== null && baseExhaustion !== ""
       ? Math.max(0, Math.min(5, Math.floor(Number(baseExhaustion))))
       : preserveExhaustion
-        ? initiativeCardBaseExhaustion(sourceItem)
+        // R1a: with a newer card in the registry, the base it stores is the one to keep, not the old token's.
+        ? (newerRegistryProfile && Object.hasOwn(newerRegistryProfile, "exhaustion")
+          ? sanitizeInitiativeCard(newerRegistryProfile).exhaustion
+          : initiativeCardBaseExhaustion(sourceItem))
         : Math.max(0, Number(profile.exhaustion || 0) - contributionLevel),
   };
   // Lot SB1: a monster's card goes into the registry under the stat block's name, so a token named so finds it on
@@ -1037,6 +1065,32 @@ export async function saveInitiativeCard(
   }
   if (!isCurrent()) throw new Error("scene-stale-after-card-save");
   return profile;
+}
+
+// Lot R1b of docs/STUDIO_ARCHIVIO_ATTORI.md: at the opening of a scene the GM's background realigns the tokens whose card
+// is older than the registry's (a scene prepared before a level up). Until now only opening the sheet did it: a token
+// with quick actions is skipped by the restore at the entry into the initiative. Only a token that already has a card
+// and the same actorProfileId as the registry's entry; the write is the sheet opening's own, without a History entry.
+// Returns the ids of the realigned tokens.
+export async function realignStaleInitiativeCards(items = [], { isCurrent = () => true } = {}) {
+  const tokenCard = (item) => item?.metadata?.[META_KEY]?.[INITIATIVE_CARD_FIELD];
+  const candidates = (Array.isArray(items) ? items : []).filter((item) => (
+    item?.id
+    && item.layer === "CHARACTER"
+    && !item.attachedTo
+    && tokenCard(item) && typeof tokenCard(item) === "object"
+    && !!(actorProfileIdFromItem(item) || actorProfileIdFromProfile(tokenCard(item)))
+  ));
+  if (!candidates.length || !isCurrent() || !await initiativeCardHydrationIsGM()) return [];
+  const { registry } = await readInitiativeCardRegistry();
+  const realignedIds = [];
+  for (const item of candidates) {
+    if (!isCurrent()) break;
+    if (!newerRegistryCardProfile(item, tokenCard(item), registry, { sameActorOnly: true })) continue;
+    await loadInitiativeCard(item, { hydrate: true, registry, recordHistory: false });
+    realignedIds.push(item.id);
+  }
+  return realignedIds;
 }
 
 /*

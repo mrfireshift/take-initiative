@@ -34,6 +34,8 @@ function emit(channel, data) {
 }
 
 const notices = [];
+// The kinds of the commands that built or recorded a History entry (lot R1b: a realignment records none).
+const historyKinds = [];
 const sdkStub = {
   onReady() {},
   player: { getRole: async () => "GM", getId: async () => "card-save-gm" },
@@ -131,16 +133,14 @@ mock.module("../src/history.js", {
   exports: {
     suppressMovementHistory: () => false,
     suppressElevationHistory: () => false,
-    buildEffectsMutationHistoryEntry: ({ command, plan }) => ({
-      id: `history:${command.commandId}`,
-      kind: command.kind,
-      changes: clone(plan.changes),
-    }),
-    recordEffectsMutationHistory: async ({ command, plan }) => ({
-      id: `history:${command.commandId}`,
-      kind: command.kind,
-      changes: clone(plan.changes),
-    }),
+    buildEffectsMutationHistoryEntry: ({ command, plan }) => {
+      historyKinds.push(command.kind);
+      return { id: `history:${command.commandId}`, kind: command.kind, changes: clone(plan.changes) };
+    },
+    recordEffectsMutationHistory: async ({ command, plan }) => {
+      historyKinds.push(command.kind);
+      return { id: `history:${command.commandId}`, kind: command.kind, changes: clone(plan.changes) };
+    },
   },
 });
 
@@ -940,5 +940,127 @@ test("W2a: le forme rapide della scheda vanno nel registro della stanza e seguon
     assert.deepEqual(profile.transformationForms.map((form) => form.name), ["Wolf"]);
   } finally {
     await stopRuntime(runtime);
+  }
+});
+
+// Studio archivio attori (docs/STUDIO_ARCHIVIO_ATTORI.md), lotto R1. The scene's token was prepared earlier (armor
+// class 14, 2nd level, updatedAt 1); the registry holds the card saved since in another scene (updatedAt 50).
+function newerRegistryHero(extra = {}) {
+  return {
+    hero: {
+      actorProfileId: "actor-hero",
+      name: "Hero",
+      updatedAt: 50,
+      profile: {
+        actorProfileId: "actor-hero",
+        armorClass: 18,
+        spellSaveDC: 15,
+        exhaustion: 2,
+        characterBuild: [{ classId: "guerriero", level: 5 }],
+        quickActions: [{ version: 2, id: "w1", label: "Spada +1", kind: "attack", range: "melee", components: [{ type: "slashing", formula: "1d8+5" }] }],
+        savingThrows: { str: 5, dex: 1, con: 4, int: 0, wis: 0, cha: 0 },
+        ...extra,
+      },
+    },
+  };
+}
+const OLD_TOKEN_ATTACK = { version: 2, id: "w1", label: "Spada", kind: "attack", range: "melee", components: [{ type: "slashing", formula: "1d8+3" }] };
+const R1_WOLF = { name: "Wolf", ref: "Wolf|MM", source: "5etools", type: "beast", cr: "1/4", size: "medium", speeds: { walk: 12 }, actions: [] };
+
+test("R1a: un salvataggio parziale da un token vecchio parte dalla scheda più nuova del registro", async () => {
+  reset();
+  room.metadata[ROOM_CARD_KEY] = newerRegistryHero();
+  storedProfile().quickActions = [OLD_TOKEN_ATTACK];
+  const runtime = await startRuntime();
+  try {
+    // As the console's «Usa e salva» does (pcAttackTransformationField.js), without opening the sheet.
+    await runtime.cards.saveInitiativeCard("hero", "Hero", { transformationForms: [R1_WOLF] },
+      { commandId: "r1a-forms", transportTimeoutMs: 100, preserveExhaustion: true });
+    for (const [where, profile] of [["registry", roomCardRegistry().hero.profile], ["token", storedProfile()]]) {
+      assert.equal(profile.armorClass, 18, `${where}: the newer armor class stays`);
+      assert.equal(profile.spellSaveDC, 15, `${where}: the newer spell save DC stays`);
+      assert.equal(profile.characterBuild[0].level, 5, `${where}: the newer level stays`);
+      assert.equal(profile.savingThrows.str, 5, `${where}: the newer saving throws stay`);
+      assert.equal(profile.exhaustion, 2, `${where}: the exhaustion base is the newer card's`);
+      assert.equal(profile.quickActions[0].label, "Spada +1", `${where}: the newer quick actions stay`);
+      assert.deepEqual(profile.transformationForms.map((form) => form.name), ["Wolf"], `${where}: the saved field is there`);
+    }
+  } finally {
+    await stopRuntime(runtime);
+  }
+});
+
+test("R1a: con il token più nuovo del registro, o con la scheda di un altro attore, il salvataggio parte dal token", async () => {
+  for (const [name, arrange] of [
+    ["token newer", () => { storedProfile().updatedAt = 100; }],
+    ["another actor's card", () => { room.metadata[ROOM_CARD_KEY].hero.actorProfileId = "actor-other"; room.metadata[ROOM_CARD_KEY].hero.profile.actorProfileId = "actor-other"; }],
+  ]) {
+    reset();
+    room.metadata[ROOM_CARD_KEY] = newerRegistryHero();
+    storedProfile().quickActions = [OLD_TOKEN_ATTACK];
+    arrange();
+    const runtime = await startRuntime();
+    try {
+      await runtime.cards.saveInitiativeCard("hero", "Hero", { spellSaveDC: 13 }, { commandId: `r1a-${name}`, transportTimeoutMs: 100 });
+      assert.equal(storedProfile().armorClass, 14, `${name}: the token's card is the base`);
+      assert.equal(storedProfile().spellSaveDC, 13, name);
+      assert.equal(storedProfile().characterBuild[0].level, 2, name);
+      assert.equal(roomCardRegistry().hero.profile.armorClass, 14, `${name}: and it goes to the registry, as before`);
+    } finally {
+      await stopRuntime(runtime);
+    }
+  }
+});
+
+test("R1b: all'apertura della scena un token con azioni rapide e scheda vecchia prende la scheda del registro, senza Cronologia", async () => {
+  reset();
+  room.metadata[ROOM_CARD_KEY] = newerRegistryHero();
+  storedProfile().quickActions = [OLD_TOKEN_ATTACK];
+  const runtime = await startRuntime();
+  try {
+    historyKinds.length = 0;
+    assert.deepEqual(await runtime.cards.realignStaleInitiativeCards(clone(scene.items)), ["hero"]);
+    assert.equal(storedProfile().armorClass, 18);
+    assert.equal(storedProfile().characterBuild[0].level, 5);
+    assert.equal(storedProfile().quickActions[0].label, "Spada +1");
+    assert.equal(storedProfile().updatedAt, 50, "the token takes the registry's stamp: the next opening finds it aligned");
+    assert.equal(scene.items[0].metadata[META_KEY].actorProfileId, "actor-hero");
+    assert.deepEqual(historyKinds, [], "no History entry for a realignment");
+    assert.equal(roomCardRegistry().hero.profile.armorClass, 18, "the registry keeps its card");
+
+    const writes = transport.itemWrites;
+    assert.deepEqual(await runtime.cards.realignStaleInitiativeCards(clone(scene.items)), [], "an aligned token is left alone");
+    assert.equal(transport.itemWrites, writes);
+
+    // Control: in this harness a save from the sheet does reach the History.
+    await runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass: 19 }, { commandId: "r1b-control", transportTimeoutMs: 100 });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.ok(historyKinds.includes("initiative-card"), "a save records its History entry");
+  } finally {
+    await stopRuntime(runtime);
+  }
+});
+
+test("R1b: non tocca un token più nuovo, senza identità, senza scheda o con la scheda di un altro attore", async () => {
+  for (const [name, arrange] of [
+    ["token newer", () => { storedProfile().updatedAt = 100; }],
+    ["no identity", () => { delete scene.items[0].metadata[META_KEY].actorProfileId; delete storedProfile().actorProfileId; }],
+    ["no card", () => { delete scene.items[0].metadata[META_KEY].initiativeCard; }],
+    ["another actor's card", () => { room.metadata[ROOM_CARD_KEY].hero.actorProfileId = "actor-other"; room.metadata[ROOM_CARD_KEY].hero.profile.actorProfileId = "actor-other"; }],
+    ["a deleted card", () => { room.metadata[ROOM_CARD_KEY].hero.deleted = true; }],
+  ]) {
+    reset();
+    room.metadata[ROOM_CARD_KEY] = newerRegistryHero();
+    storedProfile().quickActions = [OLD_TOKEN_ATTACK];
+    arrange();
+    const before = clone(scene.items[0]);
+    const runtime = await startRuntime();
+    try {
+      assert.deepEqual(await runtime.cards.realignStaleInitiativeCards(clone(scene.items)), [], name);
+      assert.deepEqual(scene.items[0], before, `${name}: the token is untouched`);
+      assert.equal(transport.itemWrites, 0, name);
+    } finally {
+      await stopRuntime(runtime);
+    }
   }
 });
