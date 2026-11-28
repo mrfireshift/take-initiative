@@ -686,7 +686,19 @@ OBR.onReady(async () => {
   }
 });
 
+// Archivio degli attori, lotto A3: the section's own module, outside the draft and «Salva» as the «Giocatori» panel.
+let actorArchivePanel = null;
+const actorArchiveSection = document.querySelector("[data-actor-archive]");
+if (actorArchiveSection) {
+  import("./actorArchivePanel.js").then(({ mountActorArchivePanel }) => {
+    actorArchivePanel = mountActorArchivePanel(actorArchiveSection);
+  }, (error) => {
+    console.warn("[options-panel] archivio degli attori:", error?.message || error);
+  });
+}
+
 window.addEventListener("pagehide", () => {
   playerAssignmentPanel?.dispose();
+  actorArchivePanel?.dispose();
   sceneLifecycle.dispose();
 });

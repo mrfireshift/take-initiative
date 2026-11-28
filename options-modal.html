@@ -303,6 +303,39 @@
           </div>
         </section>
 
+        <section class="options-section" aria-labelledby="actor-archive-title" data-room-section data-actor-archive>
+          <div class="section-heading">
+            <div><h2 id="actor-archive-title">Archivio degli attori</h2></div>
+            <span class="scope-badge local">Questo browser</span>
+          </div>
+          <article class="option-card compact-card">
+            <div class="option-card-heading">
+              <div>
+                <h3>Archivio online</h3>
+                <p>In prova. Tiene le schede dei personaggi su un tuo server, uguali su tutti i tuoi computer. Spento, il plugin lavora come prima.</p>
+              </div>
+            </div>
+            <label class="option-toggle compact">
+              <span>Usa l'archivio in questo browser</span>
+              <input type="checkbox" data-actor-archive-enabled />
+            </label>
+            <div class="option-field five-tools-archive">
+              <label for="actorArchiveUrlInput">Indirizzo del server</label>
+              <div class="five-tools-archive-row">
+                <input id="actorArchiveUrlInput" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://…/archivio.php" data-actor-archive-url />
+              </div>
+            </div>
+            <div class="option-field five-tools-archive">
+              <label for="actorArchiveKeyInput">Chiave del server</label>
+              <div class="five-tools-archive-row">
+                <input id="actorArchiveKeyInput" type="password" autocomplete="off" spellcheck="false" data-actor-archive-key />
+                <button class="secondary" type="button" data-action="actor-archive-save">Salva e prova</button>
+              </div>
+              <small class="five-tools-archive-status" data-actor-archive-status role="status" aria-live="polite"></small>
+            </div>
+          </article>
+        </section>
+
         <section class="options-section" aria-labelledby="maintenance-title" data-room-section>
           <div class="section-heading">
             <div><h2 id="maintenance-title">Manutenzione</h2></div>

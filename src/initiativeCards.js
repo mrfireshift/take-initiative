@@ -58,6 +58,9 @@ import {
   METADATA_OWNERSHIP,
   writeRoomMetadataKey,
 } from "./metadataKeyScoped.js";
+import { withLocalActorArchiveSection } from "./actorArchiveCore.js";
+import { actorArchiveEnabled, createActorArchiveStore, notifyActorArchiveDirty } from "./actorArchiveStore.js";
+import { initiativeCardArchiveWrites, initiativeCardRegistryFromArchive } from "./initiativeCardArchiveCore.js";
 
 const META_KEY = `${ID}/meta`;
 const ROOM_CARD_KEY = `${ID}/initiativeCards`;
@@ -404,6 +407,71 @@ function writeLocalInitiativeCards(registry) {
   }
 }
 
+// Archivio degli attori (docs/PIANO_ARCHIVIO_ATTORI.md), lotto A1: with the archive switched on in this browser
+// (decision E9, off by default), the cards used in this room are also kept in its working archive, in IndexedDB: one
+// record per actor or per key, each written in its own transaction, so two pages saving two characters no longer
+// cancel each other. The old local copy is still read and written while the archive is on trial.
+let initiativeCardArchiveStore = null;
+let initiativeCardArchiveFailureTold = false;
+
+function initiativeCardArchive() {
+  if (!actorArchiveEnabled()) return null;
+  let roomId = "";
+  try { roomId = String(OBR.room.id || ""); } catch {}
+  if (!roomId) return null;
+  initiativeCardArchiveStore ||= createActorArchiveStore();
+  return { store: initiativeCardArchiveStore, roomId };
+}
+
+// The archive could not be read or written: the old local copy and the Room go on answering. Told once per page.
+function noticeInitiativeCardArchiveFailure(error) {
+  console.warn("[initiative-card] archivio di lavoro:", error?.message || error);
+  if (initiativeCardArchiveFailureTold) return;
+  initiativeCardArchiveFailureTold = true;
+  void (async () => {
+    try {
+      if (await OBR.player.getRole() !== "GM") return;
+      await OBR.notification.show("Archivio delle schede non disponibile in questo browser: uso la copia di prima.", "WARNING");
+    } catch {}
+  })();
+}
+
+// This room's cards in the working archive, as a registry; {} with the archive off or unreadable.
+async function readArchiveInitiativeCards() {
+  const archive = initiativeCardArchive();
+  if (!archive) return {};
+  try {
+    return initiativeCardRegistryFromArchive(await archive.store.list(archive.roomId));
+  } catch (error) {
+    noticeInitiativeCardArchiveFailure(error);
+    return {};
+  }
+}
+
+// What a registry write changed goes to the archive's records. true when the archive took it (or had nothing to take).
+async function writeArchiveInitiativeCards(previous, next, archiveRegistry, roomRegistry) {
+  const archive = initiativeCardArchive();
+  if (!archive) return false;
+  try {
+    const writes = initiativeCardArchiveWrites(previous, next, { archiveRegistry, roomRegistry });
+    for (const write of writes) {
+      await archive.store.update(archive.roomId, write.kind, write.id, (record) => {
+        const value = write.update(record.sections.card?.value ?? null);
+        // A record that keeps other sections (hit points, play state: later lots) only loses its card.
+        if (value === null && Object.keys(record.sections).every((section) => section === "card")) return null;
+        const written = withLocalActorArchiveSection(record, "card", value, { name: write.name });
+        return written.changed ? written.record : record;
+      });
+    }
+    // Lot A3: the GM's background sends the outbox to the archive server, when one is configured.
+    if (writes.length) notifyActorArchiveDirty();
+    return true;
+  } catch (error) {
+    noticeInitiativeCardArchiveFailure(error);
+    return false;
+  }
+}
+
 // Il catalogo è grande: le pagine che non lo usano già lo caricano soltanto
 // quando leggono o scrivono il registry Room.
 async function roomClassFeatureDefaults() {
@@ -417,8 +485,9 @@ export async function readInitiativeCardRegistry() {
   const classFeatureDefaults = await roomClassFeatureDefaults();
   const metadata = await OBR.room.getMetadata().catch(() => ({}));
   const room = decodeInitiativeCardRegistryFromRoom(metadata?.[ROOM_CARD_KEY], classFeatureDefaults);
+  const archive = await readArchiveInitiativeCards();
   // `room`: this Room's cards alone (the local copy holds every room's), for the «Giocatori» panel (GA4).
-  return { metadata, room, registry: mergeInitiativeCardRegistries(local, room) };
+  return { metadata, room, registry: mergeInitiativeCardRegistries(local, archive, room) };
 }
 
 // Lot GA4 of docs/STUDIO_GIOCO_ONLINE.md (P4): a character taken out of this Room's card registry from the «Giocatori»
@@ -505,9 +574,14 @@ async function updateRoomCards(updater, { isCurrent = () => true, roomOnly = fal
     const metadata = await OBR.room.getMetadata().catch(() => ({}));
     if (!isCurrent()) return null;
     const roomRegistry = decodeInitiativeCardRegistryFromRoom(metadata?.[ROOM_CARD_KEY], classFeatureDefaults);
-    const previous = mergeInitiativeCardRegistries(readLocalInitiativeCards(), roomRegistry);
+    const archiveRegistry = await readArchiveInitiativeCards();
+    if (!isCurrent()) return null;
+    const previous = mergeInitiativeCardRegistries(readLocalInitiativeCards(), archiveRegistry, roomRegistry);
     const next = normalizeInitiativeCardRegistry(updater({ ...previous }) || previous);
-    const localWritten = roomOnly ? false : writeLocalInitiativeCards(next);
+    const oldLocalWritten = roomOnly ? false : writeLocalInitiativeCards(next);
+    // A1: the working archive of this room, when it is on; the old local copy is written too while it is on trial.
+    const archiveWritten = roomOnly ? false : await writeArchiveInitiativeCards(previous, next, archiveRegistry, roomRegistry);
+    const localWritten = oldLocalWritten || archiveWritten;
     let droppedNames = [];
     try {
       if (!isCurrent()) return next;

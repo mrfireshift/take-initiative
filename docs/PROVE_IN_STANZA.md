@@ -112,11 +112,12 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | C8. Interfaccia del tracker (studio contro Baldur's Gate 3) | 7 |
 | C9. Animazioni | 8 |
 | C10. Compilazione lasciata con un clic fuori | 3 |
-| **D. Avvisi, registro e gioco online** | **24** |
+| **D. Avvisi, registro e gioco online** | **31** |
 | D1. Avvisi di reazione | 13 |
 | D2. Registro delle schede nella stanza | 3 |
 | D3. Gioco online | 6 |
 | D4. Dadi online | 2 |
+| D5. Archivio degli attori | 7 |
 | **E. Verifiche guidate: bugfix e fluidità** | **11** |
 | E1. Verifica del bugfix (L23) e controlli a mano | 8 |
 | E2. Fluidità e misure, facoltative | 3 |
@@ -130,7 +131,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **751** |
+| **Totale** | **758** |
 
 ## A. Incantesimi
 
@@ -1505,6 +1506,20 @@ Fonte: [PIANO_DADI_ONLINE.md](PIANO_DADI_ONLINE.md), lotto D-4; memoria `online-
 
 - [ ] **Due client:** nel profilo Online, un tiro dal 🎲 nella barra degli strumenti di Owlbear compare sull'altro schermo, nel riquadro in basso a sinistra, con al massimo 4 tiri in coda. (voce nuova: PIANO_DADI_ONLINE.md, D-4)
 - [ ] **Chi ricarica:** ritrova l'ultimo tiro di ogni giocatore nello storico, senza riquadro. (voce nuova: PIANO_DADI_ONLINE.md, D-4)
+
+### D5. Archivio degli attori
+
+Fonte: [PIANO_ARCHIVIO_ATTORI.md](PIANO_ARCHIVIO_ATTORI.md), lotti A1 e A3 («Prova in stanza di A1», «Prova in stanza di A3»); memoria `actor-archive-study`. Fatto il 28/11.
+
+L'archivio è spento finché non lo accendi: sta in Opzioni → **Archivio degli attori**, e vale per questo browser. Le prove con due computer vogliono la stessa versione del plugin su entrambi, quindi la build pubblicata.
+
+- [ ] **Acceso senza errori (A1):** Opzioni → **Archivio degli attori** → accendi **Usa l'archivio in questo browser**. Apri e salva le schede di due PG: non compare l'avviso «Archivio delle schede non disponibile». (voce nuova: PIANO_ARCHIVIO_ATTORI.md, A1)
+- [ ] **Spegnere non perde niente (A1):** spegni l'archivio e ricarica: le schede dei due PG sono quelle appena salvate. (voce nuova: PIANO_ARCHIVIO_ATTORI.md, A1)
+- [ ] **Salva e prova (A3):** con l'indirizzo del server e la sua chiave, **Salva e prova** dice «Collegato e salvato» e il campo della chiave si svuota. Con una chiave sbagliata dice che non è la sua e non salva. (voce nuova: PIANO_ARCHIVIO_ATTORI.md, A3)
+- [ ] **Primo caricamento (A3):** con l'archivio acceso e il server impostato, salva la scheda di un PG e riapri le Opzioni: lo stato dice «a posto. Niente in coda». Sul server, nella cartella dei dati, c'è un file con il nome della stanza. (voce nuova: PIANO_ARCHIVIO_ATTORI.md, A3)
+- [ ] **Secondo computer (A3):** sull'altro computer, nella stessa stanza, imposta il server e accendi l'archivio: la scheda del PG è quella salvata sul primo. (voce nuova: PIANO_ARCHIVIO_ATTORI.md, A3)
+- [ ] **Andata e ritorno (A3):** sul secondo computer cambia la CA del PG e salva. Sul primo, alla prossima scena aperta, la scheda e il token hanno la CA nuova, senza avvisi. (voce nuova: PIANO_ARCHIVIO_ATTORI.md, A3)
+- [ ] **Server spento (A3):** con il server non raggiungibile salva una scheda: il salvataggio riesce e compare una volta sola «Archivio online non raggiungibile». Tornato il server, entro mezzo minuto lo stato torna «Niente in coda». (voce nuova: PIANO_ARCHIVIO_ATTORI.md, A3)
 
 ## E. Verifiche guidate: bugfix e fluidità
 

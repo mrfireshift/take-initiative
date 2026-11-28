@@ -1064,3 +1064,152 @@ test("R1b: non tocca un token più nuovo, senza identità, senza scheda o con la
     }
   }
 });
+
+// Archivio degli attori (docs/PIANO_ARCHIVIO_ATTORI.md), lotto A1: with the archive switched on in this browser the
+// cards used in the room are kept in its working archive too (IndexedDB), one record per actor or per key.
+const { createVersionedIndexedDB } = await import("../test-support/fakeVersionedIndexedDb.js");
+const { ACTOR_ARCHIVE_DB_NAME, ACTOR_ARCHIVE_FLAG_KEY } = await import("../src/actorArchiveStore.js");
+const { HISTORY_LOCAL_STORE_FLAG_KEY } = await import("../src/historyLocalStoreCore.js");
+const OLD_LOCAL_CARDS_KEY = `${ID}/initiativeCards/local`;
+
+// The browser of a GM: its localStorage and its IndexedDB. The History stays in the scene, as in the tests above.
+function archiveBrowser({ archive = true } = {}) {
+  const { local, storage } = localStorageStub();
+  local.set(HISTORY_LOCAL_STORE_FLAG_KEY, "0");
+  if (archive) local.set(ACTOR_ARCHIVE_FLAG_KEY, "1");
+  const indexedDB = createVersionedIndexedDB();
+  globalThis.localStorage = storage;
+  globalThis.indexedDB = indexedDB;
+  return {
+    local,
+    records: () => indexedDB.inspect(ACTOR_ARCHIVE_DB_NAME)?.stores.records.records || null,
+    close: () => { delete globalThis.localStorage; delete globalThis.indexedDB; },
+  };
+}
+
+test("A1: un salvataggio scrive la voce dell'attore nell'archivio della stanza, la vecchia copia locale e la stanza", async () => {
+  reset();
+  storedProfile().quickActions = [];
+  const browser = archiveBrowser();
+  const runtime = await startRuntime();
+  try {
+    await runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass: 17 }, { commandId: "a1-save", transportTimeoutMs: 100 });
+    const records = browser.records();
+    assert.deepEqual(records.map((record) => [record.roomId, record.kind, record.id, record.name]), [["card-save-room", "actor", "actor-hero", "Hero"]]);
+    const card = records[0].sections.card;
+    assert.equal(card.value.entry.profile.armorClass, 17);
+    assert.deepEqual(card.value.keys, ["hero"], "the registry keys the actor answers to");
+    assert.equal(card.dirty, true, "in the outbox, for the server of a later lot");
+    assert.equal(JSON.parse(browser.local.get(OLD_LOCAL_CARDS_KEY)).hero.profile.armorClass, 17, "the old local copy is written too");
+    assert.equal(roomCardRegistry().hero.profile.armorClass, 17, "the Room as before");
+
+    // The registry read back gives the archive's card, also with the Room and the old copy emptied.
+    room.metadata = {};
+    browser.local.delete(OLD_LOCAL_CARDS_KEY);
+    const { registry } = await runtime.cards.readInitiativeCardRegistry();
+    assert.equal(registry.hero.profile.armorClass, 17);
+    assert.equal((await runtime.cards.loadInitiativeCard(sceneTwoHero())).armorClass, 17, "a token of another scene finds it");
+
+    // Opening the sheet with everything aligned writes nothing new in the archive.
+    const at = browser.records()[0].sections.card.at;
+    await runtime.cards.loadInitiativeCard(clone(scene.items[0]), { hydrate: true });
+    assert.equal(browser.records()[0].sections.card.at, at);
+  } finally {
+    browser.close();
+    await stopRuntime(runtime);
+  }
+});
+
+test("A1: l'archivio di una stanza prende le schede usate lì e quelle già nella stanza, non le altre della vecchia copia", async () => {
+  reset();
+  storedProfile().quickActions = [];
+  const browser = archiveBrowser();
+  browser.local.set(OLD_LOCAL_CARDS_KEY, JSON.stringify({ zorya: { name: "Zorya", profile: { armorClass: 13 }, updatedAt: 5 } }));
+  room.metadata[ROOM_CARD_KEY] = { dars: { name: "Dars", profile: { armorClass: 15 }, updatedAt: 4 } };
+  const runtime = await startRuntime();
+  try {
+    await runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass: 17 }, { commandId: "a1-scope", transportTimeoutMs: 100 });
+    const ids = () => browser.records().map((record) => `${record.kind}:${record.id}`).sort();
+    assert.deepEqual(ids(), ["actor:actor-hero", "card-key:dars"], "the card saved here and the one the Room already held");
+    assert.equal((await runtime.cards.readInitiativeCardRegistry()).registry.zorya.profile.armorClass, 13, "the old copy is still read");
+
+    // Zorya's sheet opened here: she becomes a card of this room.
+    scene.items.push({ id: "zorya-token", name: "Zorya", layer: "CHARACTER", metadata: { [META_KEY]: {} } });
+    await runtime.cards.loadInitiativeCard(clone(scene.items.at(-1)), { hydrate: true });
+    assert.equal(ids().length, 3);
+    assert.equal(browser.records().some((record) => record.sections.card.value.entry.name === "Zorya"), true);
+  } finally {
+    browser.close();
+    await stopRuntime(runtime);
+  }
+});
+
+test("A1: due pagine che salvano due personaggi non si cancellano nell'archivio", async () => {
+  reset();
+  storedProfile().quickActions = [];
+  scene.items.push({ id: "mira", name: "Mira", layer: "CHARACTER",
+    metadata: { [META_KEY]: { actorProfileId: "actor-mira", initiativeCard: { actorProfileId: "actor-mira", armorClass: 12, updatedAt: 1 } } } });
+  const browser = archiveBrowser();
+  const runtime = await startRuntime();
+  // A second page of the same browser: its own copy of the module, its own write queue.
+  const secondPage = await import(`../src/initiativeCards.js?a1-second-page-${Date.now()}`);
+  try {
+    await Promise.all([
+      runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass: 17 }, { commandId: "a1-page-1", transportTimeoutMs: 100 }),
+      secondPage.saveInitiativeCard("mira", "Mira", { armorClass: 16 }, { commandId: "a1-page-2", transportTimeoutMs: 100 }),
+    ]);
+    const armorById = Object.fromEntries(browser.records().map((record) => [record.id, record.sections.card.value.entry.profile.armorClass]));
+    assert.deepEqual(armorById, { "actor-hero": 17, "actor-mira": 16 });
+  } finally {
+    browser.close();
+    await stopRuntime(runtime);
+  }
+});
+
+test("A1: con l'interruttore spento l'archivio non viene aperto, e senza IndexedDB vale la copia di prima con un avviso", async () => {
+  reset();
+  storedProfile().quickActions = [];
+  let browser = archiveBrowser({ archive: false });
+  let runtime = await startRuntime();
+  try {
+    await runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass: 17 }, { commandId: "a1-off", transportTimeoutMs: 100 });
+    assert.equal(browser.records(), null, "no database is created");
+    assert.equal(JSON.parse(browser.local.get(OLD_LOCAL_CARDS_KEY)).hero.profile.armorClass, 17);
+  } finally {
+    browser.close();
+    await stopRuntime(runtime);
+  }
+
+  reset();
+  notices.length = 0;
+  storedProfile().quickActions = [];
+  browser = archiveBrowser();
+  delete globalThis.indexedDB;
+  runtime = await startRuntime();
+  try {
+    await runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass: 18 }, { commandId: "a1-no-idb", transportTimeoutMs: 100 });
+    assert.equal(JSON.parse(browser.local.get(OLD_LOCAL_CARDS_KEY)).hero.profile.armorClass, 18, "the old local copy takes it");
+    assert.equal(roomCardRegistry().hero.profile.armorClass, 18);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(notices.filter(([message]) => message.startsWith("Archivio delle schede non disponibile")).length, 1, "told once");
+  } finally {
+    browser.close();
+    await stopRuntime(runtime);
+  }
+});
+
+test("A1: togliere un personaggio dalla stanza («Giocatori») non lo toglie dall'archivio", async () => {
+  reset();
+  storedProfile().quickActions = [];
+  const browser = archiveBrowser();
+  const runtime = await startRuntime();
+  try {
+    await runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass: 17 }, { commandId: "a1-forget", transportTimeoutMs: 100 });
+    assert.equal(await runtime.cards.forgetInitiativeCardRegistryCharacter({ actorProfileId: "actor-hero" }), 1);
+    assert.equal(Object.hasOwn(roomCardRegistry(), "hero"), false, "out of the Room");
+    assert.equal(browser.records().length, 1, "this browser keeps its copy");
+  } finally {
+    browser.close();
+    await stopRuntime(runtime);
+  }
+});

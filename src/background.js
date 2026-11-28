@@ -97,6 +97,7 @@ import { retainInitiativeCardRegistryWithinByteBudget } from "./initiativeCardRe
 import { retainActorVitalsRegistryWithinByteBudget } from "./actorVitalsCore.js";
 import { retainPlayerAssignmentMemoryWithinByteBudget } from "./playerAssignmentMemoryCore.js";
 import { roomBudgetPruningNotice } from "./roomBudgetNoticeCore.js";
+import { mountActorArchiveSync } from "./actorArchiveSyncRuntime.js";
 import { perfBootPage } from "./perfProbe.js";
 import { mountSecondGmWarning } from "./secondGmWarning.js";
 import { mountPlayerAssignmentMemory } from "./playerAssignmentMemory.js";
@@ -355,6 +356,14 @@ OBR.onReady(async () => {
         if (phase === "ready") void realignInitiativeCards();
       });
       window.addEventListener("pagehide", () => unsubscribeCardEpoch(), { once: true });
+      // Archivio degli attori, lotto A3: with the archive on and a server configured in this browser (the Options),
+      // the working archive and the server are kept aligned; cards that arrive realign the scene's tokens.
+      const actorArchiveSync = mountActorArchiveSync({
+        obr: OBR,
+        onCardsPulled: realignInitiativeCards,
+        subscribeSceneReady: (listener) => subscribeSceneEpoch(({ phase }) => { if (phase === "ready") listener(); }),
+      });
+      window.addEventListener("pagehide", () => actorArchiveSync.stop(), { once: true });
     }
     await Promise.all(optionalRuntimes.map(([selector, lifecycle]) => (
       bindOptionalRuntimeOption({
