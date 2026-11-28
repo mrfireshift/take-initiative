@@ -35,7 +35,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | A16. Stabilizzare e riportare in vita (CAP-STABILIZE) | 4 |
 | A17. Tre incantesimi singoli e il terreno (CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL, CAP-TERRAIN) | 7 |
 | A18. PF massimi (CAP-MAXHP) | 12 |
-| **B. Console attacchi, mostri e capacità** | **360** |
+| **B. Console attacchi, mostri e capacità** | **364** |
 | B1. Pannello attacchi, lotti 1–5 | 27 |
 | B2. Pannello attacchi dopo la prova dell'utente | 15 |
 | B3. Console Boss (lotto 7) | 9 |
@@ -100,6 +100,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | B71. Wizard of Wines: Gift of the Gulthias, Speed of the Adder, Guardian of the Gulthias | 6 |
 | B72. Reazioni al danno, Indomitable, trucchetti dei druidi | 4 |
 | B73. Intralciare liberato a mano, concentrazione e prese del Vine Blight | 5 |
+| B74. CD, attacco degli incantesimi e tiri salvezza automatici | 4 |
 | **C. Tracker e UX** | **45** |
 | C1. Testata, maniglia e compilazione | 5 |
 | C2. Lotto U11 | 4 |
@@ -129,7 +130,7 @@ Questa è la lista unica delle prove in stanza ancora da fare: da oggi si spunta
 | G3. Movimento, boss, cronologia e clock | 21 |
 | G4. Quota, aree, mappa e opzioni | 19 |
 | G5. Capacità di classe, pannelli e robustezza | 17 |
-| **Totale** | **747** |
+| **Totale** | **751** |
 
 ## A. Incantesimi
 
@@ -1311,6 +1312,15 @@ Fonte: bug della sessione del 27/11 (Vine Blight e Intralciare), corretti il 28/
 - [ ] **La concentrazione del Vine Blight:** dalla sua console, scheda Incantesimi, lancia Entangling Plants; liberate le creature trattenute, un PG colpisce il Vine Blight: compare l'avviso del TS di Costituzione per la concentrazione.
 - [ ] **Il Vine Blight che muore tenendo un PG:** Constrict colpisce un PG (Afferrato e Trattenuto). Porta il Vine Blight a 0 PF: dal PG spariscono tutte e due le pill, mentre un Trattenuto di Intralciare resta; **Annulla** ridà PF e presa insieme.
 - [ ] **Chi afferra incapacitato:** un PG che afferra un nemico va a 0 PF (o viene Stordito): la presa finisce, e con lei il Trattenuto legato alla presa.
+
+### B74. CD, attacco degli incantesimi e tiri salvezza automatici
+
+Fonte: richiesta del 28/11 (bonus di competenza tabellati). Le voci sono nuove: nessuna lista le aveva. Servono un PG con classi e modificatori sulla scheda, uno multiclasse e un mostro importato.
+
+- [ ] **Scheda di un incantatore:** in Modifica, con classe, livello e modificatori, CD, attacco degli incantesimi e tiri salvezza si riempiono da soli e non si scrivono (caselle chiare); il tooltip dice il conto; la riga sotto i TS nomina competenza, TS di competenza e classe da incantatore. Cambiare livello o un modificatore li aggiorna subito.
+- [ ] **Altri bonus:** +1 in «Altri bonus TS» alza tutti e sei i TS; +1 in «Altri bonus CD» alza la CD. Salvata, la scheda li tiene e la console e gli avvisi usano i valori nuovi.
+- [ ] **Multiclasse:** Guerriero 2 / Mago 5: TS di Forza e Costituzione (prima classe), CD del Mago. Resiliente (Cos) aggiunge il TS di Costituzione.
+- [ ] **Schede già salvate:** un PG salvato con valori scritti a mano mostra quelli calcolati alla prima apertura del GM; un mostro importato e un PG senza livello tengono i loro.
 
 ## C. Tracker e UX
 

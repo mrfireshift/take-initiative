@@ -49,6 +49,7 @@ import { SPELLBOOK_FIELD, hasSpellbook, sanitizeSpellbook } from "./spellbookCor
 import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileCore.js";
 import { FEATS_FIELD, hasFeats, sanitizeFeats } from "./featCatalog.js";
 import { TRANSFORMATION_FORMS_FIELD, sanitizeTransformationForms } from "./transformationFormsCore.js";
+import { OTHER_BONUSES_FIELD, sanitizeOtherBonuses, withDerivedCharacterStats } from "./characterDerivedStatsCore.js";
 import {
   sanitizeCharacterBuild,
   sanitizeEnabledClassFeatureIds,
@@ -131,9 +132,12 @@ export function sanitizeInitiativeCard(value) {
   if (Object.hasOwn(source, TRANSFORMATION_FORMS_FIELD)) {
     normalized[TRANSFORMATION_FORMS_FIELD] = sanitizeTransformationForms(source[TRANSFORMATION_FORMS_FIELD]);
   }
+  // «Altri bonus» of the DC, the spell attack and the saves (characterDerivedStatsCore.js), only when given or present.
+  if (Object.hasOwn(source, OTHER_BONUSES_FIELD)) normalized[OTHER_BONUSES_FIELD] = sanitizeOtherBonuses(source[OTHER_BONUSES_FIELD]);
   const actorProfileId = actorProfileIdFromProfile(source);
   if (actorProfileId) normalized[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
-  return normalized;
+  // The DC, the spell attack and the saves the class tables give, never the typed ones (28/11).
+  return withDerivedCharacterStats(normalized);
 }
 
 const defaultsByName = new Map(
@@ -211,9 +215,13 @@ function mergeProfile(base, value) {
     merged[TRANSFORMATION_FORMS_FIELD] = value[TRANSFORMATION_FORMS_FIELD] !== undefined
       ? cleanValue[TRANSFORMATION_FORMS_FIELD] : cleanBase[TRANSFORMATION_FORMS_FIELD];
   }
+  if (Object.hasOwn(value, OTHER_BONUSES_FIELD) || Object.hasOwn(base || {}, OTHER_BONUSES_FIELD)) {
+    merged[OTHER_BONUSES_FIELD] = value[OTHER_BONUSES_FIELD] !== undefined ? cleanValue[OTHER_BONUSES_FIELD] : cleanBase[OTHER_BONUSES_FIELD];
+  }
   const actorProfileId = actorProfileIdFromProfile(value) || actorProfileIdFromProfile(base);
   if (actorProfileId) merged[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
-  return merged;
+  // The merged classes, modifiers and feats decide, as in sanitizeInitiativeCard.
+  return withDerivedCharacterStats(merged);
 }
 
 function profileWithDefaults(name, value) {
@@ -282,6 +290,7 @@ const INITIATIVE_CARD_KNOWN_FIELDS = new Set([
   MONSTER_PROFILE_FIELD,
   FEATS_FIELD,
   TRANSFORMATION_FORMS_FIELD,
+  OTHER_BONUSES_FIELD,
   "characterBuild",
   "enabledClassFeatureIds",
   "classFeaturesConfigured",
@@ -736,7 +745,11 @@ export async function loadInitiativeCard(item, { hydrate = false, registry, defe
     const tokenProfileComparable = sanitizeInitiativeCard(tokenRaw);
     if (actorProfileId) tokenProfileComparable[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
     tokenProfileComparable.quickActions = storedProfile.quickActions;
-    const needsTokenSync = !hasTokenProfile || tokenUpdatedAt !== updatedAt ||
+    // The DC, the spell attack and the saves the class tables give (characterDerivedStatsCore.js): a card saved with the
+    // typed ones is written once with the computed ones, which the readers of the token's metadata read.
+    const derivedStatsDrift = ["spellSaveDC", "spellAttackBonus"].some((key) => (tokenRaw?.[key] ?? null) !== storedProfile[key])
+      || SAVE_KEYS.some((key) => (tokenRaw?.savingThrows?.[key] ?? null) !== (storedProfile.savingThrows?.[key] ?? null));
+    const needsTokenSync = !hasTokenProfile || tokenUpdatedAt !== updatedAt || derivedStatsDrift ||
       JSON.stringify(tokenProfileComparable) !==
         JSON.stringify(storedProfileWithoutTimestamp);
     const desiredConditions = reconcileExhaustionCondition(

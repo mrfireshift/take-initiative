@@ -27,6 +27,7 @@ import {
   speciesDisplayName, speciesOptionMissing, supernaturalGiftDisplayName,
 } from "./speciesTraitCore.js";
 import { ABILITY_KEYS, ABILITY_MODIFIERS_FIELD, sanitizeAbilityModifiers, hasAbilityModifiers, weaponAttackBonusSuggestion } from "./abilityModifiersCore.js";
+import { OTHER_BONUSES_FIELD, derivedCharacterStats, sanitizeOtherBonuses } from "./characterDerivedStatsCore.js";
 import {
   MAX_QUICK_ACTIONS,
   MAX_QUICK_ACTION_ATTACKS,
@@ -5494,6 +5495,11 @@ function setEditing(active) {
   const abilityModifiers = sanitizeAbilityModifiers(profile?.[ABILITY_MODIFIERS_FIELD]);
   for (const key of ABILITY_KEYS) $(`ability-${key}`).value = abilityModifiers[key] ?? "";
   for (const key of SAVE_KEYS) $(`save-${key}`).value = profile.savingThrows[key] ?? "";
+  const otherBonuses = sanitizeOtherBonuses(profile?.[OTHER_BONUSES_FIELD]);
+  $("otherBonusDCInput").value = otherBonuses.spellSaveDC ?? "";
+  $("otherBonusAttackInput").value = otherBonuses.spellAttackBonus ?? "";
+  $("otherBonusSavesInput").value = otherBonuses.savingThrows ?? "";
+  syncDerivedStats();
   const defenses = sanitizeDamageDefenses(profile?.[DAMAGE_DEFENSES_FIELD]);
   for (const type of DAMAGE_TYPES) $(`defense-${type.id}`).value = damageDefenseFor(defenses, type.id) || "";
   $("status").textContent = "";
@@ -5531,6 +5537,62 @@ async function adjustExhaustion(delta) {
     exhaustionSaving = false;
     exhaustionPending = null;
     if (sceneLifecycle.isReady()) renderView();
+  }
+}
+
+// «Altri bonus» as the form has them now.
+function collectOtherBonuses() {
+  return sanitizeOtherBonuses({
+    spellSaveDC: $("otherBonusDCInput").value,
+    spellAttackBonus: $("otherBonusAttackInput").value,
+    savingThrows: $("otherBonusSavesInput").value,
+  });
+}
+
+// 28/11: the DC, the spell attack and the saves the class tables give (characterDerivedStatsCore.js), from the form as it
+// is now (classes, modifiers, feats, «Altri bonus» not saved yet count). A computed box is read only, with how it is
+// made in its tooltip; one the tables cannot give (no modifier, no spellcasting class, a monster's sheet) stays typed.
+function syncDerivedStats() {
+  const signed = (value) => `${value >= 0 ? "+" : ""}${value}`;
+  let derived = null;
+  try {
+    derived = draftMonsterProfile ? null : derivedCharacterStats({
+      characterBuild: collectCharacterBuildEditor(),
+      [ABILITY_MODIFIERS_FIELD]: sanitizeAbilityModifiers(Object.fromEntries(ABILITY_KEYS.map((key) => [key, $(`ability-${key}`)?.value ?? ""]))),
+      [FEATS_FIELD]: collectFeats(),
+      [OTHER_BONUSES_FIELD]: collectOtherBonuses(),
+    });
+  } catch {
+    derived = null;
+  }
+  const other = collectOtherBonuses();
+  const extra = (value) => (value ? `, altri ${signed(value)}` : "");
+  const caster = derived?.spellcasting;
+  const casterName = caster ? CLASS_FEATURE_CLASSES.find((entry) => entry.id === caster.classId)?.name || caster.classId : "";
+  const boxes = [
+    ["spellSaveDCInput", derived?.spellSaveDC ?? null,
+      caster ? `8 + competenza ${signed(derived.proficiency)} + ${labels[caster.ability]} ${signed(caster.modifier)}${extra(other.spellSaveDC)} (${casterName})` : ""],
+    ["spellAttackBonusInput", derived?.spellAttackBonus ?? null,
+      caster ? `Competenza ${signed(derived.proficiency)} + ${labels[caster.ability]} ${signed(caster.modifier)}${extra(other.spellAttackBonus)} (${casterName})` : ""],
+    ...SAVE_KEYS.map((key) => [`save-${key}`, derived?.savingThrows?.[key] ?? null,
+      derived ? `${labels[key]} ${signed(derived.savingThrows[key] - (derived.proficientSaves.includes(key) ? derived.proficiency : 0) - (other.savingThrows || 0))}`
+        + `${derived.proficientSaves.includes(key) ? ` + competenza ${signed(derived.proficiency)}` : ""}${extra(other.savingThrows)}` : ""]),
+  ];
+  for (const [id, value, how] of boxes) {
+    const input = $(id);
+    if (!input) continue;
+    const computed = value !== null;
+    if (computed) input.value = String(value);
+    input.readOnly = computed;
+    input.title = computed ? `Automatico: ${how}` : "";
+  }
+  const hint = $("derivedStatsHint");
+  if (!hint) return;
+  hint.hidden = !derived;
+  if (derived) {
+    hint.textContent = `CD, attacco degli incantesimi e tiri salvezza si calcolano da classi, livello e modificatori: competenza ${signed(derived.proficiency)}`
+      + `${derived.proficientSaves.length ? `, TS di competenza ${derived.proficientSaves.map((key) => labels[key]).join(", ")}` : ""}`
+      + `${caster ? `, incantatore ${casterName} (${labels[caster.ability]})` : ""}. Gli oggetti vanno in «Altri bonus».`;
   }
 }
 
@@ -5739,6 +5801,18 @@ $("classBuildAdd").addEventListener("click", () => {
   buildClassFeatureEditor();
   row.querySelector("[data-class-build-field='classId']")?.focus();
 });
+// Every change of the form may change what the tables give: classes, levels, modifiers, feats, «Altri bonus».
+for (const type of ["input", "change"]) {
+  $("form").addEventListener(type, (event) => {
+    if (!editing || event.target?.readOnly) return;
+    syncDerivedStats();
+  });
+}
+// A class or a feat added or removed, a stat block applied: after the click has changed the form.
+$("form").addEventListener("click", (event) => {
+  if (editing && event.target?.closest?.("button")) setTimeout(() => { if (editing) syncDerivedStats(); }, 0);
+});
+
 $("form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const operation = sceneLifecycle.capture({ operationId: `initiative-card-save:${Date.now().toString(36)}` });
@@ -5795,6 +5869,10 @@ $("form").addEventListener("submit", async (event) => {
     }
     // Come il libro: il profilo del mostro si scrive solo se importato o già presente.
     const monsterPatch = draftMonsterProfile !== undefined ? { [MONSTER_PROFILE_FIELD]: draftMonsterProfile } : {};
+    // Come i talenti: «Altri bonus» si scrive solo se usato o già presente.
+    const otherBonuses = collectOtherBonuses();
+    const otherBonusesPatch = Object.keys(otherBonuses).length || Object.hasOwn(profile || {}, OTHER_BONUSES_FIELD)
+      ? { [OTHER_BONUSES_FIELD]: otherBonuses } : {};
     await saveInitiativeCard(item.id, item.name, {
       armorClass: $("armorClassInput").value,
       passivePerception: $("passivePerceptionInput").value,
@@ -5816,6 +5894,7 @@ $("form").addEventListener("submit", async (event) => {
       ...featsPatch,
       ...spellbookPatch,
       ...monsterPatch,
+      ...otherBonusesPatch,
     }, {
       isCurrent: () => sceneLifecycle.isCurrent(operation),
       commandId: ownerSceneContext.commandId,
